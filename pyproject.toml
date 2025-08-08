@@ -82,7 +82,7 @@ Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
 eopf-geozarr = "eopf_geozarr.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["eopf_geozarr*"]
 
 [tool.setuptools.package-data]
