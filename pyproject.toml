@@ -29,9 +29,9 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic-zarr@git+https://github.com/zarr-developers/pydantic-zarr",
-    # "zarr>=3.0.10",
-    "zarr@git+https://github.com/zarr-developers/zarr-python",
+    "pydantic-zarr>=0.8.0",
+    "pydantic>=2.11",
+    "zarr>=3.1.0",
     "xarray>=2025.7.1",
     "dask[array,distributed]>=2025.5.1",
     "numpy>=2.3.1",
