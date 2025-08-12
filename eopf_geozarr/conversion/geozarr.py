@@ -43,6 +43,7 @@ def create_geozarr_dataset(
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
+    crs_groups: Optional[List[str]] = None,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -63,6 +64,8 @@ def create_geozarr_dataset(
         Tile width for TMS compatibility
     max_retries : int, default 3
         Maximum number of retries for network operations
+    crs_groups : list[str], optional
+        List of group names that need CRS information added on best-effort basis
 
     Returns
     -------
@@ -80,6 +83,7 @@ def create_geozarr_dataset(
     geozarr_groups = setup_datatree_metadata_geozarr_spec_compliant(dt, groups)
 
     # Create the GeoZarr compliant store through recursive processing
+    # CRS groups will be handled within recursive_copy before writing
     dt_geozarr = recursive_copy(
         dt,
         geozarr_groups,
@@ -90,9 +94,108 @@ def create_geozarr_dataset(
         min_dimension,
         tile_width,
         max_retries,
+        crs_groups,
     )
 
     return dt_geozarr
+
+
+def prepare_dataset_with_crs_info(
+    ds: xr.Dataset, reference_crs: Optional[str] = None
+) -> xr.Dataset:
+    """
+    Prepare a dataset with CRS information without writing it to disk.
+    
+    This function adds proper coordinate metadata and CRS information where possible.
+    
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to prepare with CRS information
+    reference_crs : str, optional
+        Reference CRS to use (e.g., "epsg:4326")
+    
+    Returns
+    -------
+    xr.Dataset
+        Dataset with CRS information added
+    """
+    ds = ds.copy()
+    
+    # Set up coordinate variables with proper attributes
+    for coord_name in ds.coords:
+        if coord_name == "x":
+            ds[coord_name].attrs.update({
+                "_ARRAY_DIMENSIONS": ["x"],
+                "standard_name": "projection_x_coordinate",
+                "units": "m",
+                "long_name": "x coordinate of projection"
+            })
+        elif coord_name == "y":
+            ds[coord_name].attrs.update({
+                "_ARRAY_DIMENSIONS": ["y"],
+                "standard_name": "projection_y_coordinate", 
+                "units": "m",
+                "long_name": "y coordinate of projection"
+            })
+        elif coord_name == "angle":
+            ds[coord_name].attrs.update({
+                "_ARRAY_DIMENSIONS": ["angle"],
+                "standard_name": "angle",
+                "long_name": "angle coordinate"
+            })
+        elif coord_name == "band":
+            ds[coord_name].attrs.update({
+                "_ARRAY_DIMENSIONS": ["band"],
+                "standard_name": "band",
+                "long_name": "spectral band identifier"
+            })
+        elif coord_name == "detector":
+            ds[coord_name].attrs.update({
+                "_ARRAY_DIMENSIONS": ["detector"],
+                "standard_name": "detector",
+                "long_name": "detector identifier"
+            })
+        else:
+            # Generic coordinate
+            if "_ARRAY_DIMENSIONS" not in ds[coord_name].attrs:
+                ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
+    
+    # Set up data variables with proper attributes
+    for var_name in ds.data_vars:
+        # Add _ARRAY_DIMENSIONS attribute if missing
+        if "_ARRAY_DIMENSIONS" not in ds[var_name].attrs and hasattr(ds[var_name], "dims"):
+            ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
+        
+        # Add grid_mapping reference if spatial coordinates are present and we have a reference CRS
+        if "x" in ds.coords and "y" in ds.coords and reference_crs:
+            ds[var_name].attrs["grid_mapping"] = "spatial_ref"
+    
+    # Add CRS information if we have spatial coordinates and a reference CRS
+    if "x" in ds.coords and "y" in ds.coords and reference_crs:
+        print(f"  Adding CRS information: {reference_crs}")
+        ds = ds.rio.write_crs(reference_crs)
+        
+        # Ensure spatial_ref variable has proper attributes
+        if "spatial_ref" in ds:
+            ds["spatial_ref"].attrs["_ARRAY_DIMENSIONS"] = []
+            
+            # Add GeoTransform if we can calculate it from coordinates
+            if len(ds.coords["x"]) > 1 and len(ds.coords["y"]) > 1:
+                x_coords = ds.coords["x"].values
+                y_coords = ds.coords["y"].values
+                
+                # Calculate pixel size
+                pixel_size_x = float(x_coords[1] - x_coords[0])
+                pixel_size_y = float(y_coords[0] - y_coords[1])  # Usually negative
+                
+                # Create GeoTransform (GDAL format)
+                transform_str = f"{x_coords[0]} {pixel_size_x} 0.0 {y_coords[0]} 0.0 {pixel_size_y}"
+                ds["spatial_ref"].attrs["GeoTransform"] = transform_str
+    
+    return ds
+
+
 
 
 def setup_datatree_metadata_geozarr_spec_compliant(
@@ -145,7 +248,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
                 print(f"    Setting CRS for {band} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
 
-        # Add _ARRAY_DIMENSIONS to coordinate variables
+        # Add _ARRAY_DIMENSIONS to coordinate variables and ensure proper attributes
         for coord_name, coord_var in ds.coords.items():
             ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
 
@@ -160,6 +263,15 @@ def setup_datatree_metadata_geozarr_spec_compliant(
                 ds[coord_name].attrs["long_name"] = "y coordinate of projection"
             elif coord_name == "time":
                 ds[coord_name].attrs["standard_name"] = "time"
+            elif coord_name == "angle":
+                ds[coord_name].attrs["standard_name"] = "angle"
+                ds[coord_name].attrs["long_name"] = "angle coordinate"
+            elif coord_name == "band":
+                ds[coord_name].attrs["standard_name"] = "band"
+                ds[coord_name].attrs["long_name"] = "spectral band identifier"
+            elif coord_name == "detector":
+                ds[coord_name].attrs["standard_name"] = "detector"
+                ds[coord_name].attrs["long_name"] = "detector identifier"
 
         # Set up spatial_ref variable with GeoZarr required attributes
         if ds.rio.crs and "spatial_ref" in ds:
@@ -192,7 +304,8 @@ def recursive_copy(
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
-) -> xr.Dataset:
+    crs_groups: Optional[List[str]] = None,
+) -> xr.DataTree:
     """
     Recursively copy groups from original DataTree to GeoZarr DataTree.
 
@@ -216,11 +329,13 @@ def recursive_copy(
         Tile width for TMS compatibility
     max_retries : int, default 3
         Maximum number of retries for network operations
+    crs_groups : list[str], optional
+        List of group names that need CRS information added on best-effort basis
 
     Returns
     -------
-    xarray.Dataset
-        Updated GeoZarr dataset with copied groups and variables
+    xarray.DataTree
+        Updated GeoZarr DataTree with copied groups and variables including multiscale children
     """
     no_children = True
 
@@ -255,6 +370,7 @@ def recursive_copy(
                 min_dimension,
                 tile_width,
                 max_retries,
+                crs_groups,
             )
             dt_node[group_name] = ds
             no_children = False
@@ -344,6 +460,10 @@ def recursive_copy(
         zarr_group = fs_utils.open_zarr_group(fs_utils.normalize_path(group_path), mode="r+")
         consolidate_metadata(zarr_group.store)
 
+    # Ensure we always return a DataTree
+    if isinstance(dt_node, xr.Dataset):
+        dt_node = xr.DataTree(dt_node)
+    
     return dt_node
 
 
@@ -434,7 +554,7 @@ def write_geozarr_group(
     max_retries: int = 3,
     min_dimension: int = 256,
     tile_width: int = 256,
-) -> xr.Dataset:
+) -> xr.DataTree:
     """
     Write a group to a GeoZarr dataset with multiscales support.
 
@@ -459,8 +579,8 @@ def write_geozarr_group(
 
     Returns
     -------
-    xarray.Dataset
-        The written GeoZarr dataset
+    xarray.DataTree
+        The written GeoZarr DataTree with multiscale groups as children
     """
     print(f"\n=== Processing {group_name} with GeoZarr-spec compliance ===")
 
@@ -564,18 +684,36 @@ def write_geozarr_group(
 
     print("  ✅ Metadata consolidated")
 
-    # Reopen to ensure we have the latest state
+    # Create a DataTree that includes all multiscale groups as children
+    # Reopen the main group as a DataTree to include all children
     storage_options = fs_utils.get_storage_options(group_path)
-    ds = xr.open_dataset(
-        group_path,
-        engine="zarr",
-        zarr_format=3,
-        decode_coords="all",
-        storage_options=storage_options,
-        chunks="auto",
-    ).compute()
-
-    return ds
+    
+    try:
+        # Open as DataTree to get all children groups (multiscale levels)
+        dt_result = xr.open_datatree(
+            group_path,
+            engine="zarr",
+            zarr_format=3,
+            storage_options=storage_options,
+            chunks="auto",
+        )
+        print(f"  ✅ Successfully opened DataTree with {len(dt_result.groups)} groups")
+        return dt_result
+    except Exception as e:
+        print(f"  ⚠️  Could not open as DataTree, falling back to Dataset: {e}")
+        # Fallback to Dataset if DataTree opening fails
+        ds = xr.open_dataset(
+            group_path,
+            engine="zarr",
+            zarr_format=3,
+            decode_coords="all",
+            storage_options=storage_options,
+            chunks="auto",
+        ).compute()
+        
+        # Convert Dataset to DataTree for consistency
+        dt_result = xr.DataTree(ds)
+        return dt_result
 
 
 def create_geozarr_compliant_multiscales(
@@ -1090,11 +1228,11 @@ def create_overview_dataset_all_vars(
             attrs=grid_mapping_attrs,
         )
 
-    # Set dataset-level grid_mapping attribute
-    overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
-
     # Set CRS using rioxarray to ensure proper CRS handling
     overview_ds = overview_ds.rio.write_crs(native_crs)
+    
+    # Set dataset-level grid_mapping attribute after rio.write_crs to ensure it's preserved
+    overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
 
     return overview_ds
 
