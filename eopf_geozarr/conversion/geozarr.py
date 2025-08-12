@@ -84,11 +84,10 @@ def create_geozarr_dataset(
 
     # Create the GeoZarr compliant store through recursive processing
     # CRS groups will be handled within recursive_copy before writing
-    dt_geozarr = recursive_copy(
+    dt_geozarr = iterative_copy(
         dt,
         geozarr_groups,
         output_path,
-        "",
         compressor,
         spatial_chunk,
         min_dimension,
@@ -304,11 +303,10 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     return geozarr_groups
 
 
-def recursive_copy(
-    dt_node: xr.DataTree,
+def iterative_copy(
+    dt_input: xr.DataTree,
     geozarr_groups: Dict[str, xr.Dataset],
     output_path: str,
-    group_prefix: str,
     compressor: Any,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
@@ -317,18 +315,19 @@ def recursive_copy(
     crs_groups: Optional[List[str]] = None,
 ) -> xr.DataTree:
     """
-    Recursively copy groups from original DataTree to GeoZarr DataTree.
+    Iteratively copy groups from original DataTree to GeoZarr DataTree.
+    
+    This function has been refactored from recursive to iterative approach using
+    subtree_with_keys to loop through all groups in the datatree.
 
     Parameters
     ----------
-    dt_node : xarray.DataTree
-        Current node of the DataTree to copy from
+    dt_input : xarray.DataTree
+        Input DataTree to copy from
     geozarr_groups : dict[str, xr.Dataset]
         Dictionary of GeoZarr groups to process
     output_path : str
         Output path for the Zarr store
-    group_prefix : str
-        Prefix for group names in the GeoZarr store
     compressor : Any
         Compressor to use for encoding
     spatial_chunk : int, default 4096
@@ -347,138 +346,157 @@ def recursive_copy(
     xarray.DataTree
         Updated GeoZarr DataTree with copied groups and variables including multiscale children
     """
-    no_children = True
+    # Create result DataTree to build the output structure
+    dt_result = xr.DataTree()
+    # Write data tree if not exists
+    storage_options = fs_utils.get_storage_options(output_path)
+    dt_result.to_zarr(
+        output_path,
+        mode="a",
+        consolidated=True,
+        compute=True,
+        storage_options=storage_options,
+    )
 
-    if not dt_node.is_leaf:
-        for group_name, group in dt_node.items():
-            # Create a new group in the GeoZarr DataTree
-            new_group_name = f"{group_prefix}/{group_name}"
-
-            if new_group_name in geozarr_groups:
-                dt_node = dt_node.drop_nodes(group_name)  # Remove existing group
-                dt_node[group_name] = write_geozarr_group(
-                    new_group_name,
-                    geozarr_groups[new_group_name],
-                    output_path,
-                    spatial_chunk=spatial_chunk,
-                    compressor=compressor,
-                    max_retries=max_retries,
-                    min_dimension=min_dimension,
-                    tile_width=tile_width,
-                )
-                no_children = False
-                continue
-
-            # First go recursively into children groups
-            ds = recursive_copy(
-                group,
-                geozarr_groups,
-                output_path,
-                new_group_name,
-                compressor,
-                spatial_chunk,
-                min_dimension,
-                tile_width,
-                max_retries,
-                crs_groups,
-            )
-            dt_node[group_name] = ds
-            no_children = False
-
-    print(f"Writing group '{group_prefix}' to GeoZarr DataTree")
-
-    encoding = {}
-    is_dataset = False
-    ds = dt_node.to_dataset().drop_encoding()
-
-    # Copy the current group to the GeoZarr DataTree
-    if dt_node.data_vars:
-        # Set up encoding for variables with proper chunk alignment
-        for var in ds.data_vars:
-            # Get the current chunks from the data array if it's dask-backed
-            if hasattr(ds[var].data, "chunks"):
-                # Use existing dask chunks to ensure alignment
-                current_chunks = ds[var].chunks
-                if len(current_chunks) >= 2:
-                    # For 2D+ data, use the existing chunk structure
-                    chunking = tuple(
-                        current_chunks[i][0] if len(current_chunks[i]) > 0 else ds[var].shape[i]
-                        for i in range(len(current_chunks))
-                    )
-                else:
-                    # For 1D data
-                    chunking = (
-                        current_chunks[0][0] if len(current_chunks[0]) > 0 else ds[var].shape[0],
-                    )
-            else:
-                # Fallback for non-dask arrays - use reasonable chunk sizes
-                data_shape = ds[var].shape
-                if len(data_shape) >= 2:
-                    # Use spatial_chunk size but ensure it doesn't exceed data dimensions
-                    chunk_y = min(spatial_chunk, data_shape[-2])
-                    chunk_x = min(spatial_chunk, data_shape[-1])
-                    if len(data_shape) == 3:
-                        chunking = (1, chunk_y, chunk_x)
-                    else:
-                        chunking = (chunk_y, chunk_x)
-                else:
-                    chunking = (min(spatial_chunk, data_shape[-1]),)
-
-            encoding[var] = {"compressors": [compressor], "chunks": chunking}
-        for coord in ds.coords:
-            encoding[coord] = {
-                "compressors": None,  # No compression for coordinates
-            }
-        dt_node = ds
-        is_dataset = True
-
-        # Fix double slash issue by normalizing the path
-        if group_prefix.startswith("/"):
-            group_path = f"{output_path}{group_prefix}"
-        else:
-            group_path = f"{output_path}/{group_prefix}"
-
-        # Normalize path and get storage options
-        group_path = fs_utils.normalize_path(group_path)
-        storage_options = fs_utils.get_storage_options(group_path)
-
-        # Use root zarr path with group parameter for consolidated metadata consistency
-        group_param = group_prefix.lstrip("/") if group_prefix else None
-        ds.to_zarr(
-            output_path,
-            group=group_param,
-            mode="w" if no_children else "a",  # Write if no children, append otherwise
-            consolidated=False,  # Don't consolidate individual groups - will consolidate at root level
-            zarr_format=3,
-            encoding=encoding,
-            storage_options=storage_options,
-        )
-    else:
-        # Write manually the group in zarr.json
-        print(f"Writing group metadata for '{group_prefix}'")
-        group_path = f"{output_path}/{group_prefix}"
-
-        zarr_json_content = {
-            "attributes": {},
-            "zarr_format": 3,
-            "consolidated_metadata": None,
-            "node_type": "group",
-        }
-
-        # Write JSON metadata using unified function
-        zarr_json_path = fs_utils.normalize_path(f"{group_path}/zarr.json")
-        fs_utils.write_json_metadata(zarr_json_path, zarr_json_content)
-
-        # Consolidate metadata without removing existing metadata from children
-        zarr_group = fs_utils.open_zarr_group(fs_utils.normalize_path(group_path), mode="r+")
-        consolidate_metadata(zarr_group.store)
-
-    # Ensure we always return a DataTree
-    if isinstance(dt_node, xr.Dataset):
-        dt_node = xr.DataTree(dt_node)
+    # Track which groups have been written to determine write mode
+    written_groups = set()
+    reference_crs = None
     
-    return dt_node
+    # Process all groups in the tree using iterative approach
+    for relative_path, node in dt_input.subtree_with_keys:
+        # Skip root node
+        if relative_path == ".":
+            continue
+            
+        current_group_path = "/" + relative_path
+        
+        print(f"Processing group '{current_group_path}' in iterative copy")
+        
+        # Check if this is a GeoZarr group that needs special processing
+        if current_group_path in geozarr_groups:
+            print(f"Processing '{current_group_path}' as GeoZarr group")
+            
+            # Process as GeoZarr group with multiscales
+            processed_node = write_geozarr_group(
+                dt_result,
+                current_group_path,
+                geozarr_groups[current_group_path],
+                output_path,
+                spatial_chunk=spatial_chunk,
+                compressor=compressor,
+                max_retries=max_retries,
+                min_dimension=min_dimension,
+                tile_width=tile_width,
+            )
+                
+            written_groups.add(current_group_path)
+            continue
+        
+        # Get dataset from the node
+        ds = node.to_dataset().drop_encoding()
+        
+        # prepare crs groups
+        if crs_groups and current_group_path in crs_groups:
+            print(f"Adding CRS information for group '{current_group_path}'")
+            if reference_crs is None:
+                print("Finding reference CRS in measurements")
+                reference_crs = find_reference_crs(dt_input, geozarr_groups)
+            ds = prepare_dataset_with_crs_info(ds, reference_crs=reference_crs)
 
+        # Process groups with data variables
+        if node.data_vars:
+            
+            print(f"Writing group '{current_group_path}' with data variables to GeoZarr DataTree")
+            
+            # Set up encoding for variables with proper chunk alignment
+            encoding = {}
+            for var in ds.data_vars:
+                # Get the current chunks from the data array if it's dask-backed
+                if hasattr(ds[var].data, "chunks"):
+                    # Use existing dask chunks to ensure alignment
+                    current_chunks = ds[var].chunks
+                    if len(current_chunks) >= 2:
+                        # For 2D+ data, use the existing chunk structure
+                        chunking = tuple(
+                            current_chunks[i][0] if len(current_chunks[i]) > 0 else ds[var].shape[i]
+                            for i in range(len(current_chunks))
+                        )
+                    else:
+                        # For 1D data
+                        chunking = (
+                            current_chunks[0][0] if len(current_chunks[0]) > 0 else ds[var].shape[0],
+                        )
+                else:
+                    # Fallback for non-dask arrays - use reasonable chunk sizes
+                    data_shape = ds[var].shape
+                    if len(data_shape) >= 2:
+                        # Use spatial_chunk size but ensure it doesn't exceed data dimensions
+                        chunk_y = min(spatial_chunk, data_shape[-2])
+                        chunk_x = min(spatial_chunk, data_shape[-1])
+                        if len(data_shape) == 3:
+                            chunking = (1, chunk_y, chunk_x)
+                        else:
+                            chunking = (chunk_y, chunk_x)
+                    else:
+                        chunking = (min(spatial_chunk, data_shape[-1]),)
+
+                encoding[var] = {"compressors": [compressor], "chunks": chunking}
+                
+            # Add coordinate encoding
+            for coord in ds.coords:
+                encoding[coord] = {
+                    "compressors": None,  # No compression for coordinates
+                }
+            
+            # Use root zarr path with group parameter for consolidated metadata consistency
+            group_param = current_group_path.lstrip("/") if current_group_path else None
+            
+            # Get storage options
+            storage_options = fs_utils.get_storage_options(output_path)
+            
+            # Write the dataset
+            ds.to_zarr(
+                output_path,
+                group=group_param,
+                mode="w",
+                consolidated=False,  # Don't consolidate individual groups - will consolidate at root level
+                zarr_format=3,
+                encoding=encoding,
+                storage_options=storage_options,
+            )
+            
+            dt_result[relative_path] = xr.DataTree(ds)
+        
+        written_groups.add(current_group_path)
+    
+    # Ensure we always return a DataTree
+    if not isinstance(dt_result, xr.DataTree):
+        dt_result = xr.DataTree(dt_result)
+    
+    return dt_result
+
+def find_reference_crs(dt_input: xr.DataTree, geozarr_groups: list) -> Optional[str]:
+    """
+    Find the reference CRS in the input DataTree.
+
+    Parameters
+    ----------
+    dt_input : xr.DataTree
+        The input DataTree
+    geozarr_groups : list
+        List of GeoZarr groups
+
+    Returns
+    -------
+    Optional[str]
+        The reference CRS if found, otherwise None
+    """
+    for key, group in geozarr_groups.items():
+        if group.rio.crs:
+            return group.rio.crs.to_string()
+    raise ValueError(
+        "No reference CRS found in input DataTree"
+    )
 
 def consolidate_metadata(
     store: StoreLike,
@@ -559,6 +577,7 @@ async def async_consolidate_metadata(
 
 
 def write_geozarr_group(
+    dt_result: xr.DataTree,
     group_name: str,
     ds: xr.Dataset,
     output_path: str,
@@ -600,21 +619,21 @@ def write_geozarr_group(
     # Create a new container for the group as we will need
     # to create siblings for the multiscales
     dt = xr.DataTree()
-    group_path = fs_utils.normalize_path(f"{output_path}/{group_name}")
+    dt_result[group_name.lstrip("/")] = dt
 
     # Copy the attributes from the original dataset to the DataTree
     dt.attrs = ds.attrs.copy()
 
     # Get storage options and write DataTree using root path with group parameter
-    storage_options = fs_utils.get_storage_options(output_path)
-    dt.to_zarr(
-        output_path,
-        group=group_name,
-        mode="a",  # Append mode to add to the group
-        consolidated=False,  # No consolidate metadata
-        zarr_format=3,  # Use Zarr format 3
-        storage_options=storage_options,
-    )
+    # storage_options = fs_utils.get_storage_options(output_path)
+    # dt.to_zarr(
+    #     output_path,
+    #     group=group_name,  # Remove leading slash for group name
+    #     mode="a",  # Append mode to add to the group
+    #     consolidated=False,  # No consolidate metadata
+    #     zarr_format=3,  # Use Zarr format 3
+    #     storage_options=storage_options,
+    # )
 
     # Create encoding for all variables in this group
     encoding = {}
@@ -645,29 +664,31 @@ def write_geozarr_group(
         encoding[coord] = {"compressors": None}
 
     # Write native data in the group 0 (overview level 0)
-    native_dataset_path = f"{group_path}/0"
+    native_dataset_group_name = f"{group_name}/0"
+    native_dataset_path = f"{output_path}/{native_dataset_group_name.lstrip('/')}"
 
     # Try to open the existing group path
     existing_native_dataset = None
     try:
         if fs_utils.path_exists(native_dataset_path):
             storage_options = fs_utils.get_storage_options(native_dataset_path)
-            existing_native_dataset = xr.open_zarr(
-                native_dataset_path, zarr_format=3, storage_options=storage_options, chunks="auto"
+            existing_native_dataset = xr.open_dataset(
+                native_dataset_path, zarr_format=3, storage_options=storage_options, engine="zarr", chunks="auto", decode_coords="all"
             )
             print(f"Found existing native dataset at {native_dataset_path}")
     except Exception as e:
         print(f"Warning: Could not open existing native dataset at {native_dataset_path}: {e}")
         existing_native_dataset = None
+        
 
     # Write native data band by band to avoid losing all work if one band fails
     success, ds = write_dataset_band_by_band_with_validation(
         ds,
         existing_native_dataset,
-        native_dataset_path,
+        output_path,
         encoding,
         max_retries,
-        group_name,
+        native_dataset_group_name,
         False,
     )
     if not success:
@@ -690,44 +711,47 @@ def write_geozarr_group(
 
     print(f"  Consolidating metadata for group {group_name}...")
 
-    ds.close()  # Close the original dataset to release resources
+    # ds.close()  # Close the original dataset to release resources
 
     # Open the zarr group and consolidate
+    group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
     zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
 
     print("  ✅ Metadata consolidated")
-
-    # Create a DataTree that includes all multiscale groups as children
-    # Reopen the main group as a DataTree to include all children
-    storage_options = fs_utils.get_storage_options(group_path)
     
-    try:
-        # Open as DataTree to get all children groups (multiscale levels)
-        dt_result = xr.open_datatree(
-            group_path,
-            engine="zarr",
-            zarr_format=3,
-            storage_options=storage_options,
-            chunks="auto",
-        )
-        print(f"  ✅ Successfully opened DataTree with {len(dt_result.groups)} groups")
-        return dt_result
-    except Exception as e:
-        print(f"  ⚠️  Could not open as DataTree, falling back to Dataset: {e}")
-        # Fallback to Dataset if DataTree opening fails
-        ds = xr.open_dataset(
-            group_path,
-            engine="zarr",
-            zarr_format=3,
-            decode_coords="all",
-            storage_options=storage_options,
-            chunks="auto",
-        ).compute()
+    return dt
+
+    # # Create a DataTree that includes all multiscale groups as children
+    # # Reopen the main group as a DataTree to include all children
+    # storage_options = fs_utils.get_storage_options(group_path)
+    
+    # try:
+    #     # Open as DataTree to get all children groups (multiscale levels)
+    #     dt_result = xr.open_datatree(
+    #         group_path,
+    #         engine="zarr",
+    #         zarr_format=3,
+    #         storage_options=storage_options,
+    #         chunks="auto",
+    #     )
+    #     print(f"  ✅ Successfully opened DataTree with {len(dt_result.groups)} groups")
+    #     return dt_result
+    # except Exception as e:
+    #     print(f"  ⚠️  Could not open as DataTree, falling back to Dataset: {e}")
+    #     # Fallback to Dataset if DataTree opening fails
+    #     ds = xr.open_dataset(
+    #         group_path,
+    #         engine="zarr",
+    #         zarr_format=3,
+    #         decode_coords="all",
+    #         storage_options=storage_options,
+    #         chunks="auto",
+    #     ).compute()
         
-        # Convert Dataset to DataTree for consistency
-        dt_result = xr.DataTree(ds)
-        return dt_result
+    #     # Convert Dataset to DataTree for consistency
+    #     dt_result = xr.DataTree(ds)
+    #     return dt_result
 
 
 def create_geozarr_compliant_multiscales(
@@ -908,8 +932,8 @@ def create_geozarr_compliant_multiscales(
         overview_ds.to_zarr(
             output_path,
             group=overview_group,
-            mode="a",  # Always append since root store already exists
-            consolidated=False,  # Don't consolidate individual levels - will consolidate at root
+            mode="w",  # Always append since root store already exists
+            consolidated=True,
             zarr_format=3,
             encoding=encoding,
             align_chunks=True,
@@ -931,6 +955,13 @@ def create_geozarr_compliant_multiscales(
         )
 
         print(f"Level {level}: Successfully created in {proc_time:.2f}s")
+        
+        # Consolidate metadata without removing existing metadata from children
+        group_path = fs_utils.normalize_path(f"{output_path}/{overview_group.lstrip('/')}")
+        zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
+        consolidate_metadata(zarr_group.store)
+
+        print(f"  ✅ Metadata consolidated for overview level {level}")
 
         # Update previous_level_ds for the next iteration (pyramid approach)
         previous_level_ds = overview_ds
@@ -1256,7 +1287,7 @@ def create_overview_dataset_all_vars(
 
 def write_dataset_band_by_band_with_validation(
     ds: xr.Dataset,
-    existing_group: Optional[xr.Dataset],
+    existing_dataset: Optional[xr.Dataset],
     output_path: str,
     encoding: Dict[str, Any],
     max_retries: int,
@@ -1303,19 +1334,21 @@ def write_dataset_band_by_band_with_validation(
     skipped_vars = []
 
     # Check if zarr store exists
-    store_exists = existing_group is not None and len(existing_group.data_vars) > 0
+    store_exists = existing_dataset is not None and len(existing_dataset.data_vars) > 0
 
     # Write data variables one by one with validation
     for i, var in enumerate(data_vars):
         # Check if this band already exists and is valid
         if not force_overwrite and store_exists:
-            if utils.validate_existing_band_data(existing_group, var, ds):
+            if utils.validate_existing_band_data(existing_dataset, var, ds):
                 ds.drop_vars(var)
-                ds[var] = existing_group[var]
+                ds[var] = existing_dataset[var]
                 print(f"  ✅ Band {var} already exists and is valid, skipping")
                 skipped_vars.append(var)
                 successful_vars.append(var)
                 continue
+            if os.path.exists(os.path.join(output_path, group_name, var)):
+                shutil.rmtree(os.path.join(output_path, group_name, var))
 
         print(f"  Writing data variable {var}...")
 
@@ -1327,26 +1360,15 @@ def write_dataset_band_by_band_with_validation(
         if var in encoding:
             var_encoding[var] = encoding[var]
 
-        # Add coordinate encoding (coordinates will be written automatically)
+        # Add coordinate encoding if not already present
         for coord in single_var_ds.coords:
-            if coord in encoding:
+            if coord in encoding and (existing_dataset is None or coord not in existing_dataset.coords):
                 var_encoding[coord] = encoding[coord]
 
         # Try to write this variable with retries
         success = False
         for attempt in range(max_retries):
             try:
-                # Determine write mode
-                if len(successful_vars) == 0 and len(skipped_vars) == 0:
-                    # First variable - create new store
-                    mode = "w"
-                else:
-                    # Subsequent variables - append to existing store
-                    mode = "a"
-                    # remove coordinates from encoding to avoid duplication
-                    var_encoding = {
-                        k: v for k, v in var_encoding.items() if k not in single_var_ds.coords
-                    }
 
                 # Ensure the dataset is properly chunked to align with encoding
                 if var in var_encoding and "chunks" in var_encoding[var]:
@@ -1366,7 +1388,8 @@ def write_dataset_band_by_band_with_validation(
                 storage_options = fs_utils.get_storage_options(output_path)
                 single_var_ds.to_zarr(
                     output_path,
-                    mode=mode,
+                    group=group_name,  # Use group name to write to the correct group
+                    mode="a",
                     consolidated=False,
                     zarr_format=3,
                     encoding=var_encoding,
@@ -1376,15 +1399,24 @@ def write_dataset_band_by_band_with_validation(
                 print(f"    ✅ Successfully wrote {var}")
                 successful_vars.append(var)
                 success = True
+                if existing_dataset is None:
+                    group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
+                    existing_dataset = xr.open_dataset(
+                        group_path,
+                        mode="r",
+                        engine="zarr",
+                        decode_coords="all",
+                        chunks="auto"
+                    )
                 break
 
             except Exception as e:
                 # delete the started data array to avoid conflict on next attempt
-                if os.path.exists(os.path.join(output_path, var)):
-                    shutil.rmtree(os.path.join(output_path, var))
+                if os.path.exists(os.path.join(output_path, group_name, var)):
+                    shutil.rmtree(os.path.join(output_path, group_name, var))
                 if attempt < max_retries - 1:
                     print(
-                        f"    ⚠️  Attempt {attempt + 1} failed for {var}, retrying in 2 seconds..."
+                        f"    ⚠️  Attempt {attempt + 1} failed for {var}: {e}, retrying in 2 seconds..."
                     )
                     time.sleep(2)
                 else:
@@ -1395,71 +1427,26 @@ def write_dataset_band_by_band_with_validation(
         if not success:
             print(f"  Failed to write data variable {var}")
 
-    # Write grid_mapping variables separately if any
-    for var in grid_mapping_vars:
-        print(f"  Writing grid_mapping variable {var}...")
-
-        # Create a single-variable dataset
-        single_var_ds = ds[[var]]
-
-        # Create encoding for this variable only
-        var_encoding = {}
-        if var in encoding:
-            var_encoding[var] = encoding[var]
-
-        # Try to write this variable with retries
-        success = False
-        for attempt in range(max_retries):
-            try:
-                # Get storage options and write grid_mapping variable
-                storage_options = fs_utils.get_storage_options(output_path)
-                single_var_ds.to_zarr(
-                    output_path,
-                    mode="a",  # Always append for grid_mapping variables
-                    consolidated=False,
-                    zarr_format=3,
-                    encoding=var_encoding,
-                    storage_options=storage_options,
-                )
-
-                print(f"    ✅ Successfully wrote {var}")
-                successful_vars.append(var)
-                success = True
-                break
-
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(
-                        f"    ⚠️  Attempt {attempt + 1} failed for {var}, retrying in 2 seconds..."
-                    )
-                    time.sleep(2)
-                else:
-                    print(f"    ❌ Failed to write {var} after {max_retries} attempts: {e}")
-                    failed_vars.append(var)
-                    break
-
-        if not success:
-            print(f"  Failed to write grid_mapping variable {var}")
-
     # Consolidate metadata without removing existing metadata from children
-    zarr_group = fs_utils.open_zarr_group(output_path, mode="r+")
+    group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
+    zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
 
     print(f"  ✅ Metadata consolidated for {len(successful_vars)} variables")
 
-    # Close the dataset to release resources
-    ds.close()
+    # # Close the dataset to release resources
+    # ds.close()
 
-    # Reopen the dataset
-    storage_options = fs_utils.get_storage_options(output_path)
-    ds = xr.open_dataset(
-        output_path,
-        engine="zarr",
-        zarr_format=3,
-        decode_coords="all",
-        storage_options=storage_options,
-        chunks="auto",
-    ).compute()
+    # # Reopen the dataset
+    # storage_options = fs_utils.get_storage_options(output_path)
+    # ds = xr.open_dataset(
+    #     output_path,
+    #     engine="zarr",
+    #     zarr_format=3,
+    #     decode_coords="all",
+    #     storage_options=storage_options,
+    #     chunks="auto",
+    # ).compute()
 
     # Report results
     if failed_vars:

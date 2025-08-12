@@ -136,10 +136,14 @@ def validate_existing_band_data(
         if var_name in reference_ds.data_vars and not is_grid_mapping_variable(
             reference_ds, var_name
         ):
-            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name", "grid_mapping"]
+            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name"]
             for attr in required_attrs:
                 if attr not in existing_group[var_name].attrs:
                     return False
+                
+        # Check rio CRS
+        if existing_group.rio.crs != reference_ds.rio.crs:
+            return False
 
         # Basic data integrity check for data variables
         if var_name in existing_group.data_vars and not is_grid_mapping_variable(
