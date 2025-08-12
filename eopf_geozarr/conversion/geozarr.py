@@ -97,6 +97,16 @@ def create_geozarr_dataset(
         crs_groups,
     )
 
+    # CRITICAL: Consolidate metadata at the root level AFTER all groups are written
+    # This ensures consolidated metadata consistency across the entire hierarchy
+    print("Consolidating metadata at root level for consistent zarr access...")
+    try:
+        zarr_group = fs_utils.open_zarr_group(output_path, mode="r+")
+        consolidate_metadata(zarr_group.store)
+        print("✅ Root level metadata consolidation completed")
+    except Exception as e:
+        print(f"⚠️ Warning: Root level consolidation failed: {e}")
+
     return dt_geozarr
 
 
@@ -432,10 +442,13 @@ def recursive_copy(
         group_path = fs_utils.normalize_path(group_path)
         storage_options = fs_utils.get_storage_options(group_path)
 
+        # Use root zarr path with group parameter for consolidated metadata consistency
+        group_param = group_prefix.lstrip("/") if group_prefix else None
         ds.to_zarr(
-            group_path,
+            output_path,
+            group=group_param,
             mode="w" if no_children else "a",  # Write if no children, append otherwise
-            consolidated=is_dataset,  # Consolidate metadata if it's a dataset
+            consolidated=False,  # Don't consolidate individual groups - will consolidate at root level
             zarr_format=3,
             encoding=encoding,
             storage_options=storage_options,
@@ -592,10 +605,11 @@ def write_geozarr_group(
     # Copy the attributes from the original dataset to the DataTree
     dt.attrs = ds.attrs.copy()
 
-    # Get storage options and write DataTree
-    storage_options = fs_utils.get_storage_options(group_path)
+    # Get storage options and write DataTree using root path with group parameter
+    storage_options = fs_utils.get_storage_options(output_path)
     dt.to_zarr(
-        group_path,
+        output_path,
+        group=group_name,
         mode="a",  # Append mode to add to the group
         consolidated=False,  # No consolidate metadata
         zarr_format=3,  # Use Zarr format 3
@@ -888,11 +902,14 @@ def create_geozarr_compliant_multiscales(
         if not fs_utils.is_s3_path(overview_path):
             os.makedirs(os.path.dirname(overview_path), exist_ok=True)
 
-        # Write the overview dataset to Zarr
+        # Write the overview dataset to Zarr using root path with group parameter
+        # This ensures consolidated metadata consistency
+        overview_group = f"{group_name}/{level}"
         overview_ds.to_zarr(
-            overview_path,
-            mode="w",
-            consolidated=True,
+            output_path,
+            group=overview_group,
+            mode="a",  # Always append since root store already exists
+            consolidated=False,  # Don't consolidate individual levels - will consolidate at root
             zarr_format=3,
             encoding=encoding,
             align_chunks=True,
