@@ -33,8 +33,12 @@ def downsample_2d_array(
 
     if block_size_y > 1 and block_size_x > 1:
         # Block averaging
-        reshaped = source_data[: target_height * block_size_y, : target_width * block_size_x]
-        reshaped = reshaped.reshape(target_height, block_size_y, target_width, block_size_x)
+        reshaped = source_data[
+            : target_height * block_size_y, : target_width * block_size_x
+        ]
+        reshaped = reshaped.reshape(
+            target_height, block_size_y, target_width, block_size_x
+        )
         downsampled = reshaped.mean(axis=(1, 3))
     else:
         # Simple subsampling
@@ -121,7 +125,10 @@ def validate_existing_band_data(
     """
     try:
         # Check if the variable exists
-        if var_name not in existing_group.data_vars and var_name not in existing_group.coords:
+        if (
+            var_name not in existing_group.data_vars
+            and var_name not in existing_group.coords
+        ):
             return False
 
         # Check shape matches
@@ -136,10 +143,14 @@ def validate_existing_band_data(
         if var_name in reference_ds.data_vars and not is_grid_mapping_variable(
             reference_ds, var_name
         ):
-            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name", "grid_mapping"]
+            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name"]
             for attr in required_attrs:
                 if attr not in existing_group[var_name].attrs:
                     return False
+
+        # Check rio CRS
+        if existing_group.rio.crs != reference_ds.rio.crs:
+            return False
 
         # Basic data integrity check for data variables
         if var_name in existing_group.data_vars and not is_grid_mapping_variable(
@@ -151,7 +162,9 @@ def validate_existing_band_data(
                 if array_info.size == 0:
                     return False
                 # read a piece of data to ensure it's valid
-                test = array_info.isel({dim: 0 for dim in array_info.dims}).values.mean()
+                test = array_info.isel(
+                    {dim: 0 for dim in array_info.dims}
+                ).values.mean()
                 if np.isnan(test):
                     return False
             except Exception as e:

@@ -15,7 +15,7 @@ from .geozarr import (
     calculate_overview_levels,
     consolidate_metadata,
     create_geozarr_dataset,
-    recursive_copy,
+    iterative_copy,
     setup_datatree_metadata_geozarr_spec_compliant,
 )
 from .utils import (
@@ -28,7 +28,7 @@ from .utils import (
 __all__ = [
     "create_geozarr_dataset",
     "setup_datatree_metadata_geozarr_spec_compliant",
-    "recursive_copy",
+    "iterative_copy",
     "consolidate_metadata",
     "async_consolidate_metadata",
     "calculate_overview_levels",

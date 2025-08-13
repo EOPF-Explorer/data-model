@@ -13,9 +13,9 @@ from eopf_geozarr.conversion.fs_utils import (
     normalize_path,
     parse_s3_path,
     path_exists,
+    read_json_metadata,
     validate_s3_access,
     write_json_metadata,
-    read_json_metadata,
 )
 
 
@@ -102,7 +102,10 @@ def test_get_s3_storage_options():
     """Test that get_s3_storage_options returns correct configuration."""
     with patch.dict(
         "os.environ",
-        {"AWS_DEFAULT_REGION": "us-west-2", "AWS_S3_ENDPOINT": "https://s3.example.com"},
+        {
+            "AWS_DEFAULT_REGION": "us-west-2",
+            "AWS_ENDPOINT_URL": "https://s3.example.com",
+        },
     ):
         options = get_s3_storage_options("s3://test-bucket/path")
 
@@ -167,8 +170,8 @@ def test_path_exists(mock_get_filesystem):
 @patch("eopf_geozarr.conversion.fs_utils.get_filesystem")
 def test_write_json_metadata(mock_get_filesystem):
     """Test unified JSON metadata writing."""
-    from unittest.mock import mock_open, MagicMock
-    
+    from unittest.mock import MagicMock, mock_open
+
     mock_fs = Mock()
     # Create a proper context manager mock
     mock_file = mock_open()
@@ -190,8 +193,8 @@ def test_write_json_metadata(mock_get_filesystem):
 @patch("eopf_geozarr.conversion.fs_utils.get_filesystem")
 def test_read_json_metadata(mock_get_filesystem):
     """Test unified JSON metadata reading."""
-    from unittest.mock import mock_open, MagicMock
-    
+    from unittest.mock import MagicMock, mock_open
+
     mock_fs = Mock()
     # Create a proper context manager mock
     mock_file = mock_open(read_data='{"key": "value", "number": 42}')

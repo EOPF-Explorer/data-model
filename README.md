@@ -94,7 +94,7 @@ export AWS_DEFAULT_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=your_ovh_access_key
 export AWS_SECRET_ACCESS_KEY=your_ovh_secret_key
 export AWS_DEFAULT_REGION=gra  # or other OVH region
-export AWS_S3_ENDPOINT=https://s3.gra.cloud.ovh.net  # OVH endpoint
+export AWS_ENDPOINT_URL=https://s3.gra.cloud.ovh.net  # OVH endpoint
 ```
 
 **For other S3-compatible providers:**
@@ -102,13 +102,13 @@ export AWS_S3_ENDPOINT=https://s3.gra.cloud.ovh.net  # OVH endpoint
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_DEFAULT_REGION=your_region
-export AWS_S3_ENDPOINT=https://your-s3-endpoint.com
+export AWS_ENDPOINT_URL=https://your-s3-endpoint.com
 ```
 
 **Alternative: AWS CLI Configuration**
 ```bash
 aws configure
-# Note: For custom endpoints, you'll still need to set AWS_S3_ENDPOINT
+# Note: For custom endpoints, you'll still need to set AWS_ENDPOINT_URL
 ```
 
 #### S3 Features
@@ -166,7 +166,7 @@ from eopf_geozarr import create_geozarr_dataset
 os.environ['AWS_ACCESS_KEY_ID'] = 'your_ovh_access_key'
 os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_ovh_secret_key'
 os.environ['AWS_DEFAULT_REGION'] = 'gra'
-os.environ['AWS_S3_ENDPOINT'] = 'https://s3.gra.cloud.ovh.net'
+os.environ['AWS_ENDPOINT_URL'] = 'https://s3.gra.cloud.ovh.net'
 
 # Load your EOPF DataTree
 dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")

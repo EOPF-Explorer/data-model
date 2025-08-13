@@ -210,3 +210,4 @@ tests-output/
 
 # uv
 uv.lock
+.vscode/settings.json
