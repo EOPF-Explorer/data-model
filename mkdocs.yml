@@ -6,7 +6,7 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
-  logo: assets/logo-constellr-dark-icon.svg
+  logo: assets/logo-eopf-sentinel-explorer-dark-icon.svg
   features:
     #- navigation.tabs
     #- navigation.tabs.sticky
