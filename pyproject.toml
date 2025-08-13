@@ -7,12 +7,10 @@ name = "eopf-geozarr"
 version = "0.1.0"
 description = "GeoZarr compliant data model for EOPF datasets"
 readme = "README.md"
-license = {text = "Apache-2.0"}
-authors = [
-    {name = "Development Seed", email = "info@developmentseed.org"}
-]
+license = { text = "Apache-2.0" }
+authors = [{ name = "Development Seed", email = "info@developmentseed.org" }]
 maintainers = [
-    {name = "Development Seed", email = "info@developmentseed.org"}
+    { name = "Development Seed", email = "info@developmentseed.org" },
 ]
 keywords = ["zarr", "eopf", "sentinel", "geospatial", "geozarr"]
 classifiers = [
@@ -29,9 +27,10 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic-zarr@git+https://github.com/zarr-developers/pydantic-zarr",
-    # "zarr>=3.0.10",
-    "zarr@git+https://github.com/zarr-developers/zarr-python",
+    "pydantic-zarr",
+    # "pydantic-zarr@git+https://github.com/zarr-developers/pydantic-zarr",
+    "zarr>=3.1.1",
+    # "zarr@git+https://github.com/zarr-developers/zarr-python",
     "xarray>=2025.7.1",
     "dask[array,distributed]>=2025.5.1",
     "numpy>=2.3.1",
@@ -68,9 +67,7 @@ docs = [
     "myst-parser>=1.0.0",
     "sphinx-autodoc-typehints>=1.20.0",
 ]
-all = [
-    "eopf-geozarr[dev,docs]"
-]
+all = ["eopf-geozarr[dev,docs]"]
 
 [project.urls]
 Homepage = "https://github.com/developmentseed/eopf-geozarr"
@@ -131,21 +128,13 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = [
-    "zarr.*",
-    "xarray.*",
-    "rioxarray.*",
-    "cf_xarray.*",
-    "dask.*",
-]
+module = ["zarr.*", "xarray.*", "rioxarray.*", "cf_xarray.*", "dask.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -154,11 +143,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["."]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "setup.py",
-]
+omit = ["*/tests/*", "*/test_*", "setup.py"]
 
 [tool.coverage.report]
 exclude_lines = [
