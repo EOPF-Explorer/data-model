@@ -16,8 +16,8 @@ from eopf_geozarr.conversion import (
     validate_existing_band_data,
 )
 from eopf_geozarr.conversion.geozarr import (
-    add_crs_to_groups,
     create_overview_dataset_all_vars,
+    prepare_dataset_with_crs_info,
 )
 
 
@@ -236,7 +236,7 @@ class TestIntegration:
 class TestIssue12Fix:
     """Test fixes for GitHub Issue #12: Missing Coordinates arrays or CRS for groups."""
 
-    def test_add_crs_to_groups_with_spatial_coordinates(self) -> None:
+    def test_prepare_dataset_with_crs_info_with_spatial_coordinates(self) -> None:
         """Test adding CRS information to groups with spatial coordinates."""
         # Create a DataTree with measurement and geometry groups
         # Measurement group with CRS info
@@ -281,12 +281,12 @@ class TestIssue12Fix:
 
                     # Test the function
                     crs_groups = ["/conditions/geometry"]
-                    add_crs_to_groups(dt, crs_groups, "/mock/output")
+                    prepare_dataset_with_crs_info(dt, crs_groups, "/mock/output")
 
                     # Verify to_zarr was called (indicating the function processed the group)
                     assert mock_to_zarr.called
 
-    def test_add_crs_to_groups_coordinate_attributes(self) -> None:
+    def test_prepare_dataset_with_crs_info_coordinate_attributes(self) -> None:
         """Test that coordinate attributes are properly set."""
         # Create a geometry dataset with various coordinate types
         geometry_ds = xr.Dataset(
@@ -316,10 +316,10 @@ class TestIssue12Fix:
         dt["conditions/geometry"] = geometry_ds
 
         # Test the coordinate attribute setting logic directly
-        # This simulates what add_crs_to_groups does internally
+        # This simulates what prepare_dataset_with_crs_info does internally
         ds = dt["conditions/geometry"].to_dataset().copy()
 
-        # Apply the same logic as in add_crs_to_groups
+        # Apply the same logic as in prepare_dataset_with_crs_info
         for coord_name in ds.coords:
             if coord_name == "x":
                 ds[coord_name].attrs.update(
@@ -401,7 +401,7 @@ class TestIssue12Fix:
         assert detector_attrs["standard_name"] == "detector"
         assert detector_attrs["long_name"] == "detector identifier"
 
-    def test_add_crs_to_groups_data_variable_attributes(self) -> None:
+    def test_prepare_dataset_with_crs_info_data_variable_attributes(self) -> None:
         """Test that data variable attributes are properly set."""
         # Create a geometry dataset
         geometry_ds = xr.Dataset(
@@ -436,7 +436,7 @@ class TestIssue12Fix:
             with patch("eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options"):
                 with patch.object(xr.Dataset, "to_zarr", side_effect=capture_to_zarr):
                     crs_groups = ["/conditions/geometry"]
-                    add_crs_to_groups(dt, crs_groups, "/mock/output")
+                    prepare_dataset_with_crs_info(dt, crs_groups, "/mock/output")
 
         # Verify data variable attributes were set correctly
         assert written_dataset is not None
@@ -458,7 +458,7 @@ class TestIssue12Fix:
                     assert "grid_mapping" in var_attrs
                     assert var_attrs["grid_mapping"] == "spatial_ref"
 
-    def test_add_crs_to_groups_crs_inference(self) -> None:
+    def test_prepare_dataset_with_crs_info_crs_inference(self) -> None:
         """Test CRS inference from measurement groups."""
         # Create measurement groups with different EPSG codes
         measurement_ds1 = xr.Dataset(
@@ -483,7 +483,7 @@ class TestIssue12Fix:
         dt["conditions/geometry"] = geometry_ds
 
         # Test the CRS inference and application logic directly
-        # This simulates what add_crs_to_groups does internally
+        # This simulates what prepare_dataset_with_crs_info does internally
         ds = dt["conditions/geometry"].to_dataset().copy()
 
         # Apply CRS (simulating the rioxarray write_crs call)
@@ -583,7 +583,7 @@ class TestIssue12Fix:
             assert coord_attrs["_ARRAY_DIMENSIONS"] == [coord]
             assert "standard_name" in coord_attrs
 
-    def test_add_crs_to_groups_missing_group(self) -> None:
+    def test_prepare_dataset_with_crs_info_missing_group(self) -> None:
         """Test handling of missing groups in crs_groups list."""
         # Create a simple DataTree
         dt = xr.DataTree()
@@ -591,7 +591,7 @@ class TestIssue12Fix:
 
         # Test with non-existent group
         with patch("eopf_geozarr.conversion.geozarr.print") as mock_print:
-            add_crs_to_groups(dt, ["/non_existent_group"], "/mock/output")
+            prepare_dataset_with_crs_info(dt, ["/non_existent_group"], "/mock/output")
 
             # Should print warning about missing group
             mock_print.assert_called()
@@ -600,7 +600,7 @@ class TestIssue12Fix:
             ]
             assert len(warning_calls) > 0
 
-    def test_add_crs_to_groups_no_spatial_coordinates(self) -> None:
+    def test_prepare_dataset_with_crs_info_no_spatial_coordinates(self) -> None:
         """Test handling of groups without spatial coordinates."""
         # Create a group without x,y coordinates
         non_spatial_ds = xr.Dataset(
@@ -616,7 +616,7 @@ class TestIssue12Fix:
         dt["non_spatial_group"] = non_spatial_ds
 
         # Test the coordinate attribute setting logic directly for non-spatial data
-        # This simulates what add_crs_to_groups does internally
+        # This simulates what prepare_dataset_with_crs_info does internally
         ds = dt["non_spatial_group"].to_dataset().copy()
 
         # Set up coordinate variables with proper attributes

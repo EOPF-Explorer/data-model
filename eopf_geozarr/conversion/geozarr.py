@@ -219,7 +219,7 @@ def iterative_copy(
         # Handle GeoZarr groups with special processing
         if current_group_path in geozarr_groups:
             print(f"Processing '{current_group_path}' as GeoZarr group")
-            processed_node = write_geozarr_group(
+            write_geozarr_group(
                 dt_result,
                 current_group_path,
                 geozarr_groups[current_group_path],
@@ -494,7 +494,8 @@ def create_geozarr_compliant_multiscales(
     # Add multiscales metadata to the group
     zarr_json_path = fs_utils.normalize_path(f"{output_path}/{group_name}/zarr.json")
     zarr_json = fs_utils.read_json_metadata(zarr_json_path)
-    zarr_json["attributes"]["multiscales"] = {
+    zarr_json_attributes = zarr_json.get("attributes", {})
+    zarr_json_attributes["multiscales"] = {
         "tile_matrix_set": tile_matrix_set,
         "resampling_method": "average",
         "tile_matrix_limits": tile_matrix_limits,
@@ -661,7 +662,7 @@ def create_native_crs_tile_matrix_set(
     native_crs: Any,
     native_bounds: Tuple[float, float, float, float],
     overview_levels: List[Dict[str, Any]],
-    group_prefix: str = "",
+    group_prefix: Optional[str] = "",
 ) -> Dict[str, Any]:
     """
     Create a custom Tile Matrix Set for the native CRS following GeoZarr spec.
@@ -720,14 +721,15 @@ def create_native_crs_tile_matrix_set(
         )
 
     # Create the complete Tile Matrix Set
+    epsg_code = native_crs.to_epsg() if native_crs else None
     crs_uri = (
-        f"http://www.opengis.net/def/crs/EPSG/0/{native_crs.to_epsg()}"
-        if native_crs.to_epsg()
-        else native_crs.to_wkt()
+        f"http://www.opengis.net/def/crs/EPSG/0/{epsg_code}"
+        if epsg_code
+        else (native_crs.to_wkt() if native_crs else "")
     )
 
     return {
-        "id": f"Native_CRS_{native_crs.to_epsg() if native_crs.to_epsg() else 'Custom'}",
+        "id": f"Native_CRS_{epsg_code if epsg_code else 'Custom'}",
         "title": f"Native CRS Tile Matrix Set ({native_crs})",
         "crs": crs_uri,
         "supportedCRS": crs_uri,
@@ -893,7 +895,7 @@ def write_dataset_band_by_band_with_validation(
         if not force_overwrite and store_exists:
             if utils.validate_existing_band_data(existing_dataset, var, ds):
                 ds.drop_vars(var)
-                ds[var] = existing_dataset[var]
+                ds[var] = existing_dataset[var]  # type: ignore
                 print(f"  ✅ Band {var} already exists and is valid, skipping")
                 skipped_vars.append(var)
                 successful_vars.append(var)
@@ -1204,15 +1206,16 @@ def _find_reference_crs(geozarr_groups: Dict[str, xr.Dataset]) -> Optional[str]:
     """Find the reference CRS in the geozarr groups."""
     for key, group in geozarr_groups.items():
         if group.rio.crs:
-            return group.rio.crs.to_string()
-    raise ValueError("No reference CRS found in input DataTree")
+            crs_string: str = group.rio.crs.to_string()
+            return crs_string
+    return None
 
 
 def _create_encoding(
     ds: xr.Dataset, compressor: Any, spatial_chunk: int
 ) -> Dict[str, Any]:
     """Create encoding for dataset variables."""
-    encoding = {}
+    encoding: Dict[str, Any] = {}
     for var in ds.data_vars:
         if hasattr(ds[var].data, "chunks"):
             current_chunks = ds[var].chunks
@@ -1254,7 +1257,7 @@ def _create_geozarr_encoding(
     ds: xr.Dataset, compressor: Any, spatial_chunk: int
 ) -> Dict[str, Any]:
     """Create encoding for GeoZarr dataset variables."""
-    encoding = {}
+    encoding: Dict[str, Any] = {}
     for var in ds.data_vars:
         if utils.is_grid_mapping_variable(ds, var):
             encoding[var] = {"compressors": None}
@@ -1351,7 +1354,7 @@ def _find_grid_mapping_var_name(ds: xr.Dataset, data_vars: List[str]) -> str:
     if not grid_mapping_var_name:
         grid_mapping_var_name = "spatial_ref"
 
-    return grid_mapping_var_name
+    return str(grid_mapping_var_name)
 
 
 def _add_grid_mapping_variable(

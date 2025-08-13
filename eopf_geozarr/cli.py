@@ -8,7 +8,7 @@ This module provides CLI commands for converting EOPF datasets to GeoZarr compli
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import xarray as xr
 
@@ -21,7 +21,7 @@ from .conversion.fs_utils import (
 )
 
 
-def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[object]:
+def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:
     """
     Set up a dask cluster for parallel processing.
 
@@ -192,7 +192,8 @@ def convert_command(args: argparse.Namespace) -> None:
         # Clean up dask client if it was created
         if dask_client is not None:
             try:
-                dask_client.close()
+                if hasattr(dask_client, "close"):
+                    dask_client.close()
                 if args.verbose:
                     print("🔄 Dask cluster closed")
             except Exception as e:
@@ -271,7 +272,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
         HTML representation of the optimized tree
     """
 
-    def has_meaningful_content(node):
+    def has_meaningful_content(node: Any) -> bool:
         """Check if a node has meaningful content (data variables, attributes, or meaningful children)."""
         if hasattr(node, "ds") and node.ds is not None:
             # Has data variables
@@ -289,13 +290,13 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
         return False
 
-    def format_dimensions(dims):
+    def format_dimensions(dims: Any) -> str:
         """Format dimensions in a compact way."""
         if not dims:
             return ""
         return f"({', '.join(f'{k}: {v}' for k, v in dims.items())})"
 
-    def format_data_vars(data_vars):
+    def format_data_vars(data_vars: Any) -> str:
         """Format data variables using xarray's rich HTML representation."""
         if not data_vars:
             return ""
@@ -328,7 +329,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 )
             return "".join(vars_html)
 
-    def format_attributes(attrs):
+    def format_attributes(attrs: Any) -> str:
         """Format attributes in a compact way."""
         if not attrs:
             return ""
@@ -357,7 +358,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
         return "".join(attrs_html)
 
-    def render_node(node, path="", level=0):
+    def render_node(node: Any, path: str = "", level: int = 0) -> str:
         """Render a single node and its children."""
         if not has_meaningful_content(node):
             return ""  # Skip empty nodes
@@ -398,7 +399,6 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
         summary = " • ".join(summary_parts) if summary_parts else "empty group"
 
         # Generate HTML for this node
-        indent = "  " * level
         node_html = f"""
         <div class="tree-node" style="margin-left: {level * 20}px;">
             <details class="tree-details" {'open' if level < 2 else ''}>
