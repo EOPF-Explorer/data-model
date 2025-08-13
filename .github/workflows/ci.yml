@@ -50,7 +50,7 @@ jobs:
 
     - name: Run tests
       run: |
-        uv run pytest eopf_geozarr/tests/ -v --tb=short -m "not network" --cov=eopf_geozarr --cov-report=xml --cov-report=term-missing
+        uv run pytest tests/ -v --tb=short -m "not network" --cov=eopf_geozarr --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
@@ -105,7 +105,7 @@ jobs:
 
     - name: Run network tests
       run: |
-        uv run pytest eopf_geozarr/tests/ -v --tb=short -m "network"
+        uv run pytest tests/ -v --tb=short -m "network"
 
   security:
     runs-on: ubuntu-latest
