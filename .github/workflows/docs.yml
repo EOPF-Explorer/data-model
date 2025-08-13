@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y proj-bin
+        sudo apt-get install -y proj-bin gdal-bin
         python -m pip install --upgrade pip
         pip install -e ".[docs]"
 
