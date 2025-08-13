@@ -912,12 +912,14 @@ def write_dataset_band_by_band_with_validation(
                 success = True
                 if existing_dataset is None:
                     group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
+                    storage_options = fs_utils.get_storage_options(output_path)
                     existing_dataset = xr.open_dataset(
                         group_path,
                         mode="r",
                         engine="zarr",
                         decode_coords="all",
-                        chunks="auto"
+                        chunks="auto",
+                        storage_options=storage_options
                     )
                 break
 
