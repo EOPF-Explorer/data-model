@@ -275,20 +275,18 @@ class TestIssue12Fix:
             with patch(
                 "eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options"
             ) as mock_storage:
-                with patch.object(xr.Dataset, "to_zarr") as mock_to_zarr:
-                    mock_normalize.return_value = "/mock/path"
-                    mock_storage.return_value = {}
+                mock_normalize.return_value = "/mock/path"
+                mock_storage.return_value = {}
 
-                    # Test the function
-                    crs_groups = ["/conditions/geometry"]
-                    processed_ds = prepare_dataset_with_crs_info(
-                        dt["conditions/geometry"].to_dataset(),
-                        reference_crs="epsg:32633",
-                    )
+                # Test the function
+                processed_ds = prepare_dataset_with_crs_info(
+                    dt["conditions/geometry"].to_dataset(),
+                    reference_crs="epsg:32633",
+                )
 
-                    # Verify CRS information was added to the dataset
-                    assert "spatial_ref" in processed_ds
-                    assert processed_ds.rio.crs.to_string() == "EPSG:32633"
+                # Verify CRS information was added to the dataset
+                assert "spatial_ref" in processed_ds
+                assert processed_ds.rio.crs.to_string() == "EPSG:32633"
 
     def test_prepare_dataset_with_crs_info_coordinate_attributes(self) -> None:
         """Test that coordinate attributes are properly set."""
