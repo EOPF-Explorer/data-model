@@ -55,7 +55,7 @@
                 "PYTHONPATH": "${workspaceFolder}/.venv/bin",
                 "AWS_PROFILE": "eopf-explorer",
                 "AWS_DEFAULT_REGION": "de",
-                "AWS_S3_ENDPOINT": "https://s3.de.io.cloud.ovh.net/"
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
             },
 
         },
@@ -84,7 +84,7 @@
                 "PYTHONPATH": "${workspaceFolder}/.venv/bin",
                 "AWS_PROFILE": "eopf-explorer",
                 "AWS_DEFAULT_REGION": "de",
-                "AWS_S3_ENDPOINT": "https://s3.de.io.cloud.ovh.net/"
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
             },
 
         },
@@ -120,7 +120,7 @@
                 "PYTHONPATH": "${workspaceFolder}/.venv/bin",
                 "AWS_PROFILE": "eopf-explorer",
                 "AWS_DEFAULT_REGION": "de",
-                "AWS_S3_ENDPOINT": "https://s3.de.io.cloud.ovh.net/"
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
             },
 
         },
@@ -161,7 +161,7 @@
                 "PYTHONPATH": "${workspaceFolder}/.venv/bin",
                 "AWS_PROFILE": "eopf-explorer",
                 "AWS_DEFAULT_REGION": "de",
-                "AWS_S3_ENDPOINT": "https://s3.de.io.cloud.ovh.net/"
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
             },
 
         }
