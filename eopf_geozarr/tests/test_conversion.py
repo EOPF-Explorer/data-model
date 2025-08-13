@@ -15,10 +15,7 @@ from eopf_geozarr.conversion import (
     setup_datatree_metadata_geozarr_spec_compliant,
     validate_existing_band_data,
 )
-from eopf_geozarr.conversion.geozarr import (
-    add_crs_to_groups,
-    create_overview_dataset_all_vars,
-)
+from eopf_geozarr.conversion.geozarr import add_crs_to_groups, create_overview_dataset_all_vars
 
 
 class TestUtilityFunctions:
@@ -265,7 +262,9 @@ class TestIssue12Fix:
 
         # Mock the output path and file operations
         with patch("eopf_geozarr.conversion.geozarr.fs_utils.normalize_path") as mock_normalize:
-            with patch("eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options") as mock_storage:
+            with patch(
+                "eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options"
+            ) as mock_storage:
                 with patch.object(xr.Dataset, "to_zarr") as mock_to_zarr:
                     mock_normalize.return_value = "/mock/path"
                     mock_storage.return_value = {}
@@ -282,7 +281,10 @@ class TestIssue12Fix:
         # Create a geometry dataset with various coordinate types
         geometry_ds = xr.Dataset(
             {
-                "viewing_angles": (["band", "detector", "angle", "y", "x"], np.random.rand(3, 2, 2, 5, 5)),
+                "viewing_angles": (
+                    ["band", "detector", "angle", "y", "x"],
+                    np.random.rand(3, 2, 2, 5, 5),
+                ),
                 "mean_sun_angles": (["angle"], np.array([45.0, 30.0])),
             },
             coords={
@@ -306,41 +308,51 @@ class TestIssue12Fix:
         # Test the coordinate attribute setting logic directly
         # This simulates what add_crs_to_groups does internally
         ds = dt["conditions/geometry"].to_dataset().copy()
-        
+
         # Apply the same logic as in add_crs_to_groups
         for coord_name in ds.coords:
             if coord_name == "x":
-                ds[coord_name].attrs.update({
-                    "_ARRAY_DIMENSIONS": ["x"],
-                    "standard_name": "projection_x_coordinate",
-                    "units": "m",
-                    "long_name": "x coordinate of projection"
-                })
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["x"],
+                        "standard_name": "projection_x_coordinate",
+                        "units": "m",
+                        "long_name": "x coordinate of projection",
+                    }
+                )
             elif coord_name == "y":
-                ds[coord_name].attrs.update({
-                    "_ARRAY_DIMENSIONS": ["y"],
-                    "standard_name": "projection_y_coordinate", 
-                    "units": "m",
-                    "long_name": "y coordinate of projection"
-                })
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["y"],
+                        "standard_name": "projection_y_coordinate",
+                        "units": "m",
+                        "long_name": "y coordinate of projection",
+                    }
+                )
             elif coord_name == "angle":
-                ds[coord_name].attrs.update({
-                    "_ARRAY_DIMENSIONS": ["angle"],
-                    "standard_name": "angle",
-                    "long_name": "angle coordinate"
-                })
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["angle"],
+                        "standard_name": "angle",
+                        "long_name": "angle coordinate",
+                    }
+                )
             elif coord_name == "band":
-                ds[coord_name].attrs.update({
-                    "_ARRAY_DIMENSIONS": ["band"],
-                    "standard_name": "band",
-                    "long_name": "spectral band identifier"
-                })
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["band"],
+                        "standard_name": "band",
+                        "long_name": "spectral band identifier",
+                    }
+                )
             elif coord_name == "detector":
-                ds[coord_name].attrs.update({
-                    "_ARRAY_DIMENSIONS": ["detector"],
-                    "standard_name": "detector",
-                    "long_name": "detector identifier"
-                })
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["detector"],
+                        "standard_name": "detector",
+                        "long_name": "detector identifier",
+                    }
+                )
             else:
                 # Generic coordinate
                 if "_ARRAY_DIMENSIONS" not in ds[coord_name].attrs:
@@ -458,23 +470,23 @@ class TestIssue12Fix:
         # Test the CRS inference and application logic directly
         # This simulates what add_crs_to_groups does internally
         ds = dt["conditions/geometry"].to_dataset().copy()
-        
+
         # Apply CRS (simulating the rioxarray write_crs call)
         ds = ds.rio.write_crs("epsg:32633")
-        
+
         # Ensure spatial_ref variable has proper attributes
         if "spatial_ref" in ds:
             ds["spatial_ref"].attrs["_ARRAY_DIMENSIONS"] = []
-            
+
             # Add GeoTransform if we can calculate it from coordinates
             if len(ds.coords["x"]) > 1 and len(ds.coords["y"]) > 1:
                 x_coords = ds.coords["x"].values
                 y_coords = ds.coords["y"].values
-                
+
                 # Calculate pixel size
                 pixel_size_x = float(x_coords[1] - x_coords[0])
                 pixel_size_y = float(y_coords[0] - y_coords[1])  # Usually negative
-                
+
                 # Create GeoTransform (GDAL format)
                 transform_str = f"{x_coords[0]} {pixel_size_x} 0.0 {y_coords[0]} 0.0 {pixel_size_y}"
                 ds["spatial_ref"].attrs["GeoTransform"] = transform_str
@@ -493,18 +505,30 @@ class TestIssue12Fix:
         # Create a source dataset with CRS and grid_mapping
         source_ds = xr.Dataset(
             {
-                "B04": (["y", "x"], np.random.rand(100, 100), {
-                    "standard_name": "toa_bidirectional_reflectance",
-                    "grid_mapping": "spatial_ref"
-                }),
-                "B03": (["y", "x"], np.random.rand(100, 100), {
-                    "standard_name": "toa_bidirectional_reflectance", 
-                    "grid_mapping": "spatial_ref"
-                }),
-                "spatial_ref": ([], 0, {
-                    "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 33N\",...]",
-                    "GeoTransform": "300000.0 10.0 0.0 5000000.0 0.0 -10.0"
-                }),
+                "B04": (
+                    ["y", "x"],
+                    np.random.rand(100, 100),
+                    {
+                        "standard_name": "toa_bidirectional_reflectance",
+                        "grid_mapping": "spatial_ref",
+                    },
+                ),
+                "B03": (
+                    ["y", "x"],
+                    np.random.rand(100, 100),
+                    {
+                        "standard_name": "toa_bidirectional_reflectance",
+                        "grid_mapping": "spatial_ref",
+                    },
+                ),
+                "spatial_ref": (
+                    [],
+                    0,
+                    {
+                        "crs_wkt": 'PROJCS["WGS 84 / UTM zone 33N",...]',
+                        "GeoTransform": "300000.0 10.0 0.0 5000000.0 0.0 -10.0",
+                    },
+                ),
             },
             coords={
                 "x": (["x"], np.linspace(300000, 301000, 100)),
@@ -551,11 +575,10 @@ class TestIssue12Fix:
         # Test with non-existent group
         with patch("eopf_geozarr.conversion.geozarr.print") as mock_print:
             add_crs_to_groups(dt, ["/non_existent_group"], "/mock/output")
-            
+
             # Should print warning about missing group
             mock_print.assert_called()
-            warning_calls = [call for call in mock_print.call_args_list 
-                           if "not found" in str(call)]
+            warning_calls = [call for call in mock_print.call_args_list if "not found" in str(call)]
             assert len(warning_calls) > 0
 
     def test_add_crs_to_groups_no_spatial_coordinates(self) -> None:
@@ -576,12 +599,12 @@ class TestIssue12Fix:
         # Test the coordinate attribute setting logic directly for non-spatial data
         # This simulates what add_crs_to_groups does internally
         ds = dt["non_spatial_group"].to_dataset().copy()
-        
+
         # Set up coordinate variables with proper attributes
         for coord_name in ds.coords:
             if "_ARRAY_DIMENSIONS" not in ds[coord_name].attrs:
                 ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
-        
+
         # Set up data variables with proper attributes
         for var_name in ds.data_vars:
             # Add _ARRAY_DIMENSIONS attribute if missing

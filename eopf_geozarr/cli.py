@@ -13,7 +13,12 @@ from typing import Optional
 import xarray as xr
 
 from . import create_geozarr_dataset
-from .conversion.fs_utils import get_s3_credentials_info, get_storage_options, is_s3_path, validate_s3_access
+from .conversion.fs_utils import (
+    get_s3_credentials_info,
+    get_storage_options,
+    is_s3_path,
+    validate_s3_access,
+)
 
 
 def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[object]:
@@ -133,7 +138,9 @@ def convert_command(args: argparse.Namespace) -> None:
         # Load the EOPF DataTree with appropriate storage options
         print("Loading EOPF dataset...")
         storage_options = get_storage_options(input_path)
-        dt = xr.open_datatree(str(input_path), engine="zarr", chunks="auto", storage_options=storage_options)
+        dt = xr.open_datatree(
+            str(input_path), engine="zarr", chunks="auto", storage_options=storage_options
+        )
 
         if args.verbose:
             print(f"Loaded DataTree with {len(dt.children)} groups")
@@ -159,7 +166,7 @@ def convert_command(args: argparse.Namespace) -> None:
 
         if args.verbose:
             # Check if dt_geozarr is a DataTree or Dataset
-            if hasattr(dt_geozarr, 'children'):
+            if hasattr(dt_geozarr, "children"):
                 print(f"Converted DataTree has {len(dt_geozarr.children)} groups")
                 print("Converted groups:")
                 for group_name in dt_geozarr.children:
@@ -212,9 +219,11 @@ def info_command(args: argparse.Namespace) -> None:
         print(f"Loading dataset from: {input_path}")
         # Use unified storage options for S3 support
         storage_options = get_storage_options(input_path)
-        dt = xr.open_datatree(input_path, engine="zarr", chunks="auto", storage_options=storage_options)
+        dt = xr.open_datatree(
+            input_path, engine="zarr", chunks="auto", storage_options=storage_options
+        )
 
-        if hasattr(args, 'html_output') and args.html_output:
+        if hasattr(args, "html_output") and args.html_output:
             # Generate HTML output
             _generate_html_output(dt, args.html_output, input_path, args.verbose)
         else:
@@ -238,53 +247,55 @@ def info_command(args: argparse.Namespace) -> None:
 def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
     """
     Generate an optimized, condensed tree HTML representation.
-    
+
     This function creates a clean tree view that:
     - Hides empty nodes by default
     - Shows only nodes with data variables or meaningful content
     - Provides a more condensed, focused view
-    
+
     Parameters
     ----------
     dt : xr.DataTree
         DataTree to visualize
-        
+
     Returns
     -------
     str
         HTML representation of the optimized tree
     """
+
     def has_meaningful_content(node):
         """Check if a node has meaningful content (data variables, attributes, or meaningful children)."""
-        if hasattr(node, 'ds') and node.ds is not None:
+        if hasattr(node, "ds") and node.ds is not None:
             # Has data variables
-            if hasattr(node.ds, 'data_vars') and len(node.ds.data_vars) > 0:
+            if hasattr(node.ds, "data_vars") and len(node.ds.data_vars) > 0:
                 return True
             # Has meaningful attributes (more than just empty metadata)
-            if hasattr(node.ds, 'attrs') and node.ds.attrs:
+            if hasattr(node.ds, "attrs") and node.ds.attrs:
                 return True
-        
+
         # Check if any children have meaningful content
-        if hasattr(node, 'children') and node.children:
+        if hasattr(node, "children") and node.children:
             return any(has_meaningful_content(child) for child in node.children.values())
-        
+
         return False
-    
+
     def format_dimensions(dims):
         """Format dimensions in a compact way."""
         if not dims:
             return ""
         return f"({', '.join(f'{k}: {v}' for k, v in dims.items())})"
-    
+
     def format_data_vars(data_vars):
         """Format data variables using xarray's rich HTML representation."""
         if not data_vars:
             return ""
-        
+
         # Create a temporary dataset with just these variables to get xarray's HTML
         import xarray as xr
+
         temp_ds = xr.Dataset(data_vars)
-        
+
         # Get xarray's HTML representation and extract just the variables section
         try:
             html_repr = temp_ds._repr_html_()
@@ -297,20 +308,22 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             for name, var in data_vars.items():
                 dims_str = format_dimensions(dict(zip(var.dims, var.shape)))
                 dtype_str = str(var.dtype)
-                vars_html.append(f"""
+                vars_html.append(
+                    f"""
                     <div class="tree-variable">
                         <span class="var-name">{name}</span>
                         <span class="var-dims">{dims_str}</span>
                         <span class="var-dtype">{dtype_str}</span>
                     </div>
-                """)
+                """
+                )
             return "".join(vars_html)
-    
+
     def format_attributes(attrs):
         """Format attributes in a compact way."""
         if not attrs:
             return ""
-        
+
         # Show only first few attributes to keep it condensed
         items = list(attrs.items())[:5]  # Show max 5 attributes
         attrs_html = []
@@ -319,33 +332,43 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             value_str = str(value)
             if len(value_str) > 50:
                 value_str = value_str[:47] + "..."
-            attrs_html.append(f"""
+            attrs_html.append(
+                f"""
                 <div class="tree-attribute">
                     <span class="attr-key">{key}:</span>
                     <span class="attr-value">{value_str}</span>
                 </div>
-            """)
-        
+            """
+            )
+
         if len(attrs) > 5:
-            attrs_html.append(f'<div class="tree-attribute-more">... and {len(attrs) - 5} more</div>')
-        
+            attrs_html.append(
+                f'<div class="tree-attribute-more">... and {len(attrs) - 5} more</div>'
+            )
+
         return "".join(attrs_html)
-    
+
     def render_node(node, path="", level=0):
         """Render a single node and its children."""
         if not has_meaningful_content(node):
             return ""  # Skip empty nodes
-        
-        node_name = path.split('/')[-1] if path else "root"
+
+        node_name = path.split("/")[-1] if path else "root"
         if not node_name:
             node_name = "root"
-        
+
         # Determine node type and content
-        has_data = hasattr(node, 'ds') and node.ds is not None
-        data_vars_count = len(node.ds.data_vars) if has_data and hasattr(node.ds, 'data_vars') else 0
-        attrs_count = len(node.ds.attrs) if has_data and hasattr(node.ds, 'attrs') else 0
-        children_count = len([child for child in node.children.values() if has_meaningful_content(child)]) if hasattr(node, 'children') else 0
-        
+        has_data = hasattr(node, "ds") and node.ds is not None
+        data_vars_count = (
+            len(node.ds.data_vars) if has_data and hasattr(node.ds, "data_vars") else 0
+        )
+        attrs_count = len(node.ds.attrs) if has_data and hasattr(node.ds, "attrs") else 0
+        children_count = (
+            len([child for child in node.children.values() if has_meaningful_content(child)])
+            if hasattr(node, "children")
+            else 0
+        )
+
         # Create node summary
         summary_parts = []
         if data_vars_count > 0:
@@ -354,9 +377,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             summary_parts.append(f"{attrs_count} attributes")
         if children_count > 0:
             summary_parts.append(f"{children_count} subgroups")
-        
+
         summary = " • ".join(summary_parts) if summary_parts else "empty group"
-        
+
         # Generate HTML for this node
         indent = "  " * level
         node_html = f"""
@@ -369,9 +392,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 </summary>
                 <div class="tree-content">
         """
-        
+
         # Add data variables if present
-        if has_data and hasattr(node.ds, 'data_vars') and node.ds.data_vars:
+        if has_data and hasattr(node.ds, "data_vars") and node.ds.data_vars:
             node_html += f"""
                 <div class="tree-section">
                     <h4 class="section-title">Variables</h4>
@@ -380,9 +403,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                     </div>
                 </div>
             """
-        
+
         # Add attributes if present
-        if has_data and hasattr(node.ds, 'attrs') and node.ds.attrs:
+        if has_data and hasattr(node.ds, "attrs") and node.ds.attrs:
             node_html += f"""
                 <div class="tree-section">
                     <h4 class="section-title">Attributes</h4>
@@ -391,16 +414,16 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                     </div>
                 </div>
             """
-        
+
         # Add children
-        if hasattr(node, 'children') and node.children:
+        if hasattr(node, "children") and node.children:
             children_html = []
             for child_name, child_node in node.children.items():
                 child_path = f"{path}/{child_name}" if path else child_name
                 child_html = render_node(child_node, child_path, level + 1)
                 if child_html:  # Only add if not empty
                     children_html.append(child_html)
-            
+
             if children_html:
                 node_html += f"""
                     <div class="tree-section">
@@ -410,18 +433,18 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                         </div>
                     </div>
                 """
-        
+
         node_html += """
                 </div>
             </details>
         </div>
         """
-        
+
         return node_html
-    
+
     # Generate the complete tree
     tree_content = render_node(dt)
-    
+
     # Wrap in container with custom styles
     return f"""
     <div class="optimized-tree">
@@ -430,17 +453,17 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 line-height: 1.5;
             }}
-            
+
             .tree-node {{
                 margin-bottom: 8px;
             }}
-            
+
             .tree-details {{
                 border: 1px solid #e1e5e9;
                 border-radius: 6px;
                 overflow: hidden;
             }}
-            
+
             .tree-summary {{
                 background: linear-gradient(90deg, #f6f8fa 0%, #ffffff 100%);
                 padding: 12px 16px;
@@ -453,40 +476,40 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 color: #24292f;
                 transition: background-color 0.2s ease;
             }}
-            
+
             .tree-summary:hover {{
                 background: linear-gradient(90deg, #f1f3f4 0%, #f6f8fa 100%);
             }}
-            
+
             .tree-icon {{
                 font-size: 16px;
             }}
-            
+
             .tree-name {{
                 font-weight: 600;
                 color: #0969da;
             }}
-            
+
             .tree-info {{
                 color: #656d76;
                 font-size: 0.9em;
                 margin-left: auto;
             }}
-            
+
             .tree-content {{
                 padding: 16px;
                 background-color: #fafbfc;
                 border-top: 1px solid #e1e5e9;
             }}
-            
+
             .tree-section {{
                 margin-bottom: 16px;
             }}
-            
+
             .tree-section:last-child {{
                 margin-bottom: 0;
             }}
-            
+
             .section-title {{
                 margin: 0 0 8px 0;
                 font-size: 0.9em;
@@ -495,7 +518,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }}
-            
+
             .tree-variable {{
                 display: flex;
                 align-items: center;
@@ -503,24 +526,24 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 padding: 6px 0;
                 border-bottom: 1px solid #f1f3f4;
             }}
-            
+
             .tree-variable:last-child {{
                 border-bottom: none;
             }}
-            
+
             .var-name {{
                 font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
                 font-weight: 600;
                 color: #0969da;
                 min-width: 120px;
             }}
-            
+
             .var-dims {{
                 color: #656d76;
                 font-size: 0.85em;
                 font-style: italic;
             }}
-            
+
             .var-dtype {{
                 color: #1a7f37;
                 font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
@@ -530,33 +553,33 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
                 padding: 2px 6px;
                 border-radius: 3px;
             }}
-            
+
             .tree-attribute {{
                 display: flex;
                 gap: 8px;
                 padding: 4px 0;
                 font-size: 0.9em;
             }}
-            
+
             .attr-key {{
                 font-weight: 600;
                 color: #24292f;
                 min-width: 100px;
             }}
-            
+
             .attr-value {{
                 color: #656d76;
                 font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
                 font-size: 0.85em;
             }}
-            
+
             .tree-attribute-more {{
                 color: #656d76;
                 font-style: italic;
                 font-size: 0.85em;
                 padding: 4px 0;
             }}
-            
+
             .tree-children {{
                 margin-top: 8px;
             }}
@@ -566,10 +589,12 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
     """
 
 
-def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, verbose: bool = False) -> None:
+def _generate_html_output(
+    dt: xr.DataTree, output_path: str, input_path: str, verbose: bool = False
+) -> None:
     """
     Generate HTML output for DataTree visualization.
-    
+
     Parameters
     ----------
     dt : xr.DataTree
@@ -584,7 +609,7 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
     try:
         # Generate optimized tree structure
         tree_html = _generate_optimized_tree_html(dt)
-        
+
         # Create a complete HTML document with EOPF-style formatting
         html_content = f"""
 <!DOCTYPE html>
@@ -603,7 +628,7 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             color: #333;
             line-height: 1.6;
         }}
-        
+
         .container {{
             max-width: 1400px;
             margin: 0 auto;
@@ -612,21 +637,21 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             overflow: hidden;
         }}
-        
+
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
             text-align: center;
         }}
-        
+
         .header h1 {{
             margin: 0 0 15px 0;
             font-size: 2.2em;
             font-weight: 300;
             letter-spacing: -0.5px;
         }}
-        
+
         .header-info {{
             display: flex;
             justify-content: center;
@@ -636,13 +661,13 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             font-size: 0.95em;
             opacity: 0.95;
         }}
-        
+
         .header-info-item {{
             display: flex;
             flex-direction: column;
             align-items: center;
         }}
-        
+
         .header-info-label {{
             font-weight: 600;
             margin-bottom: 4px;
@@ -650,25 +675,25 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             font-size: 0.8em;
             letter-spacing: 0.5px;
         }}
-        
+
         .header-info-value {{
             font-size: 1.1em;
         }}
-        
+
         .content {{
             padding: 0;
         }}
-        
+
         .datatree-container {{
             overflow-x: auto;
             padding: 30px;
         }}
-        
+
         /* Enhanced xarray styling to match EOPF look */
         .xr-wrap {{
             font-family: inherit !important;
         }}
-        
+
         .xr-header {{
             background-color: #f8f9fa !important;
             border: 1px solid #e9ecef !important;
@@ -676,20 +701,20 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             padding: 15px !important;
             margin-bottom: 20px !important;
         }}
-        
+
         .xr-obj-type {{
             color: #6f42c1 !important;
             font-weight: 600 !important;
             font-size: 1.1em !important;
         }}
-        
+
         .xr-section-item {{
             margin-bottom: 15px !important;
             border: 1px solid #e9ecef !important;
             border-radius: 6px !important;
             overflow: hidden !important;
         }}
-        
+
         .xr-section-summary {{
             background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%) !important;
             padding: 12px 15px !important;
@@ -699,79 +724,79 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             color: #495057 !important;
             transition: all 0.2s ease !important;
         }}
-        
+
         .xr-section-summary:hover {{
             background: linear-gradient(90deg, #e9ecef 0%, #f8f9fa 100%) !important;
             transform: translateX(2px) !important;
         }}
-        
+
         .xr-section-summary-in {{
             display: flex !important;
             align-items: center !important;
             gap: 10px !important;
         }}
-        
+
         .xr-section-details {{
             padding: 20px !important;
             background-color: #fdfdfd !important;
             border-top: 1px solid #e9ecef !important;
         }}
-        
+
         .xr-var-list {{
             margin: 0 !important;
             padding: 0 !important;
         }}
-        
+
         .xr-var-item {{
             padding: 8px 0 !important;
             border-bottom: 1px solid #f1f3f4 !important;
         }}
-        
+
         .xr-var-item:last-child {{
             border-bottom: none !important;
         }}
-        
+
         .xr-var-name {{
             font-weight: 600 !important;
             color: #1a73e8 !important;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
         }}
-        
+
         .xr-var-dims {{
             color: #5f6368 !important;
             font-style: italic !important;
             font-size: 0.9em !important;
         }}
-        
+
         .xr-var-dtype {{
             color: #137333 !important;
             font-weight: 500 !important;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
             font-size: 0.9em !important;
         }}
-        
+
         .xr-attrs {{
             background-color: #f8f9fa !important;
             border-radius: 4px !important;
             padding: 10px !important;
             margin-top: 10px !important;
         }}
-        
+
         .xr-attrs dt {{
             font-weight: 600 !important;
             color: #495057 !important;
         }}
-        
+
         .xr-attrs dd {{
             color: #6c757d !important;
             margin-left: 20px !important;
         }}
-        
+
         /* Collapsible sections styling */
         details {{
             margin-bottom: 10px !important;
         }}
-        
+
         summary {{
             cursor: pointer !important;
             padding: 10px !important;
@@ -780,11 +805,11 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             font-weight: 500 !important;
             transition: background-color 0.2s ease !important;
         }}
-        
+
         summary:hover {{
             background-color: #e8eaed !important;
         }}
-        
+
         /* Footer styling */
         .footer {{
             background-color: #f8f9fa;
@@ -794,22 +819,22 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
             font-size: 0.9em;
             border-top: 1px solid #e9ecef;
         }}
-        
+
         /* Responsive design */
         @media (max-width: 768px) {{
             .header-info {{
                 flex-direction: column;
                 gap: 15px;
             }}
-            
+
             .datatree-container {{
                 padding: 20px;
             }}
-            
+
             .header {{
                 padding: 20px;
             }}
-            
+
             .header h1 {{
                 font-size: 1.8em;
             }}
@@ -835,13 +860,13 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
                 </div>
             </div>
         </div>
-        
+
         <div class="content">
             <div class="datatree-container">
                 {tree_html}
             </div>
         </div>
-        
+
         <div class="footer">
             Generated by eopf-geozarr CLI • Interactive DataTree Visualization
         </div>
@@ -849,34 +874,36 @@ def _generate_html_output(dt: xr.DataTree, output_path: str, input_path: str, ve
 </body>
 </html>
 """
-        
+
         # Write HTML file
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
+
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         print(f"✅ HTML visualization generated: {output_file}")
-        
+
         if verbose:
             print(f"   File size: {output_file.stat().st_size / 1024:.1f} KB")
             print(f"   Groups included: {len(dt.children)}")
-        
+
         # Try to open in browser if possible
         try:
             import webbrowser
+
             webbrowser.open(f"file://{output_file.absolute()}")
             print(f"🌐 Opening in default browser...")
         except Exception as e:
             if verbose:
                 print(f"   Note: Could not auto-open browser: {e}")
             print(f"   You can open the file manually: {output_file.absolute()}")
-            
+
     except Exception as e:
         print(f"❌ Error generating HTML output: {e}")
         if verbose:
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 
@@ -907,7 +934,9 @@ def validate_command(args: argparse.Namespace) -> None:
         print(f"Validating GeoZarr compliance for: {input_path}")
         # Use unified storage options for S3 support
         storage_options = get_storage_options(input_path)
-        dt = xr.open_datatree(input_path, engine="zarr", chunks="auto", storage_options=storage_options)
+        dt = xr.open_datatree(
+            input_path, engine="zarr", chunks="auto", storage_options=storage_options
+        )
 
         compliance_issues = []
         total_variables = 0
@@ -1052,7 +1081,7 @@ def create_parser() -> argparse.ArgumentParser:
     info_parser.add_argument(
         "--html-output",
         type=str,
-        help="Generate HTML visualization and save to specified file (e.g., dataset_info.html)"
+        help="Generate HTML visualization and save to specified file (e.g., dataset_info.html)",
     )
     info_parser.set_defaults(func=info_command)
 

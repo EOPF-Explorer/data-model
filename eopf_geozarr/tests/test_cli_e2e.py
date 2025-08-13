@@ -254,7 +254,9 @@ class TestCLIEndToEnd:
         )
         assert result.returncode == 0, "Convert help command failed"
         assert "--crs-groups" in result.stdout, "--crs-groups option should be in help"
-        assert "Groups that need CRS information added" in result.stdout, "Help text should be present"
+        assert (
+            "Groups that need CRS information added" in result.stdout
+        ), "Help text should be present"
         print("✅ --crs-groups option appears in CLI help")
 
     @pytest.mark.slow
@@ -262,7 +264,7 @@ class TestCLIEndToEnd:
     def test_cli_convert_with_crs_groups(self, temp_output_dir: str) -> None:
         """
         Test CLI conversion with --crs-groups option using real Sentinel-2 data.
-        
+
         This test verifies that the --crs-groups option works correctly and
         processes the specified groups for CRS enhancement.
         """
@@ -275,7 +277,7 @@ class TestCLIEndToEnd:
 
         # Groups to convert
         groups = ["/measurements/reflectance/r10m"]
-        
+
         # CRS groups to enhance (these would typically be geometry/conditions groups)
         # For this test, we'll use a group that exists in the dataset
         crs_groups = ["/conditions/geometry", "/conditions/viewing"]
@@ -286,19 +288,23 @@ class TestCLIEndToEnd:
         print(f"CRS groups: {crs_groups}")
 
         # Build CLI command with --crs-groups option
-        cmd = [
-            "python", "-m", "eopf_geozarr", "convert", 
-            input_url, str(output_path),
-            "--groups"
-        ] + groups + [
-            "--crs-groups"
-        ] + crs_groups + [
-            "--spatial-chunk", "1024",
-            "--min-dimension", "256", 
-            "--tile-width", "256",
-            "--max-retries", "3",
-            "--verbose"
-        ]
+        cmd = (
+            ["python", "-m", "eopf_geozarr", "convert", input_url, str(output_path), "--groups"]
+            + groups
+            + ["--crs-groups"]
+            + crs_groups
+            + [
+                "--spatial-chunk",
+                "1024",
+                "--min-dimension",
+                "256",
+                "--tile-width",
+                "256",
+                "--max-retries",
+                "3",
+                "--verbose",
+            ]
+        )
 
         # Execute the CLI command
         result = subprocess.run(
@@ -321,27 +327,28 @@ class TestCLIEndToEnd:
             pytest.fail(f"CLI convert with --crs-groups command failed: {result.stderr}")
 
         print("✅ CLI convert with --crs-groups command succeeded")
-        
+
         # Verify that CRS groups were mentioned in verbose output
         output_text = result.stdout
         assert "CRS groups:" in output_text, "Verbose output should mention CRS groups"
-        
+
         # Check for CRS processing messages
         crs_processing_found = any(
-            msg in output_text for msg in [
+            msg in output_text
+            for msg in [
                 "Adding CRS information to group:",
                 "Inferred reference CRS from measurements:",
-                "not found in DataTree"  # Expected for missing groups
+                "not found in DataTree",  # Expected for missing groups
             ]
         )
         assert crs_processing_found, "Should show CRS processing messages"
-        
+
         print("✅ CRS groups processing verified in output")
 
         # Verify output exists
         assert output_path.exists(), f"Output path {output_path} was not created"
         assert (output_path / "zarr.json").exists(), "Main zarr.json not found"
-        
+
         print("✅ CLI convert with --crs-groups test completed successfully")
 
     def test_cli_crs_groups_empty_list(self, temp_output_dir: str) -> None:
@@ -349,35 +356,39 @@ class TestCLIEndToEnd:
         # Create a minimal test dataset
         test_input = Path(temp_output_dir) / "test_input.zarr"
         test_output = Path(temp_output_dir) / "test_output.zarr"
-        
+
         # Create a simple test dataset
         import numpy as np
-        ds = xr.Dataset({
-            "temperature": (["y", "x"], np.random.rand(10, 10))
-        }, coords={
-            "x": (["x"], np.linspace(0, 10, 10)),
-            "y": (["y"], np.linspace(0, 10, 10))
-        })
-        
+
+        ds = xr.Dataset(
+            {"temperature": (["y", "x"], np.random.rand(10, 10))},
+            coords={"x": (["x"], np.linspace(0, 10, 10)), "y": (["y"], np.linspace(0, 10, 10))},
+        )
+
         # Save as zarr
         ds.to_zarr(test_input, zarr_format=3)
         ds.close()
-        
+
         # Test CLI with --crs-groups but no groups specified
         cmd = [
-            "python", "-m", "eopf_geozarr", "convert",
-            str(test_input), str(test_output),
-            "--groups", "/",
+            "python",
+            "-m",
+            "eopf_geozarr",
+            "convert",
+            str(test_input),
+            str(test_output),
+            "--groups",
+            "/",
             "--crs-groups",  # No groups specified after this
-            "--verbose"
+            "--verbose",
         ]
-        
+
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
         # Should succeed (empty crs_groups list is valid)
         assert result.returncode == 0, f"CLI with empty --crs-groups failed: {result.stderr}"
         assert "CRS groups: []" in result.stdout, "Should show empty CRS groups list"
-        
+
         print("✅ CLI with empty --crs-groups list works correctly")
 
 

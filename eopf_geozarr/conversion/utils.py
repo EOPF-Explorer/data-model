@@ -140,7 +140,7 @@ def validate_existing_band_data(
             for attr in required_attrs:
                 if attr not in existing_group[var_name].attrs:
                     return False
-                
+
         # Check rio CRS
         if existing_group.rio.crs != reference_ds.rio.crs:
             return False
