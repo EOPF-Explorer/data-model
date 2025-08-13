@@ -109,7 +109,7 @@ def convert_command(args: argparse.Namespace) -> None:
                 )
                 print("   - Set AWS_DEFAULT_REGION (default: us-east-1)")
                 print(
-                    "   - For custom S3 providers (e.g., OVH Cloud), set AWS_S3_ENDPOINT"
+                    "   - For custom S3 providers (e.g., OVH Cloud), set AWS_ENDPOINT_URL"
                 )
                 print("   - Or configure AWS CLI with 'aws configure'")
                 print("   - Or use IAM roles if running on EC2")

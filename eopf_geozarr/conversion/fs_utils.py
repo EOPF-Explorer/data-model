@@ -114,10 +114,10 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs) -> Dict[str, Any]:
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
-    if "AWS_S3_ENDPOINT" in os.environ:
-        default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+    if "AWS_ENDPOINT_URL" in os.environ:
+        default_s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
         default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
-            "AWS_S3_ENDPOINT"
+            "AWS_ENDPOINT_URL"
         ]
 
     # Merge with user-provided kwargs
@@ -228,10 +228,10 @@ def write_s3_json_metadata(s3_path: str, metadata: Dict[str, Any], **s3_kwargs) 
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
-    if "AWS_S3_ENDPOINT" in os.environ:
-        default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+    if "AWS_ENDPOINT_URL" in os.environ:
+        default_s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
         default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
-            "AWS_S3_ENDPOINT"
+            "AWS_ENDPOINT_URL"
         ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
@@ -270,10 +270,10 @@ def read_s3_json_metadata(s3_path: str, **s3_kwargs) -> Dict[str, Any]:
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
-    if "AWS_S3_ENDPOINT" in os.environ:
-        default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+    if "AWS_ENDPOINT_URL" in os.environ:
+        default_s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
         default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
-            "AWS_S3_ENDPOINT"
+            "AWS_ENDPOINT_URL"
         ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
@@ -311,10 +311,10 @@ def s3_path_exists(s3_path: str, **s3_kwargs) -> bool:
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
-    if "AWS_S3_ENDPOINT" in os.environ:
-        default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+    if "AWS_ENDPOINT_URL" in os.environ:
+        default_s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
         default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
-            "AWS_S3_ENDPOINT"
+            "AWS_ENDPOINT_URL"
         ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
@@ -364,7 +364,7 @@ def get_s3_credentials_info() -> Dict[str, Optional[str]]:
         "aws_session_token": "***" if os.environ.get("AWS_SESSION_TOKEN") else None,
         "aws_default_region": os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
         "aws_profile": os.environ.get("AWS_PROFILE"),
-        "aws_s3_endpoint": os.environ.get("AWS_S3_ENDPOINT"),
+        "AWS_ENDPOINT_URL": os.environ.get("AWS_ENDPOINT_URL"),
     }
 
 
@@ -397,10 +397,10 @@ def validate_s3_access(s3_path: str, **s3_kwargs) -> tuple[bool, Optional[str]]:
         }
 
         # Add custom endpoint support (e.g., for OVH Cloud)
-        if "AWS_S3_ENDPOINT" in os.environ:
-            default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+        if "AWS_ENDPOINT_URL" in os.environ:
+            default_s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
             default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
-                "AWS_S3_ENDPOINT"
+                "AWS_ENDPOINT_URL"
             ]
 
         s3_config = {**default_s3_kwargs, **s3_kwargs}
