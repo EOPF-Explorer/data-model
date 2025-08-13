@@ -102,7 +102,10 @@ def test_get_s3_storage_options():
     """Test that get_s3_storage_options returns correct configuration."""
     with patch.dict(
         "os.environ",
-        {"AWS_DEFAULT_REGION": "us-west-2", "AWS_S3_ENDPOINT": "https://s3.example.com"},
+        {
+            "AWS_DEFAULT_REGION": "us-west-2",
+            "AWS_S3_ENDPOINT": "https://s3.example.com",
+        },
     ):
         options = get_s3_storage_options("s3://test-bucket/path")
 

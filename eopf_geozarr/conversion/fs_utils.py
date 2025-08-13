@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 import s3fs
 import zarr
-from zarr.storage import FsspecStore
 
 
 def normalize_s3_path(s3_path: str) -> str:
@@ -109,13 +108,17 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs) -> Dict[str, Any]:
     default_s3_kwargs = {
         "anon": False,  # Use credentials
         "use_ssl": True,
-        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
+        "client_kwargs": {
+            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
     if "AWS_S3_ENDPOINT" in os.environ:
         default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
-        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
+            "AWS_S3_ENDPOINT"
+        ]
 
     # Merge with user-provided kwargs
     s3_config = {**default_s3_kwargs, **s3_kwargs}
@@ -219,13 +222,17 @@ def write_s3_json_metadata(s3_path: str, metadata: Dict[str, Any], **s3_kwargs) 
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
+        "client_kwargs": {
+            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
     if "AWS_S3_ENDPOINT" in os.environ:
         default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
-        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
+            "AWS_S3_ENDPOINT"
+        ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
     fs = s3fs.S3FileSystem(**s3_config)
@@ -257,13 +264,17 @@ def read_s3_json_metadata(s3_path: str, **s3_kwargs) -> Dict[str, Any]:
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
+        "client_kwargs": {
+            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
     if "AWS_S3_ENDPOINT" in os.environ:
         default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
-        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
+            "AWS_S3_ENDPOINT"
+        ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
     fs = s3fs.S3FileSystem(**s3_config)
@@ -294,13 +305,17 @@ def s3_path_exists(s3_path: str, **s3_kwargs) -> bool:
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
+        "client_kwargs": {
+            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
     if "AWS_S3_ENDPOINT" in os.environ:
         default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
-        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+        default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
+            "AWS_S3_ENDPOINT"
+        ]
 
     s3_config = {**default_s3_kwargs, **s3_kwargs}
     fs = s3fs.S3FileSystem(**s3_config)
@@ -327,7 +342,9 @@ def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs) -> zarr.Group
         Zarr group
     """
     storage_options = get_s3_storage_options(s3_path, **s3_kwargs)
-    return zarr.open_group(s3_path, mode=mode, zarr_format=3, storage_options=storage_options)
+    return zarr.open_group(
+        s3_path, mode=mode, zarr_format=3, storage_options=storage_options
+    )
 
 
 def get_s3_credentials_info() -> Dict[str, Optional[str]]:
@@ -341,7 +358,9 @@ def get_s3_credentials_info() -> Dict[str, Optional[str]]:
     """
     return {
         "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": "***" if os.environ.get("AWS_SECRET_ACCESS_KEY") else None,
+        "aws_secret_access_key": "***"
+        if os.environ.get("AWS_SECRET_ACCESS_KEY")
+        else None,
         "aws_session_token": "***" if os.environ.get("AWS_SESSION_TOKEN") else None,
         "aws_default_region": os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
         "aws_profile": os.environ.get("AWS_PROFILE"),
@@ -372,13 +391,17 @@ def validate_s3_access(s3_path: str, **s3_kwargs) -> tuple[bool, Optional[str]]:
             "anon": False,
             "use_ssl": True,
             "asynchronous": False,  # Force synchronous mode
-            "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
+            "client_kwargs": {
+                "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            },
         }
 
         # Add custom endpoint support (e.g., for OVH Cloud)
         if "AWS_S3_ENDPOINT" in os.environ:
             default_s3_kwargs["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
-            default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ["AWS_S3_ENDPOINT"]
+            default_s3_kwargs["client_kwargs"]["endpoint_url"] = os.environ[
+                "AWS_S3_ENDPOINT"
+            ]
 
         s3_config = {**default_s3_kwargs, **s3_kwargs}
         fs = s3fs.S3FileSystem(**s3_config)
@@ -509,4 +532,6 @@ def open_zarr_group(path: str, mode: str = "r", **kwargs) -> zarr.Group:
         Zarr group
     """
     storage_options = get_storage_options(path, **kwargs)
-    return zarr.open_group(path, mode=mode, zarr_format=3, storage_options=storage_options)
+    return zarr.open_group(
+        path, mode=mode, zarr_format=3, storage_options=storage_options
+    )

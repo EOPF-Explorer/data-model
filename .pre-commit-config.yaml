@@ -1,44 +1,29 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.12.1
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-      - id: check-merge-conflict
-      - id: check-toml
-      - id: debug-statements
+      - id: validate-pyproject
 
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
-    hooks:
-      - id: black
-        language_version: python3
-
-  - repo: https://github.com/pycqa/isort
+  - repo: https://github.com/PyCQA/isort
     rev: 5.12.0
     hooks:
       - id: isort
-        args: ["--profile", "black"]
+        language_version: python
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
     hooks:
-      - id: flake8
-        additional_dependencies: [flake8-docstrings]
-        args: [--max-line-length=150, --extend-ignore=E203]
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
+    rev: v1.11.2
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-setuptools]
-        args: [--ignore-missing-imports]
-
-  - repo: https://github.com/pycqa/bandit
-    rev: 1.7.5
-    hooks:
-      - id: bandit
-        args: ["-c", "pyproject.toml"]
-        additional_dependencies: ["bandit[toml]"]
+        language_version: python
+        exclude: tests/.*
+        additional_dependencies:
+        - types-simplejson
+        - types-attrs
+        - pydantic~=2.0

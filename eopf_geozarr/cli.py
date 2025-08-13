@@ -104,15 +104,19 @@ def convert_command(args: argparse.Namespace) -> None:
                 print(f"   Reason: {error_msg}")
                 print("\n💡 S3 Configuration Help:")
                 print("   Make sure you have S3 credentials configured:")
-                print("   - Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables")
+                print(
+                    "   - Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
+                )
                 print("   - Set AWS_DEFAULT_REGION (default: us-east-1)")
-                print("   - For custom S3 providers (e.g., OVH Cloud), set AWS_S3_ENDPOINT")
+                print(
+                    "   - For custom S3 providers (e.g., OVH Cloud), set AWS_S3_ENDPOINT"
+                )
                 print("   - Or configure AWS CLI with 'aws configure'")
                 print("   - Or use IAM roles if running on EC2")
 
                 if args.verbose:
                     creds_info = get_s3_credentials_info()
-                    print(f"\n🔧 Current AWS configuration:")
+                    print("\n🔧 Current AWS configuration:")
                     for key, value in creds_info.items():
                         print(f"   {key}: {value or 'Not set'}")
 
@@ -139,7 +143,10 @@ def convert_command(args: argparse.Namespace) -> None:
         print("Loading EOPF dataset...")
         storage_options = get_storage_options(input_path)
         dt = xr.open_datatree(
-            str(input_path), engine="zarr", chunks="auto", storage_options=storage_options
+            str(input_path),
+            engine="zarr",
+            chunks="auto",
+            storage_options=storage_options,
         )
 
         if args.verbose:
@@ -276,7 +283,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
         # Check if any children have meaningful content
         if hasattr(node, "children") and node.children:
-            return any(has_meaningful_content(child) for child in node.children.values())
+            return any(
+                has_meaningful_content(child) for child in node.children.values()
+            )
 
         return False
 
@@ -362,9 +371,17 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
         data_vars_count = (
             len(node.ds.data_vars) if has_data and hasattr(node.ds, "data_vars") else 0
         )
-        attrs_count = len(node.ds.attrs) if has_data and hasattr(node.ds, "attrs") else 0
+        attrs_count = (
+            len(node.ds.attrs) if has_data and hasattr(node.ds, "attrs") else 0
+        )
         children_count = (
-            len([child for child in node.children.values() if has_meaningful_content(child)])
+            len(
+                [
+                    child
+                    for child in node.children.values()
+                    if has_meaningful_content(child)
+                ]
+            )
             if hasattr(node, "children")
             else 0
         )
@@ -893,7 +910,7 @@ def _generate_html_output(
             import webbrowser
 
             webbrowser.open(f"file://{output_file.absolute()}")
-            print(f"🌐 Opening in default browser...")
+            print("🌐 Opening in default browser...")
         except Exception as e:
             if verbose:
                 print(f"   Note: Could not auto-open browser: {e}")
@@ -965,7 +982,10 @@ def validate_command(args: argparse.Namespace) -> None:
                     issues.append("Missing standard_name attribute")
 
                 # Check for grid_mapping (for data variables, not grid_mapping variables)
-                if "grid_mapping" not in var.attrs and "grid_mapping_name" not in var.attrs:
+                if (
+                    "grid_mapping" not in var.attrs
+                    and "grid_mapping_name" not in var.attrs
+                ):
                     issues.append("Missing grid_mapping attribute")
 
                 if issues:
@@ -1010,7 +1030,8 @@ def create_parser() -> argparse.ArgumentParser:
         Configured argument parser
     """
     parser = argparse.ArgumentParser(
-        prog="eopf-geozarr", description="Convert EOPF datasets to GeoZarr compliant format"
+        prog="eopf-geozarr",
+        description="Convert EOPF datasets to GeoZarr compliant format",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
@@ -1066,7 +1087,9 @@ def create_parser() -> argparse.ArgumentParser:
         nargs="*",
         help="Groups that need CRS information added on best-effort basis (e.g., /conditions/geometry)",
     )
-    convert_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    convert_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
     convert_parser.add_argument(
         "--dask-cluster",
         action="store_true",
@@ -1075,9 +1098,13 @@ def create_parser() -> argparse.ArgumentParser:
     convert_parser.set_defaults(func=convert_command)
 
     # Info command
-    info_parser = subparsers.add_parser("info", help="Display information about an EOPF dataset")
+    info_parser = subparsers.add_parser(
+        "info", help="Display information about an EOPF dataset"
+    )
     info_parser.add_argument("input_path", type=str, help="Path to EOPF dataset")
-    info_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    info_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
     info_parser.add_argument(
         "--html-output",
         type=str,
@@ -1089,8 +1116,12 @@ def create_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser(
         "validate", help="Validate GeoZarr compliance of a dataset"
     )
-    validate_parser.add_argument("input_path", type=str, help="Path to dataset to validate")
-    validate_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    validate_parser.add_argument(
+        "input_path", type=str, help="Path to dataset to validate"
+    )
+    validate_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
     validate_parser.set_defaults(func=validate_command)
 
     return parser

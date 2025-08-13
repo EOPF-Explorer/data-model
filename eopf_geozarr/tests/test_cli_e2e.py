@@ -61,7 +61,15 @@ class TestCLIEndToEnd:
 
         # Build CLI command with notebook parameters
         cmd = (
-            ["python", "-m", "eopf_geozarr", "convert", input_url, str(output_path), "--groups"]
+            [
+                "python",
+                "-m",
+                "eopf_geozarr",
+                "convert",
+                input_url,
+                str(output_path),
+                "--groups",
+            ]
             + groups
             + [
                 "--spatial-chunk",
@@ -103,9 +111,13 @@ class TestCLIEndToEnd:
 
         cmd_info = ["python", "-m", "eopf_geozarr", "info", str(output_path)]
 
-        result_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=60)
+        result_info = subprocess.run(
+            cmd_info, capture_output=True, text=True, timeout=60
+        )
 
-        assert result_info.returncode == 0, f"CLI info command failed: {result_info.stderr}"
+        assert (
+            result_info.returncode == 0
+        ), f"CLI info command failed: {result_info.stderr}"
         print("✅ CLI info command succeeded")
         print(f"Info output: {result_info.stdout}")
 
@@ -126,7 +138,9 @@ class TestCLIEndToEnd:
             str(output_path),
         ]
 
-        result_validate = subprocess.run(cmd_validate, capture_output=True, text=True, timeout=60)
+        result_validate = subprocess.run(
+            cmd_validate, capture_output=True, text=True, timeout=60
+        )
 
         assert (
             result_validate.returncode == 0
@@ -146,7 +160,9 @@ class TestCLIEndToEnd:
 
         print("✅ All CLI end-to-end tests passed!")
 
-    def _verify_converted_data_structure(self, output_path: Path, groups: list[str]) -> None:
+    def _verify_converted_data_structure(
+        self, output_path: Path, groups: list[str]
+    ) -> None:
         """Verify the structure and compliance of converted data."""
         # Check each group was converted
         for group in groups:
@@ -199,7 +215,9 @@ class TestCLIEndToEnd:
             ds.close()
 
             # Check for overview levels
-            level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
+            level_dirs = [
+                d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()
+            ]
             print(f"    Overview levels: {sorted([d.name for d in level_dirs])}")
 
             if len(level_dirs) > 1:
@@ -216,21 +234,27 @@ class TestCLIEndToEnd:
 
         # Test convert help
         result = subprocess.run(
-            ["python", "-m", "eopf_geozarr", "convert", "--help"], capture_output=True, text=True
+            ["python", "-m", "eopf_geozarr", "convert", "--help"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, "Convert help command failed"
         assert "input_path" in result.stdout and "output_path" in result.stdout
 
         # Test info help
         result = subprocess.run(
-            ["python", "-m", "eopf_geozarr", "info", "--help"], capture_output=True, text=True
+            ["python", "-m", "eopf_geozarr", "info", "--help"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, "Info help command failed"
         assert "input_path" in result.stdout
 
         # Test validate help
         result = subprocess.run(
-            ["python", "-m", "eopf_geozarr", "validate", "--help"], capture_output=True, text=True
+            ["python", "-m", "eopf_geozarr", "validate", "--help"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, "Validate help command failed"
         assert "input_path" in result.stdout
@@ -240,7 +264,9 @@ class TestCLIEndToEnd:
     def test_cli_version(self) -> None:
         """Test CLI version command."""
         result = subprocess.run(
-            ["python", "-m", "eopf_geozarr", "--version"], capture_output=True, text=True
+            ["python", "-m", "eopf_geozarr", "--version"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, "Version command failed"
         assert "0.1.0" in result.stdout, "Version should be 0.1.0"
@@ -250,7 +276,9 @@ class TestCLIEndToEnd:
         """Test that the --crs-groups CLI option is properly recognized."""
         # Test that --crs-groups option appears in help
         result = subprocess.run(
-            ["python", "-m", "eopf_geozarr", "convert", "--help"], capture_output=True, text=True
+            ["python", "-m", "eopf_geozarr", "convert", "--help"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, "Convert help command failed"
         assert "--crs-groups" in result.stdout, "--crs-groups option should be in help"
@@ -289,7 +317,15 @@ class TestCLIEndToEnd:
 
         # Build CLI command with --crs-groups option
         cmd = (
-            ["python", "-m", "eopf_geozarr", "convert", input_url, str(output_path), "--groups"]
+            [
+                "python",
+                "-m",
+                "eopf_geozarr",
+                "convert",
+                input_url,
+                str(output_path),
+                "--groups",
+            ]
             + groups
             + ["--crs-groups"]
             + crs_groups
@@ -316,15 +352,24 @@ class TestCLIEndToEnd:
 
         # Check command succeeded
         if result.returncode != 0:
-            print(f"CLI convert with --crs-groups failed with return code {result.returncode}")
+            print(
+                f"CLI convert with --crs-groups failed with return code {result.returncode}"
+            )
             print(f"STDOUT: {result.stdout}")
             print(f"STDERR: {result.stderr}")
             # Don't fail the test if CRS groups don't exist in the dataset
             # This is expected behavior for best-effort processing
-            if "not found in DataTree" in result.stdout or "not found in DataTree" in result.stderr:
-                print("✅ CLI handled missing CRS groups gracefully (expected behavior)")
+            if (
+                "not found in DataTree" in result.stdout
+                or "not found in DataTree" in result.stderr
+            ):
+                print(
+                    "✅ CLI handled missing CRS groups gracefully (expected behavior)"
+                )
                 return
-            pytest.fail(f"CLI convert with --crs-groups command failed: {result.stderr}")
+            pytest.fail(
+                f"CLI convert with --crs-groups command failed: {result.stderr}"
+            )
 
         print("✅ CLI convert with --crs-groups command succeeded")
 
@@ -362,7 +407,10 @@ class TestCLIEndToEnd:
 
         ds = xr.Dataset(
             {"temperature": (["y", "x"], np.random.rand(10, 10))},
-            coords={"x": (["x"], np.linspace(0, 10, 10)), "y": (["y"], np.linspace(0, 10, 10))},
+            coords={
+                "x": (["x"], np.linspace(0, 10, 10)),
+                "y": (["y"], np.linspace(0, 10, 10)),
+            },
         )
 
         # Save as zarr
@@ -386,7 +434,9 @@ class TestCLIEndToEnd:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
         # Should succeed (empty crs_groups list is valid)
-        assert result.returncode == 0, f"CLI with empty --crs-groups failed: {result.stderr}"
+        assert (
+            result.returncode == 0
+        ), f"CLI with empty --crs-groups failed: {result.stderr}"
         assert "CRS groups: []" in result.stdout, "Should show empty CRS groups list"
 
         print("✅ CLI with empty --crs-groups list works correctly")
