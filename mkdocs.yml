@@ -1,0 +1,53 @@
+site_name: ESA Sentinel Zarr Explorer - Data Model
+site_description: Documentation for the ESA Sentinel Zarr Explorer Data Model
+site_author: Development Seed
+repo_url: https://github.com/eopf-explorer/data-model
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: assets/logo-constellr-dark-icon.svg
+  features:
+    #- navigation.tabs
+    #- navigation.tabs.sticky
+    - navigation.sections
+    - content.code.copy
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - content.code.annotate
+    - content.tabs.link
+    #- toc.integrate # Table of contents on the left
+
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - codehilite
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md

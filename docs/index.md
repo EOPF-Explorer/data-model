@@ -22,6 +22,7 @@ The EOPF GeoZarr library enables conversion of EOPF datasets to the GeoZarr spec
 ## Key Features
 
 ### GeoZarr Specification Compliance
+
 - Full compliance with GeoZarr spec 0.4
 - `_ARRAY_DIMENSIONS` attributes on all arrays
 - CF standard names for all variables
@@ -30,16 +31,19 @@ The EOPF GeoZarr library enables conversion of EOPF datasets to the GeoZarr spec
 - Proper multiscales metadata structure
 
 ### Native CRS Preservation
+
 - No reprojection to TMS required
 - Maintains original coordinate reference systems
 - Native CRS tile matrix sets
 
 ### Multiscale Support
+
 - COG-style /2 downsampling logic
 - Overview levels as children groups
 - Configurable minimum dimensions and tile widths
 
 ### Robust Processing
+
 - Band-by-band writing with validation
 - Retry logic for network operations
 - Comprehensive error handling
@@ -58,4 +62,4 @@ See the [Quick Start](quickstart.md) guide to begin using the library, or check 
 
 ## Support
 
-For questions, issues, or contributions, please visit the [GitHub repository](https://github.com/developmentseed/eopf-geozarr).
+For questions, issues, or contributions, please visit the [GitHub repository](https://github.com/eopf-explorer/data-model).

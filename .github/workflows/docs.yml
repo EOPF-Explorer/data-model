@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+    paths:
+      - "docs/**"
 
 jobs:
   build-docs:
@@ -17,27 +19,20 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.8.4"
+        python-version: "3.13"
+        enable-cache: false
+
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y proj-bin gdal-bin libgdal-dev
-        python -m pip install --upgrade pip
-        pip install -e ".[docs]" --only-binary=:all:
+      run: uv sync --group docs
 
-    - name: Build documentation
-      run: |
-        cd docs
-        make html
+    - name: Build docs
+      if: github.event_name == 'pull_request'
+      run: uv run -- mkdocs build
 
-    - name: Upload documentation
-      uses: actions/upload-artifact@v4
-      with:
-        name: documentation
-        path: docs/_build/html/
-
-    - name: Deploy to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/_build/html
+    - name: Deploy docs
+      if: github.event_name == 'push'
+      run: uv run -- mkdocs gh-deploy --force
