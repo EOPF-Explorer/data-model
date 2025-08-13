@@ -1,14 +1,6 @@
 """Conversion tools for EOPF datasets to GeoZarr compliant format."""
 
-from .geozarr import (
-    async_consolidate_metadata,
-    calculate_overview_levels,
-    consolidate_metadata,
-    create_geozarr_dataset,
-    recursive_copy,
-    setup_datatree_metadata_geozarr_spec_compliant,
-)
-from .s3_utils import (
+from .fs_utils import (
     create_s3_store,
     get_s3_credentials_info,
     is_s3_path,
@@ -17,6 +9,14 @@ from .s3_utils import (
     s3_path_exists,
     validate_s3_access,
     write_s3_json_metadata,
+)
+from .geozarr import (
+    async_consolidate_metadata,
+    calculate_overview_levels,
+    consolidate_metadata,
+    create_geozarr_dataset,
+    iterative_copy,
+    setup_datatree_metadata_geozarr_spec_compliant,
 )
 from .utils import (
     calculate_aligned_chunk_size,
@@ -28,7 +28,7 @@ from .utils import (
 __all__ = [
     "create_geozarr_dataset",
     "setup_datatree_metadata_geozarr_spec_compliant",
-    "recursive_copy",
+    "iterative_copy",
     "consolidate_metadata",
     "async_consolidate_metadata",
     "calculate_overview_levels",

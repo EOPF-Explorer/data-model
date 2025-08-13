@@ -207,3 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 tests-output/
+
+# uv
+uv.lock
+.vscode/settings.json

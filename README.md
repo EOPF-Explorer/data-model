@@ -14,6 +14,8 @@ This library provides tools to convert EOPF datasets to GeoZarr-spec 0.4 complia
 - **CF Conventions**: Proper CF standard names and grid_mapping attributes
 - **Robust Processing**: Band-by-band writing with validation and retry logic
 - **S3 Support**: Direct output to Amazon S3 buckets with automatic credential validation
+- **Parallel Processing**: Optional dask cluster support for parallel chunk processing
+- **Chunk Alignment**: Automatic chunk alignment to prevent data corruption with dask
 
 ## GeoZarr Compliance Features
 
@@ -51,6 +53,12 @@ eopf-geozarr convert input.zarr output.zarr
 # Convert EOPF dataset to GeoZarr format (S3 output)
 eopf-geozarr convert input.zarr s3://my-bucket/path/to/output.zarr
 
+# Convert with parallel processing using dask cluster
+eopf-geozarr convert input.zarr output.zarr --dask-cluster
+
+# Convert with dask cluster and verbose output
+eopf-geozarr convert input.zarr output.zarr --dask-cluster --verbose
+
 # Get information about a dataset
 eopf-geozarr info input.zarr
 
@@ -86,7 +94,7 @@ export AWS_DEFAULT_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=your_ovh_access_key
 export AWS_SECRET_ACCESS_KEY=your_ovh_secret_key
 export AWS_DEFAULT_REGION=gra  # or other OVH region
-export AWS_S3_ENDPOINT=https://s3.gra.cloud.ovh.net  # OVH endpoint
+export AWS_ENDPOINT_URL=https://s3.gra.cloud.ovh.net  # OVH endpoint
 ```
 
 **For other S3-compatible providers:**
@@ -94,13 +102,13 @@ export AWS_S3_ENDPOINT=https://s3.gra.cloud.ovh.net  # OVH endpoint
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_DEFAULT_REGION=your_region
-export AWS_S3_ENDPOINT=https://your-s3-endpoint.com
+export AWS_ENDPOINT_URL=https://your-s3-endpoint.com
 ```
 
 **Alternative: AWS CLI Configuration**
 ```bash
 aws configure
-# Note: For custom endpoints, you'll still need to set AWS_S3_ENDPOINT
+# Note: For custom endpoints, you'll still need to set AWS_ENDPOINT_URL
 ```
 
 #### S3 Features
@@ -110,6 +118,42 @@ aws configure
 - **Credential Detection**: Automatically detects and validates S3 credentials
 - **Error Handling**: Provides helpful error messages for S3 configuration issues
 - **Performance**: Optimized for S3 with proper chunking and retry logic
+
+### Parallel Processing with Dask
+
+The library supports parallel processing using dask clusters for improved performance on large datasets:
+
+```bash
+# Enable dask cluster for parallel processing
+eopf-geozarr convert input.zarr output.zarr --dask-cluster
+
+# With verbose output to see cluster information
+eopf-geozarr convert input.zarr output.zarr --dask-cluster --verbose
+```
+
+#### Dask Features
+
+- **Local Cluster**: Automatically starts a local dask cluster with multiple workers
+- **Dashboard Access**: Provides access to the dask dashboard for monitoring (shown in verbose mode)
+- **Automatic Cleanup**: Properly closes the cluster even if errors occur during processing
+- **Chunk Alignment**: Automatically aligns Zarr chunks with dask chunks to prevent data corruption
+- **Memory Efficiency**: Better memory management through parallel chunk processing
+- **Error Handling**: Graceful handling of dask import errors with helpful installation instructions
+
+#### Chunk Alignment
+
+The library includes advanced chunk alignment logic to prevent the common issue of overlapping chunks when using dask:
+
+- **Smart Detection**: Automatically detects if data is dask-backed and uses existing chunk structure
+- **Aligned Calculation**: Uses `calculate_aligned_chunk_size()` to find optimal chunk sizes that divide evenly into data dimensions
+- **Proper Rechunking**: Ensures datasets are rechunked to match encoding before writing
+- **Fallback Logic**: For non-dask arrays, uses reasonable chunk sizes that don't exceed data dimensions
+
+This prevents errors like:
+```
+❌ Failed to write tci after 2 attempts: Specified Zarr chunks encoding['chunks']=(1, 3660, 3660)
+for variable named 'tci' would overlap multiple Dask chunks
+```
 
 #### S3 Python API
 
@@ -122,7 +166,7 @@ from eopf_geozarr import create_geozarr_dataset
 os.environ['AWS_ACCESS_KEY_ID'] = 'your_ovh_access_key'
 os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_ovh_secret_key'
 os.environ['AWS_DEFAULT_REGION'] = 'gra'
-os.environ['AWS_S3_ENDPOINT'] = 'https://s3.gra.cloud.ovh.net'
+os.environ['AWS_ENDPOINT_URL'] = 'https://s3.gra.cloud.ovh.net'
 
 # Load your EOPF DataTree
 dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
@@ -202,7 +246,22 @@ Downsample a 2D array using block averaging.
 
 #### `calculate_aligned_chunk_size`
 
-Calculate a chunk size that aligns well with the data dimension.
+Calculate a chunk size that divides evenly into the dimension size. This ensures that Zarr chunks align properly with the data dimensions, preventing chunk overlap issues when writing with Dask.
+
+**Parameters:**
+- `dimension_size` (int): Size of the dimension to chunk
+- `target_chunk_size` (int): Desired chunk size
+
+**Returns:**
+- `int`: Aligned chunk size that divides evenly into dimension_size
+
+**Example:**
+```python
+from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
+
+# For a dimension of size 5490 with target chunk size 3660
+aligned_size = calculate_aligned_chunk_size(5490, 3660)  # Returns 2745
+```
 
 #### `is_grid_mapping_variable`
 

@@ -33,8 +33,12 @@ def downsample_2d_array(
 
     if block_size_y > 1 and block_size_x > 1:
         # Block averaging
-        reshaped = source_data[: target_height * block_size_y, : target_width * block_size_x]
-        reshaped = reshaped.reshape(target_height, block_size_y, target_width, block_size_x)
+        reshaped = source_data[
+            : target_height * block_size_y, : target_width * block_size_x
+        ]
+        reshaped = reshaped.reshape(
+            target_height, block_size_y, target_width, block_size_x
+        )
         downsampled = reshaped.mean(axis=(1, 3))
     else:
         # Simple subsampling
@@ -43,37 +47,6 @@ def downsample_2d_array(
         downsampled = source_data[np.ix_(y_indices, x_indices)]
 
     return downsampled
-
-
-def calculate_aligned_chunk_size(dimension_size: int, desired_chunk_size: int) -> int:
-    """
-    Calculate a chunk size that aligns well with the data dimension.
-
-    This function finds the largest divisor of the dimension size that is
-    less than or equal to the desired chunk size, ensuring efficient chunking.
-
-    Parameters
-    ----------
-    dimension_size : int
-        Size of the data dimension
-    desired_chunk_size : int
-        Desired chunk size
-
-    Returns
-    -------
-    int
-        Aligned chunk size that divides evenly into the dimension
-    """
-    if desired_chunk_size >= dimension_size:
-        return dimension_size
-
-    # Start from desired_chunk_size and work downwards to find a good divisor
-    for chunk_size in range(desired_chunk_size, 0, -1):
-        if dimension_size % chunk_size == 0:
-            return chunk_size
-
-    # If no perfect divisor found, return the desired chunk size
-    return desired_chunk_size
 
 
 def is_grid_mapping_variable(ds: xr.Dataset, var_name: str) -> bool:
@@ -99,63 +72,103 @@ def is_grid_mapping_variable(ds: xr.Dataset, var_name: str) -> bool:
     return False
 
 
+def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) -> int:
+    """
+    Calculate a chunk size that divides evenly into the dimension size.
+
+    This ensures that Zarr chunks align properly with the data dimensions,
+    preventing chunk overlap issues when writing with Dask.
+
+    Parameters
+    ----------
+    dimension_size : int
+        Size of the dimension to chunk
+    target_chunk_size : int
+        Desired chunk size
+
+    Returns
+    -------
+    int
+        Aligned chunk size that divides evenly into dimension_size
+    """
+    if target_chunk_size >= dimension_size:
+        return dimension_size
+
+    # Find the largest divisor of dimension_size that is <= target_chunk_size
+    for chunk_size in range(target_chunk_size, 0, -1):
+        if dimension_size % chunk_size == 0:
+            return chunk_size
+
+    # Fallback: return 1 if no good divisor found
+    return 1
+
+
 def validate_existing_band_data(
-    existing_ds: xr.Dataset, band_name: str, expected_ds: xr.Dataset
+    existing_group: xr.Dataset, var_name: str, reference_ds: xr.Dataset
 ) -> bool:
     """
     Validate that a specific band exists and is complete in the dataset.
 
     Parameters
     ----------
-    existing_ds : xarray.Dataset
+    existing_group : xarray.Dataset
         Existing dataset to validate
-    band_name : str
-        Name of the band to validate
-    expected_ds : xarray.Dataset
-        Expected dataset structure for comparison
+    var_name : str
+        Name of the variable to validate
+    reference_ds : xarray.Dataset
+        Reference dataset structure for comparison
 
     Returns
     -------
     bool
-        True if the band exists and is valid, False otherwise
+        True if the variable exists and is valid, False otherwise
     """
     try:
-        # Check if the band exists
-        if band_name not in existing_ds.data_vars and band_name not in existing_ds.coords:
+        # Check if the variable exists
+        if (
+            var_name not in existing_group.data_vars
+            and var_name not in existing_group.coords
+        ):
             return False
 
         # Check shape matches
-        if band_name in expected_ds.data_vars:
-            expected_shape = expected_ds[band_name].shape
-            existing_shape = existing_ds[band_name].shape
+        if var_name in reference_ds.data_vars:
+            expected_shape = reference_ds[var_name].shape
+            existing_shape = existing_group[var_name].shape
 
             if expected_shape != existing_shape:
                 return False
 
         # Check required attributes for data variables
-        if band_name in expected_ds.data_vars and not is_grid_mapping_variable(
-            expected_ds, band_name
+        if var_name in reference_ds.data_vars and not is_grid_mapping_variable(
+            reference_ds, var_name
         ):
-            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name", "grid_mapping"]
+            required_attrs = ["_ARRAY_DIMENSIONS", "standard_name"]
             for attr in required_attrs:
-                if attr not in existing_ds[band_name].attrs:
+                if attr not in existing_group[var_name].attrs:
                     return False
 
+        # Check rio CRS
+        if existing_group.rio.crs != reference_ds.rio.crs:
+            return False
+
         # Basic data integrity check for data variables
-        if band_name in existing_ds.data_vars and not is_grid_mapping_variable(
-            existing_ds, band_name
+        if var_name in existing_group.data_vars and not is_grid_mapping_variable(
+            existing_group, var_name
         ):
             try:
                 # Just check if we can access the array metadata without reading data
-                array_info = existing_ds[band_name]
+                array_info = existing_group[var_name]
                 if array_info.size == 0:
                     return False
                 # read a piece of data to ensure it's valid
-                test = array_info.isel({dim: 0 for dim in array_info.dims}).values.mean()
+                test = array_info.isel(
+                    {dim: 0 for dim in array_info.dims}
+                ).values.mean()
                 if np.isnan(test):
                     return False
             except Exception as e:
-                print(f"Error validating band {band_name}: {e}")
+                print(f"Error validating variable {var_name}: {e}")
                 return False
 
         return True

@@ -16,8 +16,9 @@
                 "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr",
                 "./tests-output/eopf_geozarr/s2b_test.zarr",
                 "--groups", "/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m", "/quality/l1c_quicklook/r10m",
-                "--spatial-chunk", "512",
-                "--min-dimension", "128",
+                "--crs-groups", "/conditions/geometry",
+                "--spatial-chunk", "4096",
+                "--min-dimension", "256",
                 "--tile-width", "256",
                 "--max-retries", "2",
                 "--verbose"
@@ -38,12 +39,13 @@
             "args": [
                 "convert",
                 "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr",
-                "s3://esa-zarr-sentinel-explorer/tests-output/eopf_geozarr/s2b_test.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/s2b_test.zarr",
                 "--groups", "/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m", "/quality/l1c_quicklook/r10m",
                 "--spatial-chunk", "4096",
                 "--min-dimension", "256",
                 "--tile-width", "256",
                 "--max-retries", "2",
+                "--dask-cluster",
                 "--verbose"
             ],
             "cwd": "${workspaceFolder}",
@@ -51,12 +53,117 @@
             "console": "integratedTerminal",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/.venv/bin",
-                "AWS_ACCESS_KEY_ID": "secret",
-                "AWS_SECRET_ACCESS_KEY": "secret",
-                "AWS_DEFAULT_REGION": "gra",
-                "AWS_S3_ENDPOINT": "https://s3.gra.io.cloud.ovh.net/" 
+                "AWS_PROFILE": "eopf-explorer",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
             },
-            
+
+        },
+        {
+            // eopf_geozarr convert https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr /tmp/tmp7mmjkjk3/s2b_subset_test.zarr --groups /measurements/reflectance/r10m --spatial-chunk 512 --min-dimension 128 --tile-width 256 --max-retries 2 --verbose
+            "name": "Convert to GeoZarr S2L1C (S3)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "convert",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202507-s02msil1c/25/products/cpm_v256/S2A_MSIL1C_20250725T091041_N0511_R050_T34SGE_20250725T101000.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2A_MSIL1C_20250725T091041_N0511_R050_T34SGE_20250725T101000.zarr",
+                "--groups", "/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m", "/quality/l1c_quicklook/r10m",
+                "--spatial-chunk", "1024",
+                "--min-dimension", "256",
+                "--tile-width", "256",
+                "--max-retries", "2",
+                "--dask-cluster",
+                "--verbose"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+                "AWS_PROFILE": "eopf-explorer",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
+            },
+
+        },
+        {
+            // eopf_geozarr convert https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr /tmp/tmp7mmjkjk3/s2b_subset_test.zarr --groups /measurements/reflectance/r10m --spatial-chunk 512 --min-dimension 128 --tile-width 256 --max-retries 2 --verbose
+            "name": "Convert to GeoZarr S2L2A (S3)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "convert",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202507-s02msil2a/04/products/cpm_v256/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/04/products/cpm_v256/S2B_MSIL2A_20250804T103629_N0511_R008_T31TDH_20250804T130722.zarr",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/07/products/cpm_v256/S2B_MSIL2A_20250807T104619_N0511_R051_T31TDH_20250807T131144.zarr",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2B_MSIL2A_20250804T103629_N0511_R008_T31TDH_20250804T130722.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2B_MSIL2A_20250807T104619_N0511_R051_T31TDH_20250807T131144.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                "--groups", "/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m", "/quality/l2a_quicklook/r10m",
+                "--crs-groups", "/conditions/geometry",
+                "--spatial-chunk", "512",
+                "--min-dimension", "256",
+                "--tile-width", "256",
+                "--max-retries", "2",
+                "--dask-cluster",
+                "--verbose"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+                "AWS_PROFILE": "eopf-explorer",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
+            },
+
+        },
+        {
+            "name": "Info GeoZarr local",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "info",
+                "./tests-output/eopf_geozarr/s2b_test.zarr",
+                "--verbose",
+                "--html-output", "dataset_info.html"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+            },
+
+        },
+        {
+            "name": "Info GeoZarr S2L2A (S3)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "info",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
+                "--verbose",
+                "--html-output", "dataset_info.html"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+                "AWS_PROFILE": "eopf-explorer",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
+            },
+
         }
     ]
 }
