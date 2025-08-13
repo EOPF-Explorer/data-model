@@ -281,10 +281,11 @@ class TestIssue12Fix:
 
                     # Test the function
                     crs_groups = ["/conditions/geometry"]
-                    prepare_dataset_with_crs_info(dt, crs_groups, "/mock/output")
+                    processed_ds = prepare_dataset_with_crs_info(dt["conditions/geometry"].to_dataset(), reference_crs="epsg:32633")
 
-                    # Verify to_zarr was called (indicating the function processed the group)
-                    assert mock_to_zarr.called
+                    # Verify CRS information was added to the dataset
+                    assert "spatial_ref" in processed_ds
+                    assert processed_ds.rio.crs.to_string() == "EPSG:32633"
 
     def test_prepare_dataset_with_crs_info_coordinate_attributes(self) -> None:
         """Test that coordinate attributes are properly set."""
@@ -425,38 +426,21 @@ class TestIssue12Fix:
         dt["measurements/r10m"] = measurement_ds
         dt["conditions/geometry"] = geometry_ds
 
-        # Capture the dataset that would be written
-        written_dataset = None
-
-        def capture_to_zarr(self, *args, **kwargs):
-            nonlocal written_dataset
-            written_dataset = self
-
-        with patch("eopf_geozarr.conversion.geozarr.fs_utils.normalize_path"):
-            with patch("eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options"):
-                with patch.object(xr.Dataset, "to_zarr", side_effect=capture_to_zarr):
-                    crs_groups = ["/conditions/geometry"]
-                    prepare_dataset_with_crs_info(dt, crs_groups, "/mock/output")
+        # Process the dataset
+        processed_ds = prepare_dataset_with_crs_info(dt["conditions/geometry"].to_dataset(), reference_crs="epsg:32633")
 
         # Verify data variable attributes were set correctly
-        assert written_dataset is not None
-
-        # Check that data variables have _ARRAY_DIMENSIONS
-        for var_name in written_dataset.data_vars:
+        for var_name in processed_ds.data_vars:
             if var_name != "spatial_ref":  # Skip grid mapping variable
-                var_attrs = written_dataset[var_name].attrs
+                var_attrs = processed_ds[var_name].attrs
                 assert "_ARRAY_DIMENSIONS" in var_attrs
-                assert var_attrs["_ARRAY_DIMENSIONS"] == list(
-                    written_dataset[var_name].dims
-                )
+                assert var_attrs["_ARRAY_DIMENSIONS"] == list(processed_ds[var_name].dims)
 
                 # Variables with spatial coordinates should have grid_mapping
-                if (
-                    "x" in written_dataset[var_name].dims
-                    and "y" in written_dataset[var_name].dims
-                ):
+                if "x" in processed_ds[var_name].dims and "y" in processed_ds[var_name].dims:
                     assert "grid_mapping" in var_attrs
                     assert var_attrs["grid_mapping"] == "spatial_ref"
+
 
     def test_prepare_dataset_with_crs_info_crs_inference(self) -> None:
         """Test CRS inference from measurement groups."""
@@ -590,15 +574,8 @@ class TestIssue12Fix:
         dt["existing_group"] = xr.Dataset({"var": (["x"], [1, 2, 3])})
 
         # Test with non-existent group
-        with patch("eopf_geozarr.conversion.geozarr.print") as mock_print:
-            prepare_dataset_with_crs_info(dt, ["/non_existent_group"], "/mock/output")
-
-            # Should print warning about missing group
-            mock_print.assert_called()
-            warning_calls = [
-                call for call in mock_print.call_args_list if "not found" in str(call)
-            ]
-            assert len(warning_calls) > 0
+        with pytest.raises(KeyError, match="Could not find node at non_spatial_group"):
+            prepare_dataset_with_crs_info(dt["non_spatial_group"].to_dataset(), reference_crs="epsg:32633")
 
     def test_prepare_dataset_with_crs_info_no_spatial_coordinates(self) -> None:
         """Test handling of groups without spatial coordinates."""
