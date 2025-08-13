@@ -51,3 +51,4 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Using the Converter: converter.md

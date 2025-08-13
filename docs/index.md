@@ -32,21 +32,32 @@ The EOPF GeoZarr library enables conversion of EOPF datasets to the GeoZarr spec
 
 ### Native CRS Preservation
 
-- No reprojection to TMS required
-- Maintains original coordinate reference systems
-- Native CRS tile matrix sets
+- Maintains native CRS (e.g., UTM zones) throughout all overview levels
+- Avoids reprojection to Web Mercator, preserving scientific accuracy
+- Custom tile matrix sets using native CRS
 
-### Multiscale Support
+### Band Organization
 
-- COG-style /2 downsampling logic
-- Overview levels as children groups
-- Configurable minimum dimensions and tile widths
+- Spectral bands stored as separate DataArray variables
+- Enables band-specific metadata and selective access
+- Supports different processing chains per spectral band
+
+### Chunking Strategy
+
+- Aligned chunking to optimize storage efficiency and I/O performance
+- Prevents partial chunks that waste storage space
+- Reduces memory fragmentation
+
+### Hierarchical Structure
+
+- All resolution levels stored as siblings (`/0`, `/1`, `/2`, etc.)
+- Multiscales metadata in parent group attributes
+- Complies with xarray DataTree alignment requirements
 
 ### Robust Processing
 
 - Band-by-band writing with validation
 - Retry logic for network operations
-- Comprehensive error handling
 
 ## Architecture
 
