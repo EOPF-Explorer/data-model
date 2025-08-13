@@ -36,7 +36,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y proj-bin gdal-bin libgdal-dev
         python -m pip install --upgrade pip
-        pip install -e ".[dev,test]"
+        pip install -e ".[dev,test]" --only-binary=:all:
 
     - name: Run tests
       run: |
@@ -66,7 +66,7 @@ jobs:
        sudo apt-get update
         sudo apt-get install -y proj-bin gdal-bin libgdal-dev
         python -m pip install --upgrade pip
-        pip install -e ".[dev,test]"
+        pip install -e ".[dev,test]" --only-binary=:all:
 
     - name: Run network tests
       run: |
