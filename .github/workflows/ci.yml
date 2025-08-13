@@ -60,6 +60,16 @@ jobs:
         flags: unittests
         name: codecov-umbrella
 
+    - name: Save uv caches
+      if: steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.cache/uv
+          ~/.local/share/uv
+          .venv
+        key: uv-main-${{ hashFiles('uv.lock') }}
+
   test-network:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
