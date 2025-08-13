@@ -169,21 +169,12 @@ def prepare_dataset_with_crs_info(
             # Generic coordinate
             if "_ARRAY_DIMENSIONS" not in ds[coord_name].attrs:
                 ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
-    
-    # Set up data variables with proper attributes
-    for var_name in ds.data_vars:
-        # Add _ARRAY_DIMENSIONS attribute if missing
-        if "_ARRAY_DIMENSIONS" not in ds[var_name].attrs and hasattr(ds[var_name], "dims"):
-            ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
-        
-        # Add grid_mapping reference if spatial coordinates are present and we have a reference CRS
-        if "x" in ds.coords and "y" in ds.coords and reference_crs:
-            ds[var_name].attrs["grid_mapping"] = "spatial_ref"
-    
+                
     # Add CRS information if we have spatial coordinates and a reference CRS
     if "x" in ds.coords and "y" in ds.coords and reference_crs:
         print(f"  Adding CRS information: {reference_crs}")
         ds = ds.rio.write_crs(reference_crs)
+        ds.attrs["grid_mapping"] = "spatial_ref"
         
         # Ensure spatial_ref variable has proper attributes
         if "spatial_ref" in ds:
@@ -202,8 +193,20 @@ def prepare_dataset_with_crs_info(
                 transform_str = f"{x_coords[0]} {pixel_size_x} 0.0 {y_coords[0]} 0.0 {pixel_size_y}"
                 ds["spatial_ref"].attrs["GeoTransform"] = transform_str
     
-    return ds
+    # Set up data variables with proper attributes
+    for var_name in ds.data_vars:
+        # Add _ARRAY_DIMENSIONS attribute if missing
+        if "_ARRAY_DIMENSIONS" not in ds[var_name].attrs and hasattr(ds[var_name], "dims"):
+            ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
+        
+        # Add grid_mapping reference if spatial coordinates are present in the dimensions of the variable and we have a reference CRS
+        if "x" in ds[var_name].coords and "y" in ds[var_name].coords and reference_crs:
+            ds[var_name].attrs["grid_mapping"] = "spatial_ref"
+            # Add all possible proj: prefixed attributes
+            ds[var_name].attrs["proj:epsg"] = reference_crs.split(":")[-1]
+            ds[var_name].attrs["proj:transform"] = ds["spatial_ref"].attrs["GeoTransform"]
 
+    return ds
 
 
 
