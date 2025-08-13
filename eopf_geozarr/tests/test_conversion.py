@@ -281,7 +281,10 @@ class TestIssue12Fix:
 
                     # Test the function
                     crs_groups = ["/conditions/geometry"]
-                    processed_ds = prepare_dataset_with_crs_info(dt["conditions/geometry"].to_dataset(), reference_crs="epsg:32633")
+                    processed_ds = prepare_dataset_with_crs_info(
+                        dt["conditions/geometry"].to_dataset(),
+                        reference_crs="epsg:32633",
+                    )
 
                     # Verify CRS information was added to the dataset
                     assert "spatial_ref" in processed_ds
@@ -427,20 +430,26 @@ class TestIssue12Fix:
         dt["conditions/geometry"] = geometry_ds
 
         # Process the dataset
-        processed_ds = prepare_dataset_with_crs_info(dt["conditions/geometry"].to_dataset(), reference_crs="epsg:32633")
+        processed_ds = prepare_dataset_with_crs_info(
+            dt["conditions/geometry"].to_dataset(), reference_crs="epsg:32633"
+        )
 
         # Verify data variable attributes were set correctly
         for var_name in processed_ds.data_vars:
             if var_name != "spatial_ref":  # Skip grid mapping variable
                 var_attrs = processed_ds[var_name].attrs
                 assert "_ARRAY_DIMENSIONS" in var_attrs
-                assert var_attrs["_ARRAY_DIMENSIONS"] == list(processed_ds[var_name].dims)
+                assert var_attrs["_ARRAY_DIMENSIONS"] == list(
+                    processed_ds[var_name].dims
+                )
 
                 # Variables with spatial coordinates should have grid_mapping
-                if "x" in processed_ds[var_name].dims and "y" in processed_ds[var_name].dims:
+                if (
+                    "x" in processed_ds[var_name].dims
+                    and "y" in processed_ds[var_name].dims
+                ):
                     assert "grid_mapping" in var_attrs
                     assert var_attrs["grid_mapping"] == "spatial_ref"
-
 
     def test_prepare_dataset_with_crs_info_crs_inference(self) -> None:
         """Test CRS inference from measurement groups."""
@@ -575,7 +584,9 @@ class TestIssue12Fix:
 
         # Test with non-existent group
         with pytest.raises(KeyError, match="Could not find node at non_spatial_group"):
-            prepare_dataset_with_crs_info(dt["non_spatial_group"].to_dataset(), reference_crs="epsg:32633")
+            prepare_dataset_with_crs_info(
+                dt["non_spatial_group"].to_dataset(), reference_crs="epsg:32633"
+            )
 
     def test_prepare_dataset_with_crs_info_no_spatial_coordinates(self) -> None:
         """Test handling of groups without spatial coordinates."""
