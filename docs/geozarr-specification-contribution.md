@@ -129,8 +129,8 @@ We continue to monitor the specification development and will contribute additio
 ## Related Documentation
 
 - [Converter Documentation](converter.md) - Technical details of our implementation
-- [README](../README.md) - Project overview and usage
-- [ADR-101](adr/ADR-101-geozarr-specification-implementation-approach.md) - Architecture decisions (when available)
+- [Architecture](architecture.md) - Technical architecture and design principles
+- [API Reference](api-reference.md) - Complete Python API documentation
 
 ## Links
 

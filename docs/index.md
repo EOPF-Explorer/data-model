@@ -1,76 +1,141 @@
 # EOPF GeoZarr Documentation
 
-Welcome to the EOPF GeoZarr library documentation. This library provides tools to convert EOPF (Earth Observation Processing Framework) datasets to GeoZarr-spec 0.4 compliant format.
+Welcome to the EOPF GeoZarr library documentation. This library provides tools to convert EOPF (Earth Observation Processing Framework) datasets to GeoZarr-spec 0.4 compliant format while maintaining scientific accuracy and optimizing for cloud-native workflows.
 
-## Table of Contents
+## Quick Navigation
 
-- [Installation](installation.md)
-- [Quick Start](quickstart.md)
-- [API Reference](api.md)
-- [GeoZarr Specification Compliance](geozarr-compliance.md)
-- [Examples](examples.md)
+### Getting Started
+- **[Installation](installation.md)** - Install the library and set up your environment
+- **[Quick Start](quickstart.md)** - Convert your first dataset in minutes
+- **[User Guide](converter.md)** - Comprehensive usage guide with advanced options
 
-## Overview
+### Reference
+- **[API Reference](api-reference.md)** - Complete Python API documentation
+- **[Examples](examples.md)** - Practical examples for common use cases
+- **[Architecture](architecture.md)** - Technical architecture and design principles
 
-The EOPF GeoZarr library enables conversion of EOPF datasets to the GeoZarr specification while:
+### Support
+- **[FAQ](faq.md)** - Frequently asked questions and troubleshooting
+- **[GeoZarr Specification](geozarr-specification-contribution.md)** - Our contributions to the GeoZarr spec
 
-- Maintaining native coordinate reference systems (no reprojection to TMS)
-- Supporting multiscale data with COG-style /2 downsampling
-- Ensuring full CF conventions compliance
-- Providing robust processing with validation and retry logic
+## What is EOPF GeoZarr?
+
+The EOPF GeoZarr library bridges the gap between EOPF datasets and the emerging GeoZarr specification, enabling:
+
+✅ **Scientific Accuracy** - Preserves native CRS and data integrity  
+✅ **Cloud-Native** - Optimized for S3 and distributed processing  
+✅ **Performance** - Intelligent chunking and multiscale pyramids  
+✅ **Standards Compliant** - Full GeoZarr 0.4 and CF conventions support  
+✅ **Production Ready** - Robust error handling and validation  
 
 ## Key Features
 
-### GeoZarr Specification Compliance
+### 🌍 Native CRS Preservation
+Maintains original coordinate reference systems (UTM, polar stereographic, etc.) without unnecessary reprojection to Web Mercator, preserving scientific accuracy for Earth observation data.
 
-- Full compliance with GeoZarr spec 0.4
-- `_ARRAY_DIMENSIONS` attributes on all arrays
-- CF standard names for all variables
-- `grid_mapping` attributes referencing CF grid_mapping variables
-- `GeoTransform` attributes in grid_mapping variables
-- Proper multiscales metadata structure
+### 📊 Multiscale Pyramids
+Automatically generates overview levels with /2 downsampling, creating efficient multiscale pyramids for visualization and analysis at different resolutions.
 
-### Native CRS Preservation
+### 🔧 Intelligent Chunking
+Implements aligned chunking strategy that prevents partial chunks, optimizes storage efficiency, and improves I/O performance for both local and cloud storage.
 
-- Maintains native CRS (e.g., UTM zones) throughout all overview levels
-- Avoids reprojection to Web Mercator, preserving scientific accuracy
-- Custom tile matrix sets using native CRS
+### ☁️ Cloud-Native Design
+Full support for AWS S3 and S3-compatible storage with automatic credential detection, retry logic, and optimized multipart uploads.
 
-### Band Organization
+### 📋 Standards Compliance
+- **GeoZarr 0.4 specification** compliance
+- **CF conventions** for scientific metadata
+- **`_ARRAY_DIMENSIONS`** attributes on all arrays
+- **Grid mapping** variables with proper CRS information
+- **Multiscales** metadata structure
 
-- Spectral bands stored as separate DataArray variables
-- Enables band-specific metadata and selective access
-- Supports different processing chains per spectral band
+### 🚀 Performance Optimized
+- **Dask integration** for distributed processing
+- **Lazy loading** for memory efficiency
+- **Band-by-band processing** with validation
+- **Retry logic** for robust network operations
 
-### Chunking Strategy
+## Supported Data
 
-- Aligned chunking to optimize storage efficiency and I/O performance
-- Prevents partial chunks that waste storage space
-- Reduces memory fragmentation
+### Satellite Missions
+- **Sentinel-2** L1C and L2A products (fully supported)
+- **Sentinel-1** (planned support)
+- Extensible architecture for additional missions
 
-### Hierarchical Structure
+### Data Formats
+- **Input**: EOPF DataTree (Zarr format)
+- **Output**: GeoZarr-compliant Zarr with multiscale structure
 
-- All resolution levels stored as siblings (`/0`, `/1`, `/2`, etc.)
-- Multiscales metadata in parent group attributes
-- Complies with xarray DataTree alignment requirements
+### Storage Backends
+- **Local filesystems**
+- **AWS S3**
+- **S3-compatible storage** (MinIO, DigitalOcean Spaces, etc.)
 
-### Robust Processing
+## Quick Example
 
-- Band-by-band writing with validation
-- Retry logic for network operations
+```python
+import xarray as xr
+from eopf_geozarr import create_geozarr_dataset
 
-## Architecture
+# Load EOPF dataset
+dt = xr.open_datatree("sentinel2_l2a.zarr", engine="zarr")
 
-The library is organized into the following modules:
+# Convert to GeoZarr
+dt_geozarr = create_geozarr_dataset(
+    dt_input=dt,
+    groups=["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"],
+    output_path="s3://my-bucket/geozarr.zarr",
+    spatial_chunk=4096
+)
 
-- **`conversion`**: Core conversion tools for EOPF to GeoZarr transformation
-- **`data_api`**: Data access API (future development with pydantic-zarr)
-- **`cli`**: Command-line interface for easy usage
+print("Conversion complete!")
+```
+
+Or using the command line:
+
+```bash
+eopf-geozarr convert input.zarr s3://bucket/output.zarr
+```
+
+## Architecture Overview
+
+The library is organized into focused modules:
+
+- **`conversion/`** - Core conversion engine and algorithms
+  - `geozarr.py` - Main conversion functions
+  - `fs_utils.py` - Storage backend abstraction
+  - `utils.py` - Processing utilities and chunking
+- **`cli.py`** - Command-line interface
+- **`data_api/`** - Future data access API (pydantic-zarr integration)
+
+## Implementation Highlights
+
+Based on our experience and contributions to the GeoZarr specification (see [ADR-101](https://github.com/DevelopmentSeed/sentinel-zarr-explorer-coordination/blob/main/docs/adr/ADR-101-geozarr-specification-implementation-approach.md)), this library implements:
+
+### Native CRS Tile Matrix Sets
+Creates custom tile matrix sets for arbitrary coordinate reference systems, not just Web Mercator, enabling scientific applications that require native projections.
+
+### Aligned Chunking Strategy
+Implements intelligent chunk size calculation that prevents partial chunks and optimizes for both storage efficiency and processing performance.
+
+### Hierarchical Data Organization
+Uses a sibling-based structure (`/0`, `/1`, `/2`) for resolution levels that complies with xarray DataTree requirements while maintaining GeoZarr specification compliance.
+
+### Robust Cloud Integration
+Production-ready S3 integration with credential validation, error handling, and performance optimization for large-scale Earth observation workflows.
 
 ## Getting Started
 
-See the [Quick Start](quickstart.md) guide to begin using the library, or check out the [Examples](examples.md) for common use cases.
+1. **[Install](installation.md)** the library
+2. **[Quick Start](quickstart.md)** with your first conversion
+3. **[Explore Examples](examples.md)** for your specific use case
+4. **[Read the User Guide](converter.md)** for advanced usage
 
-## Support
+## Community and Support
 
-For questions, issues, or contributions, please visit the [GitHub repository](https://github.com/eopf-explorer/data-model).
+- **Documentation**: Comprehensive guides and API reference
+- **GitHub**: [eopf-explorer/data-model](https://github.com/eopf-explorer/data-model)
+- **Issues**: Report bugs and request features
+- **Contributions**: Help improve the library and specification
+
+The EOPF GeoZarr library is actively developed and maintained by [Development Seed](https://developmentseed.org/), with ongoing contributions to the GeoZarr specification to better serve the Earth observation community.
