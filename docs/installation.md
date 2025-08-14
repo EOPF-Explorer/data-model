@@ -58,6 +58,7 @@ pip install eopf-geozarr[dev]
 ```
 
 This includes:
+
 - Testing frameworks (pytest, pytest-cov)
 - Code formatting (black, isort)
 - Linting (flake8, mypy)
@@ -117,14 +118,17 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 ### Common Issues
 
 **ImportError: No module named 'eopf_geozarr'**
+
 - Ensure you're using the correct Python environment
 - Verify installation with `pip list | grep eopf-geozarr`
 
 **Permission errors during installation**
+
 - Use `pip install --user eopf-geozarr` for user-level installation
 - Or use a virtual environment (recommended)
 
 **Dependency conflicts**
+
 - Create a fresh virtual environment
 - Use `pip install --upgrade eopf-geozarr` to update dependencies
 
@@ -141,10 +145,12 @@ pip install eopf-geozarr
 ### System-Specific Notes
 
 **macOS with Apple Silicon**
+
 - Some dependencies may require Rosetta 2 or native ARM builds
 - Consider using conda for better compatibility
 
 **Windows**
+
 - Ensure Visual C++ Build Tools are installed for some dependencies
 - Use Windows Subsystem for Linux (WSL) for best compatibility
 

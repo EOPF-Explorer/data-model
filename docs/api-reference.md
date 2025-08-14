@@ -33,9 +33,11 @@ def create_geozarr_dataset(
 - `**storage_kwargs`: Additional storage options (S3 credentials, etc.)
 
 **Returns:**
+
 - `xr.DataTree`: The converted GeoZarr-compliant DataTree
 
 **Example:**
+
 ```python
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
@@ -102,13 +104,16 @@ def calculate_aligned_chunk_size(
 ```
 
 **Parameters:**
+
 - `dimension_size` (int): Size of the data dimension
 - `target_chunk_size` (int): Desired chunk size
 
 **Returns:**
+
 - `int`: Optimal aligned chunk size
 
 **Example:**
+
 ```python
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
@@ -195,6 +200,7 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None
 ```
 
 Adds proper coordinate metadata including:
+
 - `_ARRAY_DIMENSIONS` attributes
 - CF standard names
 - Coordinate variable attributes

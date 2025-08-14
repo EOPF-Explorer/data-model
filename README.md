@@ -83,6 +83,7 @@ eopf-geozarr convert local_input.zarr s3://my-bucket/geozarr-data/output.zarr --
 Before using S3 output, ensure your S3 credentials are configured:
 
 **For AWS S3:**
+
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
@@ -90,6 +91,7 @@ export AWS_DEFAULT_REGION=us-east-1
 ```
 
 **For OVH Cloud Object Storage:**
+
 ```bash
 export AWS_ACCESS_KEY_ID=your_ovh_access_key
 export AWS_SECRET_ACCESS_KEY=your_ovh_secret_key
@@ -98,6 +100,7 @@ export AWS_ENDPOINT_URL=https://s3.gra.cloud.ovh.net  # OVH endpoint
 ```
 
 **For other S3-compatible providers:**
+
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
@@ -106,6 +109,7 @@ export AWS_ENDPOINT_URL=https://your-s3-endpoint.com
 ```
 
 **Alternative: AWS CLI Configuration**
+
 ```bash
 aws configure
 # Note: For custom endpoints, you'll still need to set AWS_ENDPOINT_URL
@@ -150,6 +154,7 @@ The library includes advanced chunk alignment logic to prevent the common issue 
 - **Fallback Logic**: For non-dask arrays, uses reasonable chunk sizes that don't exceed data dimensions
 
 This prevents errors like:
+
 ```
 ❌ Failed to write tci after 2 attempts: Specified Zarr chunks encoding['chunks']=(1, 3660, 3660)
 for variable named 'tci' would overlap multiple Dask chunks
@@ -216,6 +221,7 @@ dt_geozarr = create_geozarr_dataset(
 Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
 
 **Parameters:**
+
 - `dt_input` (xr.DataTree): Input EOPF DataTree
 - `groups` (List[str]): List of group names to process as Geozarr datasets
 - `output_path` (str): Output path for the Zarr store
@@ -225,6 +231,7 @@ Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
 - `max_retries` (int, default=3): Maximum number of retries for network operations
 
 **Returns:**
+
 - `xr.DataTree`: DataTree containing the GeoZarr compliant data
 
 #### `setup_datatree_metadata_geozarr_spec_compliant`
@@ -232,10 +239,12 @@ Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
 Set up GeoZarr-spec compliant CF standard names and CRS information.
 
 **Parameters:**
+
 - `dt` (xr.DataTree): The data tree containing the datasets to process
 - `groups` (List[str]): List of group names to process as Geozarr datasets
 
 **Returns:**
+
 - `Dict[str, xr.Dataset]`: Dictionary of datasets with GeoZarr compliance applied
 
 ### Utility Functions
@@ -249,13 +258,16 @@ Downsample a 2D array using block averaging.
 Calculate a chunk size that divides evenly into the dimension size. This ensures that Zarr chunks align properly with the data dimensions, preventing chunk overlap issues when writing with Dask.
 
 **Parameters:**
+
 - `dimension_size` (int): Size of the dimension to chunk
 - `target_chunk_size` (int): Desired chunk size
 
 **Returns:**
+
 - `int`: Aligned chunk size that divides evenly into dimension_size
 
 **Example:**
+
 ```python
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
@@ -329,6 +341,7 @@ pytest
 ### Code Quality
 
 The project uses:
+
 - **Black** for code formatting
 - **isort** for import sorting
 - **flake8** for linting

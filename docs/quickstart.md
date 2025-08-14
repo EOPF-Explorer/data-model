@@ -19,6 +19,7 @@ eopf-geozarr convert input.zarr output.zarr
 ```
 
 That's it! The converter will:
+
 - Analyze your EOPF dataset structure
 - Apply GeoZarr 0.4 specification compliance
 - Create multiscale overviews
@@ -195,16 +196,19 @@ Your converted dataset now includes:
 ## Troubleshooting Quick Fixes
 
 **Memory errors with large datasets?**
+
 ```bash
 eopf-geozarr convert input.zarr output.zarr --spatial-chunk 2048
 ```
 
 **S3 permission errors?**
+
 ```bash
 aws sts get-caller-identity  # Verify credentials
 ```
 
 **Validation failures?**
+
 ```bash
 eopf-geozarr validate output.zarr --verbose  # Get detailed error info
 ```

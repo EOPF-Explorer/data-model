@@ -9,16 +9,19 @@ The EOPF GeoZarr library is designed to convert EOPF (Earth Observation Processi
 ## Design Principles
 
 ### 1. Scientific Integrity First
+
 - **Native CRS Preservation**: Maintains original coordinate reference systems to avoid reprojection artifacts
 - **Data Accuracy**: Preserves original data values without unnecessary transformations
 - **Metadata Fidelity**: Ensures all scientific metadata is properly transferred and enhanced
 
 ### 2. Performance Optimization
+
 - **Aligned Chunking**: Optimizes chunk sizes to prevent partial chunks and improve I/O performance
 - **Lazy Loading**: Uses xarray and Dask for memory-efficient processing
 - **Parallel Processing**: Supports distributed computing for large datasets
 
 ### 3. Cloud-Native Design
+
 - **Storage Agnostic**: Works with local filesystems, S3, and other cloud storage
 - **Scalable**: Designed for processing large Earth observation datasets
 - **Robust**: Includes retry logic and error handling for network operations
@@ -63,6 +66,7 @@ def create_geozarr_dataset(
 ```
 
 **Key Functions:**
+
 - `setup_datatree_metadata_geozarr_spec_compliant()`: Sets up GeoZarr-compliant metadata
 - `write_geozarr_group()`: Writes individual groups with proper structure
 - `create_geozarr_compliant_multiscales()`: Creates multiscales metadata
@@ -72,16 +76,19 @@ def create_geozarr_dataset(
 Handles storage operations across different backends:
 
 **Local Storage:**
+
 - Path normalization and validation
 - Zarr group operations
 - Metadata consolidation
 
 **S3 Storage:**
+
 - S3 path parsing and validation
 - Credential management
 - S3-specific Zarr operations
 
 **Key Functions:**
+
 - `get_storage_options()`: Unified storage configuration
 - `validate_s3_access()`: S3 access validation
 - `consolidate_metadata()`: Metadata consolidation
@@ -91,6 +98,7 @@ Handles storage operations across different backends:
 Core processing algorithms:
 
 **Chunking:**
+
 ```python
 def calculate_aligned_chunk_size(
     dimension_size: int, 
@@ -99,6 +107,7 @@ def calculate_aligned_chunk_size(
 ```
 
 **Downsampling:**
+
 ```python
 def downsample_2d_array(
     data: np.ndarray, 
@@ -261,6 +270,7 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 ```
 
 **Benefits:**
+
 - Prevents partial chunks that waste storage
 - Improves read/write performance
 - Reduces memory fragmentation
@@ -269,11 +279,13 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 ### 2. Memory Management
 
 **Lazy Loading:**
+
 - Uses xarray's lazy loading capabilities
 - Processes data in chunks to manage memory usage
 - Supports out-of-core processing for large datasets
 
 **Band-by-Band Processing:**
+
 ```python
 def write_dataset_band_by_band_with_validation(
     ds: xr.Dataset,
@@ -285,11 +297,13 @@ def write_dataset_band_by_band_with_validation(
 ### 3. Parallel Processing
 
 **Dask Integration:**
+
 - Supports Dask distributed computing
 - Automatic parallelization of chunk operations
 - Configurable cluster setup
 
 **Retry Logic:**
+
 - Robust error handling for network operations
 - Configurable retry attempts
 - Graceful degradation on failures
@@ -311,12 +325,14 @@ def get_storage_options(path: str, **kwargs) -> Optional[Dict[str, Any]]:
 ### 2. S3 Integration
 
 **Features:**
+
 - Automatic credential detection
 - Custom endpoint support
 - Bucket validation
 - Optimized multipart uploads
 
 **Configuration:**
+
 ```python
 s3_options = {
     'key': os.environ.get('AWS_ACCESS_KEY_ID'),

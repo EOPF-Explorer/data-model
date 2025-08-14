@@ -5,16 +5,19 @@ Welcome to the EOPF GeoZarr library documentation. This library provides tools t
 ## Quick Navigation
 
 ### Getting Started
+
 - **[Installation](installation.md)** - Install the library and set up your environment
 - **[Quick Start](quickstart.md)** - Convert your first dataset in minutes
 - **[User Guide](converter.md)** - Comprehensive usage guide with advanced options
 
 ### Reference
+
 - **[API Reference](api-reference.md)** - Complete Python API documentation
 - **[Examples](examples.md)** - Practical examples for common use cases
 - **[Architecture](architecture.md)** - Technical architecture and design principles
 
 ### Support
+
 - **[FAQ](faq.md)** - Frequently asked questions and troubleshooting
 - **[GeoZarr Specification](geozarr-specification-contribution.md)** - Our contributions to the GeoZarr spec
 
@@ -31,18 +34,23 @@ The EOPF GeoZarr library bridges the gap between EOPF datasets and the emerging 
 ## Key Features
 
 ### 🌍 Native CRS Preservation
+
 Maintains original coordinate reference systems (UTM, polar stereographic, etc.) without unnecessary reprojection to Web Mercator, preserving scientific accuracy for Earth observation data.
 
 ### 📊 Multiscale Pyramids
+
 Automatically generates overview levels with /2 downsampling, creating efficient multiscale pyramids for visualization and analysis at different resolutions.
 
 ### 🔧 Intelligent Chunking
+
 Implements aligned chunking strategy that prevents partial chunks, optimizes storage efficiency, and improves I/O performance for both local and cloud storage.
 
 ### ☁️ Cloud-Native Design
+
 Full support for AWS S3 and S3-compatible storage with automatic credential detection, retry logic, and optimized multipart uploads.
 
 ### 📋 Standards Compliance
+
 - **GeoZarr 0.4 specification** compliance
 - **CF conventions** for scientific metadata
 - **`_ARRAY_DIMENSIONS`** attributes on all arrays
@@ -50,6 +58,7 @@ Full support for AWS S3 and S3-compatible storage with automatic credential dete
 - **Multiscales** metadata structure
 
 ### 🚀 Performance Optimized
+
 - **Dask integration** for distributed processing
 - **Lazy loading** for memory efficiency
 - **Band-by-band processing** with validation
@@ -58,15 +67,18 @@ Full support for AWS S3 and S3-compatible storage with automatic credential dete
 ## Supported Data
 
 ### Satellite Missions
+
 - **Sentinel-2** L1C and L2A products (fully supported)
 - **Sentinel-1** (planned support)
 - Extensible architecture for additional missions
 
 ### Data Formats
+
 - **Input**: EOPF DataTree (Zarr format)
 - **Output**: GeoZarr-compliant Zarr with multiscale structure
 
 ### Storage Backends
+
 - **Local filesystems**
 - **AWS S3**
 - **S3-compatible storage** (MinIO, DigitalOcean Spaces, etc.)
@@ -113,15 +125,19 @@ The library is organized into focused modules:
 Based on our experience and contributions to the GeoZarr specification (see [ADR-101](https://github.com/DevelopmentSeed/sentinel-zarr-explorer-coordination/blob/main/docs/adr/ADR-101-geozarr-specification-implementation-approach.md)), this library implements:
 
 ### Native CRS Tile Matrix Sets
+
 Creates custom tile matrix sets for arbitrary coordinate reference systems, not just Web Mercator, enabling scientific applications that require native projections.
 
 ### Aligned Chunking Strategy
+
 Implements intelligent chunk size calculation that prevents partial chunks and optimizes for both storage efficiency and processing performance.
 
 ### Hierarchical Data Organization
+
 Uses a sibling-based structure (`/0`, `/1`, `/2`) for resolution levels that complies with xarray DataTree requirements while maintaining GeoZarr specification compliance.
 
 ### Robust Cloud Integration
+
 Production-ready S3 integration with credential validation, error handling, and performance optimization for large-scale Earth observation workflows.
 
 ## Getting Started

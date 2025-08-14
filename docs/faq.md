@@ -21,6 +21,7 @@ GeoZarr is a specification that extends Zarr with geospatial metadata standards.
 ### Which satellite missions are supported?
 
 Currently, the library is optimized for:
+
 - **Sentinel-2** (L1C and L2A products)
 - **Sentinel-1** (planned support)
 
@@ -141,6 +142,7 @@ dt_geozarr = create_geozarr_dataset(
 **Cause**: Library not installed or wrong Python environment.
 
 **Solutions**:
+
 ```bash
 # Verify installation
 pip list | grep eopf-geozarr
@@ -158,6 +160,7 @@ python --version
 **Cause**: Specified groups don't exist in the input dataset.
 
 **Solution**:
+
 ```python
 # Check available groups
 dt = xr.open_datatree("input.zarr", engine="zarr")
@@ -172,6 +175,7 @@ groups = [g for g in dt.groups if "measurements" in g]
 **Cause**: Dataset too large for available memory.
 
 **Solutions**:
+
 ```python
 # 1. Use smaller chunks
 dt_geozarr = create_geozarr_dataset(
@@ -199,6 +203,7 @@ for group in ["/measurements/r10m", "/measurements/r20m"]:
 **Cause**: Insufficient S3 permissions or incorrect credentials.
 
 **Solutions**:
+
 ```python
 # 1. Verify credentials
 from eopf_geozarr.conversion.fs_utils import get_s3_credentials_info
@@ -217,6 +222,7 @@ print(f"Valid: {is_valid}, Error: {error}")
 **Cause**: Corrupted or incomplete Zarr dataset.
 
 **Solutions**:
+
 ```python
 # 1. Validate input dataset
 try:
@@ -239,6 +245,7 @@ zarr.consolidate_metadata("input.zarr")
 **Cause**: Missing or invalid coordinate reference system information.
 
 **Solutions**:
+
 ```python
 # Check CRS information
 ds = dt["/measurements/r10m"].ds
@@ -269,6 +276,7 @@ Several factors affect performance:
 4. **Memory**: Insufficient RAM causes swapping
 
 **Optimization strategies**:
+
 ```python
 # 1. Optimal chunking
 chunk_size = calculate_aligned_chunk_size(data_width, 4096)
@@ -303,11 +311,13 @@ logging.basicConfig(level=logging.INFO)
 ### What's the expected output size?
 
 GeoZarr datasets are typically larger than input due to:
+
 - Multiscale overviews (adds ~33% for 2 overview levels)
 - Additional metadata
 - Chunk alignment padding
 
 **Estimation**:
+
 ```python
 # Rough estimate: input_size * 1.4 (with 2 overview levels)
 # For Sentinel-2 10m band: ~400MB input → ~560MB GeoZarr
@@ -476,6 +486,7 @@ for scene in scene_list:
 When reporting issues, please include:
 
 1. **Version information**:
+
    ```bash
    eopf-geozarr --version
    python --version
