@@ -52,3 +52,4 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Using the Converter: converter.md
+  - GeoZarr Specification Contribution: geozarr-specification-contribution.md

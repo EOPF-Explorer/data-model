@@ -290,6 +290,20 @@ This library implements the GeoZarr specification 0.4 with the following key req
 4. **Multiscales Structure**: Overview levels are stored as children groups with proper tile matrix metadata
 5. **Native CRS**: Coordinate reference systems are preserved without reprojection
 
+## Contributing to GeoZarr Specification
+
+Our implementation has contributed valuable feedback to the GeoZarr specification development process. Based on our real-world experience with Earth observation data, we have identified and reported several areas for improvement:
+
+### Key Contributions
+
+- **[Arbitrary Coordinate Systems Support](https://github.com/zarr-developers/geozarr-spec/issues/81)**: Advocating for native CRS preservation instead of web mapping bias
+- **[Chunking Performance Optimization](https://github.com/zarr-developers/geozarr-spec/issues/82)**: Proposing flexible chunking strategies for optimal performance
+- **[Multiscale Hierarchy Clarification](https://github.com/zarr-developers/geozarr-spec/issues/83)**: Providing clear structure definitions for multiscale implementations
+
+Our implementation demonstrates that scientific accuracy and performance can be maintained while working with arbitrary coordinate systems, not just web mapping projections. This is particularly important for Earth observation data that often comes in UTM zones, polar stereographic, or other scientific projections.
+
+For detailed information about our contributions, see our [GeoZarr Specification Contribution documentation](docs/geozarr-specification-contribution.md).
+
 ## Development
 
 ### Setting up Development Environment
