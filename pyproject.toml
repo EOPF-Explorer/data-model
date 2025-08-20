@@ -39,6 +39,9 @@ dependencies = [
     "s3fs>=2024.6.0",
     "boto3>=1.34.0",
     "pyproj>=3.7.0",
+    "ipykernel>=6.30.1",
+    "jupyter>=1.1.1",
+    "bokeh>=3.7.3",
 ]
 
 [dependency-groups]
