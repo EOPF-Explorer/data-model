@@ -30,7 +30,8 @@ def setup_dask_cluster(
     n_workers: int = 4,
     threads_per_worker: int = 1,
 ) -> Optional[Any]:
-    """Set up a dask cluster for parallel processing.
+    """
+    Set up a dask cluster for parallel processing.
 
     Parameters
     ----------
@@ -60,6 +61,7 @@ def setup_dask_cluster(
             threads_per_worker = 1
             processes = False
 
+        # Set up local cluster
         cluster = LocalCluster(
             n_workers=n_workers,
             threads_per_worker=threads_per_worker,
