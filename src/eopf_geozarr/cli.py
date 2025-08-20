@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""
-Command-line interface for eopf-geozarr.
+"""Command-line interface for eopf-geozarr.
 
 This module provides CLI commands for converting EOPF datasets to GeoZarr compliant format.
 """
 
 import argparse
 import sys
+from contextlib import nullcontext
+from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Optional
 
 import xarray as xr
@@ -19,9 +21,16 @@ from .conversion.fs_utils import (
     is_s3_path,
     validate_s3_access,
 )
+from .metrics import MetricsRecorder
 
 
-def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:
+def setup_dask_cluster(
+    enable_dask: bool,
+    verbose: bool = False,
+    mode: str = "threads",  # threads | processes | single-threaded
+    n_workers: int = 4,
+    threads_per_worker: int = 1,
+) -> Optional[Any]:
     """
     Set up a dask cluster for parallel processing.
 
@@ -32,7 +41,7 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
     verbose : bool, default False
         Enable verbose output
 
-    Returns
+    Returns:
     -------
     dask.distributed.Client or None
         Dask client if enabled, None otherwise
@@ -41,18 +50,35 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
         return None
 
     try:
-        from dask.distributed import Client
+        from dask.distributed import Client, LocalCluster
+
+        if mode not in {"threads", "processes", "single-threaded"}:
+            raise ValueError(f"Unsupported --dask-mode: {mode}")
+
+        processes = mode == "processes"
+        # For single-threaded, use one worker, one thread, processes=False
+        if mode == "single-threaded":
+            n_workers = 1
+            threads_per_worker = 1
+            processes = False
 
         # Set up local cluster
-        client = Client()  # set up local cluster
+        cluster = LocalCluster(
+            n_workers=n_workers,
+            threads_per_worker=threads_per_worker,
+            processes=processes,
+        )
+        client = Client(cluster)
 
         if verbose:
             print(f"🚀 Dask cluster started: {client}")
             print(f"   Dashboard: {client.dashboard_link}")
             print(f"   Workers: {len(client.scheduler_info()['workers'])}")
         else:
-            print("🚀 Dask cluster started for parallel processing")
-
+            print(
+                f"🚀 Dask cluster started "
+                f"({mode}; workers={n_workers}, threads/worker={threads_per_worker})"
+            )
         return client
 
     except ImportError:
@@ -65,9 +91,92 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
         sys.exit(1)
 
 
+def _duration_from_startstops(ev: dict, action: str) -> float:
+    """Best-effort duration extractor from task_stream 'startstops'."""
+    total = 0.0
+    for ss in ev.get("startstops", []) or []:
+        if ss.get("action") == action:
+            s, t = ss.get("start"), ss.get("stop")
+            if s is not None and t is not None:
+                total += max(0.0, float(t) - float(s))
+    return total
+
+
+def _parse_task_events(task_events: Optional[list]) -> dict:
+    """Normalize task_stream events across Dask versions into aggregate numbers."""
+    if not task_events:
+        return {
+            "tasks_observed": 0,
+            "compute_time_s_sum": 0.0,
+            "transfer_time_s_sum": 0.0,
+        }
+    comp_sum = 0.0
+    xfer_sum = 0.0
+    for e in task_events:
+        # compute time
+        cd = e.get("compute_duration")
+        if cd is None:
+            cs = e.get("compute_start") or e.get("start")
+            ce = e.get("compute_stop") or e.get("stop")
+            if cs is not None and ce is not None:
+                cd = max(0.0, float(ce) - float(cs))
+            else:
+                cd = _duration_from_startstops(e, "compute")
+        comp_sum += float(cd or 0.0)
+        # transfer time
+        td = e.get("transfer_duration")
+        if td is None:
+            ts = e.get("transfer_start")
+            te = e.get("transfer_stop")
+            if ts is not None and te is not None:
+                td = max(0.0, float(te) - float(ts))
+            else:
+                td = _duration_from_startstops(e, "transfer")
+        xfer_sum += float(td or 0.0)
+    return {
+        "tasks_observed": len(task_events),
+        "compute_time_s_sum": comp_sum,
+        "transfer_time_s_sum": xfer_sum,
+    }
+
+
+def _summarize_dask_metrics(
+    client: Any, task_events: Optional[list], wall_clock_s: float
+) -> dict:
+    info = client.scheduler_info()
+    workers = info.get("workers", {})
+    total_threads = sum(int(w.get("nthreads", 0) or 0) for w in workers.values())
+    memory_limit = sum(int(w.get("memory_limit", 0) or 0) for w in workers.values())
+    memory_used = sum(
+        int(w.get("metrics", {}).get("memory", 0) or 0) for w in workers.values()
+    )
+    spilled = sum(
+        int(w.get("metrics", {}).get("spilled_nbytes", 0) or 0)
+        for w in workers.values()
+    )
+
+    parsed = _parse_task_events(task_events)
+    tasks = parsed["tasks_observed"]
+    base = {
+        "wall_clock_s": wall_clock_s,
+        "workers": len(workers),
+        "threads_total": total_threads,
+        "tasks_observed": tasks,
+        "tasks_per_sec": (tasks / wall_clock_s) if tasks and wall_clock_s else 0.0,
+        "compute_time_s_sum": parsed["compute_time_s_sum"],
+        "transfer_time_s_sum": parsed["transfer_time_s_sum"],
+        "memory_used_bytes": memory_used,
+        "memory_limit_bytes": memory_limit,
+    }
+    if spilled:
+        base["spilled_nbytes"] = spilled
+    if getattr(client, "dashboard_link", None):
+        base["dashboard_link"] = client.dashboard_link
+    return base
+
+
 def convert_command(args: argparse.Namespace) -> None:
-    """
-    Convert EOPF dataset to GeoZarr compliant format.
+    """Convert EOPF dataset to GeoZarr compliant format.
 
     Parameters
     ----------
@@ -76,8 +185,19 @@ def convert_command(args: argparse.Namespace) -> None:
     """
     # Set up dask cluster if requested
     dask_client = setup_dask_cluster(
-        enable_dask=getattr(args, "dask_cluster", False), verbose=args.verbose
+        enable_dask=getattr(args, "dask_cluster", False),
+        verbose=args.verbose,
+        mode=getattr(args, "dask_mode", "threads"),
+        n_workers=getattr(args, "dask_workers", 4),
+        threads_per_worker=getattr(args, "dask_threads_per_worker", 1),
     )
+
+    # Prepare for metrics writing even on failures (local outputs only)
+    debug_dir: Optional[Path] = None
+    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    status = "unknown"
+    error_msg = None
+    metrics = None
 
     try:
         # Validate input path (handle both local paths and URLs)
@@ -129,6 +249,12 @@ def convert_command(args: argparse.Namespace) -> None:
             output_path = Path(output_path_str)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path = str(output_path)
+            # Prepare debug dir for metrics
+            debug_dir = Path(output_path) / "debug"
+            try:
+                debug_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                debug_dir = None
 
         if args.verbose:
             print(f"Loading EOPF dataset from: {input_path}")
@@ -142,12 +268,31 @@ def convert_command(args: argparse.Namespace) -> None:
         # Load the EOPF DataTree with appropriate storage options
         print("Loading EOPF dataset...")
         storage_options = get_storage_options(input_path)
-        dt = xr.open_datatree(
-            str(input_path),
-            engine="zarr",
-            chunks="auto",
-            storage_options=storage_options,
-        )
+        # Metrics setup
+        if getattr(args, "metrics", True):
+            metrics = MetricsRecorder()
+            metrics.set_environment()
+            metrics.set_input(
+                source_uri=str(input_path),
+                profile=None,
+                groups=args.groups,
+                dask={
+                    "enabled": bool(dask_client is not None),
+                    "mode": getattr(args, "dask_mode", None),
+                    "workers": getattr(args, "dask_workers", None),
+                    "threads_per_worker": getattr(
+                        args, "dask_threads_per_worker", None
+                    ),
+                },
+            )
+
+        with metrics.time_step("open_input") if metrics else nullcontext():
+            dt = xr.open_datatree(
+                str(input_path),
+                engine="zarr",
+                chunks="auto",
+                storage_options=storage_options,
+            )
 
         if args.verbose:
             print(f"Loaded DataTree with {len(dt.children)} groups")
@@ -157,19 +302,106 @@ def convert_command(args: argparse.Namespace) -> None:
 
         # Convert to GeoZarr compliant format
         print("Converting to GeoZarr compliant format...")
-        dt_geozarr = create_geozarr_dataset(
-            dt_input=dt,
-            groups=args.groups,
-            output_path=output_path,
-            spatial_chunk=args.spatial_chunk,
-            min_dimension=args.min_dimension,
-            tile_width=args.tile_width,
-            max_retries=args.max_retries,
-            crs_groups=args.crs_groups,
-        )
+        t0 = perf_counter()
+        task_events = None
+        perf_ctx = nullcontext()
+        if dask_client is not None and getattr(args, "dask_perf_html", None):
+            from dask.distributed import performance_report
+
+            perf_path = args.dask_perf_html
+            if not (perf_path.startswith(("s3://", "gs://", "http://", "https://"))):
+                Path(perf_path).parent.mkdir(parents=True, exist_ok=True)
+            perf_ctx = performance_report(filename=perf_path)
+
+        capture_tasks = False
+        if dask_client is not None:
+            try:
+                from dask.distributed import get_task_stream
+
+                capture_tasks = True
+            except Exception:
+                pass
+
+        if capture_tasks:
+            with perf_ctx:
+                from dask.distributed import get_task_stream
+
+                with get_task_stream(client=dask_client, plot=False) as ts:
+                    with metrics.time_step("convert") if metrics else nullcontext():
+                        dt_geozarr = create_geozarr_dataset(
+                            dt_input=dt,
+                            groups=args.groups,
+                            output_path=output_path,
+                            spatial_chunk=args.spatial_chunk,
+                            min_dimension=args.min_dimension,
+                            tile_width=args.tile_width,
+                            max_retries=args.max_retries,
+                            crs_groups=args.crs_groups,
+                        )
+                task_events = ts.data
+        else:
+            with perf_ctx:
+                with metrics.time_step("convert") if metrics else nullcontext():
+                    dt_geozarr = create_geozarr_dataset(
+                        dt_input=dt,
+                        groups=args.groups,
+                        output_path=output_path,
+                        spatial_chunk=args.spatial_chunk,
+                        min_dimension=args.min_dimension,
+                        tile_width=args.tile_width,
+                        max_retries=args.max_retries,
+                        crs_groups=args.crs_groups,
+                    )
+
+        wall_clock = perf_counter() - t0
+        if (
+            dask_client is not None
+            and getattr(args, "verbose", False)
+            and getattr(args, "dask_perf_html", None)
+        ):
+            print(f"📊 Dask performance report: {args.dask_perf_html}")
 
         print("✅ Successfully converted EOPF dataset to GeoZarr format")
         print(f"Output saved to: {output_path}")
+        status = "ok"
+
+        # Drop a JSON run summary (local paths only)
+        try:
+            if debug_dir is not None:
+                summary_path = Path(output_path) / "debug" / "dask_run_summary.json"
+                summary_path.parent.mkdir(parents=True, exist_ok=True)
+                from json import dumps as _dumps
+
+                summary = {
+                    "dask_enabled": bool(dask_client is not None),
+                    "mode": getattr(args, "dask_mode", None),
+                    "workers": getattr(args, "dask_workers", None),
+                    "threads_per_worker": getattr(
+                        args, "dask_threads_per_worker", None
+                    ),
+                    "perf_report": getattr(args, "dask_perf_html", None),
+                    "wall_clock_s": wall_clock if dask_client is not None else None,
+                    "groups": args.groups,
+                    "spatial_chunk": args.spatial_chunk,
+                    "min_dimension": args.min_dimension,
+                    "tile_width": args.tile_width,
+                }
+                summary_path.write_text(_dumps(summary, indent=2))
+                if args.verbose:
+                    print(f"🧾 Wrote run summary: {summary_path}")
+            # New metrics: run_summary.json and chunk_report.json
+            if metrics and debug_dir is not None and getattr(args, "metrics", True):
+                # Build output summary best-effort
+                with metrics.time_step("summarize_output"):
+                    metrics.build_output_summary(output_path)
+                payload = metrics.finalize(status="ok")
+                run_summary = Path(output_path) / "debug" / "run_summary.json"
+                MetricsRecorder.write_json(run_summary, payload)
+                if args.verbose:
+                    print(f"🧾 Wrote metrics: {run_summary}")
+        except Exception as _exc:
+            if args.verbose:
+                print(f"(debug) could not write run summary: {_exc}")
 
         if args.verbose:
             # Check if dt_geozarr is a DataTree or Dataset
@@ -183,10 +415,21 @@ def convert_command(args: argparse.Namespace) -> None:
 
     except Exception as e:
         print(f"❌ Error during conversion: {e}")
+        error_msg = str(e)
         if args.verbose:
             import traceback
 
             traceback.print_exc()
+        # Write failure metrics if possible
+        try:
+            if metrics and debug_dir is not None and getattr(args, "metrics", True):
+                payload = metrics.finalize(status="error", exception=error_msg)
+                run_summary = Path(args.output_path) / "debug" / "run_summary.json"
+                MetricsRecorder.write_json(run_summary, payload)
+                if args.verbose:
+                    print(f"🧾 Wrote failure metrics: {run_summary}")
+        except Exception:
+            pass
         sys.exit(1)
     finally:
         # Clean up dask client if it was created
@@ -200,10 +443,54 @@ def convert_command(args: argparse.Namespace) -> None:
                 if args.verbose:
                     print(f"Warning: Error closing dask cluster: {e}")
 
+        # Best-effort metrics write (works for success or failure, local only)
+        try:
+            if debug_dir is not None:
+                attempt = 1
+                try:
+                    attempt = 1 + len(list(debug_dir.glob("dask_metrics_*.json")))
+                except Exception:
+                    pass
+                wall = None
+                if "t0" in locals():
+                    wall = perf_counter() - t0
+                metrics_doc = {
+                    "status": status,
+                    "run_id": run_id,
+                    "attempt": attempt,
+                    "dask_enabled": bool(dask_client is not None),
+                    "mode": getattr(args, "dask_mode", None),
+                }
+                if dask_client is not None and wall is not None:
+                    try:
+                        metrics_doc.update(
+                            _summarize_dask_metrics(
+                                dask_client, locals().get("task_events"), wall
+                            )
+                        )
+                    except Exception:
+                        metrics_doc["wall_clock_s"] = wall
+                elif wall is not None:
+                    metrics_doc["wall_clock_s"] = wall
+                if error_msg:
+                    metrics_doc["error"] = error_msg
+
+                path_ts = debug_dir / f"dask_metrics_{run_id}_attempt{attempt}.json"
+                path_latest = debug_dir / "dask_metrics.json"
+                from json import dumps as _dumps
+
+                txt = _dumps(metrics_doc, indent=2)
+                path_ts.write_text(txt)
+                path_latest.write_text(txt)
+                if getattr(args, "verbose", False):
+                    print(f"📈 Wrote metrics: {path_ts}")
+        except Exception as _mexc:
+            if getattr(args, "verbose", False):
+                print(f"(debug) could not write metrics snapshot: {_mexc}")
+
 
 def info_command(args: argparse.Namespace) -> None:
-    """
-    Display information about an EOPF dataset.
+    """Display information about an EOPF dataset.
 
     Parameters
     ----------
@@ -253,8 +540,7 @@ def info_command(args: argparse.Namespace) -> None:
 
 
 def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
-    """
-    Generate an optimized, condensed tree HTML representation.
+    """Generate an optimized, condensed tree HTML representation.
 
     This function creates a clean tree view that:
     - Hides empty nodes by default
@@ -266,7 +552,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
     dt : xr.DataTree
         DataTree to visualize
 
-    Returns
+    Returns:
     -------
     str
         HTML representation of the optimized tree
@@ -609,8 +895,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 def _generate_html_output(
     dt: xr.DataTree, output_path: str, input_path: str, verbose: bool = False
 ) -> None:
-    """
-    Generate HTML output for DataTree visualization.
+    """Generate HTML output for DataTree visualization.
 
     Parameters
     ----------
@@ -926,8 +1211,7 @@ def _generate_html_output(
 
 
 def validate_command(args: argparse.Namespace) -> None:
-    """
-    Validate GeoZarr compliance of a dataset.
+    """Validate GeoZarr compliance of a dataset.
 
     Parameters
     ----------
@@ -1021,10 +1305,9 @@ def validate_command(args: argparse.Namespace) -> None:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """
-    Create the argument parser for the CLI.
+    """Create the argument parser for the CLI.
 
-    Returns
+    Returns:
     -------
     argparse.ArgumentParser
         Configured argument parser
@@ -1094,6 +1377,42 @@ def create_parser() -> argparse.ArgumentParser:
         "--dask-cluster",
         action="store_true",
         help="Start a local dask cluster for parallel processing of chunks",
+    )
+    convert_parser.add_argument(
+        "--dask-mode",
+        type=str,
+        default="threads",
+        choices=["threads", "processes", "single-threaded"],
+        help="Local Dask execution mode (default: threads).",
+    )
+    convert_parser.add_argument(
+        "--dask-workers",
+        type=int,
+        default=4,
+        help="Number of Dask workers (default: 4).",
+    )
+    convert_parser.add_argument(
+        "--dask-threads-per-worker",
+        type=int,
+        default=1,
+        help="Threads per worker (default: 1).",
+    )
+    convert_parser.add_argument(
+        "--dask-perf-html",
+        type=str,
+        help="Write a Dask performance report HTML to this path (local only).",
+    )
+    convert_parser.add_argument(
+        "--metrics",
+        action="store_true",
+        default=True,
+        help="Emit structured conversion metrics JSON (default: on). Use --no-metrics to disable.",
+    )
+    convert_parser.add_argument(
+        "--no-metrics",
+        dest="metrics",
+        action="store_false",
+        help="Disable metrics emission.",
     )
     convert_parser.set_defaults(func=convert_command)
 
