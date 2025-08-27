@@ -211,3 +211,9 @@ tests-output/
 # uv
 uv.lock
 .vscode/settings.json
+
+*.zarr
+.DS_§tore
+out
+runs
+*.gz
