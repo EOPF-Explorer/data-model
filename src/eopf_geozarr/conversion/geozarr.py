@@ -37,7 +37,8 @@ def create_geozarr_dataset(
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
-    crs_groups: Optional[List[str]] = None,
+    crs_group: Optional[List[str]] = None,
+    gcp_group: Optional[str] = None,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -60,6 +61,8 @@ def create_geozarr_dataset(
         Maximum number of retries for network operations
     crs_groups : list[str], optional
         List of group names that need CRS information added on best-effort basis
+    crs_group : str, optional
+        Group name where GCPs (Ground Control Points) are located
 
     Returns
     -------
@@ -67,6 +70,10 @@ def create_geozarr_dataset(
         DataTree containing the GeoZarr compliant data
     """
     from zarr.codecs import BloscCodec
+
+    # Validate GCP group if specified
+    if gcp_group and gcp_group not in dt_input:
+        raise ValueError(f"GCP group '{gcp_group}' not found in input dataset")
 
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
@@ -84,7 +91,7 @@ def create_geozarr_dataset(
         min_dimension,
         tile_width,
         max_retries,
-        crs_groups,
+        crs_group,
     )
 
     # Consolidate metadata at the root level AFTER all groups are written
@@ -171,6 +178,7 @@ def iterative_copy(
     tile_width: int = 256,
     max_retries: int = 3,
     crs_groups: Optional[List[str]] = None,
+    gcp_group: Optional[str] = None,
 ) -> xr.DataTree:
     """
     Iteratively copy groups from original DataTree to GeoZarr DataTree.
@@ -195,6 +203,8 @@ def iterative_copy(
         Maximum number of retries for network operations
     crs_groups : list[str], optional
         List of group names that need CRS information added on best-effort basis
+    gcp_group : str, optional
+        Group name where GCPs (Ground Control Points) are located
 
     Returns
     -------
@@ -226,17 +236,29 @@ def iterative_copy(
         # Handle GeoZarr groups with special processing
         if current_group_path in geozarr_groups:
             print(f"Processing '{current_group_path}' as GeoZarr group")
-            write_geozarr_group(
-                dt_result,
-                current_group_path,
-                geozarr_groups[current_group_path],
-                output_path,
-                spatial_chunk=spatial_chunk,
-                compressor=compressor,
-                max_retries=max_retries,
-                min_dimension=min_dimension,
-                tile_width=tile_width,
-            )
+            if gcp_group:
+                write_geozarr_group_with_gcps(
+                    dt_result,
+                    current_group_path,
+                    geozarr_groups[current_group_path],
+                    output_path,
+                    spatial_chunk=spatial_chunk,
+                    compressor=compressor,
+                    max_retries=max_retries,
+                    gcp_group=gcp_group
+                )
+            else:
+                write_geozarr_group_with_crs(
+                    dt_result,
+                    current_group_path,
+                    geozarr_groups[current_group_path],
+                    output_path,
+                    spatial_chunk=spatial_chunk,
+                    compressor=compressor,
+                    max_retries=max_retries,
+                    min_dimension=min_dimension,
+                    tile_width=tile_width,
+                )
             written_groups.add(current_group_path)
             continue
 
@@ -330,7 +352,7 @@ def prepare_dataset_with_crs_info(
     return ds
 
 
-def write_geozarr_group(
+def write_geozarr_group_with_crs(
     dt_result: xr.DataTree,
     group_name: str,
     ds: xr.Dataset,
@@ -432,6 +454,83 @@ def write_geozarr_group(
 
     return dt
 
+
+def write_geozarr_group_with_gcps(
+    dt_result: xr.DataTree,
+    group_name: str,
+    ds: xr.Dataset,
+    output_path: str,
+    spatial_chunk: int = 4096,
+    compressor: Any = None,
+    max_retries: int = 3,
+    gcp_group: str = None,
+) -> xr.DataTree:
+    """
+    Write a GCP-based group to a GeoZarr dataset without multiscales.
+
+    Parameters
+    ----------
+    dt_result : xr.DataTree
+        Result DataTree to update
+    group_name : str
+        Name of the group to write
+    ds : xarray.Dataset
+        Dataset to write
+    output_path : str
+        Output path for the GeoZarr dataset
+    spatial_chunk : int, default 4096
+        Spatial chunk size
+    compressor : Any, optional
+        Compressor to use for encoding
+    max_retries : int, default 3
+        Maximum number of retries for writing
+    gcp_group : str, optional
+        Path to the GCP group in the input dataset
+
+    Returns
+    -------
+    xarray.DataTree
+        The written GeoZarr DataTree
+    """
+    print(f"\n=== Processing {group_name} with GeoZarr-spec compliance (GCP mode) ===")
+
+    # Create a new container for the group
+    dt = xr.DataTree()
+    dt_result[group_name.lstrip("/")] = dt
+    dt.attrs = ds.attrs.copy()
+
+    # Create encoding for all variables
+    encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk)
+    
+    # Write native data in the group 0 (overview level 0)
+    native_dataset_group_name = f"{group_name}"
+    native_dataset_path = f"{output_path}/{native_dataset_group_name.lstrip('/')}"
+
+    # Check for existing dataset
+    existing_native_dataset = _load_existing_dataset(native_dataset_path)
+
+    # Write native data directly in the group (no overview levels for GCP data)
+    print(f"Writing GCP-based dataset to {group_name}")
+    success, ds = write_dataset_band_by_band_with_validation(
+        ds,
+        existing_native_dataset,
+        output_path,
+        encoding,
+        max_retries,
+        group_name,
+        False,
+    )
+    if not success:
+        raise RuntimeError(f"Failed to write GCP-based dataset for {group_name}")
+
+    # Consolidate metadata
+    print(f"  Consolidating metadata for group {group_name}...")
+    group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
+    zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
+    consolidate_metadata(zarr_group.store)
+    print("  ✅ Metadata consolidated")
+
+    return dt
 
 def create_geozarr_compliant_multiscales(
     ds: xr.Dataset,

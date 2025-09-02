@@ -166,6 +166,7 @@ def convert_command(args: argparse.Namespace) -> None:
             tile_width=args.tile_width,
             max_retries=args.max_retries,
             crs_groups=args.crs_groups,
+            gcp_group=args.gcp_group,
         )
 
         print("✅ Successfully converted EOPF dataset to GeoZarr format")
