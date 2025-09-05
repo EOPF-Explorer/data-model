@@ -1,0 +1,17 @@
+{
+  "namespace": "argo",
+  "resourceKind": "Workflow",
+  "resourceName": "",
+  "submitOptions": {},
+  "workflowTemplateRef": { "name": "geozarr-convert" },
+  "arguments": {
+    "parameters": [
+      {
+        "name": "stac_url",
+        "value": "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:202505-s02msil2a/18/products/cpm_v256/S2B_MSIL2A_20250518T112119_N0511_R037_T29RLL_20250518T140519.zarr"
+      },
+      { "name": "output_zarr", "value": "./S2B_MSIL2A_20250518_T29RLL_geozarr.zarr" },
+      { "name": "groups", "value": "measurements/reflectance/r20m" }
+    ]
+  }
+}
