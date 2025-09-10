@@ -463,7 +463,7 @@ class TestSentinel2Integration:
             ), f"Missing spatial dimensions in {level_path}"
 
             # Store shape for progression verification
-            level_shapes[level_num] = (ds.dims["y"], ds.dims["x"])
+            level_shapes[level_num] = (ds.sizes["y"], ds.sizes["x"])
             print(f"    Level {level_num}: {level_shapes[level_num]} pixels")
 
             ds.close()
