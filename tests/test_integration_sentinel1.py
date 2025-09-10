@@ -212,6 +212,7 @@ def test_sentinel1_gcp_conversion(
         sample_sentinel1_datatree,
         groups=groups,
         output_path=str(output_path),
+        spatial_chunk=1024,
         gcp_group="conditions/gcp",
     )
 
@@ -219,10 +220,8 @@ def test_sentinel1_gcp_conversion(
     dt = xr.open_datatree(output_path, group=polarization_group)
 
     # Check basic structure
-    print(dt.measurements)
-    print(dt.measurements.grd)
     assert "measurements" in dt
-
+    # TODO: add grid mapping variable
     # assert "spatial_ref" in dt.measurements
 
     # Verify Sentinel-1 specific metadata
@@ -232,7 +231,7 @@ def test_sentinel1_gcp_conversion(
         == "surface_backwards_scattering_coefficient_of_radar_wave"
     )
     assert grd.attrs["units"] == "1"
-    # assert meas.attrs["grid_mapping"] == "spatial_ref"
+    assert grd.attrs["grid_mapping"] == "spatial_ref"
 
     # # Verify GCP handling
     # spatial_ref = dt.measurements.spatial_ref

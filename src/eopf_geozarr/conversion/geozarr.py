@@ -14,6 +14,7 @@ Key compliance features:
 """
 
 import dataclasses
+import itertools
 import os
 import shutil
 import time
@@ -41,7 +42,6 @@ def create_geozarr_dataset(
     max_retries: int = 3,
     crs_groups: Optional[List[str]] = None,
     gcp_group: Optional[str] = None,
-    path_prefix: str = "",
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -66,44 +66,33 @@ def create_geozarr_dataset(
         List of group names that need CRS information added on best-effort basis
     gcp_group : str, optional
         Group name where GCPs (Ground Control Points) are located.
-    path_prefix : str, optional
-        Prefix to append to each of the group names given in the ``groups``, ``crs_groups``
-        and ``gcp_groups`` arguments. This is used for Sentinel-1 products where VV and VH
-        polarizations are splitted into two separate, top-level groups.
 
     Returns
     -------
     xr.DataTree
         DataTree containing the GeoZarr compliant data
     """
-    if gcp_group is not None and not path_prefix:
-        # recursive conversion of sentinel-1 polarization top-level groups
-        dt_geozarr = xr.DataTree()
-        for name in dt_input.children:
-            dt_geozarr = create_geozarr_dataset(
-                dt_input,
-                groups=groups,
-                output_path=output_path,
-                spatial_chunk=spatial_chunk,
-                min_dimension=min_dimension,
-                tile_width=tile_width,
-                max_retries=max_retries,
-                crs_groups=crs_groups,
-                gcp_group=gcp_group,
-                path_prefix="/" + name + "/",
-            )
-        return dt_geozarr
-
-    groups = [path_prefix + g for g in groups]
-    crs_groups = [path_prefix + g for g in groups]
-
-    if gcp_group is not None:
-        gcp_group = path_prefix + gcp_group
-        if gcp_group not in dt_input.groups:
-            raise ValueError(f"GCP group '{gcp_group}' not found in input datatree")
-
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+
+    if gcp_group:
+        # process sentinel-1 VV and VH polarization top-level groups
+        vv_vh_group_names = [f"/{name}" for name in list(dt_input.children)]
+        assert len(vv_vh_group_names) == 2, str(vv_vh_group_names)
+
+        groups = [
+            "/".join(grps) for grps in itertools.product(vv_vh_group_names, groups)
+        ]
+        if crs_groups is not None:
+            crs_groups = [
+                "/".join(grps)
+                for grps in itertools.product(vv_vh_group_names, crs_groups)
+            ]
+
+        # pick only one gcp group (both groups from VV and VH should be equal)
+        gcp_group = vv_vh_group_names[0] + "/" + gcp_group
+        if gcp_group not in dt_input.groups:
+            raise ValueError(f"GCP group '{gcp_group}' not found in input datatree")
 
     # Get the measurements datasets prepared for GeoZarr compliance
     geozarr_groups = setup_datatree_metadata_geozarr_spec_compliant(dt, groups)
