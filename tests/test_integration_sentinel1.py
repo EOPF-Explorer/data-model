@@ -1,5 +1,9 @@
 """Integration tests for Sentinel-1 GeoZarr conversion."""
 
+import shutil
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -165,9 +169,17 @@ def sample_sentinel1_datatree():
     return builder.build()
 
 
-def test_invalid_gcp_group_raises_error(tmp_path, sample_sentinel1_datatree):
+@pytest.fixture
+def temp_output_dir():
+    """Create a temporary directory for test outputs."""
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir)
+
+
+def test_invalid_gcp_group_raises_error(temp_output_dir, sample_sentinel1_datatree):
     """Test that specifying a non-existent GCP group raises an error."""
-    output_path = tmp_path / "test_s1_invalid_gcp.zarr"
+    output_path = Path(temp_output_dir) / "test_s1_invalid_gcp.zarr"
     groups = ["measurements"]
 
     # Try with invalid GCP group
@@ -188,11 +200,11 @@ def test_invalid_gcp_group_raises_error(tmp_path, sample_sentinel1_datatree):
     ],
 )
 def test_sentinel1_gcp_conversion(
-    tmp_path, sample_sentinel1_datatree, polarization_group
+    temp_output_dir, sample_sentinel1_datatree, polarization_group
 ):
     """Test conversion of Sentinel-1 data with GCPs."""
     # Prepare test
-    output_path = tmp_path / "test_s1_gcp.zarr"
+    output_path = Path(temp_output_dir) / "test_s1_gcp.zarr"
     groups = ["measurements"]
 
     # Execute conversion
