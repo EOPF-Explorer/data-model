@@ -33,15 +33,15 @@ from . import fs_utils, utils
 def create_geozarr_dataset(
     dt_input: xr.DataTree,
     *,
-    path_prefix: Optional[str] = None,
     groups: List[str],
     output_path: str,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
-    crs_group: Optional[List[str]] = None,
+    crs_groups: Optional[List[str]] = None,
     gcp_group: Optional[str] = None,
+    path_prefix: str = "",
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -51,7 +51,7 @@ def create_geozarr_dataset(
     dt_input : xr.DataTree
         Input EOPF DataTree
     groups : list[str]
-        List of group names to process as Geozarr datasets
+        List of group names to process as Geozarr datasets.
     output_path : str
         Output path for the Zarr store
     spatial_chunk : int, default 4096
@@ -65,16 +65,42 @@ def create_geozarr_dataset(
     crs_groups : list[str], optional
         List of group names that need CRS information added on best-effort basis
     gcp_group : str, optional
-        Group name where GCPs (Ground Control Points) are located
+        Group name where GCPs (Ground Control Points) are located.
+    path_prefix : str, optional
+        Prefix to append to each of the group names given in the ``groups``, ``crs_groups``
+        and ``gcp_groups`` arguments. This is used for Sentinel-1 products where VV and VH
+        polarizations are splitted into two separate, top-level groups.
 
     Returns
     -------
     xr.DataTree
         DataTree containing the GeoZarr compliant data
     """
-    # Validate GCP group if specified
-    if gcp_group and gcp_group not in dt_input:
-        raise ValueError(f"GCP group '{gcp_group}' not found in input dataset")
+    if gcp_group is not None and not path_prefix:
+        # recursive conversion of sentinel-1 polarization top-level groups
+        dt_geozarr = xr.DataTree()
+        for name in dt_input.children:
+            dt_geozarr = create_geozarr_dataset(
+                dt_input,
+                groups=groups,
+                output_path=output_path,
+                spatial_chunk=spatial_chunk,
+                min_dimension=min_dimension,
+                tile_width=tile_width,
+                max_retries=max_retries,
+                crs_groups=crs_groups,
+                gcp_group=gcp_group,
+                path_prefix="/" + name + "/",
+            )
+        return dt_geozarr
+
+    groups = [path_prefix + g for g in groups]
+    crs_groups = [path_prefix + g for g in groups]
+
+    if gcp_group is not None:
+        gcp_group = path_prefix + gcp_group
+        if gcp_group not in dt_input.groups:
+            raise ValueError(f"GCP group '{gcp_group}' not found in input datatree")
 
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
@@ -92,7 +118,8 @@ def create_geozarr_dataset(
         min_dimension,
         tile_width,
         max_retries,
-        crs_group,
+        crs_groups,
+        gcp_group,
     )
 
     # Consolidate metadata at the root level AFTER all groups are written
@@ -136,8 +163,8 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         ds = dt[key].to_dataset().copy()
 
         # Process all bands in the group
-        for band in ds.data_vars:
-            print(f"  Processing band: {band}")
+        for var_name in ds.data_vars:
+            print(f"  Processing variable / band: {var_name}")
 
             # Set CF standard name and _ARRAY_DIMENSIONS
             # Check if this is a Sentinel-1 GRD dataset
@@ -146,21 +173,21 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             ) and dt.attrs["stac_discovery"]["properties"]["product:type"].startswith(
                 "S01"
             ):
-                ds[band].attrs["standard_name"] = (
+                ds[var_name].attrs["standard_name"] = (
                     "surface_backwards_scattering_coefficient_of_radar_wave"
                 )
-                ds[band].attrs["units"] = "1"
+                ds[var_name].attrs["units"] = "1"
             else:  # Default to optical data standard name
-                ds[band].attrs["standard_name"] = "toa_bidirectional_reflectance"
+                ds[var_name].attrs["standard_name"] = "toa_bidirectional_reflectance"
 
-            if hasattr(ds[band], "dims"):
-                ds[band].attrs["_ARRAY_DIMENSIONS"] = list(ds[band].dims)
-            ds[band].attrs["grid_mapping"] = grid_mapping_var_name
+            if hasattr(ds[var_name], "dims"):
+                ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
+            ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
 
             # Set CRS if available
-            if "proj:epsg" in ds[band].attrs:
-                epsg = ds[band].attrs["proj:epsg"]
-                print(f"    Setting CRS for {band} to EPSG:{epsg}")
+            if "proj:epsg" in ds[var_name].attrs:
+                epsg = ds[var_name].attrs["proj:epsg"]
+                print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
@@ -235,11 +262,13 @@ def iterative_copy(
     for relative_path, node in dt_input.subtree_with_keys:
         if relative_path == ".":
             continue
+        if relative_path.endswith("_VH") or relative_path.endswith("_VV"):
+            # skip sentinel-1 top-level polarization groups
+            continue
 
         current_group_path = "/" + relative_path
         print(f"Processing group '{current_group_path}' in iterative copy")
 
-        # Handle GeoZarr groups with special processing
         if current_group_path in geozarr_groups:
             print(f"Processing '{current_group_path}' as GeoZarr group")
             if gcp_group:
