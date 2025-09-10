@@ -1087,9 +1087,9 @@ def write_dataset_band_by_band_with_validation(
                         if i < len(target_chunks):
                             chunk_dict[dim] = target_chunks[i]
                     # Rechunk the dataset to match the target chunks
-                    single_var_ds = single_var_ds.chunk(chunk_dict)
+                    single_var_ds[var] = single_var_ds[var].chunk(chunk_dict)
                 else:
-                    single_var_ds = single_var_ds.chunk()
+                    single_var_ds[var] = single_var_ds[var].chunk()
 
                 # Get storage options and write variable
                 storage_options = fs_utils.get_storage_options(output_path)
