@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import xarray as xr
 import zarr
+from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
@@ -31,6 +32,8 @@ from . import fs_utils, utils
 
 def create_geozarr_dataset(
     dt_input: xr.DataTree,
+    *,
+    path_prefix: Optional[str] = None,
     groups: List[str],
     output_path: str,
     spatial_chunk: int = 4096,
@@ -61,7 +64,7 @@ def create_geozarr_dataset(
         Maximum number of retries for network operations
     crs_groups : list[str], optional
         List of group names that need CRS information added on best-effort basis
-    crs_group : str, optional
+    gcp_group : str, optional
         Group name where GCPs (Ground Control Points) are located
 
     Returns
@@ -69,8 +72,6 @@ def create_geozarr_dataset(
     xr.DataTree
         DataTree containing the GeoZarr compliant data
     """
-    from zarr.codecs import BloscCodec
-
     # Validate GCP group if specified
     if gcp_group and gcp_group not in dt_input:
         raise ValueError(f"GCP group '{gcp_group}' not found in input dataset")
@@ -140,13 +141,18 @@ def setup_datatree_metadata_geozarr_spec_compliant(
 
             # Set CF standard name and _ARRAY_DIMENSIONS
             # Check if this is a Sentinel-1 GRD dataset
-            if ("product:type" in dt.attrs.get("stac_discovery", {}).get("properties", {}) 
-                and dt.attrs["stac_discovery"]["properties"]["product:type"].startswith("S01")):
-                ds[band].attrs["standard_name"] = "surface_backwards_scattering_coefficient_of_radar_wave"
+            if "product:type" in dt.attrs.get("stac_discovery", {}).get(
+                "properties", {}
+            ) and dt.attrs["stac_discovery"]["properties"]["product:type"].startswith(
+                "S01"
+            ):
+                ds[band].attrs["standard_name"] = (
+                    "surface_backwards_scattering_coefficient_of_radar_wave"
+                )
                 ds[band].attrs["units"] = "1"
             else:  # Default to optical data standard name
                 ds[band].attrs["standard_name"] = "toa_bidirectional_reflectance"
-            
+
             if hasattr(ds[band], "dims"):
                 ds[band].attrs["_ARRAY_DIMENSIONS"] = list(ds[band].dims)
             ds[band].attrs["grid_mapping"] = grid_mapping_var_name
@@ -245,7 +251,7 @@ def iterative_copy(
                     spatial_chunk=spatial_chunk,
                     compressor=compressor,
                     max_retries=max_retries,
-                    gcp_group=gcp_group
+                    gcp_group=gcp_group,
                 )
             else:
                 write_geozarr_group_with_crs(
@@ -423,11 +429,17 @@ def write_geozarr_group_with_crs(
         raise RuntimeError(f"Failed to write all bands for {group_name}")
 
     # Create GeoZarr-spec compliant multiscales (skip for S1 GRD as per ADR-102)
-    if ("stac_discovery" in dt_result.attrs 
+    if (
+        "stac_discovery" in dt_result.attrs
         and "properties" in dt_result.attrs["stac_discovery"]
         and "product:type" in dt_result.attrs["stac_discovery"]["properties"]
-        and dt_result.attrs["stac_discovery"]["properties"]["product:type"].startswith("S01")):
-        print(f"⚠️ Skipping multiscale generation for Sentinel-1 GRD data as per ADR-102: {group_name}")
+        and dt_result.attrs["stac_discovery"]["properties"]["product:type"].startswith(
+            "S01"
+        )
+    ):
+        print(
+            f"⚠️ Skipping multiscale generation for Sentinel-1 GRD data as per ADR-102: {group_name}"
+        )
     else:
         try:
             print(f"Creating GeoZarr-spec compliant multiscales for {group_name}")
@@ -463,7 +475,7 @@ def write_geozarr_group_with_gcps(
     spatial_chunk: int = 4096,
     compressor: Any = None,
     max_retries: int = 3,
-    gcp_group: str = None,
+    gcp_group: Optional[str] = None,
 ) -> xr.DataTree:
     """
     Write a GCP-based group to a GeoZarr dataset without multiscales.
@@ -501,7 +513,7 @@ def write_geozarr_group_with_gcps(
 
     # Create encoding for all variables
     encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk)
-    
+
     # Write native data in the group 0 (overview level 0)
     native_dataset_group_name = f"{group_name}"
     native_dataset_path = f"{output_path}/{native_dataset_group_name.lstrip('/')}"
@@ -531,6 +543,7 @@ def write_geozarr_group_with_gcps(
     print("  ✅ Metadata consolidated")
 
     return dt
+
 
 def create_geozarr_compliant_multiscales(
     ds: xr.Dataset,
@@ -563,8 +576,6 @@ def create_geozarr_compliant_multiscales(
     dict
         Dictionary with overview levels information
     """
-    from zarr.codecs import BloscCodec
-
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
 
     # Get spatial information from the first data variable
@@ -1288,12 +1299,12 @@ def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
         gcps = ds.attrs["conditions/gcp"]
         gcp_list = []
         n_points = int(np.sqrt(len(gcps.coords["points"])))
-        
+
         # Convert GCPs to rasterio format
         for i in range(len(gcps.coords["points"])):
             row = (i // n_points) * (ds.dims["y"] / (n_points - 1))
             col = (i % n_points) * (ds.dims["x"] / (n_points - 1))
-            
+
             gcp = rasterio.control.GroundControlPoint(
                 row=row,
                 col=col,
@@ -1301,16 +1312,16 @@ def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
                 y=float(gcps["latitude"].values[i]),
                 z=float(gcps["height"].values[i]) if "height" in gcps else 0.0,
                 id=str(i),
-                info=""
+                info="",
             )
             gcp_list.append(gcp)
-            
+
         # Use rioxarray's write_gcps function to set GCPs
         ds = ds.rio.write_gcps(
             gcps=gcp_list,
             crs="EPSG:4326",  # GCPs are in lat/lon coordinates
             grid_mapping_name=grid_mapping_var_name,
-            inplace=True
+            inplace=True,
         )
 
     # Use standard CRS and transform if available
