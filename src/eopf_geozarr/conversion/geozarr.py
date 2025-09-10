@@ -1046,7 +1046,7 @@ def write_dataset_band_by_band_with_validation(
         # Check if this band already exists and is valid
         if not force_overwrite and store_exists:
             if utils.validate_existing_band_data(existing_dataset, var, ds):
-                ds.drop_vars(var)
+                ds.drop_vars(str(var))
                 ds[var] = existing_dataset[var]  # type: ignore
                 print(f"  ✅ Band {var} already exists and is valid, skipping")
                 skipped_vars.append(var)
