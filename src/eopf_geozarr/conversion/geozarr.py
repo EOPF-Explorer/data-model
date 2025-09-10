@@ -1052,8 +1052,9 @@ def write_dataset_band_by_band_with_validation(
                 skipped_vars.append(var)
                 successful_vars.append(var)
                 continue
-            if os.path.exists(os.path.join(output_path, group_name, var)):
-                shutil.rmtree(os.path.join(output_path, group_name, var))
+            var_path = os.path.join(output_path, group_name.lstrip("/"), str(var))
+            if os.path.exists(var_path):
+                shutil.rmtree(var_path)
 
         print(f"  Writing data variable {var}...")
 
