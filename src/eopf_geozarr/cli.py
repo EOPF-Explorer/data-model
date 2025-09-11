@@ -1089,6 +1089,11 @@ def create_parser() -> argparse.ArgumentParser:
         help="Groups that need CRS information added on best-effort basis (e.g., /conditions/geometry)",
     )
     convert_parser.add_argument(
+        "--gcp-group",
+        type=str,
+        help="Groups where Ground Control Points (GCPs) are located (e.g., /conditions/gcp) (Sentinel-1)",
+    )
+    convert_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"
     )
     convert_parser.add_argument(
