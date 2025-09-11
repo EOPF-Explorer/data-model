@@ -291,8 +291,16 @@ def test_sentinel1_gcp_conversion(
     assert gcp_last.y == 41.0
     assert gcp_last.z == 0.0
 
-    # Verify no multiscales were created (as per ADR-102)
-    assert not any(str(k).startswith("1") for k in ds_measurements.data_vars)
+    # Check multiscales 2 levels created: 0 (native, checked above) and 1
+    assert "1" in dt["measurements"]
+    ds_measurements1 = dt["measurements/1"].to_dataset()
+    spatial_ref1 = ds_measurements1.spatial_ref
+    assert "gcps" in spatial_ref1.attrs
+    assert "crs_wkt" in spatial_ref1.attrs
+    assert "spatial_ref" in spatial_ref1.attrs
+    actual_crs = pyproj.CRS.from_wkt(spatial_ref1.attrs["crs_wkt"])
+    assert actual_crs == pyproj.CRS.from_epsg(4326)  # GCPs are in lat/lon WGS84
+    assert actual_crs == pyproj.CRS.from_wkt(spatial_ref1.attrs["spatial_ref"])
 
 
 if __name__ == "__main__":
