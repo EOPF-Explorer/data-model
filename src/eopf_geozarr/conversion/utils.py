@@ -175,3 +175,45 @@ def validate_existing_band_data(
 
     except Exception:
         return False
+
+
+def compute_overview_gcps(
+    ds_gcp: xr.Dataset, scale_factor: float, width: int, height: int
+) -> xr.Dataset:
+    """Compute new GCPs for a given overview from the original GCPs.
+
+    Parameters
+    ----------
+    ds_gcp : xr.Dataset
+        the original GCPs
+    scale_factor : float
+        Overview's scale factor
+    width : int
+        Overview's width
+    height : int
+        Overview's height
+
+    Returns
+    -------
+    ds_gcp_overview : xr.Dataset
+        A new dataset where GCPs line and pixel coordinates are updated
+        for the overview, and where duplicate line/pixel GCPs are
+        merged together by averaging their latitude, longitude and height.
+
+    """
+    ds_gcp_overview = (
+        # compute the new decimated line/pixel coordinates
+        # TODO: trim line values with height and pixel values with width?
+        ds_gcp.assign_coords(
+            line=np.round(ds_gcp.line / scale_factor).astype(np.int64),
+            pixel=np.round(ds_gcp.pixel / scale_factor).astype(np.int64),
+        )
+        # find duplicate line/pixel GCPs
+        # and compute average for latitude, longitude and height
+        .pipe(lambda ds: ds.groupby(["line", "pixel"]))
+        .mean()
+        # re-assign original dimensions
+        .rename_dims(line="azimuth_time", pixel="ground_range")
+    )
+
+    return ds_gcp_overview

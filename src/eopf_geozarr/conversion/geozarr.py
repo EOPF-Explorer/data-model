@@ -612,6 +612,13 @@ def create_geozarr_compliant_multiscales(
             f"  Using pyramid approach: creating level {level} from level {level - 1}"
         )
 
+        if ds_gcp is not None:
+            ds_gcp_overview = utils.compute_overview_gcps(
+                ds_gcp, scale_factor, width, height
+            )
+        else:
+            ds_gcp_overview = None
+
         # Create overview dataset
         overview_ds = create_overview_dataset_all_vars(
             previous_level_ds,
@@ -621,7 +628,7 @@ def create_geozarr_compliant_multiscales(
             native_crs,
             native_bounds,
             data_vars,
-            ds_gcp,
+            ds_gcp_overview,
         )
 
         # Create encoding for this overview level
