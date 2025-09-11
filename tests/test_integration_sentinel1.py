@@ -15,6 +15,8 @@ import xarray as xr
 
 from eopf_geozarr.conversion import create_geozarr_dataset
 
+from . import _verify_basic_structure
+
 
 class MockSentinel1L1GRDBuilder:
     """Builder class to generate a sample EOPF Sentinel-1 Level 1 GRD data product for testing purpose."""
@@ -228,6 +230,8 @@ def test_sentinel1_gcp_conversion(
     assert dt_geozarr is not None
     assert output_path.exists()
 
+    _verify_basic_structure(output_path / polarization_group, groups)
+
     # Load the result for validation
     dt = xr.open_datatree(output_path, group=polarization_group)
 
@@ -289,3 +293,7 @@ def test_sentinel1_gcp_conversion(
 
     # Verify no multiscales were created (as per ADR-102)
     assert not any(str(k).startswith("1") for k in ds_measurements.data_vars)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
