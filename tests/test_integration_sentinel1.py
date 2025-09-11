@@ -3,6 +3,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -26,8 +27,8 @@ class MockSentinel1L1GRDBuilder:
         self.gr_dim = "ground_range"
         self.data_dims = (self.az_dim, self.gr_dim)
 
-        self.nlines = 160
-        self.npixels = 260
+        self.nlines = 552
+        self.npixels = 1131
 
     def create_coordinates(self, az_dim_size, gr_dim_size) -> xr.Coordinates:
         coords = {
@@ -211,23 +212,33 @@ def test_sentinel1_gcp_conversion(
     gcp_group = "conditions/gcp"
 
     # Execute conversion
-    create_geozarr_dataset(
-        sample_sentinel1_datatree,
-        groups=groups,
-        output_path=str(output_path),
-        spatial_chunk=1024,
-        gcp_group=gcp_group,
-    )
+    with patch("eopf_geozarr.conversion.geozarr.print"):
+        dt_geozarr = create_geozarr_dataset(
+            sample_sentinel1_datatree,
+            groups=groups,
+            output_path=str(output_path),
+            spatial_chunk=1024,
+            min_dimension=256,
+            tile_width=256,
+            max_retries=3,
+            gcp_group=gcp_group,
+        )
+
+    # Verify the conversion was successful
+    assert dt_geozarr is not None
+    assert output_path.exists()
 
     # Load the result for validation
     dt = xr.open_datatree(output_path, group=polarization_group)
 
-    # Check basic structure
+    # Check basic structure (multiscale)
     assert "measurements" in dt
-    assert "spatial_ref" in dt.measurements
+    assert "0" in dt["measurements"]
+    assert "grd" not in dt["measurements"].to_dataset().data_vars
+    assert "spatial_ref" in dt["measurements/0"]
 
     # Verify Sentinel-1 GRD specific metadata
-    grd = dt.measurements.grd
+    grd = dt["measurements/0"].grd
     assert (
         grd.attrs["standard_name"]
         == "surface_backwards_scattering_coefficient_of_radar_wave"
@@ -236,7 +247,7 @@ def test_sentinel1_gcp_conversion(
     assert grd.attrs["grid_mapping"] == "spatial_ref"
 
     # Verify GCP handling
-    ds_measurements = dt.measurements.to_dataset()
+    ds_measurements = dt["measurements/0"].to_dataset()
     spatial_ref = ds_measurements.spatial_ref
     assert "gcps" in spatial_ref.attrs
     assert "crs_wkt" in spatial_ref.attrs
@@ -245,7 +256,7 @@ def test_sentinel1_gcp_conversion(
     assert actual_crs == pyproj.CRS.from_epsg(4326)  # GCPs are in lat/lon WGS84
     assert actual_crs == pyproj.CRS.from_wkt(spatial_ref.attrs["spatial_ref"])
 
-    # Check GCP values
+    # Check GCP values at native resolution
     ds_gcps = dt[gcp_group].to_dataset()
     actual_gcps = ds_measurements.rio.get_gcps()
     assert (
@@ -277,4 +288,4 @@ def test_sentinel1_gcp_conversion(
     assert gcp_last.z == 0.0
 
     # Verify no multiscales were created (as per ADR-102)
-    assert not any(k.startswith("1") for k in ds_measurements.data_vars)
+    assert not any(str(k).startswith("1") for k in ds_measurements.data_vars)
