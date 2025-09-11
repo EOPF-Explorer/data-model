@@ -887,11 +887,13 @@ def create_overview_dataset_all_vars(
             "y": (["y"], y_coords, _get_y_coord_attrs()),
         }
         standard_name = "toa_bidirectional_reflectance"
+        spatial_dims = ["y", "x"]
     else:
         # No spatial coordinate / transform for Sentinel-1 GCP-based overviews
         overview_coords = {}
         overview_transform = None
         standard_name = "surface_backwards_scattering_coefficient_of_radar_wave"
+        spatial_dims = ["azimuth_time", "ground_range"]
 
     # Find the grid_mapping variable name
     grid_mapping_var_name = _find_grid_mapping_var_name(ds, data_vars)
@@ -912,14 +914,11 @@ def create_overview_dataset_all_vars(
                 downsampled_data[i] = utils.downsample_2d_array(
                     source_data[i], height, width
                 )
-            dims = (
-                ["time", "y", "x"]
-                if "time" in ds[var].dims
-                else [ds[var].dims[0], "y", "x"]
-            )
+            dim0 = ["time"] if "time" in ds[var].dims else [ds[var].dims[0]]
+            dims = dim0 + spatial_dims
         else:
             downsampled_data = utils.downsample_2d_array(source_data, height, width)
-            dims = ["y", "x"]
+            dims = spatial_dims
 
         attrs = {
             "standard_name": ds[var].attrs.get("standard_name", standard_name),

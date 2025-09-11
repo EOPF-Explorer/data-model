@@ -255,6 +255,7 @@ def test_sentinel1_gcp_conversion(
 
     # Verify Sentinel-1 GRD specific metadata
     grd = dt["measurements/0"].grd
+    assert grd.dims == ("azimuth_time", "ground_range")
     assert (
         grd.attrs["standard_name"]
         == "surface_backwards_scattering_coefficient_of_radar_wave"
@@ -306,6 +307,8 @@ def test_sentinel1_gcp_conversion(
     # Check multiscales 2 levels created: 0 (native, checked above) and 1
     assert "1" in dt["measurements"]
     ds_measurements1 = dt["measurements/1"].to_dataset()
+    grd1 = ds_measurements1.grd
+    assert grd1.dims == ("azimuth_time", "ground_range")
     spatial_ref1 = ds_measurements1.spatial_ref
     assert "gcps" in spatial_ref1.attrs
     assert "crs_wkt" in spatial_ref1.attrs
