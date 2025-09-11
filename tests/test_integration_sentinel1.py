@@ -182,7 +182,20 @@ def temp_output_dir():
     shutil.rmtree(temp_dir)
 
 
-def test_invalid_gcp_group_raises_error(temp_output_dir, sample_sentinel1_datatree):
+def test_no_gcp_group(temp_output_dir, sample_sentinel1_datatree) -> None:
+    output_path = Path(temp_output_dir) / "temp.zarr"
+
+    with pytest.raises(ValueError, match="Detected Sentinel-1.*GCP group not provided"):
+        create_geozarr_dataset(
+            sample_sentinel1_datatree,
+            groups=["measurements"],
+            output_path=str(output_path),
+        )
+
+
+def test_invalid_gcp_group_raises_error(
+    temp_output_dir, sample_sentinel1_datatree
+) -> None:
     """Test that specifying a non-existent GCP group raises an error."""
     output_path = Path(temp_output_dir) / "test_s1_invalid_gcp.zarr"
     groups = ["measurements"]
@@ -206,7 +219,7 @@ def test_invalid_gcp_group_raises_error(temp_output_dir, sample_sentinel1_datatr
 )
 def test_sentinel1_gcp_conversion(
     temp_output_dir, sample_sentinel1_datatree, polarization_group
-):
+) -> None:
     """Test conversion of Sentinel-1 data with GCPs."""
     # Prepare test
     output_path = Path(temp_output_dir) / "test_s1_gcp.zarr"

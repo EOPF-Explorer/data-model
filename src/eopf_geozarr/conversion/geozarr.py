@@ -76,7 +76,12 @@ def create_geozarr_dataset(
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
 
-    if gcp_group:
+    if _is_sentinel1(dt_input):
+        if gcp_group is None:
+            raise ValueError(
+                "Detected Sentinel-1 GRD product but GCP group not provided"
+            )
+
         # process sentinel-1 VV and VH polarization top-level groups
         vv_vh_group_names = [f"/{name}" for name in list(dt_input.children)]
         assert len(vv_vh_group_names) == 2, str(vv_vh_group_names)
