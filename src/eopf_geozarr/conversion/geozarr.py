@@ -127,7 +127,7 @@ def create_geozarr_dataset(
 
 
 def setup_datatree_metadata_geozarr_spec_compliant(
-    dt: xr.DataTree, groups: List[str], gcp_group: Optional[str]
+    dt: xr.DataTree, groups: List[str], gcp_group: Optional[str] = None
 ) -> Dict[str, xr.Dataset]:
     """
     Set up GeoZarr-spec compliant CF standard names and CRS information.
