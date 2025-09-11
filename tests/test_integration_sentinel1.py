@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyproj
 import pytest
+import rasterio.control
 import rioxarray  # noqa: F401  # Import to enable .rio accessor
 import xarray as xr
 
@@ -206,6 +208,7 @@ def test_sentinel1_gcp_conversion(
     # Prepare test
     output_path = Path(temp_output_dir) / "test_s1_gcp.zarr"
     groups = ["measurements"]
+    gcp_group = "conditions/gcp"
 
     # Execute conversion
     create_geozarr_dataset(
@@ -213,7 +216,7 @@ def test_sentinel1_gcp_conversion(
         groups=groups,
         output_path=str(output_path),
         spatial_chunk=1024,
-        gcp_group="conditions/gcp",
+        gcp_group=gcp_group,
     )
 
     # Load the result for validation
@@ -221,10 +224,9 @@ def test_sentinel1_gcp_conversion(
 
     # Check basic structure
     assert "measurements" in dt
-    # TODO: add grid mapping variable
-    # assert "spatial_ref" in dt.measurements
+    assert "spatial_ref" in dt.measurements
 
-    # Verify Sentinel-1 specific metadata
+    # Verify Sentinel-1 GRD specific metadata
     grd = dt.measurements.grd
     assert (
         grd.attrs["standard_name"]
@@ -233,42 +235,46 @@ def test_sentinel1_gcp_conversion(
     assert grd.attrs["units"] == "1"
     assert grd.attrs["grid_mapping"] == "spatial_ref"
 
-    # # Verify GCP handling
-    # spatial_ref = dt.measurements.spatial_ref
-    # assert "gcps" in spatial_ref.attrs  # rioxarray adds GCP info here
-    # assert spatial_ref.attrs["crs"] == "EPSG:4326"  # GCPs are in lat/lon
+    # Verify GCP handling
+    ds_measurements = dt.measurements.to_dataset()
+    spatial_ref = ds_measurements.spatial_ref
+    assert "gcps" in spatial_ref.attrs
+    assert "crs_wkt" in spatial_ref.attrs
+    assert "spatial_ref" in spatial_ref.attrs
+    actual_crs = pyproj.CRS.from_wkt(spatial_ref.attrs["crs_wkt"])
+    assert actual_crs == pyproj.CRS.from_epsg(4326)  # GCPs are in lat/lon WGS84
+    assert actual_crs == pyproj.CRS.from_wkt(spatial_ref.attrs["spatial_ref"])
 
-    # # Verify GCP storage format and coordinates
-    # gcps = spatial_ref.attrs["gcps"]
-    # assert len(gcps) == 4  # We created 4 GCPs
-    # assert all(hasattr(gcp, "row") for gcp in gcps)  # Check GCP attributes
-    # assert all(hasattr(gcp, "col") for gcp in gcps)
-    # assert all(hasattr(gcp, "x") for gcp in gcps)
-    # assert all(hasattr(gcp, "y") for gcp in gcps)
-    # assert all(hasattr(gcp, "z") for gcp in gcps)
-    # assert all(isinstance(gcp.id, str) for gcp in gcps)
+    # Check GCP values
+    ds_gcps = dt[gcp_group].to_dataset()
+    actual_gcps = ds_measurements.rio.get_gcps()
+    assert (
+        len(actual_gcps)
+        == ds_gcps.sizes["azimuth_time"] * ds_gcps.sizes["ground_range"]
+    )
+    assert all(
+        isinstance(gcp, rasterio.control.GroundControlPoint) for gcp in actual_gcps
+    )
+    assert all(hasattr(gcp, "row") for gcp in actual_gcps)
+    assert all(hasattr(gcp, "col") for gcp in actual_gcps)
+    assert all(hasattr(gcp, "x") for gcp in actual_gcps)
+    assert all(hasattr(gcp, "y") for gcp in actual_gcps)
+    assert all(hasattr(gcp, "z") for gcp in actual_gcps)
+    assert all(isinstance(gcp.id, str) for gcp in actual_gcps)
 
-    # # Check first GCP coordinates
-    # gcp0 = gcps[0]
-    # np.testing.assert_allclose(gcp0.x, 10.0)  # longitude
-    # np.testing.assert_allclose(gcp0.y, 45.0)  # latitude
-    # np.testing.assert_allclose(gcp0.z, 0.0)  # height
+    gcp_first = actual_gcps[0]
+    assert gcp_first.row == ds_gcps["line"][0]
+    assert gcp_first.col == ds_gcps["pixel"][0]
+    assert gcp_first.x == 15.0
+    assert gcp_first.y == 39.0
+    assert gcp_first.z == 0.0
 
-    # # Check that row/col values map to correct grid positions
-    # assert gcp0.row == 0
-    # assert gcp0.col == 0
+    gcp_last = actual_gcps[-1]
+    assert gcp_last.row == ds_gcps["line"][-1]
+    assert gcp_last.col == ds_gcps["pixel"][-1]
+    assert gcp_last.x == 18.0
+    assert gcp_last.y == 41.0
+    assert gcp_last.z == 0.0
 
-    # # Check last GCP to verify grid mapping
-    # gcp3 = gcps[3]
-    # np.testing.assert_allclose(gcp3.x, 10.1)  # longitude
-    # np.testing.assert_allclose(gcp3.y, 45.1)  # latitude
-    # np.testing.assert_allclose(
-    #     gcp3.col, sample_sentinel1_datatree["measurements"].dims["x"] - 1
-    # )
-    # np.testing.assert_allclose(
-    #     gcp3.row, sample_sentinel1_datatree["measurements"].dims["y"] - 1
-    # )
-
-    # # Verify no multiscales were created (as per ADR-102)
-    # measurements_group = xr.open_zarr(output_path).measurements
-    # assert not any(k.startswith("1") for k in measurements_group.data_vars.keys())
+    # Verify no multiscales were created (as per ADR-102)
+    assert not any(k.startswith("1") for k in ds_measurements.data_vars)

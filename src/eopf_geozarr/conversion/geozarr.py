@@ -21,6 +21,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import rasterio.control
 import xarray as xr
 import zarr
 from zarr.codecs import BloscCodec
@@ -95,7 +96,9 @@ def create_geozarr_dataset(
             raise ValueError(f"GCP group '{gcp_group}' not found in input datatree")
 
     # Get the measurements datasets prepared for GeoZarr compliance
-    geozarr_groups = setup_datatree_metadata_geozarr_spec_compliant(dt, groups)
+    geozarr_groups = setup_datatree_metadata_geozarr_spec_compliant(
+        dt, groups, gcp_group
+    )
 
     # Create the GeoZarr compliant store through iterative processing
     dt_geozarr = iterative_copy(
@@ -124,7 +127,7 @@ def create_geozarr_dataset(
 
 
 def setup_datatree_metadata_geozarr_spec_compliant(
-    dt: xr.DataTree, groups: List[str]
+    dt: xr.DataTree, groups: List[str], gcp_group: Optional[str]
 ) -> Dict[str, xr.Dataset]:
     """
     Set up GeoZarr-spec compliant CF standard names and CRS information.
@@ -151,6 +154,11 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         print(f"Processing group for GeoZarr compliance: {key}")
         ds = dt[key].to_dataset().copy()
 
+        if gcp_group is not None:
+            ds_gcp = dt[gcp_group].to_dataset()
+        else:
+            ds_gcp = None
+
         # Process all bands in the group
         for var_name in ds.data_vars:
             print(f"  Processing variable / band: {var_name}")
@@ -162,6 +170,9 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             ) and dt.attrs["stac_discovery"]["properties"]["product:type"].startswith(
                 "S01"
             ):
+                assert (
+                    gcp_group is not None
+                ), "GCPs group required for processing Sentinel-1 GRD"
                 ds[var_name].attrs["standard_name"] = (
                     "surface_backwards_scattering_coefficient_of_radar_wave"
                 )
@@ -183,7 +194,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         _add_coordinate_metadata(ds)
 
         # Set up spatial_ref variable with GeoZarr required attributes
-        _setup_grid_mapping(ds, grid_mapping_var_name)
+        _setup_grid_mapping(ds, grid_mapping_var_name, ds_gcp)
 
         geozarr_groups[key] = ds
 
@@ -1309,36 +1320,37 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None:
                 ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
 
 
-def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
+def _setup_grid_mapping(
+    ds: xr.Dataset, grid_mapping_var_name: str, ds_gcp: Optional[xr.Dataset]
+) -> None:
     """Set up spatial_ref variable with GeoZarr required attributes."""
-    import rasterio.control
 
     # Set up GCP-based georeferencing for Sentinel-1 GRD
-    if "conditions/gcp" in ds.attrs:
-        gcps = ds.attrs["conditions/gcp"]
-        gcp_list = []
-        n_points = int(np.sqrt(len(gcps.coords["points"])))
+    if ds_gcp is not None:
+        ds_gcp_flat = ds_gcp.stack(points=list(ds_gcp.dims))
 
-        # Convert GCPs to rasterio format
-        for i in range(len(gcps.coords["points"])):
-            row = (i // n_points) * (ds.dims["y"] / (n_points - 1))
-            col = (i % n_points) * (ds.dims["x"] / (n_points - 1))
+        rows = ds_gcp_flat["line"].values
+        cols = ds_gcp_flat["pixel"].values
+        x = ds_gcp_flat["longitude"].values
+        y = ds_gcp_flat["latitude"].values
+        z = ds_gcp_flat["height"].values
 
+        gcp_list: list[rasterio.control.GroundControlPoint] = []
+        for i in range(ds_gcp_flat.sizes["points"]):
             gcp = rasterio.control.GroundControlPoint(
-                row=row,
-                col=col,
-                x=float(gcps["longitude"].values[i]),
-                y=float(gcps["latitude"].values[i]),
-                z=float(gcps["height"].values[i]) if "height" in gcps else 0.0,
+                row=int(rows[i]),
+                col=int(cols[i]),
+                x=x[i],
+                y=y[i],
+                z=z[i],
                 id=str(i),
                 info="",
             )
             gcp_list.append(gcp)
 
-        # Use rioxarray's write_gcps function to set GCPs
         ds = ds.rio.write_gcps(
             gcps=gcp_list,
-            crs="EPSG:4326",  # GCPs are in lat/lon coordinates
+            gcp_crs="EPSG:4326",  # GCPs are in lat/lon coordinates WGS84
             grid_mapping_name=grid_mapping_var_name,
             inplace=True,
         )
