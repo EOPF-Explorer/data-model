@@ -164,7 +164,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         else:
             ds_gcp = None
 
-        # Process all bands in the group
+        # Process all variables in the group
         for var_name in ds.data_vars:
             print(f"  Processing variable / band: {var_name}")
 
