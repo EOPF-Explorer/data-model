@@ -1002,7 +1002,7 @@ def write_dataset_band_by_band_with_validation(
 
     # Write data variables one by one with validation
     for var in data_vars:
-        # Check if this band already exists and is valid
+        # Check if this variable already exists and is valid
         if not force_overwrite and store_exists:
             if utils.validate_existing_band_data(existing_dataset, var, ds):
                 ds.drop_vars(str(var))
