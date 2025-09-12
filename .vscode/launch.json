@@ -125,6 +125,25 @@
 
         },
         {
+            "name": "Info EOPF Zarr (Sample Service)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "info",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                "--verbose",
+                "--html-output", "eopf_dataset_info.html"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+            },
+
+        },
+        {
             "name": "Info GeoZarr local",
             "type": "debugpy",
             "request": "launch",
