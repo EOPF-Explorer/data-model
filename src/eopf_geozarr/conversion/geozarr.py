@@ -96,7 +96,7 @@ def create_geozarr_dataset(
             ]
 
         # pick only one gcp group (both groups from VV and VH should be equal)
-        gcp_group = vv_vh_group_names[0] + "/" + gcp_group
+        gcp_group = vv_vh_group_names[0] + "/" + gcp_group.lstrip("/")
         if gcp_group not in dt_input.groups:
             raise ValueError(f"GCP group '{gcp_group}' not found in input datatree")
 
