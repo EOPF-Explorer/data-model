@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import xarray as xr
 
@@ -175,6 +176,62 @@ def _summarize_dask_metrics(
     return base
 
 
+def _derive_item_id_from_input_path(path: str) -> str:
+    """Best-effort item id from local path or URL."""
+    try:
+        if path.startswith(("http://", "https://", "s3://", "gs://")):
+            parsed = urlparse(path)
+            name = Path(parsed.path.rstrip("/")).name
+        else:
+            name = Path(str(path).rstrip("/")).name
+        if name.endswith(".zarr"):
+            name = name[: -len(".zarr")]
+        return name or "dataset"
+    except Exception:
+        return "dataset"
+
+
+def _resolve_output_prefix(prefix: str, item_id: str) -> str:
+    target_name = f"{item_id}_geozarr.zarr"
+    if prefix.startswith(("http://", "https://", "s3://", "gs://")):
+        if not prefix.endswith("/"):
+            prefix = prefix + "/"
+        return prefix + target_name
+    return str(Path(prefix) / target_name)
+
+
+def _has_group(tree: xr.DataTree, path: str) -> bool:
+    try:
+        parts = [p for p in str(path).strip("/").split("/") if p]
+        node = tree
+        for seg in parts:
+            children = getattr(node, "children", {}) or {}
+            if seg not in children:
+                return False
+            node = children[seg]
+        return True
+    except Exception:
+        return False
+
+
+def _local_path_exists(p: str) -> bool:
+    try:
+        return Path(p).exists()
+    except Exception:
+        return False
+
+
+def _remove_local_tree(p: str) -> bool:
+    try:
+        import shutil
+
+        if Path(p).exists():
+            shutil.rmtree(p)
+        return True
+    except Exception:
+        return False
+
+
 def convert_command(args: argparse.Namespace) -> None:
     """Convert EOPF dataset to GeoZarr compliant format.
 
@@ -213,8 +270,27 @@ def convert_command(args: argparse.Namespace) -> None:
                 sys.exit(1)
             input_path = str(input_path)
 
+        # Fast path: just list groups and exit
+        if getattr(args, "list_groups", False):
+            storage_options = get_storage_options(input_path)
+            dt = xr.open_datatree(
+                str(input_path),
+                engine="zarr",
+                chunks="auto",
+                storage_options=storage_options,
+            )
+            print("Available groups:")
+            for group_name in dt.children:
+                print(f"  - {group_name}")
+            return
+
         # Handle output path validation
         output_path_str = args.output_path
+        # Expand trailing-slash prefix to a concrete store
+        if output_path_str.endswith("/"):
+            item_id = _derive_item_id_from_input_path(str(input_path))
+            output_path_str = _resolve_output_prefix(output_path_str, item_id)
+            print(f"Resolved output store: {output_path_str}")
         if is_s3_path(output_path_str):
             # S3 path - validate S3 access
             print("🔍 Validating S3 access...")
@@ -247,14 +323,17 @@ def convert_command(args: argparse.Namespace) -> None:
         else:
             # Local path - create directory if it doesn't exist
             output_path = Path(output_path_str)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # In dry-run mode, don't create anything
+            if not getattr(args, "dry_run", False):
+                output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path = str(output_path)
-            # Prepare debug dir for metrics
-            debug_dir = Path(output_path) / "debug"
-            try:
-                debug_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                debug_dir = None
+            # Prepare debug dir for metrics (skip in dry-run)
+            if not getattr(args, "dry_run", False):
+                debug_dir = Path(output_path) / "debug"
+                try:
+                    debug_dir.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    debug_dir = None
 
         if args.verbose:
             print(f"Loading EOPF dataset from: {input_path}")
@@ -268,14 +347,48 @@ def convert_command(args: argparse.Namespace) -> None:
         # Load the EOPF DataTree with appropriate storage options
         print("Loading EOPF dataset...")
         storage_options = get_storage_options(input_path)
-        # Metrics setup
+        # Metrics setup (environment first; set_input after group validation)
         if getattr(args, "metrics", True):
             metrics = MetricsRecorder()
             metrics.set_environment()
+
+        with metrics.time_step("open_input") if metrics else nullcontext():
+            dt = xr.open_datatree(
+                str(input_path),
+                engine="zarr",
+                chunks="auto",
+                storage_options=storage_options,
+            )
+
+        # Validate/prune groups if requested
+        groups_effective = list(getattr(args, "groups", []) or [])
+        validate_mode = getattr(args, "validate_groups", None)
+        missing: list[str] = []
+        if validate_mode in {"warn", "error"} and groups_effective:
+            existing: list[str] = []
+            for g in groups_effective:
+                if _has_group(dt, g):
+                    existing.append(g)
+                else:
+                    missing.append(g)
+            if missing:
+                msg = f"Groups not found: {', '.join(missing)}"
+                if validate_mode == "error":
+                    print(f"❌ {msg}")
+                    sys.exit(3)
+                else:
+                    print(f"⚠️  {msg}; proceeding with remaining groups")
+                groups_effective = existing
+            if not groups_effective:
+                print("❌ No valid groups to convert after validation")
+                sys.exit(3)
+
+        # Now that groups are finalized, set input metadata for metrics
+        if metrics is not None:
             metrics.set_input(
                 source_uri=str(input_path),
                 profile=None,
-                groups=args.groups,
+                groups=groups_effective,
                 dask={
                     "enabled": bool(dask_client is not None),
                     "mode": getattr(args, "dask_mode", None),
@@ -286,19 +399,60 @@ def convert_command(args: argparse.Namespace) -> None:
                 },
             )
 
-        with metrics.time_step("open_input") if metrics else nullcontext():
-            dt = xr.open_datatree(
-                str(input_path),
-                engine="zarr",
-                chunks="auto",
-                storage_options=storage_options,
-            )
+        # Overwrite policy handling (local only)
+        overwrite = getattr(args, "overwrite", "fail")
+        is_remote = is_s3_path(output_path)
+        if not is_remote:
+            exists = _local_path_exists(output_path)
+            if exists:
+                if overwrite == "fail":
+                    print(
+                        f"❌ Output already exists and overwrite policy is 'fail': {output_path}"
+                    )
+                    sys.exit(2)
+                if overwrite == "skip":
+                    print(f"⏭️  Output exists; skipping as per policy: {output_path}")
+                    return
+                if overwrite == "replace":
+                    if getattr(args, "dry_run", False):
+                        print(
+                            f"🧪 Dry-run: would remove existing output: {output_path}"
+                        )
+                    else:
+                        ok = _remove_local_tree(output_path)
+                        if not ok:
+                            print(f"❌ Failed to remove existing output: {output_path}")
+                            sys.exit(2)
+                # merge: do nothing
+        else:
+            if overwrite == "fail":
+                print(
+                    "ℹ️ Remote output existence not checked; 'fail' policy may not prevent overwrite."
+                )
+            elif overwrite == "replace":
+                print(
+                    "⚠️ 'replace' is not implemented for remote outputs; proceeding may overwrite keys."
+                )
+
+        # Print dry-run plan and exit early
+        if getattr(args, "dry_run", False):
+            print("\nDry-run plan:")
+            print("============")
+            print(f"Input:  {input_path}")
+            print(f"Output: {output_path}")
+            print(f"Groups: {groups_effective}")
+            print(f"Overwrite policy: {overwrite}")
+            print(f"Dask: {'on' if dask_client is not None else 'off'}")
+            print("No data will be written.")
+            return
 
         if args.verbose:
             print(f"Loaded DataTree with {len(dt.children)} groups")
             print("Available groups:")
             for group_name in dt.children:
                 print(f"  - {group_name}")
+            if missing:
+                print(f"After validation, converting groups: {groups_effective}")
 
         # Convert to GeoZarr compliant format
         print("Converting to GeoZarr compliant format...")
@@ -330,7 +484,7 @@ def convert_command(args: argparse.Namespace) -> None:
                     with metrics.time_step("convert") if metrics else nullcontext():
                         dt_geozarr = create_geozarr_dataset(
                             dt_input=dt,
-                            groups=args.groups,
+                            groups=groups_effective,
                             output_path=output_path,
                             spatial_chunk=args.spatial_chunk,
                             min_dimension=args.min_dimension,
@@ -344,7 +498,7 @@ def convert_command(args: argparse.Namespace) -> None:
                 with metrics.time_step("convert") if metrics else nullcontext():
                     dt_geozarr = create_geozarr_dataset(
                         dt_input=dt,
-                        groups=args.groups,
+                        groups=groups_effective,
                         output_path=output_path,
                         spatial_chunk=args.spatial_chunk,
                         min_dimension=args.min_dimension,
@@ -381,7 +535,7 @@ def convert_command(args: argparse.Namespace) -> None:
                     ),
                     "perf_report": getattr(args, "dask_perf_html", None),
                     "wall_clock_s": wall_clock if dask_client is not None else None,
-                    "groups": args.groups,
+                    "groups": groups_effective,
                     "spatial_chunk": args.spatial_chunk,
                     "min_dimension": args.min_dimension,
                     "tile_width": args.tile_width,
@@ -399,6 +553,17 @@ def convert_command(args: argparse.Namespace) -> None:
                 MetricsRecorder.write_json(run_summary, payload)
                 if args.verbose:
                     print(f"🧾 Wrote metrics: {run_summary}")
+                # Optional external run-metadata path
+                if getattr(args, "run_metadata", None):
+                    try:
+                        outp = Path(args.run_metadata)
+                        outp.parent.mkdir(parents=True, exist_ok=True)
+                        MetricsRecorder.write_json(outp, payload)
+                        if args.verbose:
+                            print(f"🧾 Wrote run metadata: {outp}")
+                    except Exception as _e:
+                        if args.verbose:
+                            print(f"(debug) could not write run-metadata: {_e}")
         except Exception as _exc:
             if args.verbose:
                 print(f"(debug) could not write run summary: {_exc}")
@@ -424,10 +589,22 @@ def convert_command(args: argparse.Namespace) -> None:
         try:
             if metrics and debug_dir is not None and getattr(args, "metrics", True):
                 payload = metrics.finalize(status="error", exception=error_msg)
-                run_summary = Path(args.output_path) / "debug" / "run_summary.json"
-                MetricsRecorder.write_json(run_summary, payload)
-                if args.verbose:
-                    print(f"🧾 Wrote failure metrics: {run_summary}")
+                run_summary = Path(output_path) / "debug" / "run_summary.json"
+                try:
+                    MetricsRecorder.write_json(run_summary, payload)
+                    if args.verbose:
+                        print(f"🧾 Wrote failure metrics: {run_summary}")
+                except Exception:
+                    pass
+                if getattr(args, "run_metadata", None):
+                    try:
+                        outp = Path(args.run_metadata)
+                        outp.parent.mkdir(parents=True, exist_ok=True)
+                        MetricsRecorder.write_json(outp, payload)
+                        if args.verbose:
+                            print(f"🧾 Wrote run metadata (error): {outp}")
+                    except Exception:
+                        pass
         except Exception:
             pass
         sys.exit(1)
@@ -1413,6 +1590,34 @@ def create_parser() -> argparse.ArgumentParser:
         dest="metrics",
         action="store_false",
         help="Disable metrics emission.",
+    )
+    convert_parser.add_argument(
+        "--list-groups",
+        action="store_true",
+        help="List available groups in the input and exit.",
+    )
+    convert_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate I/O, resolve groups and output, and print the plan without writing.",
+    )
+    convert_parser.add_argument(
+        "--overwrite",
+        type=str,
+        choices=["fail", "skip", "replace", "merge"],
+        default="fail",
+        help="Behavior when output exists (local): fail, skip, replace, or merge (default: fail).",
+    )
+    convert_parser.add_argument(
+        "--validate-groups",
+        type=str,
+        choices=["warn", "error"],
+        help="Validate requested groups against input; warn to prune, error to abort.",
+    )
+    convert_parser.add_argument(
+        "--run-metadata",
+        type=str,
+        help="Also write finalized metrics payload to this JSON path.",
     )
     convert_parser.set_defaults(func=convert_command)
 
