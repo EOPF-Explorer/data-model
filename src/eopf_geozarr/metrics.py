@@ -88,19 +88,41 @@ class MetricsRecorder:
             "metadata": {"consolidated": None},
         }
 
-        # Size (local only)
+        # Size (local or remote via fsspec)
         try:
+            total = None
             op = Path(output_path)
             if op.exists():
-                total = 0
+                acc = 0
                 for p in op.rglob("*"):
                     if p.is_file():
                         try:
-                            total += p.stat().st_size
+                            acc += p.stat().st_size
                         except Exception:
                             pass
-                info["store_total_bytes"] = total
+                total = acc
+            else:
+                try:
+                    import fsspec
+
+                    fs, root = fsspec.core.url_to_fs(output_path)
+                    # find() returns all file-like entries under the root
+                    acc = 0
+                    for path in fs.find(root):
+                        try:
+                            info_dict = fs.info(path)
+                            size = info_dict.get("size")
+                            if isinstance(size, (int, float)):
+                                acc += int(size)
+                        except Exception:
+                            # ignore paths that fail info()
+                            pass
+                    total = acc
+                except Exception:
+                    total = None
+            info["store_total_bytes"] = total
         except Exception:
+            # best-effort only
             pass
 
         # Structure via xarray datatree (works for local and remote)
@@ -217,6 +239,54 @@ class MetricsRecorder:
             pass
 
         self.output_info = info
+
+    @staticmethod
+    def _schema() -> Dict[str, Any]:
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+                "schema_version",
+                "run",
+                "input",
+                "output",
+                "performance",
+                "environment",
+            ],
+            "properties": {
+                "schema_version": {"type": "string"},
+                "run": {
+                    "type": "object",
+                    "required": ["run_id", "status", "started_at"],
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "attempt": {"type": ["integer", "null"]},
+                        "started_at": {"type": "string"},
+                        "ended_at": {"type": ["string", "null"]},
+                        "status": {"type": "string"},
+                        "exception": {"type": ["string", "null"]},
+                    },
+                },
+                "input": {"type": "object"},
+                "output": {"type": "object"},
+                "performance": {"type": "object"},
+                "environment": {"type": "object"},
+            },
+            "additionalProperties": True,
+        }
+
+    @staticmethod
+    def validate_payload(payload: Dict[str, Any]) -> List[str]:
+        try:
+            # Optional validation if jsonschema is available
+            import jsonschema
+
+            validator = jsonschema.Draft7Validator(MetricsRecorder._schema())
+            errors = [e.message for e in validator.iter_errors(payload)]
+            return errors
+        except Exception:
+            # If jsonschema not installed or validation fails unexpectedly, skip
+            return []
 
     def finalize(self, status: str, exception: Optional[str] = None) -> Dict[str, Any]:
         self.ended_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
