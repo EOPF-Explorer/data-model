@@ -9,13 +9,15 @@ repos:
     hooks:
       - id: isort
         language_version: python
+        files: ^(src/|tests/)
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
       - id: ruff
-        args: ["--fix"]
+        args: ["--fix", "--line-length=100"]
       - id: ruff-format
+        args: ["--line-length=100"]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.11.2

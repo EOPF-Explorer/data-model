@@ -10,14 +10,9 @@ from .fs_utils import (
     validate_s3_access,
     write_s3_json_metadata,
 )
-from .geozarr import (
-    async_consolidate_metadata,
-    calculate_overview_levels,
-    consolidate_metadata,
-    create_geozarr_dataset,
-    iterative_copy,
-    setup_datatree_metadata_geozarr_spec_compliant,
-)
+from .geozarr import create_geozarr_dataset, setup_datatree_metadata_geozarr_spec_compliant
+from .metadata import async_consolidate_metadata, consolidate_metadata
+from .multiscales import calculate_overview_levels
 from .utils import (
     calculate_aligned_chunk_size,
     downsample_2d_array,
@@ -28,7 +23,6 @@ from .utils import (
 __all__ = [
     "create_geozarr_dataset",
     "setup_datatree_metadata_geozarr_spec_compliant",
-    "iterative_copy",
     "consolidate_metadata",
     "async_consolidate_metadata",
     "calculate_overview_levels",

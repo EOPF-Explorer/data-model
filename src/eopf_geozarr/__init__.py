@@ -1,26 +1,29 @@
 """EOPF GeoZarr - GeoZarr compliant data model for EOPF datasets."""
 
-from importlib.metadata import version
+try:
+    from importlib.metadata import version as _load_version
+except Exception:  # pragma: no cover - extremely unlikely
+    _load_version = None  # type: ignore
 
 from .conversion import (
-    async_consolidate_metadata,
     calculate_aligned_chunk_size,
-    consolidate_metadata,
     create_geozarr_dataset,
     downsample_2d_array,
     is_grid_mapping_variable,
-    iterative_copy,
     setup_datatree_metadata_geozarr_spec_compliant,
     validate_existing_band_data,
 )
+from .conversion.metadata import async_consolidate_metadata, consolidate_metadata
 
-__version__ = version("eopf-geozarr")
+try:
+    __version__ = _load_version("eopf-geozarr") if _load_version is not None else "0.0.0+local"
+except Exception:  # pragma: no cover
+    __version__ = "0.0.0+local"
 
 __all__ = [
     "__version__",
     "create_geozarr_dataset",
     "setup_datatree_metadata_geozarr_spec_compliant",
-    "iterative_copy",
     "consolidate_metadata",
     "async_consolidate_metadata",
     "downsample_2d_array",
