@@ -22,9 +22,7 @@ class MetricsRecorder:
     )
     attempt: int = 1
     started_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z")
+        default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
     steps: List[Dict[str, Any]] = field(default_factory=list)
     input_info: Dict[str, Any] = field(default_factory=dict)
@@ -60,8 +58,7 @@ class MetricsRecorder:
             "python": sys.version.split()[0],
             "platform": platform.platform(),
             "packages": {
-                "eopf_geozarr": _get_version("eopf-geozarr")
-                or _get_version("eopf_geozarr"),
+                "eopf_geozarr": _get_version("eopf-geozarr") or _get_version("eopf_geozarr"),
                 "xarray": _get_version("xarray"),
                 "zarr": _get_version("zarr"),
                 "dask": _get_version("dask"),
