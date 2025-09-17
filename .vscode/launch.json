@@ -125,6 +125,61 @@
 
         },
         {
+            "name": "Convert to GeoZarr Sentinel-1 GRD (Local)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "convert",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202509-s01siwgrh/12/products/cpm_v256/S1C_IW_GRDH_1SDV_20250912T053648_20250912T053713_004087_0081FD_5AA4.zarr",
+                "./tests-output/eopf_geozarr/s1_test.zarr",
+                "--groups", "/measurements",
+                "--gcp-group", "/conditions/gcp",
+                "--spatial-chunk", "512",
+                "--min-dimension", "256",
+                "--tile-width", "256",
+                "--max-retries", "2",
+                "--dask-cluster",
+                "--verbose"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/eopf_geozarr/.venv/bin"
+            },
+        },
+        {
+            "name": "Convert to GeoZarr Sentinel-1 GRD (S3)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "convert",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202509-s01siwgrh/12/products/cpm_v256/S1C_IW_GRDH_1SDV_20250912T053648_20250912T053713_004087_0081FD_5AA4.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/eopf_geozarr/S1C_IW_GRDH_1SDV_20250912T053648_20250912T053713_004087_0081FD_5AA4.zarr",
+                "--groups", "/measurements",
+                "--gcp-group", "/conditions/gcp",
+                // "--crs-groups", "/conditions/geometry",
+                "--spatial-chunk", "512",
+                "--min-dimension", "256",
+                "--tile-width", "256",
+                "--max-retries", "2",
+                "--dask-cluster",
+                "--verbose"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+                "AWS_PROFILE": "eopf-explorer-vs",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
+            },
+
+        },
+        {
             "name": "Info EOPF Zarr (Sample Service)",
             "type": "debugpy",
             "request": "launch",

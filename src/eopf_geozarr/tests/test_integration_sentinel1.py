@@ -253,9 +253,9 @@ def test_sentinel1_gcp_conversion(
     assert "grd" not in dt["measurements"].to_dataset().data_vars
     assert "spatial_ref" in dt["measurements/0"]
 
-    # Verify Sentinel-1 GRD specific metadata
+    # Verify Sentinel-1 GRD specific metadata - now reprojected to x/y coordinates
     grd = dt["measurements/0"].grd
-    assert grd.dims == ("azimuth_time", "ground_range")
+    assert grd.dims == ("y", "x")  # Now reprojected to geographic coordinates
     assert (
         grd.attrs["standard_name"]
         == "surface_backwards_scattering_coefficient_of_radar_wave"
@@ -263,58 +263,43 @@ def test_sentinel1_gcp_conversion(
     assert grd.attrs["units"] == "1"
     assert grd.attrs["grid_mapping"] == "spatial_ref"
 
-    # Verify GCP handling
+    # Verify reprojected data has proper CRS
     ds_measurements = dt["measurements/0"].to_dataset()
     spatial_ref = ds_measurements.spatial_ref
-    assert "gcps" in spatial_ref.attrs
     assert "crs_wkt" in spatial_ref.attrs
     assert "spatial_ref" in spatial_ref.attrs
     actual_crs = pyproj.CRS.from_wkt(spatial_ref.attrs["crs_wkt"])
-    assert actual_crs == pyproj.CRS.from_epsg(4326)  # GCPs are in lat/lon WGS84
+    assert actual_crs == pyproj.CRS.from_epsg(4326)  # Data is now in lat/lon WGS84
     assert actual_crs == pyproj.CRS.from_wkt(spatial_ref.attrs["spatial_ref"])
 
-    # Check GCP values at native resolution
-    ds_gcps = dt[gcp_group].to_dataset()
-    actual_gcps = ds_measurements.rio.get_gcps()
-    assert (
-        len(actual_gcps)
-        == ds_gcps.sizes["azimuth_time"] * ds_gcps.sizes["ground_range"]
-    )
-    assert all(
-        isinstance(gcp, rasterio.control.GroundControlPoint) for gcp in actual_gcps
-    )
-    assert all(hasattr(gcp, "row") for gcp in actual_gcps)
-    assert all(hasattr(gcp, "col") for gcp in actual_gcps)
-    assert all(hasattr(gcp, "x") for gcp in actual_gcps)
-    assert all(hasattr(gcp, "y") for gcp in actual_gcps)
-    assert all(hasattr(gcp, "z") for gcp in actual_gcps)
-    assert all(isinstance(gcp.id, str) for gcp in actual_gcps)
+    # Verify coordinate attributes for reprojected data
+    assert "x" in ds_measurements.coords
+    assert "y" in ds_measurements.coords
+    assert ds_measurements.x.attrs["standard_name"] == "longitude"
+    assert ds_measurements.x.attrs["units"] == "degrees_east"
+    assert ds_measurements.y.attrs["standard_name"] == "latitude"
+    assert ds_measurements.y.attrs["units"] == "degrees_north"
 
-    gcp_first = actual_gcps[0]
-    assert gcp_first.row == ds_gcps["line"][0]
-    assert gcp_first.col == ds_gcps["pixel"][0]
-    assert gcp_first.x == 15.0
-    assert gcp_first.y == 39.0
-    assert gcp_first.z == 0.0
-
-    gcp_last = actual_gcps[-1]
-    assert gcp_last.row == ds_gcps["line"][-1]
-    assert gcp_last.col == ds_gcps["pixel"][-1]
-    assert gcp_last.x == 18.0
-    assert gcp_last.y == 41.0
-    assert gcp_last.z == 0.0
+    # Verify data bounds are reasonable (should be within the GCP bounds)
+    x_bounds = (ds_measurements.x.min().values, ds_measurements.x.max().values)
+    y_bounds = (ds_measurements.y.min().values, ds_measurements.y.max().values)
+    
+    # Should be within the original GCP bounds (15-18 lon, 39-41 lat)
+    assert 14.5 <= x_bounds[0] <= 15.5, f"X min bound {x_bounds[0]} outside expected range"
+    assert 17.5 <= x_bounds[1] <= 18.5, f"X max bound {x_bounds[1]} outside expected range"
+    assert 38.5 <= y_bounds[0] <= 39.5, f"Y min bound {y_bounds[0]} outside expected range"
+    assert 40.5 <= y_bounds[1] <= 41.5, f"Y max bound {y_bounds[1]} outside expected range"
 
     # Check multiscales 2 levels created: 0 (native, checked above) and 1
     assert "1" in dt["measurements"]
     ds_measurements1 = dt["measurements/1"].to_dataset()
     grd1 = ds_measurements1.grd
-    assert grd1.dims == ("azimuth_time", "ground_range")
+    assert grd1.dims == ("y", "x")  # Overview also has reprojected coordinates
     spatial_ref1 = ds_measurements1.spatial_ref
-    assert "gcps" in spatial_ref1.attrs
     assert "crs_wkt" in spatial_ref1.attrs
     assert "spatial_ref" in spatial_ref1.attrs
     actual_crs = pyproj.CRS.from_wkt(spatial_ref1.attrs["crs_wkt"])
-    assert actual_crs == pyproj.CRS.from_epsg(4326)  # GCPs are in lat/lon WGS84
+    assert actual_crs == pyproj.CRS.from_epsg(4326)  # Overview also in lat/lon WGS84
     assert actual_crs == pyproj.CRS.from_wkt(spatial_ref1.attrs["spatial_ref"])
 
 

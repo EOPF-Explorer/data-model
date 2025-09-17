@@ -21,7 +21,9 @@ import time
 from typing import Any, Dict, Hashable, List, Optional, Tuple
 
 import numpy as np
+from pyproj import CRS
 import rasterio.control
+from rasterio.warp import calculate_default_transform
 import xarray as xr
 import zarr
 from zarr.codecs import BloscCodec
@@ -30,6 +32,7 @@ from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
 
 from . import fs_utils, utils
+from .sentinel1_reprojection import reproject_sentinel1_with_gcps, calculate_reprojected_bounds
 
 
 def create_geozarr_dataset(
@@ -164,15 +167,18 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         else:
             ds_gcp = None
 
+        # Apply Sentinel-1 reprojection if needed
+        if _is_sentinel1(dt) and ds_gcp is not None:
+            print(f"  Applying Sentinel-1 reprojection for group: {key}")
+            ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
+            print(f"  ✅ Reprojection completed, dataset now has x/y coordinates")
+
         # Process all variables in the group
         for var_name in ds.data_vars:
             print(f"  Processing variable / band: {var_name}")
 
             # Set CF standard name and _ARRAY_DIMENSIONS
             if _is_sentinel1(dt):
-                assert (
-                    gcp_group is not None
-                ), "GCPs group required for processing Sentinel-1 GRD"
                 ds[var_name].attrs["standard_name"] = (
                     "surface_backwards_scattering_coefficient_of_radar_wave"
                 )
@@ -194,7 +200,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         _add_coordinate_metadata(ds)
 
         # Set up spatial_ref variable with GeoZarr required attributes
-        _setup_grid_mapping(ds, grid_mapping_var_name, ds_gcp)
+        _setup_grid_mapping(ds, grid_mapping_var_name)
 
         geozarr_groups[key] = ds
 
@@ -540,17 +546,40 @@ def create_geozarr_compliant_multiscales(
     if ds_gcp is None:
         native_bounds = ds.rio.bounds()
     else:
-        # TODO: check GCP bounds vs. raster data bounds?
-        # Below we compute GCP bbox and assume that it roughly corresponds
-        # to the data bounds, which might be too crude / wrong approximation.
-        # Alternatively we could check GCPs' line/pixel values and adjust
-        # the bounds if we know approx the resolution.
-        native_bounds = (
-            ds_gcp["longitude"].values.min(),
-            ds_gcp["latitude"].values.min(),
-            ds_gcp["longitude"].values.max(),
-            ds_gcp["latitude"].values.max(),
-        )
+        if "azimuth_time" in ds.dims and "ground_range" in ds.dims:
+            ds.rio.set_spatial_dims(x_dim="ground_range", y_dim="azimuth_time", inplace=True)
+            
+        try:
+            if ds.rio.get_gcps() is not None:
+                transform, width, height = calculate_default_transform(
+                    ds.rio.crs,
+                    CRS.from_epsg(4326),
+                    ds.rio.width,
+                    ds.rio.height,
+                    gcps=ds.rio.get_gcps(),
+                )
+                native_bounds = (
+                    transform[2],
+                    transform[5] + height * transform[4],
+                    transform[2] + width * transform[0],
+                    transform[5],
+                )
+            else:
+                native_bounds = ds.rio.bounds()
+
+        except Exception as e:
+            print(f"Error computing native bounds: {e}")
+            # TODO: check GCP bounds vs. raster data bounds?
+            # Below we compute GCP bbox and assume that it roughly corresponds
+            # to the data bounds, which might be too crude / wrong approximation.
+            # Alternatively we could check GCPs' line/pixel values and adjust
+            # the bounds if we know approx the resolution.
+            native_bounds = (
+                ds_gcp["longitude"].values.min(),
+                ds_gcp["latitude"].values.min(),
+                ds_gcp["longitude"].values.max(),
+                ds_gcp["latitude"].values.max(),
+            )
 
     print(f"Creating GeoZarr-compliant multiscales for {group_name}")
     print(f"Native resolution: {native_width} x {native_height}")
@@ -871,29 +900,47 @@ def create_overview_dataset_all_vars(
     """
     import rasterio.transform
 
-    if ds_gcp is None:
-        # Calculate the transform for this overview level
-        overview_transform = rasterio.transform.from_bounds(
-            *native_bounds, width, height
-        )
+    # Calculate the transform for this overview level
+    overview_transform = rasterio.transform.from_bounds(
+        *native_bounds, width, height
+    )
 
-        # Create coordinate arrays
-        left, bottom, right, top = native_bounds
-        x_coords = np.linspace(left, right, width, endpoint=False)
-        y_coords = np.linspace(top, bottom, height, endpoint=False)
+    # Create coordinate arrays
+    left, bottom, right, top = native_bounds
+    x_coords = np.linspace(left, right, width, endpoint=False)
+    y_coords = np.linspace(top, bottom, height, endpoint=False)
 
-        overview_coords = {
-            "x": (["x"], x_coords, _get_x_coord_attrs()),
-            "y": (["y"], y_coords, _get_y_coord_attrs()),
+    # Check if we're dealing with geographic coordinates (EPSG:4326)
+    if native_crs and native_crs.to_epsg() == 4326:
+        x_attrs = {
+            "_ARRAY_DIMENSIONS": ["x"],
+            "standard_name": "longitude",
+            "units": "degrees_east",
+            "long_name": "longitude",
         }
-        standard_name = "toa_bidirectional_reflectance"
-        spatial_dims = ["y", "x"]
+        y_attrs = {
+            "_ARRAY_DIMENSIONS": ["y"],
+            "standard_name": "latitude",
+            "units": "degrees_north",
+            "long_name": "latitude",
+        }
     else:
-        # No spatial coordinate / transform for Sentinel-1 GCP-based overviews
-        overview_coords = {}
-        overview_transform = None
+        x_attrs = _get_x_coord_attrs()
+        y_attrs = _get_y_coord_attrs()
+
+    overview_coords = {
+        "x": (["x"], x_coords, x_attrs),
+        "y": (["y"], y_coords, y_attrs),
+    }
+    
+    # Determine standard name based on whether this is Sentinel-1 data
+    # TODO: use a better way to determine this than just checking for ds_gcp
+    if ds_gcp is not None:
         standard_name = "surface_backwards_scattering_coefficient_of_radar_wave"
-        spatial_dims = ["azimuth_time", "ground_range"]
+    else:
+        standard_name = "toa_bidirectional_reflectance"
+    
+    spatial_dims = ["y", "x"]
 
     # Find the grid_mapping variable name
     grid_mapping_var_name = _find_grid_mapping_var_name(ds, data_vars)
@@ -944,9 +991,6 @@ def create_overview_dataset_all_vars(
     # Set CRS using rioxarray
     overview_ds.rio.write_crs(native_crs, inplace=True)
     overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
-
-    if ds_gcp is not None:
-        _add_gcps(overview_ds, grid_mapping_var_name, ds_gcp)
 
     return overview_ds
 
@@ -1228,23 +1272,45 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None:
     """Add proper metadata to coordinate variables."""
     for coord_name in ds.coords:
         if coord_name == "x":
-            ds[coord_name].attrs.update(
-                {
-                    "_ARRAY_DIMENSIONS": ["x"],
-                    "standard_name": "projection_x_coordinate",
-                    "units": "m",
-                    "long_name": "x coordinate of projection",
-                }
-            )
+            # Check if this is geographic coordinates (EPSG:4326)
+            if ds.rio.crs and ds.rio.crs.to_epsg() == 4326:
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["x"],
+                        "standard_name": "longitude",
+                        "units": "degrees_east",
+                        "long_name": "longitude",
+                    }
+                )
+            else:
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["x"],
+                        "standard_name": "projection_x_coordinate",
+                        "units": "m",
+                        "long_name": "x coordinate of projection",
+                    }
+                )
         elif coord_name == "y":
-            ds[coord_name].attrs.update(
-                {
-                    "_ARRAY_DIMENSIONS": ["y"],
-                    "standard_name": "projection_y_coordinate",
-                    "units": "m",
-                    "long_name": "y coordinate of projection",
-                }
-            )
+            # Check if this is geographic coordinates (EPSG:4326)
+            if ds.rio.crs and ds.rio.crs.to_epsg() == 4326:
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["y"],
+                        "standard_name": "latitude",
+                        "units": "degrees_north",
+                        "long_name": "latitude",
+                    }
+                )
+            else:
+                ds[coord_name].attrs.update(
+                    {
+                        "_ARRAY_DIMENSIONS": ["y"],
+                        "standard_name": "projection_y_coordinate",
+                        "units": "m",
+                        "long_name": "y coordinate of projection",
+                    }
+                )
         elif coord_name == "time":
             ds[coord_name].attrs.update(
                 {"_ARRAY_DIMENSIONS": ["time"], "standard_name": "time"}
@@ -1280,16 +1346,11 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None:
 
 
 def _setup_grid_mapping(
-    ds: xr.Dataset, grid_mapping_var_name: str, ds_gcp: Optional[xr.Dataset]
-) -> None:
+    ds: xr.Dataset, grid_mapping_var_name: str) -> None:
     """Set up spatial_ref variable with GeoZarr required attributes."""
 
-    # Set up GCP-based georeferencing for Sentinel-1 GRD
-    if ds_gcp is not None:
-        _add_gcps(ds, grid_mapping_var_name, ds_gcp)
-
     # Use standard CRS and transform if available
-    elif ds.rio.crs and "spatial_ref" in ds:
+    if ds.rio.crs and "spatial_ref" in ds:
         ds["spatial_ref"].attrs["_ARRAY_DIMENSIONS"] = []
         if ds.rio.transform():
             transform_gdal = ds.rio.transform().to_gdal()
@@ -1302,36 +1363,6 @@ def _setup_grid_mapping(
         if band != "spatial_ref":
             ds[band].attrs["grid_mapping"] = grid_mapping_var_name
 
-
-def _add_gcps(ds: xr.Dataset, grid_mapping_var_name: str, ds_gcp: xr.Dataset) -> None:
-    """Add ground control points to grid_mapping variable."""
-    ds_gcp_flat = ds_gcp.stack(points=list(ds_gcp.dims))
-
-    rows = ds_gcp_flat["line"].values
-    cols = ds_gcp_flat["pixel"].values
-    x = ds_gcp_flat["longitude"].values
-    y = ds_gcp_flat["latitude"].values
-    z = ds_gcp_flat["height"].values
-
-    gcp_list: list[rasterio.control.GroundControlPoint] = []
-    for i in range(ds_gcp_flat.sizes["points"]):
-        gcp = rasterio.control.GroundControlPoint(
-            row=int(rows[i]),
-            col=int(cols[i]),
-            x=x[i],
-            y=y[i],
-            z=z[i],
-            id=str(i),
-            info="",
-        )
-        gcp_list.append(gcp)
-
-    ds = ds.rio.write_gcps(
-        gcps=gcp_list,
-        gcp_crs="EPSG:4326",  # GCPs are in lat/lon coordinates WGS84
-        grid_mapping_name=grid_mapping_var_name,
-        inplace=True,
-    )
 
 
 def _add_geotransform(ds: xr.Dataset, grid_mapping_var: str) -> None:
@@ -1489,6 +1520,22 @@ def _get_y_coord_attrs() -> Dict[str, Any]:
         "long_name": "y coordinate of projection",
         "standard_name": "projection_y_coordinate",
         "_ARRAY_DIMENSIONS": ["y"],
+    }
+    
+def _get_at_coord_attrs() -> Dict[str, Any]:
+    """Get standard attributes for azimuth_time coordinate."""
+    return {
+        "long_name": "azimuth time",
+        "standard_name": "time",
+        "_ARRAY_DIMENSIONS": ["azimuth_time"],
+    }
+    
+def _get_gr_coord_attrs() -> Dict[str, Any]:
+    """Get standard attributes for ground_range coordinate."""
+    return {
+        "long_name": "ground range distance",
+        "standard_name": "projection_x_coordinate",
+        "_ARRAY_DIMENSIONS": ["ground_range"],
     }
 
 
