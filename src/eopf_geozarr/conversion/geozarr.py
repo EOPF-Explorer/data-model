@@ -980,7 +980,11 @@ def create_overview_dataset_all_vars(
     # Create overview dataset
     overview_ds = xr.Dataset(overview_data_vars, coords=overview_coords)
 
-    # Add grid_mapping variable
+    # Set CRS using rioxarray first
+    overview_ds.rio.write_crs(native_crs, inplace=True)
+    overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
+
+    # Add grid_mapping variable after setting CRS
     # TODO: refactor? grid mapping attributes and variables are handled
     # below and above in different function bodies in a confusing way.
     # ds.rio.write_crs may conflict with manual metadata handling
@@ -989,10 +993,6 @@ def create_overview_dataset_all_vars(
     _add_grid_mapping_variable(
         overview_ds, ds, grid_mapping_var_name, overview_transform, native_crs
     )
-
-    # Set CRS using rioxarray
-    overview_ds.rio.write_crs(native_crs, inplace=True)
-    overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
 
     return overview_ds
 
@@ -1598,6 +1598,13 @@ def _add_grid_mapping_variable(
             data=np.array(b"", dtype="S1"),
             attrs=grid_mapping_attrs,
         )
+
+    # Ensure all data variables have the grid_mapping attribute
+    for var_name in overview_ds.data_vars:
+        if not utils.is_grid_mapping_variable(overview_ds, var_name):
+            if "grid_mapping" not in overview_ds[var_name].attrs:
+                overview_ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
+                print(f"  Added grid_mapping attribute to {var_name}")
 
 
 def _is_sentinel1(dt: xr.DataTree) -> bool:
