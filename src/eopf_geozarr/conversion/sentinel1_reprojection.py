@@ -135,7 +135,7 @@ def _create_target_coordinates(
             x_coords, 
             {
                 "_ARRAY_DIMENSIONS": ["x"],
-                "standard_name": "projection_x_coordinate" if "EPSG:4326" in target_crs else "longitude",
+                "standard_name": "longitude" if "EPSG:4326" in target_crs else "projection_x_coordinate",
                 "units": "degrees_east" if "EPSG:4326" in target_crs else "m",
                 "long_name": "longitude" if "EPSG:4326" in target_crs else "x coordinate of projection",
             }
@@ -145,7 +145,7 @@ def _create_target_coordinates(
             y_coords, 
             {
                 "_ARRAY_DIMENSIONS": ["y"],
-                "standard_name": "projection_y_coordinate" if "EPSG:4326" in target_crs else "latitude", 
+                "standard_name": "latitude" if "EPSG:4326" in target_crs else "projection_y_coordinate", 
                 "units": "degrees_north" if "EPSG:4326" in target_crs else "m",
                 "long_name": "latitude" if "EPSG:4326" in target_crs else "y coordinate of projection",
             }
