@@ -90,12 +90,12 @@ def create_geozarr_dataset(
         assert len(vv_vh_group_names) == 2, str(vv_vh_group_names)
 
         groups = [
-            "/".join(grps) for grps in itertools.product(vv_vh_group_names, groups)
+            vv_vh + "/" + grp.lstrip("/") for vv_vh, grp in itertools.product(vv_vh_group_names, groups)
         ]
         if crs_groups is not None:
             crs_groups = [
-                "/".join(grps)
-                for grps in itertools.product(vv_vh_group_names, crs_groups)
+                vv_vh + "/" + grp.lstrip("/")
+                for vv_vh, grp in itertools.product(vv_vh_group_names, crs_groups)
             ]
 
         # pick only one gcp group (both groups from VV and VH should be equal)
