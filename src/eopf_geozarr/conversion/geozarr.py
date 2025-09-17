@@ -461,10 +461,12 @@ def write_geozarr_group(
     if not success:
         raise RuntimeError(f"Failed to write all bands for {group_name}")
 
-    # Create GeoZarr-spec compliant multiscales (skip for S1 GRD as per ADR-102)
+    # Create GeoZarr-spec compliant multiscales
     if _is_sentinel1(dt_input):
         assert gcp_group is not None, "GCP group required for processing Sentinel-1"
         ds_gcp = dt_input[gcp_group].to_dataset()
+        # For Sentinel-1, ds_gcp is set to None since data is now reprojected and doesn't need GCP handling
+        ds_gcp = None
     else:
         ds_gcp = None
 
