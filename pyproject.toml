@@ -141,10 +141,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = [
-    "tests/*",
-    "setup.py",
-]
+omit = ["tests/*", "setup.py"]
 
 [tool.coverage.report]
 exclude_lines = [

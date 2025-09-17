@@ -211,9 +211,7 @@ class TestSentinel2Integration:
 
         dt["quality"].attrs = {"description": "Quality assessment data"}
 
-        dt["quality/l1c_quicklook"].attrs = {
-            "description": "L1C quicklook RGB composite"
-        }
+        dt["quality/l1c_quicklook"].attrs = {"description": "L1C quicklook RGB composite"}
 
         return dt
 
@@ -295,16 +293,12 @@ class TestSentinel2Integration:
         for group in groups:
             group_path = output_path / group.lstrip("/")
             assert group_path.exists(), f"Group {group} not found"
-            assert (
-                group_path / "zarr.json"
-            ).exists(), f"Group {group} missing zarr.json"
+            assert (group_path / "zarr.json").exists(), f"Group {group} missing zarr.json"
 
             # Check that level 0 (native resolution) exists
             level_0_path = group_path / "0"
             assert level_0_path.exists(), f"Level 0 not found for {group}"
-            assert (
-                level_0_path / "zarr.json"
-            ).exists(), f"Level 0 missing zarr.json for {group}"
+            assert (level_0_path / "zarr.json").exists(), f"Level 0 missing zarr.json for {group}"
 
     def _verify_geozarr_spec_compliance(self, output_path, group) -> None:
         """
@@ -335,9 +329,7 @@ class TestSentinel2Integration:
                 assert ds[var_name].attrs["_ARRAY_DIMENSIONS"] == list(
                     ds[var_name].dims
                 ), f"Incorrect _ARRAY_DIMENSIONS for {var_name} in {group}"
-                print(
-                    f"    ✅ _ARRAY_DIMENSIONS: {ds[var_name].attrs['_ARRAY_DIMENSIONS']}"
-                )
+                print(f"    ✅ _ARRAY_DIMENSIONS: {ds[var_name].attrs['_ARRAY_DIMENSIONS']}")
 
         # Check coordinates
         for coord_name in ds.coords:
@@ -356,8 +348,7 @@ class TestSentinel2Integration:
                     "standard_name" in ds[var_name].attrs
                 ), f"Missing standard_name for {var_name} in {group}"
                 assert (
-                    ds[var_name].attrs["standard_name"]
-                    == "toa_bidirectional_reflectance"
+                    ds[var_name].attrs["standard_name"] == "toa_bidirectional_reflectance"
                 ), f"Incorrect standard_name for {var_name} in {group}"
                 print(f"    ✅ standard_name: {ds[var_name].attrs['standard_name']}")
 
@@ -401,16 +392,12 @@ class TestSentinel2Integration:
             if coord in ds.coords:
                 if "standard_name" in ds[coord].attrs:
                     expected_name = (
-                        "projection_x_coordinate"
-                        if coord == "x"
-                        else "projection_y_coordinate"
+                        "projection_x_coordinate" if coord == "x" else "projection_y_coordinate"
                     )
                     assert (
                         ds[coord].attrs["standard_name"] == expected_name
                     ), f"Incorrect standard_name for {coord} coordinate in {group}"
-                    print(
-                        f"    ✅ {coord} standard_name: {ds[coord].attrs['standard_name']}"
-                    )
+                    print(f"    ✅ {coord} standard_name: {ds[coord].attrs['standard_name']}")
 
         ds.close()
 
@@ -421,9 +408,7 @@ class TestSentinel2Integration:
         group_path = output_path / group.lstrip("/")
 
         # Check that at least one level exists (level 0 is always created)
-        level_dirs = [
-            d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()
-        ]
+        level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
         assert (
             len(level_dirs) >= 1
         ), f"Expected at least 1 overview level for {group}, found {len(level_dirs)}"
@@ -458,9 +443,7 @@ class TestSentinel2Integration:
             assert len(ds.data_vars) > 0, f"No data variables in {level_path}"
 
             # Verify that spatial dimensions exist
-            assert (
-                "x" in ds.dims and "y" in ds.dims
-            ), f"Missing spatial dimensions in {level_path}"
+            assert "x" in ds.dims and "y" in ds.dims, f"Missing spatial dimensions in {level_path}"
 
             # Store shape for progression verification
             level_shapes[level_num] = (ds.dims["y"], ds.dims["x"])
@@ -515,9 +498,7 @@ class TestSentinel2Integration:
 
             # Test access to different overview levels (as in notebook)
             group_path = output_path / group.lstrip("/")
-            level_dirs = [
-                d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()
-            ]
+            level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
 
             for level_dir in sorted(level_dirs, key=lambda x: int(x.name))[
                 :3
@@ -540,23 +521,15 @@ class TestSentinel2Integration:
 
                 # Verify data is not empty
                 assert red_data.size > 0, f"Empty red data in {group} level {level_num}"
-                assert (
-                    green_data.size > 0
-                ), f"Empty green data in {group} level {level_num}"
-                assert (
-                    blue_data.size > 0
-                ), f"Empty blue data in {group} level {level_num}"
+                assert green_data.size > 0, f"Empty green data in {group} level {level_num}"
+                assert blue_data.size > 0, f"Empty blue data in {group} level {level_num}"
 
-                print(
-                    f"      Level {level_num}: RGB access successful, shape {red_data.shape}"
-                )
+                print(f"      Level {level_num}: RGB access successful, shape {red_data.shape}")
 
                 ds.close()
 
     @pytest.mark.slow
-    def test_performance_characteristics(
-        self, sample_sentinel2_datatree, temp_output_dir
-    ) -> None:
+    def test_performance_characteristics(self, sample_sentinel2_datatree, temp_output_dir) -> None:
         """
         Test performance characteristics following notebook analysis.
 
@@ -569,9 +542,7 @@ class TestSentinel2Integration:
         output_path = Path(temp_output_dir) / "sentinel2_performance_test.zarr"
 
         # Convert with performance-focused parameters
-        groups = [
-            "/measurements/reflectance/r10m"
-        ]  # Focus on one group for performance testing
+        groups = ["/measurements/reflectance/r10m"]  # Focus on one group for performance testing
 
         with patch("eopf_geozarr.conversion.geozarr.print"):
             create_geozarr_dataset(
@@ -587,14 +558,10 @@ class TestSentinel2Integration:
         # Test data access performance across overview levels
         group = groups[0]
         group_path = output_path / group.lstrip("/")
-        level_dirs = [
-            d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()
-        ]
+        level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
 
         timing_data = []
-        for level_dir in sorted(level_dirs, key=lambda x: int(x.name))[
-            :4
-        ]:  # Test first 4 levels
+        for level_dir in sorted(level_dirs, key=lambda x: int(x.name))[:4]:  # Test first 4 levels
             level_num = int(level_dir.name)
             level_path = str(level_dir)
 
@@ -620,9 +587,7 @@ class TestSentinel2Integration:
             access_time = time.time() - start_time
             ds.close()
 
-            timing_data.append(
-                {"level": level_num, "time": access_time, "pixels": pixel_count}
-            )
+            timing_data.append({"level": level_num, "time": access_time, "pixels": pixel_count})
 
             print(f"    Level {level_num}: {access_time:.3f}s, {pixel_count:,} pixels")
 
@@ -636,7 +601,7 @@ class TestSentinel2Integration:
                 # Allow some flexibility, but generally expect fewer pixels at higher levels
                 assert (
                     curr_pixels <= prev_pixels * 1.1
-                ), f"Level {timing_data[i]['level']} has more pixels than level {timing_data[i-1]['level']}"
+                ), f"Level {timing_data[i]['level']} has more pixels than level {timing_data[i - 1]['level']}"
 
         print("✅ Performance characteristics verified!")
 

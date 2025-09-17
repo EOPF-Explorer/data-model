@@ -1,8 +1,14 @@
-"""S3 utilities for GeoZarr conversion."""
+"""S3 utilities for GeoZarr conversion.
+
+Note: Optional dependencies may lack type stubs; suppress their missing-import
+noise locally to keep global mypy strictness intact.
+"""
+
+# mypy: disable-error-code=import-not-found
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from urllib.parse import urlparse
 
 import s3fs
@@ -108,9 +114,7 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
     default_s3_kwargs = {
         "anon": False,  # Use credentials
         "use_ssl": True,
-        "client_kwargs": {
-            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-        },
+        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -147,6 +151,36 @@ def get_storage_options(path: str, **kwargs: Any) -> Optional[Dict[str, Any]]:
     """
     if is_s3_path(path):
         return get_s3_storage_options(path, **kwargs)
+    # For HTTP(S) paths, ensure servers don't apply content-encoding (e.g., gzip)
+    # to chunk responses which would corrupt codec bytes (e.g., Blosc) and
+    # trigger decompression errors. Force identity encoding and set a sane
+    # default block size for ranged requests.
+    if path.startswith(("http://", "https://")):
+        headers = {"Accept-Encoding": "identity"}
+        # Merge user headers if provided
+        user_headers = kwargs.get("headers")
+        if isinstance(user_headers, dict):
+            headers.update(user_headers)
+        http_opts: Dict[str, Any] = {
+            "headers": headers,
+            "block_size": kwargs.get("block_size", 0),
+            "simple_links": kwargs.get("simple_links", True),
+        }
+        # Add conservative aiohttp client settings to mitigate disconnects
+        try:
+            import aiohttp
+
+            timeout = kwargs.get("timeout") or aiohttp.ClientTimeout(total=120)
+            connector = kwargs.get("connector") or aiohttp.TCPConnector(limit=8)
+            client_kwargs = kwargs.get("client_kwargs", {}) or {}
+            if not isinstance(client_kwargs, dict):
+                client_kwargs = {}
+            client_kwargs.setdefault("timeout", timeout)
+            client_kwargs.setdefault("connector", connector)
+            http_opts["client_kwargs"] = client_kwargs
+        except Exception:
+            pass
+        return http_opts
     # For local paths, return None (no storage options needed)
     # Future protocols (gcs://, azure://, etc.) can be added here
     return None
@@ -201,9 +235,7 @@ def create_s3_store(s3_path: str, **s3_kwargs: Any) -> str:
     return s3_path
 
 
-def write_s3_json_metadata(
-    s3_path: str, metadata: Dict[str, Any], **s3_kwargs: Any
-) -> None:
+def write_s3_json_metadata(s3_path: str, metadata: Dict[str, Any], **s3_kwargs: Any) -> None:
     """
     Write JSON metadata directly to S3.
 
@@ -224,9 +256,7 @@ def write_s3_json_metadata(
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {
-            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-        },
+        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -266,9 +296,7 @@ def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {
-            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-        },
+        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -308,9 +336,7 @@ def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool:
         "anon": False,
         "use_ssl": True,
         "asynchronous": False,  # Force synchronous mode
-        "client_kwargs": {
-            "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-        },
+        "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -327,7 +353,9 @@ def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool:
     return result
 
 
-def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.Group:
+def open_s3_zarr_group(
+    s3_path: str, mode: Literal["r", "r+", "w", "a", "w-"] = "r", **s3_kwargs: Any
+) -> zarr.Group:
     """
     Open a Zarr group from S3 using storage_options.
 
@@ -346,9 +374,7 @@ def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.
         Zarr group
     """
     storage_options = get_s3_storage_options(s3_path, **s3_kwargs)
-    return zarr.open_group(
-        s3_path, mode=mode, zarr_format=3, storage_options=storage_options
-    )
+    return zarr.open_group(s3_path, mode=mode, zarr_format=3, storage_options=storage_options)
 
 
 def get_s3_credentials_info() -> Dict[str, Optional[str]]:
@@ -362,9 +388,7 @@ def get_s3_credentials_info() -> Dict[str, Optional[str]]:
     """
     return {
         "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": "***"
-        if os.environ.get("AWS_SECRET_ACCESS_KEY")
-        else None,
+        "aws_secret_access_key": "***" if os.environ.get("AWS_SECRET_ACCESS_KEY") else None,
         "aws_session_token": "***" if os.environ.get("AWS_SESSION_TOKEN") else None,
         "aws_default_region": os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
         "aws_profile": os.environ.get("AWS_PROFILE"),
@@ -395,9 +419,7 @@ def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, Optional[s
             "anon": False,
             "use_ssl": True,
             "asynchronous": False,  # Force synchronous mode
-            "client_kwargs": {
-                "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-            },
+            "client_kwargs": {"region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")},
         }
 
         # Add custom endpoint support (e.g., for OVH Cloud)
@@ -441,9 +463,34 @@ def get_filesystem(path: str, **kwargs: Any) -> Any:
         # Get S3 storage options and use them for fsspec
         storage_options = get_s3_storage_options(path, **kwargs)
         return fsspec.filesystem("s3", **storage_options)
-    else:
-        # For local paths, use the local filesystem
-        return fsspec.filesystem("file")
+    if path.startswith(("http://", "https://")):
+        # Ensure identity encoding for raw chunk bytes over HTTP(S)
+        headers = {"Accept-Encoding": "identity"}
+        user_headers = kwargs.get("headers")
+        if isinstance(user_headers, dict):
+            headers.update(user_headers)
+        http_opts: Dict[str, Any] = {
+            "headers": headers,
+            "block_size": kwargs.get("block_size", 0),
+            "simple_links": kwargs.get("simple_links", True),
+        }
+        # Add conservative aiohttp client settings to mitigate disconnects
+        try:
+            import aiohttp
+
+            timeout = kwargs.get("timeout") or aiohttp.ClientTimeout(total=120)
+            connector = kwargs.get("connector") or aiohttp.TCPConnector(limit=8)
+            client_kwargs = kwargs.get("client_kwargs", {}) or {}
+            if not isinstance(client_kwargs, dict):
+                client_kwargs = {}
+            client_kwargs.setdefault("timeout", timeout)
+            client_kwargs.setdefault("connector", connector)
+            http_opts["client_kwargs"] = client_kwargs
+        except Exception:
+            pass
+        return fsspec.filesystem("http", **http_opts)
+    # For local paths, use the local filesystem
+    return fsspec.filesystem("file")
 
 
 def write_json_metadata(path: str, metadata: Dict[str, Any], **kwargs: Any) -> None:
@@ -519,7 +566,9 @@ def path_exists(path: str, **kwargs: Any) -> bool:
     return result
 
 
-def open_zarr_group(path: str, mode: str = "r", **kwargs: Any) -> zarr.Group:
+def open_zarr_group(
+    path: str, mode: Literal["r", "r+", "w", "a", "w-"] = "r", **kwargs: Any
+) -> zarr.Group:
     """
     Open a Zarr group from any path type using unified storage options.
 
@@ -538,6 +587,4 @@ def open_zarr_group(path: str, mode: str = "r", **kwargs: Any) -> zarr.Group:
         Zarr group
     """
     storage_options = get_storage_options(path, **kwargs)
-    return zarr.open_group(
-        path, mode=mode, zarr_format=3, storage_options=storage_options
-    )
+    return zarr.open_group(path, mode=mode, zarr_format=3, storage_options=storage_options)

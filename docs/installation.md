@@ -25,14 +25,20 @@ If you have [uv](https://docs.astral.sh/uv/) installed:
 uv add eopf-geozarr
 ```
 
-### Development Installation
+### Development Installation (uv preferred)
 
-For development or to get the latest features:
+For development or to get the latest features using uv:
 
 ```bash
 git clone https://github.com/eopf-explorer/data-model.git
 cd data-model
-pip install -e .
+uv sync --all-extras --dev
+```
+
+To run tests quickly:
+
+```bash
+uv run env PYTHONPATH=src python -m pytest -q
 ```
 
 ## Dependencies

@@ -15,10 +15,8 @@ from eopf_geozarr.conversion import (
     setup_datatree_metadata_geozarr_spec_compliant,
     validate_existing_band_data,
 )
-from eopf_geozarr.conversion.geozarr import (
-    create_overview_dataset_all_vars,
-    prepare_dataset_with_crs_info,
-)
+from eopf_geozarr.conversion.geozarr import prepare_dataset_with_crs_info
+from eopf_geozarr.conversion.multiscales import create_overview_dataset_all_vars
 
 
 class TestUtilityFunctions:
@@ -123,9 +121,7 @@ class TestUtilityFunctions:
 
     def test_calculate_overview_levels(self) -> None:
         """Test overview levels calculation."""
-        levels = calculate_overview_levels(
-            1024, 1024, min_dimension=256, tile_width=256
-        )
+        levels = calculate_overview_levels(1024, 1024, min_dimension=256, tile_width=256)
 
         # Should have levels 0, 1, 2 (1024 -> 512 -> 256)
         assert len(levels) == 3
@@ -184,10 +180,7 @@ class TestMetadataSetup:
             assert "standard_name" in processed_ds[band].attrs
             assert "_ARRAY_DIMENSIONS" in processed_ds[band].attrs
             assert "grid_mapping" in processed_ds[band].attrs
-            assert (
-                processed_ds[band].attrs["standard_name"]
-                == "toa_bidirectional_reflectance"
-            )
+            assert processed_ds[band].attrs["standard_name"] == "toa_bidirectional_reflectance"
 
         # Check coordinate attributes
         for coord in ["x", "y"]:
@@ -269,9 +262,7 @@ class TestIssue12Fix:
         dt["conditions/geometry"] = geometry_ds
 
         # Mock the output path and file operations
-        with patch(
-            "eopf_geozarr.conversion.geozarr.fs_utils.normalize_path"
-        ) as mock_normalize:
+        with patch("eopf_geozarr.conversion.geozarr.fs_utils.normalize_path") as mock_normalize:
             with patch(
                 "eopf_geozarr.conversion.geozarr.fs_utils.get_storage_options"
             ) as mock_storage:
@@ -437,15 +428,10 @@ class TestIssue12Fix:
             if var_name != "spatial_ref":  # Skip grid mapping variable
                 var_attrs = processed_ds[var_name].attrs
                 assert "_ARRAY_DIMENSIONS" in var_attrs
-                assert var_attrs["_ARRAY_DIMENSIONS"] == list(
-                    processed_ds[var_name].dims
-                )
+                assert var_attrs["_ARRAY_DIMENSIONS"] == list(processed_ds[var_name].dims)
 
                 # Variables with spatial coordinates should have grid_mapping
-                if (
-                    "x" in processed_ds[var_name].dims
-                    and "y" in processed_ds[var_name].dims
-                ):
+                if "x" in processed_ds[var_name].dims and "y" in processed_ds[var_name].dims:
                     assert "grid_mapping" in var_attrs
                     assert var_attrs["grid_mapping"] == "spatial_ref"
 
@@ -494,9 +480,7 @@ class TestIssue12Fix:
                 pixel_size_y = float(y_coords[0] - y_coords[1])  # Usually negative
 
                 # Create GeoTransform (GDAL format)
-                transform_str = (
-                    f"{x_coords[0]} {pixel_size_x} 0.0 {y_coords[0]} 0.0 {pixel_size_y}"
-                )
+                transform_str = f"{x_coords[0]} {pixel_size_x} 0.0 {y_coords[0]} 0.0 {pixel_size_y}"
                 ds["spatial_ref"].attrs["GeoTransform"] = transform_str
 
         # Verify CRS was inferred and applied
@@ -613,9 +597,7 @@ class TestIssue12Fix:
         # Set up data variables with proper attributes
         for var_name in ds.data_vars:
             # Add _ARRAY_DIMENSIONS attribute if missing
-            if "_ARRAY_DIMENSIONS" not in ds[var_name].attrs and hasattr(
-                ds[var_name], "dims"
-            ):
+            if "_ARRAY_DIMENSIONS" not in ds[var_name].attrs and hasattr(ds[var_name], "dims"):
                 ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
 
         # Verify the group was processed but no CRS was added

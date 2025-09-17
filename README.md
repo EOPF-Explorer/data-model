@@ -2,20 +2,29 @@
 
 GeoZarr compliant data model for EOPF (Earth Observation Processing Framework) datasets.
 
+Turn EOPF datasets into a GeoZarr-style Zarr v3 store while:
+- Preserving native CRS (no forced TMS reprojection)
+- Adding CF + GeoZarr compliant metadata
+- Building /2 multiscale overviews
+- Writing robust, retry-aware band data with validation
+
 ## Overview
 
-This library provides tools to convert EOPF datasets to GeoZarr-spec 0.4 compliant format while maintaining native projections and using /2 downsampling logic for multiscale support.
+This library converts EOPF datatrees into GeoZarr-spec 0.4 aligned Zarr v3 stores without forcing web-mercator style tiling. It focuses on scientific fidelity (native CRS), robust metadata (CF + GeoZarr), and operational resilience (retry + completeness auditing) while supporting multiscale /2 overviews.
 
 ## Key Features
 
-- **GeoZarr Specification Compliance**: Full compliance with GeoZarr spec 0.4
-- **Native CRS Preservation**: No reprojection to TMS, maintains original coordinate reference systems
-- **Multiscale Support**: COG-style /2 downsampling with overview levels as children groups
-- **CF Conventions**: Proper CF standard names and grid_mapping attributes
-- **Robust Processing**: Band-by-band writing with validation and retry logic
-- **S3 Support**: Direct output to Amazon S3 buckets with automatic credential validation
-- **Parallel Processing**: Optional dask cluster support for parallel chunk processing
-- **Chunk Alignment**: Automatic chunk alignment to prevent data corruption with dask
+- **GeoZarr Specification Compliance** (0.4 features implemented)
+- **Native CRS Preservation** (UTM, polar, arbitrary projections)
+- **Multiscale /2 Overviews** (COG-style hierarchy as child groups)
+- **CF Conventions** (`standard_name`, `grid_mapping`, `_ARRAY_DIMENSIONS`)
+- **Resilient Writing** (band-by-band with retries & auditing)
+- **S3 & S3-Compatible Support** (AWS, OVH, MinIO, custom endpoints)
+- **Optional Parallel Processing** (local Dask cluster)
+- **Automatic Chunk Alignment** (prevents overlapping Dask/Zarr chunks)
+- **HTML Summary & Validation Tools**
+- **STAC & Benchmark Commands**
+- **Consolidated Metadata** (faster open)
 
 ## GeoZarr Compliance Features
 
@@ -32,12 +41,15 @@ This library provides tools to convert EOPF datasets to GeoZarr-spec 0.4 complia
 pip install eopf-geozarr
 ```
 
-For development:
-
+Development (uv):
 ```bash
-git clone <repository-url>
-cd eopf-geozarr
-pip install -e ".[dev]"
+uv sync --frozen
+uv run eopf-geozarr --help
+```
+
+Editable (pip):
+```bash
+pip install -e .[dev]
 ```
 
 ## Quick Start
@@ -50,6 +62,9 @@ After installation, you can use the `eopf-geozarr` command:
 # Convert EOPF dataset to GeoZarr format (local output)
 eopf-geozarr convert input.zarr output.zarr
 
+# Convert specific groups (e.g. resolution groups)
+eopf-geozarr convert input.zarr output.zarr --groups /measurements/r10m /measurements/r20m
+
 # Convert EOPF dataset to GeoZarr format (S3 output)
 eopf-geozarr convert input.zarr s3://my-bucket/path/to/output.zarr
 
@@ -59,322 +74,190 @@ eopf-geozarr convert input.zarr output.zarr --dask-cluster
 # Convert with dask cluster and verbose output
 eopf-geozarr convert input.zarr output.zarr --dask-cluster --verbose
 
+# Generate an HTML summary while inspecting
+eopf-geozarr info output.zarr --html report.html
+
 # Get information about a dataset
 eopf-geozarr info input.zarr
 
 # Validate GeoZarr compliance
 eopf-geozarr validate output.zarr
 
+# Benchmark access patterns (optional)
+eopf-geozarr benchmark output.zarr --samples 8 --window 1024 1024
+
+# Produce draft STAC artifacts
+eopf-geozarr stac output.zarr stac_collection.json \
+  --bbox "minx miny maxx maxy" --start 2025-01-01T00:00:00Z --end 2025-01-31T23:59:59Z
+
 # Get help
 eopf-geozarr --help
 ```
 
-### S3 Support
+#### Notes
+- Parent groups auto-expand to leaf datasets when omitted.
+- Multiscale overviews are generated with /2 coarsening and attached as child groups.
+- Defaults: Blosc Zstd (level 3), conservative chunking, metadata consolidation enabled.
+- Use `--groups` to limit processing or speed up experimentation.
 
-The library supports direct output to S3-compatible storage, including custom providers like OVH Cloud. Simply provide an S3 URL as the output path:
+## S3 Support
+
+Environment vars:
+```bash
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=eu-west-1
+export AWS_ENDPOINT_URL=https://s3.your-endpoint.example   # optional custom endpoint
+```
+
+Write directly:
+```bash
+eopf-geozarr convert input.zarr s3://my-bucket/path/output_geozarr.zarr --groups /measurements/r10m
+```
+
+Features:
+- Credential validation before write
+- Custom endpoints (OVH, MinIO, etc.)
+- Retry logic around object writes
+
+## Parallel Processing with Dask
 
 ```bash
-# Convert to S3
-eopf-geozarr convert local_input.zarr s3://my-bucket/geozarr-data/output.zarr --verbose
+eopf-geozarr convert input.zarr out.zarr --dask-cluster --verbose
 ```
+Benefits:
+- Local cluster auto-start & cleanup
+- Chunk alignment to prevent overlapping writes
+- Better memory distribution for large scenes
 
-#### S3 Configuration
+## Python API
 
-Before using S3 output, ensure your S3 credentials are configured:
-
-**For AWS S3:**
-
-```bash
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_DEFAULT_REGION=us-east-1
-```
-
-**For OVH Cloud Object Storage:**
-
-```bash
-export AWS_ACCESS_KEY_ID=your_ovh_access_key
-export AWS_SECRET_ACCESS_KEY=your_ovh_secret_key
-export AWS_DEFAULT_REGION=gra  # or other OVH region
-export AWS_ENDPOINT_URL=https://s3.gra.cloud.ovh.net  # OVH endpoint
-```
-
-**For other S3-compatible providers:**
-
-```bash
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_DEFAULT_REGION=your_region
-export AWS_ENDPOINT_URL=https://your-s3-endpoint.com
-```
-
-**Alternative: AWS CLI Configuration**
-
-```bash
-aws configure
-# Note: For custom endpoints, you'll still need to set AWS_ENDPOINT_URL
-```
-
-#### S3 Features
-
-- **Custom Endpoints**: Support for any S3-compatible storage (AWS, OVH Cloud, MinIO, etc.)
-- **Automatic Validation**: The tool validates S3 access before starting conversion
-- **Credential Detection**: Automatically detects and validates S3 credentials
-- **Error Handling**: Provides helpful error messages for S3 configuration issues
-- **Performance**: Optimized for S3 with proper chunking and retry logic
-
-### Parallel Processing with Dask
-
-The library supports parallel processing using dask clusters for improved performance on large datasets:
-
-```bash
-# Enable dask cluster for parallel processing
-eopf-geozarr convert input.zarr output.zarr --dask-cluster
-
-# With verbose output to see cluster information
-eopf-geozarr convert input.zarr output.zarr --dask-cluster --verbose
-```
-
-#### Dask Features
-
-- **Local Cluster**: Automatically starts a local dask cluster with multiple workers
-- **Dashboard Access**: Provides access to the dask dashboard for monitoring (shown in verbose mode)
-- **Automatic Cleanup**: Properly closes the cluster even if errors occur during processing
-- **Chunk Alignment**: Automatically aligns Zarr chunks with dask chunks to prevent data corruption
-- **Memory Efficiency**: Better memory management through parallel chunk processing
-- **Error Handling**: Graceful handling of dask import errors with helpful installation instructions
-
-#### Chunk Alignment
-
-The library includes advanced chunk alignment logic to prevent the common issue of overlapping chunks when using dask:
-
-- **Smart Detection**: Automatically detects if data is dask-backed and uses existing chunk structure
-- **Aligned Calculation**: Uses `calculate_aligned_chunk_size()` to find optimal chunk sizes that divide evenly into data dimensions
-- **Proper Rechunking**: Ensures datasets are rechunked to match encoding before writing
-- **Fallback Logic**: For non-dask arrays, uses reasonable chunk sizes that don't exceed data dimensions
-
-This prevents errors like:
-
-```
-❌ Failed to write tci after 2 attempts: Specified Zarr chunks encoding['chunks']=(1, 3660, 3660)
-for variable named 'tci' would overlap multiple Dask chunks
-```
-
-#### S3 Python API
-
-```python
-import os
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
-
-# Configure for OVH Cloud (example)
-os.environ['AWS_ACCESS_KEY_ID'] = 'your_ovh_access_key'
-os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_ovh_secret_key'
-os.environ['AWS_DEFAULT_REGION'] = 'gra'
-os.environ['AWS_ENDPOINT_URL'] = 'https://s3.gra.cloud.ovh.net'
-
-# Load your EOPF DataTree
-dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
-
-# Convert directly to S3
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"],
-    output_path="s3://my-bucket/geozarr-data/output.zarr",
-    spatial_chunk=4096,
-    min_dimension=256,
-    tile_width=256,
-    max_retries=3
-)
-```
-
-### Python API
-
+High-level dataset conversion:
 ```python
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 
-# Load your EOPF DataTree
-dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
-
-# Define groups to convert (e.g., resolution groups)
-groups = ["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"]
-
-# Convert to GeoZarr compliant format
-dt_geozarr = create_geozarr_dataset(
+dt = xr.open_datatree("path/to/eopf.zarr", engine="zarr")
+out = create_geozarr_dataset(
     dt_input=dt,
-    groups=groups,
-    output_path="path/to/output/geozarr.zarr",
+    groups=["/measurements/r10m", "/measurements/r20m"],
+    output_path="/tmp/out_geozarr.zarr",
     spatial_chunk=4096,
     min_dimension=256,
     tile_width=256,
-    max_retries=3
 )
+```
+
+Selective writer usage (advanced):
+```python
+from eopf_geozarr.conversion.geozarr import GeoZarrWriter
+writer = GeoZarrWriter(output_path="/tmp/out.zarr", spatial_chunk=4096)
+# writer.write_group(...)
 ```
 
 ## API Reference
 
-### Main Functions
+`create_geozarr_dataset(dt_input, groups, output_path, spatial_chunk=4096, ...) -> xr.DataTree`
+: Produce a GeoZarr-compliant hierarchy.
 
-#### `create_geozarr_dataset`
+`setup_datatree_metadata_geozarr_spec_compliant(dt, groups) -> dict[str, xr.Dataset]`
+: Apply CF + GeoZarr metadata to selected groups.
 
-Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
+`downsample_2d_array(source_data, target_h, target_w) -> np.ndarray`
+: Block-average /2 overview generation primitive.
 
-**Parameters:**
-
-- `dt_input` (xr.DataTree): Input EOPF DataTree
-- `groups` (List[str]): List of group names to process as Geozarr datasets
-- `output_path` (str): Output path for the Zarr store
-- `spatial_chunk` (int, default=4096): Spatial chunk size for encoding
-- `min_dimension` (int, default=256): Minimum dimension for overview levels
-- `tile_width` (int, default=256): Tile width for TMS compatibility
-- `max_retries` (int, default=3): Maximum number of retries for network operations
-
-**Returns:**
-
-- `xr.DataTree`: DataTree containing the GeoZarr compliant data
-
-#### `setup_datatree_metadata_geozarr_spec_compliant`
-
-Set up GeoZarr-spec compliant CF standard names and CRS information.
-
-**Parameters:**
-
-- `dt` (xr.DataTree): The data tree containing the datasets to process
-- `groups` (List[str]): List of group names to process as Geozarr datasets
-
-**Returns:**
-
-- `Dict[str, xr.Dataset]`: Dictionary of datasets with GeoZarr compliance applied
-
-### Utility Functions
-
-#### `downsample_2d_array`
-
-Downsample a 2D array using block averaging.
-
-#### `calculate_aligned_chunk_size`
-
-Calculate a chunk size that divides evenly into the dimension size. This ensures that Zarr chunks align properly with the data dimensions, preventing chunk overlap issues when writing with Dask.
-
-**Parameters:**
-
-- `dimension_size` (int): Size of the dimension to chunk
-- `target_chunk_size` (int): Desired chunk size
-
-**Returns:**
-
-- `int`: Aligned chunk size that divides evenly into dimension_size
-
-**Example:**
-
-```python
-from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
-
-# For a dimension of size 5490 with target chunk size 3660
-aligned_size = calculate_aligned_chunk_size(5490, 3660)  # Returns 2745
-```
-
-#### `is_grid_mapping_variable`
-
-Check if a variable is a grid_mapping variable by looking for references to it.
-
-#### `validate_existing_band_data`
-
-Validate that a specific band exists and is complete in the dataset.
+`calculate_aligned_chunk_size(dimension_size, target_chunk_size) -> int`
+: Returns evenly dividing chunk to avoid overlap.
 
 ## Architecture
 
-The library is organized into the following modules:
-
-- **`conversion`**: Core conversion tools for EOPF to GeoZarr transformation
-  - `geozarr.py`: Main conversion functions and GeoZarr spec compliance
-  - `utils.py`: Utility functions for data processing and validation
-- **`data_api`**: Data access API (future development with pydantic-zarr)
-
-## GeoZarr Specification Compliance
-
-This library implements the GeoZarr specification 0.4 with the following key requirements:
-
-1. **Array Dimensions**: All arrays must have `_ARRAY_DIMENSIONS` attributes
-2. **CF Standard Names**: All variables must have CF-compliant `standard_name` attributes
-3. **Grid Mapping**: Data variables must reference CF grid_mapping variables via `grid_mapping` attributes
-4. **Multiscales Structure**: Overview levels are stored as children groups with proper tile matrix metadata
-5. **Native CRS**: Coordinate reference systems are preserved without reprojection
+```
+eopf_geozarr/
+  commands/        # CLI subcommands (convert, validate, info, stac, benchmark)
+  conversion/      # Core geozarr pipeline, helpers, multiscales, encodings
+  metrics.py       # Lightweight metrics hooks (optional)
+```
 
 ## Contributing to GeoZarr Specification
 
-Our implementation has contributed valuable feedback to the GeoZarr specification development process. Based on our real-world experience with Earth observation data, we have identified and reported several areas for improvement:
+Upstream issue discussions influenced:
+- Arbitrary CRS preservation
+- Chunking performance & strategies
+- Multiscale hierarchy clarity
 
-### Key Contributions
+## Benchmark & STAC Commands
 
-- **[Arbitrary Coordinate Systems Support](https://github.com/zarr-developers/geozarr-spec/issues/81)**: Advocating for native CRS preservation instead of web mapping bias
-- **[Chunking Performance Optimization](https://github.com/zarr-developers/geozarr-spec/issues/82)**: Proposing flexible chunking strategies for optimal performance
-- **[Multiscale Hierarchy Clarification](https://github.com/zarr-developers/geozarr-spec/issues/83)**: Providing clear structure definitions for multiscale implementations
-
-Our implementation demonstrates that scientific accuracy and performance can be maintained while working with arbitrary coordinate systems, not just web mapping projections. This is particularly important for Earth observation data that often comes in UTM zones, polar stereographic, or other scientific projections.
-
-For detailed information about our contributions, see our [GeoZarr Specification Contribution documentation](docs/geozarr-specification-contribution.md).
-
-## Development
-
-### Setting up Development Environment
-
+Benchmark:
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd eopf-geozarr
-
-# Install in development mode with all dependencies
-pip install -e ".[dev,docs,all]"
-
-# Install pre-commit hooks
-pre-commit install
+eopf-geozarr benchmark /tmp/out_geozarr.zarr --samples 8 --window 1024 1024
 ```
 
-### Running Tests
+STAC draft artifacts:
+```bash
+eopf-geozarr stac /tmp/out_geozarr.zarr /tmp/collection.json \
+  --bbox "minx miny maxx maxy" --start 2025-01-01T00:00:00Z --end 2025-01-31T23:59:59Z
+```
+
+## What Gets Written
+
+- `_ARRAY_DIMENSIONS` per variable (deterministic axis order)
+- Per-variable `grid_mapping` referencing `spatial_ref`
+- Multiscales metadata on parent groups; /2 overviews
+- Blosc Zstd compression, conservative chunking
+- Consolidated metadata index
+- Band attribute propagation across levels
+
+## Consolidated Metadata
+
+Improves open performance. Spec discussion ongoing; toggle by disabling consolidation if strict minimalism required.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Parent group empty | Only leaf groups hold arrays | Use `--groups` or rely on auto-expansion |
+| Overlapping chunk error | Misaligned dask vs encoding chunks | Allow auto chunk alignment or reduce spatial_chunk |
+| S3 auth failure | Missing env vars or endpoint | Export AWS_* vars / set AWS_ENDPOINT_URL |
+| HTML path is a directory | Provided path not file | A default filename is created inside |
+
+## Development & Contributing
+Preferred (reproducible) workflow uses [uv](https://github.com/astral-sh/uv):
 
 ```bash
+git clone <repo-url>
+cd eopf-geozarr
+
+# Ensure uv is installed (macOS/Linux quick install)
+curl -Ls https://astral.sh/uv/install.sh | sh  # or follow official docs
+
+# Create and sync environment with dev extras
+uv sync --extra dev
+
+# Run tools through uv (ensures correct virtual env)
+uv run pre-commit install
+uv run pytest -q
+```
+
+Common tasks:
+```bash
+uv run ruff check .
+uv run mypy src
+uv run eopf-geozarr --help
+```
+
+Fallback (less reproducible) pip editable install:
+```bash
+pip install -e '.[dev]'
+pre-commit install
 pytest
 ```
 
-### Code Quality
+Quality stack: Ruff (lint + format), isort (via Ruff), Mypy (strict), Pytest, Coverage.
 
-The project uses:
+## License & Acknowledgments
 
-- **Black** for code formatting
-- **isort** for import sorting
-- **flake8** for linting
-- **mypy** for type checking
-- **pre-commit** for automated checks
+Apache 2.0. Built atop xarray, zarr, dask; follows evolving GeoZarr specification.
 
-### Building Documentation
+---
+For questions or issues open a GitHub issue.
 
-```bash
-cd docs
-make html
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and ensure code quality checks pass
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## License
-
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Built on top of the excellent [xarray](https://xarray.pydata.org/) and [zarr](https://zarr.readthedocs.io/) libraries
-- Follows the [GeoZarr specification](https://github.com/zarr-developers/geozarr-spec) for geospatial data in Zarr
-- Designed for compatibility with [EOPF](https://eopf.readthedocs.io/) datasets
-
-## Support
-
-For questions, issues, or contributions, please visit the [GitHub repository](https://github.com/developmentseed/eopf-geozarr).
