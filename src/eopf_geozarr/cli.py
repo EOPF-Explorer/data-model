@@ -15,8 +15,12 @@ import xarray as xr
 
 # Suppress xarray FutureWarning about timedelta decoding
 warnings.filterwarnings("ignore", 
-                       message="*",
+                       message=".*",
                        category=FutureWarning)
+
+warnings.filterwarnings("ignore",
+                       message=".*",
+                       category=UserWarning)
 
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
