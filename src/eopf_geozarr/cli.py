@@ -22,6 +22,10 @@ warnings.filterwarnings("ignore",
                        message=".*",
                        category=UserWarning)
 
+warnings.filterwarnings("ignore",
+                       message=".*",
+                       category=RuntimeWarning)
+
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
     get_s3_credentials_info,
