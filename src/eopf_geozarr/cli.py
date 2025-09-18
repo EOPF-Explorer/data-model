@@ -7,10 +7,16 @@ This module provides CLI commands for converting EOPF datasets to GeoZarr compli
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 from typing import Any, Optional
 
 import xarray as xr
+
+# Suppress xarray FutureWarning about timedelta decoding
+warnings.filterwarnings("ignore", 
+                       message="*",
+                       category=FutureWarning)
 
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
