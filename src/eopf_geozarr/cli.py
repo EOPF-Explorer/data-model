@@ -13,19 +13,6 @@ from typing import Any, Optional
 
 import xarray as xr
 
-# Suppress xarray FutureWarning about timedelta decoding
-warnings.filterwarnings("ignore", 
-                       message=".*",
-                       category=FutureWarning)
-
-warnings.filterwarnings("ignore",
-                       message=".*",
-                       category=UserWarning)
-
-warnings.filterwarnings("ignore",
-                       message=".*",
-                       category=RuntimeWarning)
-
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
     get_s3_credentials_info,
@@ -33,6 +20,13 @@ from .conversion.fs_utils import (
     is_s3_path,
     validate_s3_access,
 )
+
+# Suppress xarray FutureWarning about timedelta decoding
+warnings.filterwarnings("ignore", message=".*", category=FutureWarning)
+
+warnings.filterwarnings("ignore", message=".*", category=UserWarning)
+
+warnings.filterwarnings("ignore", message=".*", category=RuntimeWarning)
 
 
 def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:

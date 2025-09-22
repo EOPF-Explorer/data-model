@@ -1,12 +1,17 @@
 """Utility functions for GeoZarr conversion."""
 
+from typing import Optional
+
 import numpy as np
 import rasterio  # noqa: F401  # Import to enable .rio accessor
 import xarray as xr
 
 
 def downsample_2d_array(
-    source_data: np.ndarray, target_height: int, target_width: int, nodata_value: float = None
+    source_data: np.ndarray,
+    target_height: int,
+    target_width: int,
+    nodata_value: Optional[float] = None,
 ) -> np.ndarray:
     """
     Downsample a 2D array using block averaging with proper nodata handling.
@@ -42,26 +47,24 @@ def downsample_2d_array(
         reshaped = reshaped.reshape(
             target_height, block_size_y, target_width, block_size_x
         )
-        
+
         if nodata_value is not None and not np.isnan(nodata_value):
             # Create mask for valid data (not nodata)
             valid_mask = reshaped != nodata_value
-            
+
             # Calculate mean only for valid data
-            with np.errstate(invalid='ignore', divide='ignore'):
+            with np.errstate(invalid="ignore", divide="ignore"):
                 # Sum valid values and count valid pixels
                 valid_sum = np.where(valid_mask, reshaped, 0).sum(axis=(1, 3))
                 valid_count = valid_mask.sum(axis=(1, 3))
-                
+
                 # Calculate mean, preserving nodata where no valid data exists
                 downsampled = np.where(
-                    valid_count > 0,
-                    valid_sum / valid_count,
-                    nodata_value
+                    valid_count > 0, valid_sum / valid_count, nodata_value
                 )
         elif nodata_value is not None and np.isnan(nodata_value):
             # Handle NaN nodata values
-            with np.errstate(invalid='ignore'):
+            with np.errstate(invalid="ignore"):
                 downsampled = np.nanmean(reshaped, axis=(1, 3))
         else:
             # No nodata handling needed

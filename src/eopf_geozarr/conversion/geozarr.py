@@ -21,18 +21,17 @@ import time
 from typing import Any, Dict, Hashable, List, Optional, Tuple
 
 import numpy as np
-from pyproj import CRS
-import rasterio.control
-from rasterio.warp import calculate_default_transform
 import xarray as xr
 import zarr
+from pyproj import CRS
+from rasterio.warp import calculate_default_transform
 from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
 
 from . import fs_utils, utils
-from .sentinel1_reprojection import reproject_sentinel1_with_gcps, calculate_reprojected_bounds
+from .sentinel1_reprojection import reproject_sentinel1_with_gcps
 
 
 def create_geozarr_dataset(
@@ -90,7 +89,8 @@ def create_geozarr_dataset(
         assert len(vv_vh_group_names) == 2, str(vv_vh_group_names)
 
         groups = [
-            vv_vh + "/" + grp.lstrip("/") for vv_vh, grp in itertools.product(vv_vh_group_names, groups)
+            vv_vh + "/" + grp.lstrip("/")
+            for vv_vh, grp in itertools.product(vv_vh_group_names, groups)
         ]
         if crs_groups is not None:
             crs_groups = [
@@ -171,7 +171,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         if _is_sentinel1(dt) and ds_gcp is not None:
             print(f"  Applying Sentinel-1 reprojection for group: {key}")
             ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
-            print(f"  ✅ Reprojection completed, dataset now has x/y coordinates")
+            print("  ✅ Reprojection completed, dataset now has x/y coordinates")
 
         # Process all variables in the group
         for var_name in ds.data_vars:
@@ -549,8 +549,10 @@ def create_geozarr_compliant_multiscales(
         native_bounds = ds.rio.bounds()
     else:
         if "azimuth_time" in ds.dims and "ground_range" in ds.dims:
-            ds.rio.set_spatial_dims(x_dim="ground_range", y_dim="azimuth_time", inplace=True)
-            
+            ds.rio.set_spatial_dims(
+                x_dim="ground_range", y_dim="azimuth_time", inplace=True
+            )
+
         try:
             if ds.rio.get_gcps() is not None:
                 transform, width, height = calculate_default_transform(
@@ -903,9 +905,7 @@ def create_overview_dataset_all_vars(
     import rasterio.transform
 
     # Calculate the transform for this overview level
-    overview_transform = rasterio.transform.from_bounds(
-        *native_bounds, width, height
-    )
+    overview_transform = rasterio.transform.from_bounds(*native_bounds, width, height)
 
     # Create coordinate arrays
     left, bottom, right, top = native_bounds
@@ -934,14 +934,14 @@ def create_overview_dataset_all_vars(
         "x": (["x"], x_coords, x_attrs),
         "y": (["y"], y_coords, y_attrs),
     }
-    
+
     # Determine standard name based on whether this is Sentinel-1 data
     # TODO: use a better way to determine this than just checking for ds_gcp
     if ds_gcp is not None:
         standard_name = "surface_backwards_scattering_coefficient_of_radar_wave"
     else:
         standard_name = "toa_bidirectional_reflectance"
-    
+
     spatial_dims = ["y", "x"]
 
     # Find the grid_mapping variable name
@@ -1347,8 +1347,7 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None:
                 ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
 
 
-def _setup_grid_mapping(
-    ds: xr.Dataset, grid_mapping_var_name: str) -> None:
+def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
     """Set up spatial_ref variable with GeoZarr required attributes."""
 
     # Use standard CRS and transform if available
@@ -1364,7 +1363,6 @@ def _setup_grid_mapping(
     for band in ds.data_vars:
         if band != "spatial_ref":
             ds[band].attrs["grid_mapping"] = grid_mapping_var_name
-
 
 
 def _add_geotransform(ds: xr.Dataset, grid_mapping_var: str) -> None:
@@ -1523,7 +1521,8 @@ def _get_y_coord_attrs() -> Dict[str, Any]:
         "standard_name": "projection_y_coordinate",
         "_ARRAY_DIMENSIONS": ["y"],
     }
-    
+
+
 def _get_at_coord_attrs() -> Dict[str, Any]:
     """Get standard attributes for azimuth_time coordinate."""
     return {
@@ -1531,7 +1530,8 @@ def _get_at_coord_attrs() -> Dict[str, Any]:
         "standard_name": "time",
         "_ARRAY_DIMENSIONS": ["azimuth_time"],
     }
-    
+
+
 def _get_gr_coord_attrs() -> Dict[str, Any]:
     """Get standard attributes for ground_range coordinate."""
     return {
