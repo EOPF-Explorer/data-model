@@ -67,6 +67,35 @@ eopf-geozarr validate output.zarr
 
 # Get help
 eopf-geozarr --help
+
+### Pipeline-Oriented CLI
+
+The package also ships a workflow-friendly entrypoint that mirrors the RabbitMQ Sensor payload. This is
+useful for dry runs or smoke tests that mimic the production event flow:
+
+```bash
+# Inspect available arguments (mirrors Sensor → WorkflowTemplate parameters)
+eopf-geozarr-pipeline run --help
+
+# Replay a payload.json (for example, from data-model-pipeline/workflows/payload.json)
+eopf-geozarr-pipeline run \
+  --src-item "https://stac.core.eopf.eodc.eu/..." \
+  --output-zarr "s3://bucket/path/out.zarr" \
+  --groups measurements/reflectance/r10m,measurements/reflectance/r20m \
+  --register-collection sentinel-2-l2a \
+  --register-url https://api.explorer.eopf.copernicus.eu/stac \
+  --overwrite replace
+
+# Validate a produced GeoZarr store
+python - <<'PY'
+from eopf_geozarr.pipeline import validate_geozarr_store
+
+report = validate_geozarr_store("s3://bucket/path/out.zarr")
+print(report.summary())
+for line in report.detailed():
+    print(" -", line)
+PY
+```
 ```
 
 ### S3 Support

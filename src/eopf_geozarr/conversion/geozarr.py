@@ -238,7 +238,7 @@ def iterative_copy(
 
         # Add CRS information if needed
         if crs_groups and current_group_path in crs_groups:
-            print(f"Adding CRS information for group '{current_group_path}'")
+            print(f"Adding CRS information to group: {current_group_path}")
             if reference_crs is None:
                 reference_crs = _find_reference_crs(geozarr_groups)
             ds = prepare_dataset_with_crs_info(ds, reference_crs=reference_crs)
@@ -1207,6 +1207,7 @@ def _find_reference_crs(geozarr_groups: Dict[str, xr.Dataset]) -> Optional[str]:
     for key, group in geozarr_groups.items():
         if group.rio.crs:
             crs_string: str = group.rio.crs.to_string()
+            print(f"Inferred reference CRS from measurements: {crs_string}")
             return crs_string
     return None
 

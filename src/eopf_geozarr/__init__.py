@@ -13,6 +13,7 @@ from .conversion import (
     setup_datatree_metadata_geozarr_spec_compliant,
     validate_existing_band_data,
 )
+from .validator import validate_geozarr_store
 
 __version__ = version("eopf-geozarr")
 
@@ -27,4 +28,5 @@ __all__ = [
     "calculate_aligned_chunk_size",
     "is_grid_mapping_variable",
     "validate_existing_band_data",
+    "validate_geozarr_store",
 ]
