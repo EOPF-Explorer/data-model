@@ -28,6 +28,7 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     "pydantic-zarr>=0.8.0",
+    "pydantic>=2.12.0a1",
     "zarr>=3.1.1",
     "xarray>=2025.7.1",
     "dask[array,distributed]>=2025.5.1",
@@ -39,7 +40,6 @@ dependencies = [
     "s3fs>=2024.6.0",
     "boto3>=1.34.0",
     "pyproj>=3.7.0",
-    "typer>=0.12.0",
 ]
 
 [dependency-groups]
@@ -76,7 +76,6 @@ Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
 
 [project.scripts]
 eopf-geozarr = "eopf_geozarr.cli:main"
-eopf-geozarr-pipeline = "eopf_geozarr.pipeline.runner:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -113,7 +112,7 @@ use_parentheses = true
 ensure_newline_before_comments = true
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -143,7 +142,10 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["tests/*", "setup.py"]
+omit = [
+    "tests/*",
+    "setup.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [
