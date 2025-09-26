@@ -146,77 +146,26 @@ class TestS2MultiscalePyramid:
         
         assert pyramid.pyramid_levels == expected_levels
 
-    def test_align_chunk_to_xy_dimensions(self, pyramid):
-        """Test chunk alignment for x/y dimensions."""
-        # Test case 1: chunk size smaller than dimension
-        aligned = pyramid._align_chunk_to_xy_dimensions(256, 1000)
-        assert aligned > 0
-        assert aligned <= 1000
-        assert 1000 % aligned <= 1000 % 256  # Should have better or equal alignment
-        
-        # Test case 2: chunk size larger than dimension
-        aligned = pyramid._align_chunk_to_xy_dimensions(2000, 1000)
-        assert aligned == 1000
-        
-        # Test case 3: exact divisor
-        aligned = pyramid._align_chunk_to_xy_dimensions(250, 1000)
-        assert aligned > 0
-        assert aligned <= 1000
-
-    def test_calculate_spatial_shard_dim(self, pyramid):
-        """Test spatial shard dimension calculation."""
-        # Test case 1: chunk size smaller than dimension, multiple chunks possible
-        shard_dim = pyramid._calculate_spatial_shard_dim(1000, 200)
-        assert shard_dim == 800  # 4 chunks * 200
-
-        # Test case 2: chunk size larger than dimension
-        shard_dim = pyramid._calculate_spatial_shard_dim(100, 200)
-        assert shard_dim == 100
-
-        # Test case 3: only 2 chunks possible
-        shard_dim = pyramid._calculate_spatial_shard_dim(600, 250)
-        assert shard_dim == 500  # 2 chunks * 250
-
-        # Test case 4: single chunk
-        shard_dim = pyramid._calculate_spatial_shard_dim(300, 250)
-        assert shard_dim == 250
-
-    def test_calculate_standard_shard_dim(self, pyramid):
-        """Test standard shard dimension calculation."""
-        # Test case 1: multiple chunks possible
-        shard_dim = pyramid._calculate_standard_shard_dim(1000, 200)
-        assert shard_dim == 800  # 4 chunks * 200
-
-        # Test case 2: chunk size larger than dimension
-        shard_dim = pyramid._calculate_standard_shard_dim(100, 200)
-        assert shard_dim == 100
-
-        # Test case 3: few chunks
-        shard_dim = pyramid._calculate_standard_shard_dim(600, 250)
-        assert shard_dim == 500  # 2 chunks * 250
-
-    def test_calculate_xy_aligned_shard_dimensions(self, pyramid):
-        """Test xy-aligned shard dimensions calculation."""
-        # Test 3D data (time, y, x)
+    def test_calculate_simple_shard_dimensions(self, pyramid):
+        """Test simplified shard dimensions calculation."""
+        # Test 3D data (time, y, x) - shards match dimensions exactly
         data_shape = (5, 1000, 1000)
-        chunks = (1, 256, 256)
         
-        shard_dims = pyramid._calculate_xy_aligned_shard_dimensions(data_shape, chunks)
+        shard_dims = pyramid._calculate_simple_shard_dimensions(data_shape)
         
         assert len(shard_dims) == 3
-        assert shard_dims[0] == 1  # Time dimension should be 1
-        assert shard_dims[1] > 0   # Y dimension
-        assert shard_dims[2] > 0   # X dimension
+        assert shard_dims[0] == 1     # Time dimension should be 1
+        assert shard_dims[1] == 1000  # Y dimension matches exactly
+        assert shard_dims[2] == 1000  # X dimension matches exactly
         
-        # Test 2D data (y, x)
-        data_shape = (1000, 1000)
-        chunks = (256, 256)
+        # Test 2D data (y, x) - shards match dimensions exactly
+        data_shape = (500, 800)
         
-        shard_dims = pyramid._calculate_xy_aligned_shard_dimensions(data_shape, chunks)
+        shard_dims = pyramid._calculate_simple_shard_dimensions(data_shape)
         
         assert len(shard_dims) == 2
-        assert shard_dims[0] > 0   # Y dimension
-        assert shard_dims[1] > 0   # X dimension
+        assert shard_dims[0] == 500   # Y dimension matches exactly
+        assert shard_dims[1] == 800   # X dimension matches exactly
 
     def test_create_level_encoding(self, pyramid, sample_dataset):
         """Test level encoding creation with xy-aligned sharding."""

@@ -361,15 +361,18 @@ class S2MultiscalePyramid:
             if var_data.ndim >= 2:
                 height, width = var_data.shape[-2:]
                 
-                # Ensure x/y alignment: adjust chunk sizes to align with sharding
-                chunk_y = self._align_chunk_to_xy_dimensions(chunk_size, height)
-                chunk_x = self._align_chunk_to_xy_dimensions(chunk_size, width)
+                # Use original geozarr.py chunk alignment logic
+                spatial_chunk_aligned = min(
+                    chunk_size,
+                    self._calculate_aligned_chunk_size(width, chunk_size),
+                    self._calculate_aligned_chunk_size(height, chunk_size),
+                )
                 
                 if var_data.ndim == 3:
                     # Single file per variable per time: chunk time dimension to 1
-                    chunks = (1, chunk_y, chunk_x)
+                    chunks = (1, spatial_chunk_aligned, spatial_chunk_aligned)
                 else:
-                    chunks = (chunk_y, chunk_x)
+                    chunks = (spatial_chunk_aligned, spatial_chunk_aligned)
             else:
                 chunks = (min(chunk_size, var_data.shape[0]),)
             
@@ -379,9 +382,9 @@ class S2MultiscalePyramid:
                 'compressor': 'default'
             }
             
-            # Add xy-aligned sharding if enabled
+            # Add simplified sharding if enabled - shards match x/y dimensions exactly
             if self.enable_sharding and var_data.ndim >= 2:
-                shard_dims = self._calculate_xy_aligned_shard_dimensions(var_data.shape, chunks)
+                shard_dims = self._calculate_simple_shard_dimensions(var_data.shape)
                 var_encoding['shards'] = shard_dims
             
             encoding[var_name] = var_encoding
@@ -391,92 +394,39 @@ class S2MultiscalePyramid:
             encoding[coord_name] = {'compressor': None}
         
         return encoding
-    
-    def _align_chunk_to_xy_dimensions(self, chunk_size: int, dimension_size: int) -> int:
+
+    def _calculate_aligned_chunk_size(self, dimension_size: int, target_chunk: int) -> int:
         """
-        Align chunk size to be compatible with x/y dimension sharding requirements.
+        Calculate aligned chunk size following geozarr.py logic.
         
-        Args:
-            chunk_size: Requested chunk size
-            dimension_size: Total size of the dimension
-            
-        Returns:
-            Aligned chunk size that works well with sharding
+        This ensures good chunk alignment without complex calculations.
         """
-        if chunk_size >= dimension_size:
+        if target_chunk >= dimension_size:
             return dimension_size
-        
-        # Find a good divisor that's close to the requested size
-        best_chunk = chunk_size
-        best_remainder = dimension_size % chunk_size
-        
-        # Try nearby values to find better alignment
-        search_range = min(50, chunk_size // 4)
-        for offset in range(-search_range, search_range + 1):
-            candidate = chunk_size + offset
-            if candidate > 0 and candidate <= dimension_size:
-                remainder = dimension_size % candidate
-                if remainder < best_remainder or (remainder == best_remainder and candidate > best_chunk):
-                    best_chunk = candidate
-                    best_remainder = remainder
-        
+            
+        # Find the largest divisor of dimension_size that's close to target_chunk
+        best_chunk = target_chunk
+        for chunk_candidate in range(target_chunk, max(target_chunk // 2, 1), -1):
+            if dimension_size % chunk_candidate == 0:
+                best_chunk = chunk_candidate
+                break
+                
         return best_chunk
 
-    def _calculate_xy_aligned_shard_dimensions(self, data_shape: Tuple, chunks: Tuple) -> Tuple:
+    def _calculate_simple_shard_dimensions(self, data_shape: Tuple) -> Tuple:
         """
-        Calculate shard dimensions for Zarr v3 sharding with x/y alignment.
+        Calculate shard dimensions that simply match x/y dimensions exactly.
         
-        Ensures shards are properly aligned with spatial dimensions (x, y)
-        and maintains single file per variable per time point.
+        Shards dimensions will always be the same as the x and y dimensions.
         """
         shard_dims = []
         
-        for i, (dim_size, chunk_size) in enumerate(zip(data_shape, chunks)):
-            # Special handling for different dimensions
+        for i, dim_size in enumerate(data_shape):
             if i == 0 and len(data_shape) == 3:
                 # First dimension in 3D data (time) - use single time slice per shard
-                shard_dim = 1
-            elif i >= len(data_shape) - 2:
-                # Last two dimensions (y, x) - ensure proper spatial alignment
-                shard_dim = self._calculate_spatial_shard_dim(dim_size, chunk_size)
+                shard_dims.append(1)
             else:
-                # Other dimensions - standard calculation
-                shard_dim = self._calculate_standard_shard_dim(dim_size, chunk_size)
-            
-            shard_dims.append(shard_dim)
+                # For x/y dimensions, shard dimension equals the full dimension size
+                shard_dims.append(dim_size)
         
         return tuple(shard_dims)
-    
-    def _calculate_spatial_shard_dim(self, dim_size: int, chunk_size: int) -> int:
-        """Calculate shard dimension for spatial dimensions (x, y)."""
-        if chunk_size >= dim_size:
-            return dim_size
-        
-        # For spatial dimensions, align shard boundaries with chunk boundaries
-        # Use multiple of chunk_size that provides good balance
-        num_chunks = dim_size // chunk_size
-        if num_chunks >= 4:
-            # Use 4 chunks per shard if possible for good balance
-            shard_dim = min(4 * chunk_size, dim_size)
-        elif num_chunks >= 2:
-            # Use 2 chunks per shard as minimum
-            shard_dim = 2 * chunk_size
-        else:
-            # Single chunk per shard
-            shard_dim = chunk_size
-        
-        return shard_dim
-    
-    def _calculate_standard_shard_dim(self, dim_size: int, chunk_size: int) -> int:
-        """Calculate shard dimension for non-spatial dimensions."""
-        if chunk_size >= dim_size:
-            return dim_size
-        
-        # For non-spatial dimensions, use standard calculation
-        num_chunks = dim_size // chunk_size
-        if num_chunks >= 4:
-            shard_dim = min(4 * chunk_size, dim_size)
-        else:
-            shard_dim = num_chunks * chunk_size
-        
-        return shard_dim
