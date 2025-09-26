@@ -1,0 +1,5 @@
+{
+    "src_item": "https://example.com/stac/items/S2A_20250101",
+    "output_zarr": "s3://example-bucket/geozarr/S2A_20250101.zarr",
+    "groups": "/measurements/reflectance/r10m,/measurements/reflectance/r20m,/measurements/reflectance/r60m"
+}

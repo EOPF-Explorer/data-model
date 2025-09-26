@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Tuple
+from typing import Any
 
-DEFAULT_GROUPS: Tuple[str, str, str] = (
+DEFAULT_GROUPS: tuple[str, str, str] = (
     "/measurements/reflectance/r10m",
     "/measurements/reflectance/r20m",
     "/measurements/reflectance/r60m",
 )
 
 
-def _split_csv(values: str | Iterable[str] | None) -> Tuple[str, ...]:
+def _split_csv(values: str | Iterable[str] | None) -> tuple[str, ...]:
     if values is None:
         return ()
     if isinstance(values, str):
@@ -56,7 +57,7 @@ def _to_int(value: str | int | None, default: int) -> int:
     return int(value)
 
 
-def _ensure_tuple(values: Iterable[str]) -> Tuple[str, ...]:
+def _ensure_tuple(values: Iterable[str]) -> tuple[str, ...]:
     return tuple(v for v in values if v)
 
 
@@ -64,8 +65,8 @@ def _ensure_tuple(values: Iterable[str]) -> Tuple[str, ...]:
 class GeoZarrPayload:
     src_item: str
     output_zarr: str
-    groups: Tuple[str, ...] = field(default_factory=lambda: DEFAULT_GROUPS)
-    crs_groups: Tuple[str, ...] = field(default_factory=tuple)
+    groups: tuple[str, ...] = field(default_factory=lambda: DEFAULT_GROUPS)
+    crs_groups: tuple[str, ...] = field(default_factory=tuple)
     register_url: str | None = None
     register_collection: str | None = None
     register_bearer_token: str | None = None
@@ -87,9 +88,13 @@ class GeoZarrPayload:
     collection_thumbnail: str | None = None
     owner: str | None = None
     service_account: str | None = None
+    scaling_strategy: str = "v0-hpa"
+    worker_replicas_min: int = 2
+    worker_replicas_max: int = 10
+    queue_depth_target: int = 5
 
     @classmethod
-    def from_cli(  # noqa: PLR0913 - numerous parameters map to workflow template
+    def from_cli(
         cls,
         *,
         src_item: str,
@@ -117,7 +122,11 @@ class GeoZarrPayload:
         collection_thumbnail: str | None = None,
         owner: str | None = None,
         service_account: str | None = None,
-    ) -> "GeoZarrPayload":
+        scaling_strategy: str | None = None,
+        worker_replicas_min: str | int | None = None,
+        worker_replicas_max: str | int | None = None,
+        queue_depth_target: str | int | None = None,
+    ) -> GeoZarrPayload:
         parsed_groups = _ensure_tuple(
             _normalize_group_path(g) for g in (_split_csv(groups) or DEFAULT_GROUPS)
         )
@@ -151,10 +160,14 @@ class GeoZarrPayload:
             collection_thumbnail=collection_thumbnail or None,
             owner=owner or None,
             service_account=service_account or None,
+            scaling_strategy=(scaling_strategy or "v0-hpa"),
+            worker_replicas_min=_to_int(worker_replicas_min, default=2),
+            worker_replicas_max=_to_int(worker_replicas_max, default=10),
+            queue_depth_target=_to_int(queue_depth_target, default=5),
         )
 
     @classmethod
-    def from_payload(cls, payload: Mapping[str, Any]) -> "GeoZarrPayload":
+    def from_payload(cls, payload: Mapping[str, Any]) -> GeoZarrPayload:
         return cls.from_cli(
             src_item=str(payload.get("src_item", "")),
             output_zarr=str(payload.get("output_zarr", "")),
@@ -163,8 +176,9 @@ class GeoZarrPayload:
             register_url=payload.get("register_url"),
             register_collection=payload.get("register_collection")
             or payload.get("collection"),
-            register_bearer_token=payload.get("register_bearer_token")
-            or payload.get("bearer_token"),
+            register_bearer_token=(
+                payload.get("register_bearer_token") or payload.get("bearer_token")
+            ),
             register_href=payload.get("register_href"),
             register_mode=payload.get("register_mode"),
             id_policy=payload.get("id_policy"),
@@ -183,6 +197,10 @@ class GeoZarrPayload:
             collection_thumbnail=payload.get("collection_thumbnail"),
             owner=payload.get("owner"),
             service_account=payload.get("service_account"),
+            scaling_strategy=payload.get("scaling_strategy"),
+            worker_replicas_min=payload.get("worker_replicas_min"),
+            worker_replicas_max=payload.get("worker_replicas_max"),
+            queue_depth_target=payload.get("queue_depth_target"),
         )
 
     def ensure_required(self) -> None:
@@ -235,6 +253,10 @@ class GeoZarrPayload:
             ("collection_thumbnail", "collection_thumbnail"),
             ("owner", "owner"),
             ("service_account", "service_account"),
+            ("scaling_strategy", "scaling_strategy"),
+            ("worker_replicas_min", "worker_replicas_min"),
+            ("worker_replicas_max", "worker_replicas_max"),
+            ("queue_depth_target", "queue_depth_target"),
         )
         for attr, key in optional_fields:
             value = getattr(self, attr)

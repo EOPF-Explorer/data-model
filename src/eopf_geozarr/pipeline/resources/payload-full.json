@@ -1,0 +1,19 @@
+{
+    "src_item": "https://example.com/stac/items/S2B_20250118",
+    "output_zarr": "s3://example-bucket/geozarr/S2B_20250118.zarr",
+    "groups": "/measurements/reflectance/r10m,/measurements/reflectance/r20m",
+    "crs_groups": "/conditions/geometry",
+    "register_url": "https://api.example.com/stac/collections/sentinel-2-l2a/items",
+    "register_collection": "sentinel-2-l2a",
+    "register_mode": "replace",
+    "overwrite": "replace",
+    "metrics_out": "s3://example-bucket/metrics/S2B_20250118.json",
+    "max_retries": 5,
+    "spatial_chunk": 2048,
+    "min_dimension": 128,
+    "tile_width": 256,
+    "dask_cluster": true,
+    "verbose": true,
+    "owner": "platform-team",
+    "service_account": "argo-runner"
+}
