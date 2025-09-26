@@ -1681,7 +1681,8 @@ def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     int
         Shard dimension that is evenly divisible by chunk_dim
     """
-    # If chunk is larger than or equal to data dimension, use full dimension
+    # If chunk is larger than data dimension, the effective chunk will be data_dim
+    # In this case, shard should also be data_dim to maintain divisibility
     if chunk_dim >= data_dim:
         return data_dim
     
@@ -1691,13 +1692,13 @@ def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     # If we have at least 2 complete chunks, use a multiple of chunk_dim
     if num_complete_chunks >= 2:
         # Use a shard size that's a multiple of chunk_dim
-        # Prefer 2x, 3x, 4x, 5x, 6x chunk size, but don't exceed data dimension
-        for multiplier in [6, 5, 4, 3, 2]:
+        for multiplier in range(num_complete_chunks + 1, 2, -1):
             shard_size = multiplier * chunk_dim
             if shard_size <= data_dim:
                 return shard_size
     
     # Fallback: use the largest multiple of chunk_dim that fits
+    # If no complete chunks fit, use data_dim (this handles edge cases)
     return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
 
 

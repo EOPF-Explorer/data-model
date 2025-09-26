@@ -125,7 +125,7 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 
     # Find the largest divisor of dimension_size that is <= target_chunk_size
     for chunk_size in range(target_chunk_size, 0, -1):
-        if dimension_size % chunk_size < 0.1 * chunk_size:
+        if dimension_size % chunk_size == 0:
             return chunk_size
 
     # If no divisor is found, return the closest value to target_chunk_size
