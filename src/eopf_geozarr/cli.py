@@ -1213,17 +1213,11 @@ def add_s2_optimization_commands(subparsers):
 def convert_s2_optimized_command(args):
     """Execute S2 optimized conversion command."""
     try:
-        # Validate input
-        input_path = Path(args.input_path)
-        if not input_path.exists():
-            print(f"Error: Input path {input_path} does not exist")
-            return 1
-        
         # Load input dataset
         print(f"Loading Sentinel-2 dataset from: {args.input_path}")
-        storage_options = get_storage_options(str(input_path))
+        storage_options = get_storage_options(str(args.input_path))
         dt_input = xr.open_datatree(
-            str(input_path),
+            str(args.input_path),
             engine='zarr',
             chunks='auto',
             storage_options=storage_options
