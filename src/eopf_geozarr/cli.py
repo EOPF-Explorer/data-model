@@ -13,6 +13,8 @@ from typing import Any, Optional
 
 import xarray as xr
 
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
     get_s3_credentials_info,
@@ -1144,8 +1146,111 @@ def create_parser() -> argparse.ArgumentParser:
         "--verbose", action="store_true", help="Enable verbose output"
     )
     validate_parser.set_defaults(func=validate_command)
+    
+    # Add S2 optimization commands
+    add_s2_optimization_commands(subparsers)
 
     return parser
+
+def add_s2_optimization_commands(subparsers):
+    """Add S2 optimization commands to CLI parser."""
+    
+    # Convert S2 optimized command
+    s2_parser = subparsers.add_parser(
+        'convert-s2-optimized',
+        help='Convert Sentinel-2 dataset to optimized structure'
+    )
+    s2_parser.add_argument(
+        'input_path',
+        type=str,
+        help='Path to input Sentinel-2 dataset (Zarr format)'
+    )
+    s2_parser.add_argument(
+        'output_path',
+        type=str,
+        help='Path for output optimized dataset'
+    )
+    s2_parser.add_argument(
+        '--spatial-chunk',
+        type=int,
+        default=1024,
+        help='Spatial chunk size (default: 1024)'
+    )
+    s2_parser.add_argument(
+        '--enable-sharding',
+        action='store_true',
+        help='Enable Zarr v3 sharding'
+    )
+    s2_parser.add_argument(
+        '--compression-level',
+        type=int,
+        default=3,
+        choices=range(1, 10),
+        help='Compression level 1-9 (default: 3)'
+    )
+    s2_parser.add_argument(
+        '--skip-geometry',
+        action='store_true',
+        help='Skip creating geometry group'
+    )
+    s2_parser.add_argument(
+        '--skip-meteorology',
+        action='store_true',
+        help='Skip creating meteorology group'
+    )
+    s2_parser.add_argument(
+        '--skip-validation',
+        action='store_true',
+        help='Skip output validation'
+    )
+    s2_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+    s2_parser.set_defaults(func=convert_s2_optimized_command)
+
+def convert_s2_optimized_command(args):
+    """Execute S2 optimized conversion command."""
+    try:
+        # Validate input
+        input_path = Path(args.input_path)
+        if not input_path.exists():
+            print(f"Error: Input path {input_path} does not exist")
+            return 1
+        
+        # Load input dataset
+        print(f"Loading Sentinel-2 dataset from: {args.input_path}")
+        storage_options = get_storage_options(str(input_path))
+        dt_input = xr.open_datatree(
+            str(input_path),
+            engine='zarr',
+            chunks='auto',
+            storage_options=storage_options
+        )
+        
+        # Convert
+        dt_optimized = convert_s2_optimized(
+            dt_input=dt_input,
+            output_path=args.output_path,
+            enable_sharding=args.enable_sharding,
+            spatial_chunk=args.spatial_chunk,
+            compression_level=args.compression_level,
+            create_geometry_group=not args.skip_geometry,
+            create_meteorology_group=not args.skip_meteorology,
+            validate_output=not args.skip_validation,
+            verbose=args.verbose
+        )
+        
+        print(f"✅ S2 optimization completed: {args.output_path}")
+        return 0
+        
+    except Exception as e:
+        print(f"❌ Error during S2 optimization: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
 
 
 def main() -> None:
