@@ -2,11 +2,13 @@
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import s3fs
 import zarr
+
+ModeLiteral = Literal["r", "r+", "a", "w", "w-"]
 
 
 def normalize_s3_path(s3_path: str) -> str:
@@ -88,7 +90,7 @@ def parse_s3_path(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
+def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> dict[str, Any]:
     """
     Get storage options for S3 access with xarray.
 
@@ -126,7 +128,7 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
     return s3_config
 
 
-def get_storage_options(path: str, **kwargs: Any) -> Optional[Dict[str, Any]]:
+def get_storage_options(path: str, **kwargs: Any) -> dict[str, Any] | None:
     """
     Get storage options for any URL type, leveraging fsspec as the abstraction layer.
 
@@ -202,7 +204,7 @@ def create_s3_store(s3_path: str, **s3_kwargs: Any) -> str:
 
 
 def write_s3_json_metadata(
-    s3_path: str, metadata: Dict[str, Any], **s3_kwargs: Any
+    s3_path: str, metadata: dict[str, Any], **s3_kwargs: Any
 ) -> None:
     """
     Write JSON metadata directly to S3.
@@ -245,7 +247,7 @@ def write_s3_json_metadata(
         f.write(json_content)
 
 
-def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
+def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> dict[str, Any]:
     """
     Read JSON metadata from S3.
 
@@ -284,7 +286,7 @@ def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]:
     with fs.open(s3_path, "r") as f:
         content = f.read()
 
-    result: Dict[str, Any] = json.loads(content)
+    result: dict[str, Any] = json.loads(content)
     return result
 
 
@@ -327,7 +329,9 @@ def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool:
     return result
 
 
-def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.Group:
+def open_s3_zarr_group(
+    s3_path: str, mode: ModeLiteral = "r", **s3_kwargs: Any
+) -> zarr.Group:
     """
     Open a Zarr group from S3 using storage_options.
 
@@ -351,7 +355,7 @@ def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.
     )
 
 
-def get_s3_credentials_info() -> Dict[str, Optional[str]]:
+def get_s3_credentials_info() -> dict[str, str | None]:
     """
     Get information about available S3 credentials.
 
@@ -372,7 +376,7 @@ def get_s3_credentials_info() -> Dict[str, Optional[str]]:
     }
 
 
-def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, Optional[str]]:
+def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, str | None]:
     """
     Validate that we can access the S3 path.
 
@@ -446,7 +450,7 @@ def get_filesystem(path: str, **kwargs: Any) -> Any:
         return fsspec.filesystem("file")
 
 
-def write_json_metadata(path: str, metadata: Dict[str, Any], **kwargs: Any) -> None:
+def write_json_metadata(path: str, metadata: dict[str, Any], **kwargs: Any) -> None:
     """
     Write JSON metadata to any path type using fsspec.
 
@@ -473,7 +477,7 @@ def write_json_metadata(path: str, metadata: Dict[str, Any], **kwargs: Any) -> N
         f.write(json_content)
 
 
-def read_json_metadata(path: str, **kwargs: Any) -> Dict[str, Any]:
+def read_json_metadata(path: str, **kwargs: Any) -> dict[str, Any]:
     """
     Read JSON metadata from any path type using fsspec.
 
@@ -494,7 +498,7 @@ def read_json_metadata(path: str, **kwargs: Any) -> Dict[str, Any]:
     with fs.open(path, "r") as f:
         content = f.read()
 
-    result: Dict[str, Any] = json.loads(content)
+    result: dict[str, Any] = json.loads(content)
     return result
 
 
@@ -519,7 +523,7 @@ def path_exists(path: str, **kwargs: Any) -> bool:
     return result
 
 
-def open_zarr_group(path: str, mode: str = "r", **kwargs: Any) -> zarr.Group:
+def open_zarr_group(path: str, mode: ModeLiteral = "r", **kwargs: Any) -> zarr.Group:
     """
     Open a Zarr group from any path type using unified storage options.
 

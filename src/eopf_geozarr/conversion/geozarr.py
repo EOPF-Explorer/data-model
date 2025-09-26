@@ -17,7 +17,8 @@ import dataclasses
 import os
 import shutil
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Hashable, Iterable
+from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -29,15 +30,31 @@ from zarr.storage._common import make_store_path
 from . import fs_utils, utils
 
 
+def _name_from_hashable(value: Hashable) -> str:
+    return value if isinstance(value, str) else str(value)
+
+
+def _names_from_iterable(values: Iterable[Hashable]) -> list[str]:
+    return [_name_from_hashable(value) for value in values]
+
+
+def _data_var_names(ds: xr.Dataset) -> list[str]:
+    return _names_from_iterable(ds.data_vars.keys())
+
+
+def _coord_names(ds: xr.Dataset) -> list[str]:
+    return _names_from_iterable(ds.coords.keys())
+
+
 def create_geozarr_dataset(
     dt_input: xr.DataTree,
-    groups: List[str],
+    groups: list[str],
     output_path: str,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
-    crs_groups: Optional[List[str]] = None,
+    crs_groups: list[str] | None = None,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -100,8 +117,8 @@ def create_geozarr_dataset(
 
 
 def setup_datatree_metadata_geozarr_spec_compliant(
-    dt: xr.DataTree, groups: List[str]
-) -> Dict[str, xr.Dataset]:
+    dt: xr.DataTree, groups: list[str]
+) -> dict[str, xr.Dataset]:
     """
     Set up GeoZarr-spec compliant CF standard names and CRS information.
 
@@ -128,19 +145,19 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         ds = dt[key].to_dataset().copy()
 
         # Process all bands in the group
-        for band in ds.data_vars:
-            print(f"  Processing band: {band}")
+        for band_name in _data_var_names(ds):
+            print(f"  Processing band: {band_name}")
 
             # Set CF standard name and _ARRAY_DIMENSIONS
-            ds[band].attrs["standard_name"] = "toa_bidirectional_reflectance"
-            if hasattr(ds[band], "dims"):
-                ds[band].attrs["_ARRAY_DIMENSIONS"] = list(ds[band].dims)
-            ds[band].attrs["grid_mapping"] = grid_mapping_var_name
+            ds[band_name].attrs["standard_name"] = "toa_bidirectional_reflectance"
+            if hasattr(ds[band_name], "dims"):
+                ds[band_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[band_name].dims)
+            ds[band_name].attrs["grid_mapping"] = grid_mapping_var_name
 
             # Set CRS if available
-            if "proj:epsg" in ds[band].attrs:
-                epsg = ds[band].attrs["proj:epsg"]
-                print(f"    Setting CRS for {band} to EPSG:{epsg}")
+            if "proj:epsg" in ds[band_name].attrs:
+                epsg = ds[band_name].attrs["proj:epsg"]
+                print(f"    Setting CRS for {band_name} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
@@ -156,14 +173,14 @@ def setup_datatree_metadata_geozarr_spec_compliant(
 
 def iterative_copy(
     dt_input: xr.DataTree,
-    geozarr_groups: Dict[str, xr.Dataset],
+    geozarr_groups: dict[str, xr.Dataset],
     output_path: str,
     compressor: Any,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
     tile_width: int = 256,
     max_retries: int = 3,
-    crs_groups: Optional[List[str]] = None,
+    crs_groups: list[str] | None = None,
 ) -> xr.DataTree:
     """
     Iteratively copy groups from original DataTree to GeoZarr DataTree.
@@ -272,7 +289,7 @@ def iterative_copy(
 
 
 def prepare_dataset_with_crs_info(
-    ds: xr.Dataset, reference_crs: Optional[str] = None
+    ds: xr.Dataset, reference_crs: str | None = None
 ) -> xr.Dataset:
     """
     Prepare a dataset with CRS information without writing it to disk.
@@ -427,7 +444,7 @@ def create_geozarr_compliant_multiscales(
     min_dimension: int = 256,
     tile_width: int = 256,
     spatial_chunk: int = 4096,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create GeoZarr-spec compliant multiscales following the specification exactly.
 
@@ -457,7 +474,9 @@ def create_geozarr_compliant_multiscales(
 
     # Get spatial information from the first data variable
     data_vars = [
-        var for var in ds.data_vars if not utils.is_grid_mapping_variable(ds, var)
+        name
+        for name in _data_var_names(ds)
+        if not utils.is_grid_mapping_variable(ds, name)
     ]
     if not data_vars:
         return {}
@@ -610,7 +629,7 @@ def calculate_overview_levels(
     native_height: int,
     min_dimension: int = 256,
     tile_width: int = 256,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Calculate overview levels following COG /2 downsampling logic.
 
@@ -660,10 +679,10 @@ def calculate_overview_levels(
 
 def create_native_crs_tile_matrix_set(
     native_crs: Any,
-    native_bounds: Tuple[float, float, float, float],
-    overview_levels: List[Dict[str, Any]],
-    group_prefix: Optional[str] = "",
-) -> Dict[str, Any]:
+    native_bounds: tuple[float, float, float, float],
+    overview_levels: list[dict[str, Any]],
+    group_prefix: str | None = "",
+) -> dict[str, Any]:
     """
     Create a custom Tile Matrix Set for the native CRS following GeoZarr spec.
 
@@ -744,8 +763,8 @@ def create_overview_dataset_all_vars(
     width: int,
     height: int,
     native_crs: Any,
-    native_bounds: Tuple[float, float, float, float],
-    data_vars: List[str],
+    native_bounds: tuple[float, float, float, float],
+    data_vars: list[str],
 ) -> xr.Dataset:
     """
     Create an overview dataset containing all variables for a specific level.
@@ -796,6 +815,7 @@ def create_overview_dataset_all_vars(
         print(f"  Downsampling {var}...")
 
         source_data = ds[var].values
+        var_dims = tuple(_name_from_hashable(dim) for dim in ds[var].dims)
 
         # Create downsampled data
         if source_data.ndim == 3:
@@ -806,11 +826,7 @@ def create_overview_dataset_all_vars(
                 downsampled_data[i] = utils.downsample_2d_array(
                     source_data[i], height, width
                 )
-            dims = (
-                ["time", "y", "x"]
-                if "time" in ds[var].dims
-                else [ds[var].dims[0], "y", "x"]
-            )
+            dims = ["time", "y", "x"] if "time" in var_dims else [var_dims[0], "y", "x"]
         else:
             downsampled_data = utils.downsample_2d_array(source_data, height, width)
             dims = ["y", "x"]
@@ -826,7 +842,7 @@ def create_overview_dataset_all_vars(
         overview_data_vars[var] = (dims, downsampled_data, attrs)
 
     # Create overview dataset
-    overview_ds = xr.Dataset(overview_data_vars, coords=overview_coords)
+    overview_ds: xr.Dataset = xr.Dataset(overview_data_vars, coords=overview_coords)
 
     # Add grid_mapping variable
     _add_grid_mapping_variable(
@@ -842,13 +858,13 @@ def create_overview_dataset_all_vars(
 
 def write_dataset_band_by_band_with_validation(
     ds: xr.Dataset,
-    existing_dataset: Optional[xr.Dataset],
+    existing_dataset: xr.Dataset | None,
     output_path: str,
-    encoding: Dict[str, Any],
+    encoding: dict[str, Any],
     max_retries: int,
     group_name: str,
     force_overwrite: bool = False,
-) -> Tuple[bool, xr.Dataset]:
+) -> tuple[bool, xr.Dataset]:
     """
     Write dataset band by band with individual band validation.
 
@@ -878,67 +894,70 @@ def write_dataset_band_by_band_with_validation(
         f"Writing GeoZarr-spec compliant base resolution for {group_name} band by band with validation"
     )
 
-    # Get data variables
-    data_vars = [
-        var for var in ds.data_vars if not utils.is_grid_mapping_variable(ds, var)
+    band_names = [
+        name
+        for name in _data_var_names(ds)
+        if not utils.is_grid_mapping_variable(ds, name)
     ]
 
-    successful_vars = []
-    failed_vars = []
-    skipped_vars = []
+    successful_vars: list[str] = []
+    failed_vars: list[str] = []
+    skipped_vars: list[str] = []
 
-    store_exists = existing_dataset is not None and len(existing_dataset.data_vars) > 0
+    for band_name in band_names:
+        if (
+            not force_overwrite
+            and existing_dataset is not None
+            and band_name in _data_var_names(existing_dataset)
+            and utils.validate_existing_band_data(existing_dataset, band_name, ds)
+        ):
+            ds = ds.drop_vars(band_name)
+            ds[band_name] = existing_dataset[band_name]
+            print(f"  ✅ Band {band_name} already exists and is valid, skipping")
+            skipped_vars.append(band_name)
+            successful_vars.append(band_name)
+            continue
 
-    # Write data variables one by one with validation
-    for var in data_vars:
-        # Check if this band already exists and is valid
-        if not force_overwrite and store_exists:
-            if utils.validate_existing_band_data(existing_dataset, var, ds):
-                ds.drop_vars(var)
-                ds[var] = existing_dataset[var]  # type: ignore
-                print(f"  ✅ Band {var} already exists and is valid, skipping")
-                skipped_vars.append(var)
-                successful_vars.append(var)
-                continue
-            if os.path.exists(os.path.join(output_path, group_name, var)):
-                shutil.rmtree(os.path.join(output_path, group_name, var))
+        if not force_overwrite:
+            band_path = os.path.join(output_path, group_name, band_name)
+            if os.path.exists(band_path):
+                shutil.rmtree(band_path)
 
-        print(f"  Writing data variable {var}...")
+        print(f"  Writing data variable {band_name}...")
 
-        # Create a single-variable dataset with its coordinates
-        single_var_ds = ds[[var]]
+        single_var_ds = ds[[band_name]]
+        var_encoding: dict[str, Any] = {}
+        if band_name in encoding:
+            var_encoding[band_name] = encoding[band_name]
 
-        # Create encoding for this variable only
-        var_encoding = {}
-        if var in encoding:
-            var_encoding[var] = encoding[var]
-
-        # Add coordinate encoding if not already present
+        existing_coord_names = (
+            set(_coord_names(existing_dataset))
+            if existing_dataset is not None
+            else set()
+        )
         for coord in single_var_ds.coords:
-            if coord in encoding and (
-                existing_dataset is None or coord not in existing_dataset.coords
-            ):
-                var_encoding[coord] = encoding[coord]
+            coord_name = _name_from_hashable(coord)
+            if coord_name in encoding and coord_name not in existing_coord_names:
+                var_encoding[coord_name] = encoding[coord_name]
 
-        # Try to write this variable with retries
         success = False
         for attempt in range(max_retries):
             try:
-                # Ensure the dataset is properly chunked to align with encoding
-                if var in var_encoding and "chunks" in var_encoding[var]:
-                    target_chunks = var_encoding[var]["chunks"]
-                    # Create chunk dict using the actual dimensions of the variable
-                    var_dims = single_var_ds[var].dims
-                    chunk_dict = {}
-                    for i, dim in enumerate(var_dims):
-                        if i < len(target_chunks):
-                            chunk_dict[dim] = target_chunks[i]
-                    # Rechunk the dataset to match the target chunks
+                chunk_spec = var_encoding.get(band_name, {}).get("chunks")
+                if isinstance(chunk_spec, (list, tuple)):
+                    var_dims = [
+                        _name_from_hashable(dim)
+                        for dim in single_var_ds[band_name].dims
+                    ]
+                    chunk_dict = {
+                        dim: int(chunk_spec[idx])
+                        for idx, dim in enumerate(var_dims)
+                        if idx < len(chunk_spec)
+                    }
                     single_var_ds = single_var_ds.chunk(chunk_dict)
                 else:
                     single_var_ds = single_var_ds.chunk()
 
-                # Get storage options and write variable
                 storage_options = fs_utils.get_storage_options(output_path)
                 single_var_ds.to_zarr(
                     output_path,
@@ -950,49 +969,36 @@ def write_dataset_band_by_band_with_validation(
                     storage_options=storage_options,
                 )
 
-                print(f"    ✅ Successfully wrote {var}")
-                successful_vars.append(var)
+                print(f"    ✅ Successfully wrote {band_name}")
+                successful_vars.append(band_name)
                 success = True
                 if existing_dataset is None:
                     group_path = fs_utils.normalize_path(
                         f"{output_path}/{group_name.lstrip('/')}"
                     )
-                    storage_options = fs_utils.get_storage_options(output_path)
+                    refreshed_options = fs_utils.get_storage_options(output_path)
                     existing_dataset = xr.open_dataset(
                         group_path,
                         mode="r",
                         engine="zarr",
                         decode_coords="all",
                         chunks="auto",
-                        storage_options=storage_options,
+                        storage_options=refreshed_options,
                     )
                 break
-
-            except Exception as e:
-                # Delete the started data array to avoid conflict on next attempt
-                for written_var in var_encoding.keys():
-                    if os.path.exists(
-                        os.path.join(output_path, group_name.lstrip("/"), written_var)
-                    ):
-                        shutil.rmtree(
-                            os.path.join(
-                                output_path, group_name.lstrip("/"), written_var
-                            )
-                        )
+            except Exception as exc:  # noqa: PERF203 - legacy retry policy
                 if attempt < max_retries - 1:
                     print(
-                        f"    ⚠️  Attempt {attempt + 1} failed for {var}: {e}, retrying in 2 seconds..."
+                        f"    ⚠️  Attempt {attempt + 1} failed for {band_name}: {exc}. Retrying..."
                     )
                     time.sleep(2)
                 else:
                     print(
-                        f"    ❌ Failed to write {var} after {max_retries} attempts: {e}"
+                        f"    ❌ Failed to write {band_name} after {max_retries} attempts: {exc}"
                     )
-                    failed_vars.append(var)
-                    break
 
         if not success:
-            print(f"  Failed to write data variable {var}")
+            failed_vars.append(band_name)
 
     # Consolidate metadata
     group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
@@ -1027,8 +1033,8 @@ def write_dataset_band_by_band_with_validation(
 
 def consolidate_metadata(
     store: StoreLike,
-    path: Optional[str] = None,
-    zarr_format: Optional[zarr.core.common.ZarrFormat] = None,
+    path: str | None = None,
+    zarr_format: zarr.core.common.ZarrFormat | None = None,
 ) -> zarr.Group:
     """
     Consolidate metadata of all nodes in a hierarchy.
@@ -1054,8 +1060,8 @@ def consolidate_metadata(
 
 async def async_consolidate_metadata(
     store: StoreLike,
-    path: Optional[str] = None,
-    zarr_format: Optional[zarr.core.common.ZarrFormat] = None,
+    path: str | None = None,
+    zarr_format: zarr.core.common.ZarrFormat | None = None,
 ) -> zarr.core.group.AsyncGroup:
     """
     Consolidate metadata of all nodes in a hierarchy asynchronously.
@@ -1114,7 +1120,8 @@ async def async_consolidate_metadata(
 # Helper functions
 def _add_coordinate_metadata(ds: xr.Dataset) -> None:
     """Add proper metadata to coordinate variables."""
-    for coord_name in ds.coords:
+    for coord in ds.coords:
+        coord_name = _name_from_hashable(coord)
         if coord_name == "x":
             ds[coord_name].attrs.update(
                 {
@@ -1180,7 +1187,7 @@ def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
 
         # Update all data variables to reference the grid_mapping
         ds.attrs["grid_mapping"] = grid_mapping_var_name
-        for band in ds.data_vars:
+        for band in _data_var_names(ds):
             if band != "spatial_ref":
                 ds[band].attrs["grid_mapping"] = grid_mapping_var_name
 
@@ -1202,7 +1209,7 @@ def _add_geotransform(ds: xr.Dataset, grid_mapping_var: str) -> None:
         ds[grid_mapping_var].attrs["GeoTransform"] = transform_str
 
 
-def _find_reference_crs(geozarr_groups: Dict[str, xr.Dataset]) -> Optional[str]:
+def _find_reference_crs(geozarr_groups: dict[str, xr.Dataset]) -> str | None:
     """Find the reference CRS in the geozarr groups."""
     for key, group in geozarr_groups.items():
         if group.rio.crs:
@@ -1214,27 +1221,23 @@ def _find_reference_crs(geozarr_groups: Dict[str, xr.Dataset]) -> Optional[str]:
 
 def _create_encoding(
     ds: xr.Dataset, compressor: Any, spatial_chunk: int
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create encoding for dataset variables."""
-    encoding: Dict[str, Any] = {}
-    for var in ds.data_vars:
-        if hasattr(ds[var].data, "chunks"):
-            current_chunks = ds[var].chunks
-            if len(current_chunks) >= 2:
-                chunking = tuple(
-                    current_chunks[i][0]
-                    if len(current_chunks[i]) > 0
-                    else ds[var].shape[i]
-                    for i in range(len(current_chunks))
-                )
-            else:
-                chunking = (
-                    current_chunks[0][0]
-                    if len(current_chunks[0]) > 0
-                    else ds[var].shape[0],
-                )
+    encoding: dict[str, Any] = {}
+    for var_name in _data_var_names(ds):
+        data_array = ds[var_name]
+        chunking: tuple[int, ...]
+        current_chunks = getattr(data_array, "chunks", None)
+        if isinstance(current_chunks, tuple) and current_chunks:
+            chunk_sizes: list[int] = []
+            for idx, chunk_tuple in enumerate(current_chunks):
+                if isinstance(chunk_tuple, tuple) and chunk_tuple:
+                    chunk_sizes.append(int(chunk_tuple[0]))
+                else:
+                    chunk_sizes.append(int(data_array.shape[idx]))
+            chunking = tuple(chunk_sizes)
         else:
-            data_shape = ds[var].shape
+            data_shape = data_array.shape
             if len(data_shape) >= 2:
                 chunk_y = min(spatial_chunk, data_shape[-2])
                 chunk_x = min(spatial_chunk, data_shape[-1])
@@ -1245,25 +1248,25 @@ def _create_encoding(
             else:
                 chunking = (min(spatial_chunk, data_shape[-1]),)
 
-        encoding[var] = {"compressors": [compressor], "chunks": chunking}
+        encoding[var_name] = {"compressors": [compressor], "chunks": chunking}
 
     # Add coordinate encoding
-    for coord in ds.coords:
-        encoding[coord] = {"compressors": None}
+    for coord_name in _coord_names(ds):
+        encoding[coord_name] = {"compressors": None}
 
     return encoding
 
 
 def _create_geozarr_encoding(
     ds: xr.Dataset, compressor: Any, spatial_chunk: int
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create encoding for GeoZarr dataset variables."""
-    encoding: Dict[str, Any] = {}
-    for var in ds.data_vars:
-        if utils.is_grid_mapping_variable(ds, var):
-            encoding[var] = {"compressors": None}
+    encoding: dict[str, Any] = {}
+    for var_name in _data_var_names(ds):
+        if utils.is_grid_mapping_variable(ds, var_name):
+            encoding[var_name] = {"compressors": None}
         else:
-            data_shape = ds[var].shape
+            data_shape = ds[var_name].shape
             if len(data_shape) >= 2:
                 height, width = data_shape[-2:]
                 spatial_chunk_aligned = min(
@@ -1274,19 +1277,19 @@ def _create_geozarr_encoding(
             else:
                 spatial_chunk_aligned = spatial_chunk
 
-            encoding[var] = {
+            encoding[var_name] = {
                 "chunks": (spatial_chunk_aligned, spatial_chunk_aligned),
                 "compressors": compressor,
             }
 
     # Add coordinate encoding
-    for coord in ds.coords:
-        encoding[coord] = {"compressors": None}
+    for coord_name in _coord_names(ds):
+        encoding[coord_name] = {"compressors": None}
 
     return encoding
 
 
-def _load_existing_dataset(path: str) -> Optional[xr.Dataset]:
+def _load_existing_dataset(path: str) -> xr.Dataset | None:
     """Load existing dataset if it exists."""
     try:
         if fs_utils.path_exists(path):
@@ -1305,8 +1308,8 @@ def _load_existing_dataset(path: str) -> Optional[xr.Dataset]:
 
 
 def _create_tile_matrix_limits(
-    overview_levels: List[Dict[str, Any]], tile_width: int
-) -> Dict[str, Any]:
+    overview_levels: list[dict[str, Any]], tile_width: int
+) -> dict[str, Any]:
     """Create tile matrix limits for overview levels."""
     tile_matrix_limits = {}
     for ol in overview_levels:
@@ -1324,7 +1327,7 @@ def _create_tile_matrix_limits(
     return tile_matrix_limits
 
 
-def _get_x_coord_attrs() -> Dict[str, Any]:
+def _get_x_coord_attrs() -> dict[str, Any]:
     """Get standard attributes for x coordinate."""
     return {
         "units": "m",
@@ -1334,7 +1337,7 @@ def _get_x_coord_attrs() -> Dict[str, Any]:
     }
 
 
-def _get_y_coord_attrs() -> Dict[str, Any]:
+def _get_y_coord_attrs() -> dict[str, Any]:
     """Get standard attributes for y coordinate."""
     return {
         "units": "m",
@@ -1344,7 +1347,7 @@ def _get_y_coord_attrs() -> Dict[str, Any]:
     }
 
 
-def _find_grid_mapping_var_name(ds: xr.Dataset, data_vars: List[str]) -> str:
+def _find_grid_mapping_var_name(ds: xr.Dataset, data_vars: list[str]) -> str:
     """Find the grid_mapping variable name from the dataset."""
     grid_mapping_var_name = ds.attrs.get("grid_mapping", None)
     if not grid_mapping_var_name and data_vars:

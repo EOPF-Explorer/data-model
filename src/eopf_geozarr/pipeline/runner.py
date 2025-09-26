@@ -48,7 +48,7 @@ def _resolve_zarr_root(src_item: str, logger: logging.Logger) -> str:
                 check=True,
                 capture_output=True,
                 text=True,
-            )  # noqa: S603 - executes trusted resolver shipped alongside the pipeline
+            )
             output = result.stdout.strip()
             if not output:
                 raise RuntimeError("Resolver script returned empty output.")
@@ -166,7 +166,6 @@ def run_pipeline(payload: GeoZarrPayload) -> None:
                 logger.warning("Error while closing Dask client: %s", exc)
 
 
-@app.command()  # type: ignore[misc]
 def run(
     src_item: str = typer.Option(..., help="STAC item URL"),
     output_zarr: str = typer.Option(
@@ -224,6 +223,9 @@ def run(
         service_account=service_account,
     )
     run_pipeline(payload)
+
+
+app.command()(run)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, List, Tuple
 
 import xarray as xr
 
@@ -19,7 +19,7 @@ class ValidationIssue:
 class ValidationReport:
     total_variables: int
     compliant_variables: int
-    issues: Tuple[ValidationIssue, ...]
+    issues: tuple[ValidationIssue, ...]
 
     @property
     def is_compliant(self) -> bool:
@@ -41,7 +41,7 @@ def validate_geozarr_store(path: str) -> ValidationReport:
         path, engine="zarr", chunks="auto", storage_options=storage_options
     )
     try:
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         total = 0
         compliant = 0
         for group_name, group in dt.children.items():

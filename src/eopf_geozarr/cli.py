@@ -9,7 +9,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
@@ -111,7 +111,7 @@ def convert_command(args: argparse.Namespace) -> None:
     )
 
     started_at = time.perf_counter()
-    started_ts = datetime.now(UTC)
+    started_ts = datetime.now(timezone.utc)
 
     try:
         # Validate input path (handle both local paths and URLs)
@@ -207,7 +207,7 @@ def convert_command(args: argparse.Namespace) -> None:
 
         metrics_target = (getattr(args, "metrics_out", None) or "").strip()
         if metrics_target:
-            finished_ts = datetime.now(UTC)
+            finished_ts = datetime.now(timezone.utc)
             metrics = {
                 "src_item": input_path,
                 "output_zarr": output_path,

@@ -1,8 +1,15 @@
 """Utility functions for GeoZarr conversion."""
 
+from collections.abc import Hashable
+from typing import cast
+
 import numpy as np
 import rasterio  # noqa: F401  # Import to enable .rio accessor
 import xarray as xr
+
+
+def _name_from_hashable(value: Hashable) -> str:
+    return value if isinstance(value, str) else str(value)
 
 
 def downsample_2d_array(
@@ -39,7 +46,7 @@ def downsample_2d_array(
         reshaped = reshaped.reshape(
             target_height, block_size_y, target_width, block_size_x
         )
-        downsampled = reshaped.mean(axis=(1, 3))
+        downsampled = cast(np.ndarray, reshaped.mean(axis=(1, 3)))
     else:
         # Simple subsampling
         y_indices = np.linspace(0, source_height - 1, target_height, dtype=int)
@@ -49,7 +56,7 @@ def downsample_2d_array(
     return downsampled
 
 
-def is_grid_mapping_variable(ds: xr.Dataset, var_name: str) -> bool:
+def is_grid_mapping_variable(ds: xr.Dataset, var_name: Hashable) -> bool:
     """
     Check if a variable is a grid_mapping variable by looking for references to it.
 
@@ -65,9 +72,11 @@ def is_grid_mapping_variable(ds: xr.Dataset, var_name: str) -> bool:
     bool
         True if this variable is referenced as a grid_mapping
     """
+    target_name = _name_from_hashable(var_name)
     for data_var in ds.data_vars:
-        if data_var != var_name and "grid_mapping" in ds[data_var].attrs:
-            if ds[data_var].attrs["grid_mapping"] == var_name:
+        data_var_name = _name_from_hashable(data_var)
+        if data_var_name != target_name and "grid_mapping" in ds[data_var_name].attrs:
+            if ds[data_var_name].attrs["grid_mapping"] == target_name:
                 return True
     return False
 
@@ -104,7 +113,7 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 
 
 def validate_existing_band_data(
-    existing_group: xr.Dataset, var_name: str, reference_ds: xr.Dataset
+    existing_group: xr.Dataset, var_name: Hashable, reference_ds: xr.Dataset
 ) -> bool:
     """
     Validate that a specific band exists and is complete in the dataset.
@@ -125,27 +134,25 @@ def validate_existing_band_data(
     """
     try:
         # Check if the variable exists
-        if (
-            var_name not in existing_group.data_vars
-            and var_name not in existing_group.coords
-        ):
+        name = _name_from_hashable(var_name)
+        if name not in existing_group.data_vars and name not in existing_group.coords:
             return False
 
         # Check shape matches
-        if var_name in reference_ds.data_vars:
-            expected_shape = reference_ds[var_name].shape
-            existing_shape = existing_group[var_name].shape
+        if name in reference_ds.data_vars:
+            expected_shape = reference_ds[name].shape
+            existing_shape = existing_group[name].shape
 
             if expected_shape != existing_shape:
                 return False
 
         # Check required attributes for data variables
-        if var_name in reference_ds.data_vars and not is_grid_mapping_variable(
-            reference_ds, var_name
+        if name in reference_ds.data_vars and not is_grid_mapping_variable(
+            reference_ds, name
         ):
             required_attrs = ["_ARRAY_DIMENSIONS", "standard_name"]
             for attr in required_attrs:
-                if attr not in existing_group[var_name].attrs:
+                if attr not in existing_group[name].attrs:
                     return False
 
         # Check rio CRS
@@ -153,12 +160,12 @@ def validate_existing_band_data(
             return False
 
         # Basic data integrity check for data variables
-        if var_name in existing_group.data_vars and not is_grid_mapping_variable(
-            existing_group, var_name
+        if name in existing_group.data_vars and not is_grid_mapping_variable(
+            existing_group, name
         ):
             try:
                 # Just check if we can access the array metadata without reading data
-                array_info = existing_group[var_name]
+                array_info = existing_group[name]
                 if array_info.size == 0:
                     return False
                 # read a piece of data to ensure it's valid
@@ -168,7 +175,7 @@ def validate_existing_band_data(
                 if np.isnan(test):
                     return False
             except Exception as e:
-                print(f"Error validating variable {var_name}: {e}")
+                print(f"Error validating variable {name}: {e}")
                 return False
 
         return True

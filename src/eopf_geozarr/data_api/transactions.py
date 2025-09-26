@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 
 import httpx
 import pystac
@@ -134,12 +135,14 @@ async def ensure_collection(
     if not allow_create:
         msg = f"Collection '{collection_id}' not found and auto-create disabled"
         raise RuntimeError(msg)
+    temporal_extent: list[list[datetime | None]] = [[None, None]]
+
     collection = pystac.Collection(
         id=collection_id,
         description=description or f"Auto-created collection {collection_id}",
         extent=pystac.Extent(
             spatial=pystac.SpatialExtent([[-180.0, -90.0, 180.0, 90.0]]),
-            temporal=pystac.TemporalExtent([[None, None]]),
+            temporal=pystac.TemporalExtent(temporal_extent),
         ),
         title=title or collection_id,
         license="provisional",
