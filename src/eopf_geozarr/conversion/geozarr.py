@@ -502,6 +502,7 @@ def write_geozarr_group(
             tile_width=tile_width,
             spatial_chunk=spatial_chunk,
             ds_gcp=ds_gcp,
+            enable_sharding=enable_sharding,
         )
     except Exception as e:
         print(
@@ -527,6 +528,7 @@ def create_geozarr_compliant_multiscales(
     tile_width: int = 256,
     spatial_chunk: int = 4096,
     ds_gcp: xr.Dataset | None = None,
+    enable_sharding: bool = False
 ) -> Dict[str, Any]:
     """
     Create GeoZarr-spec compliant multiscales following the specification exactly.
@@ -684,10 +686,11 @@ def create_geozarr_compliant_multiscales(
             native_bounds,
             data_vars,
             ds_gcp_overview,
+            enable_sharding,
         )
 
         # Create encoding for this overview level
-        encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk)
+        encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk, enable_sharding)
 
         # Write overview level
         overview_path = fs_utils.normalize_path(f"{output_path}/{group_name}/{level}")
@@ -895,6 +898,7 @@ def create_overview_dataset_all_vars(
     native_bounds: Tuple[float, float, float, float],
     data_vars: Sequence[Hashable],
     ds_gcp: xr.Dataset | None = None,
+    enable_sharding: bool = False,
 ) -> xr.Dataset:
     """
     Create an overview dataset containing all variables for a specific level.
