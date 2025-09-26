@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import fsspec
@@ -48,7 +48,7 @@ def _resolve_zarr_root(src_item: str, logger: logging.Logger) -> str:
                 check=True,
                 capture_output=True,
                 text=True,
-            )
+            )  # noqa: S603 - executes trusted resolver shipped alongside the pipeline
             output = result.stdout.strip()
             if not output:
                 raise RuntimeError("Resolver script returned empty output.")
@@ -56,7 +56,7 @@ def _resolve_zarr_root(src_item: str, logger: logging.Logger) -> str:
     raise FileNotFoundError("resolve_zarr_from_item.py not found in expected locations")
 
 
-def _maybe_start_dask(enable: bool, logger: logging.Logger) -> Optional[Any]:
+def _maybe_start_dask(enable: bool, logger: logging.Logger) -> Any | None:
     if not enable:
         return None
     try:
@@ -167,36 +167,34 @@ def run_pipeline(payload: GeoZarrPayload) -> None:
 
 
 @app.command()  # type: ignore[misc]
-def run(  # noqa: PLR0913 - CLI mirrors WorkflowTemplate parameters
+def run(
     src_item: str = typer.Option(..., help="STAC item URL"),
     output_zarr: str = typer.Option(
         ..., help="Target GeoZarr store (s3:// or local path)"
     ),
-    groups: Optional[str] = typer.Option(None, help="Comma-separated group paths"),
-    crs_groups: Optional[str] = typer.Option(
-        None, help="Comma-separated CRS group paths"
-    ),
-    register_url: Optional[str] = typer.Option(None),
-    register_collection: Optional[str] = typer.Option(None),
-    register_bearer_token: Optional[str] = typer.Option(None),
-    register_href: Optional[str] = typer.Option(None),
-    register_mode: Optional[str] = typer.Option(None),
-    id_policy: Optional[str] = typer.Option(None),
-    s3_endpoint: Optional[str] = typer.Option(None),
-    s3_region: Optional[str] = typer.Option(None),
-    aws_addressing_style: Optional[str] = typer.Option(None),
-    max_retries: Optional[str] = typer.Option(None),
-    overwrite: Optional[str] = typer.Option(None),
-    metrics_out: Optional[str] = typer.Option(None),
-    spatial_chunk: Optional[str] = typer.Option(None),
-    min_dimension: Optional[str] = typer.Option(None),
-    tile_width: Optional[str] = typer.Option(None),
-    dask_cluster: Optional[str] = typer.Option(None),
-    verbose: Optional[str] = typer.Option(None),
-    aws_session_token: Optional[str] = typer.Option(None),
-    collection_thumbnail: Optional[str] = typer.Option(None),
-    owner: Optional[str] = typer.Option(None),
-    service_account: Optional[str] = typer.Option(None),
+    groups: str | None = typer.Option(None, help="Comma-separated group paths"),
+    crs_groups: str | None = typer.Option(None, help="Comma-separated CRS group paths"),
+    register_url: str | None = typer.Option(None),
+    register_collection: str | None = typer.Option(None),
+    register_bearer_token: str | None = typer.Option(None),
+    register_href: str | None = typer.Option(None),
+    register_mode: str | None = typer.Option(None),
+    id_policy: str | None = typer.Option(None),
+    s3_endpoint: str | None = typer.Option(None),
+    s3_region: str | None = typer.Option(None),
+    aws_addressing_style: str | None = typer.Option(None),
+    max_retries: str | None = typer.Option(None),
+    overwrite: str | None = typer.Option(None),
+    metrics_out: str | None = typer.Option(None),
+    spatial_chunk: str | None = typer.Option(None),
+    min_dimension: str | None = typer.Option(None),
+    tile_width: str | None = typer.Option(None),
+    dask_cluster: str | None = typer.Option(None),
+    verbose: str | None = typer.Option(None),
+    aws_session_token: str | None = typer.Option(None),
+    collection_thumbnail: str | None = typer.Option(None),
+    owner: str | None = typer.Option(None),
+    service_account: str | None = typer.Option(None),
 ) -> None:
     payload = GeoZarrPayload.from_cli(
         src_item=src_item,

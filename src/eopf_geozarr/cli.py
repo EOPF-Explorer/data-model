@@ -6,9 +6,13 @@ This module provides CLI commands for converting EOPF datasets to GeoZarr compli
 """
 
 import argparse
+import json
 import sys
+import time
+from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import xarray as xr
 
@@ -21,7 +25,34 @@ from .conversion.fs_utils import (
 )
 
 
-def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:
+def _package_version() -> str:
+    try:
+        return version("eopf-geozarr")
+    except PackageNotFoundError:  # pragma: no cover - fallback for editable installs
+        return "unknown"
+
+
+def _write_metrics(path: str, payload: dict[str, Any]) -> None:
+    target = path.strip()
+    if not target:
+        return
+    content = json.dumps(payload, indent=2) + "\n"
+    if is_s3_path(target):
+        try:
+            import fsspec
+        except ImportError as exc:  # pragma: no cover - dependency guard
+            raise RuntimeError(
+                "Writing metrics to S3 requires 'fsspec'; install with the s3 extras"
+            ) from exc
+        with fsspec.open(target, "w", encoding="utf-8") as stream:
+            stream.write(content)
+        return
+    metrics_path = Path(target)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics_path.write_text(content, encoding="utf-8")
+
+
+def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Any | None:
     """
     Set up a dask cluster for parallel processing.
 
@@ -57,7 +88,7 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
 
     except ImportError:
         print(
-            "❌ Error: dask.distributed not available. Install with: pip install 'dask[distributed]'"
+            "❌ Error: dask.distributed not available. Install via pip install 'dask[distributed]'"
         )
         sys.exit(1)
     except Exception as e:
@@ -78,6 +109,9 @@ def convert_command(args: argparse.Namespace) -> None:
     dask_client = setup_dask_cluster(
         enable_dask=getattr(args, "dask_cluster", False), verbose=args.verbose
     )
+
+    started_at = time.perf_counter()
+    started_ts = datetime.now(UTC)
 
     try:
         # Validate input path (handle both local paths and URLs)
@@ -170,6 +204,30 @@ def convert_command(args: argparse.Namespace) -> None:
 
         print("✅ Successfully converted EOPF dataset to GeoZarr format")
         print(f"Output saved to: {output_path}")
+
+        metrics_target = (getattr(args, "metrics_out", None) or "").strip()
+        if metrics_target:
+            finished_ts = datetime.now(UTC)
+            metrics = {
+                "src_item": input_path,
+                "output_zarr": output_path,
+                "groups": list(args.groups or []),
+                "crs_groups": list(args.crs_groups or []),
+                "spatial_chunk": args.spatial_chunk,
+                "min_dimension": args.min_dimension,
+                "tile_width": args.tile_width,
+                "dask_cluster": bool(getattr(args, "dask_cluster", False)),
+                "max_retries": args.max_retries,
+                "duration_seconds": round(time.perf_counter() - started_at, 3),
+                "started_at": started_ts.isoformat(),
+                "finished_at": finished_ts.isoformat(),
+                "version": _package_version(),
+            }
+            try:
+                _write_metrics(metrics_target, metrics)
+                print(f"📈 Metrics written to {metrics_target}")
+            except Exception as exc:  # pragma: no cover - diagnostics only
+                print(f"⚠️ Warning: failed to write metrics to {metrics_target}: {exc}")
 
         if args.verbose:
             # Check if dt_geozarr is a DataTree or Dataset
@@ -273,7 +331,7 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
     """
 
     def has_meaningful_content(node: Any) -> bool:
-        """Check if a node has meaningful content (data variables, attributes, or meaningful children)."""
+        """Check if a node has data, attributes, or meaningful child nodes."""
         if hasattr(node, "ds") and node.ds is not None:
             # Has data variables
             if hasattr(node.ds, "data_vars") and len(node.ds.data_vars) > 0:
@@ -316,7 +374,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             # Fallback to simple format if xarray HTML fails
             vars_html = []
             for name, var in data_vars.items():
-                dims_str = format_dimensions(dict(zip(var.dims, var.shape)))
+                dims_str = format_dimensions(
+                    dict(zip(var.dims, var.shape, strict=True))
+                )
                 dtype_str = str(var.dtype)
                 vars_html.append(
                     f"""
@@ -474,7 +534,10 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             .tree-node {{
                 margin-bottom: 8px;
             }}
-
+                help=(
+                    "Groups that need CRS information added on best-effort basis "
+                    "(e.g., /conditions/geometry)"
+                ),
             .tree-details {{
                 border: 1px solid #e1e5e9;
                 border-radius: 6px;
@@ -549,7 +612,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
             }}
 
             .var-name {{
-                font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+                font-family:
+                    'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+                    Consolas, 'Courier New', monospace;
                 font-weight: 600;
                 color: #0969da;
                 min-width: 120px;
@@ -563,7 +628,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
             .var-dtype {{
                 color: #1a7f37;
-                font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+                font-family:
+                    'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+                    Consolas, 'Courier New', monospace;
                 font-size: 0.85em;
                 font-weight: 500;
                 background-color: #f6f8fa;
@@ -586,7 +653,9 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
             .attr-value {{
                 color: #656d76;
-                font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+                font-family:
+                    'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+                    Consolas, 'Courier New', monospace;
                 font-size: 0.85em;
             }}
 
@@ -638,7 +707,9 @@ def _generate_html_output(
     <style>
         /* EOPF-inspired styling */
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            font-family:
+                -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+                'Helvetica Neue', Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #fafafa;
@@ -873,7 +944,9 @@ def _generate_html_output(
                 </div>
                 <div class="header-info-item">
                     <div class="header-info-label">Generated</div>
-                    <div class="header-info-value">{__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+                    <div class="header-info-value">
+                        {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1082,10 +1155,19 @@ def create_parser() -> argparse.ArgumentParser:
         help="Maximum number of retries for network operations (default: 3)",
     )
     convert_parser.add_argument(
+        "--metrics-out",
+        type=str,
+        help="Optional path (local or s3://) for conversion metrics JSON",
+    )
+    convert_parser.add_argument(
         "--crs-groups",
         type=str,
         nargs="*",
-        help="Groups that need CRS information added on best-effort basis (e.g., /conditions/geometry)",
+        default=None,
+        help=(
+            "Groups that need CRS information added on best-effort basis "
+            "(e.g., /conditions/geometry)"
+        ),
     )
     convert_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"

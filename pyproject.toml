@@ -37,10 +37,12 @@ dependencies = [
     "cf-xarray>=0.8.0",
     "typing-extensions>=4.0.0",
     "aiohttp>=3.8.1",
+    "fsspec>=2024.6.0",
     "s3fs>=2024.6.0",
     "boto3>=1.34.0",
     "pyproj>=3.7.0",
     "jsonschema>=4.23.0",
+    "typer>=0.12.3",
 ]
 
 [dependency-groups]
@@ -78,6 +80,7 @@ Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
 
 [project.scripts]
 eopf-geozarr = "eopf_geozarr.cli:main"
+eopf-geozarr-pipeline = "eopf_geozarr.pipeline.runner:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
