@@ -1487,14 +1487,22 @@ def _create_geozarr_encoding(
                     shard_y = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shard_x = _calculate_shard_dimension(data_shape[2], chunks[2])
                     shards = (shard_time, shard_y, shard_x)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
                 elif len(data_shape) == 2:
                     # For 2D data (y, x), ensure shard dimensions are divisible by chunks
                     shard_y = _calculate_shard_dimension(data_shape[0], chunks[0])
                     shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shards = (shard_y, shard_x)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
                 else:
                     # For 1D data, use the full dimension
                     shards = (data_shape[0],)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                
+                # Validate that shards are evenly divisible by chunks
+                for i, (shard_dim, chunk_dim) in enumerate(zip(shards, chunks)):
+                    if shard_dim % chunk_dim != 0:
+                        print(f"  ⚠️  Warning: Shard dimension {shard_dim} not evenly divisible by chunk dimension {chunk_dim} at axis {i}")
                 
             encoding[var] = {
                 "chunks": chunks,
@@ -1656,7 +1664,10 @@ def _add_grid_mapping_variable(
 
 def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     """
-    Calculate shard dimension that is divisible by chunk dimension.
+    Calculate shard dimension that is evenly divisible by chunk dimension.
+    
+    For Zarr v3 sharding with Dask, the shard dimension must be evenly 
+    divisible by the chunk dimension to avoid checksum mismatches.
     
     Parameters
     ----------
@@ -1668,15 +1679,26 @@ def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     Returns
     -------
     int
-        Shard dimension that is divisible by chunk_dim
+        Shard dimension that is evenly divisible by chunk_dim
     """
     # If chunk is larger than or equal to data dimension, use full dimension
     if chunk_dim >= data_dim:
         return data_dim
     
-    # Find the largest multiple of chunk_dim that doesn't exceed data_dim
-    # This ensures the shard dimension is divisible by chunk dimension
-    return (data_dim // chunk_dim) * chunk_dim
+    # Calculate how many complete chunks fit in the data dimension
+    num_complete_chunks = data_dim // chunk_dim
+    
+    # If we have at least 2 complete chunks, use a multiple of chunk_dim
+    if num_complete_chunks >= 2:
+        # Use a shard size that's a multiple of chunk_dim
+        # Prefer 2x, 3x, 4x, 5x, 6x chunk size, but don't exceed data dimension
+        for multiplier in [6, 5, 4, 3, 2]:
+            shard_size = multiplier * chunk_dim
+            if shard_size <= data_dim:
+                return shard_size
+    
+    # Fallback: use the largest multiple of chunk_dim that fits
+    return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
 
 
 def _is_sentinel1(dt: xr.DataTree) -> bool:
