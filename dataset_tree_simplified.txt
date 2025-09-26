@@ -1,0 +1,112 @@
+# Simplified Data Tree Structure
+# Extracted from: S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr
+# Generated: 2025-09-26 11:25:09
+
+Dataset: S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr
+Path: s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr
+Total Groups: 3
+
+root/
+├── conditions/
+│   ├── geometry/
+│   │   └── Variables: mean_sun_angles, mean_viewing_incidence_angles, spatial_ref, sun_angles, viewing_incidence_angles
+│   ├── mask/
+│   │   ├── l1c_classification/
+│   │   │   └── r60m/
+│   │   │       └── Variables: b00
+│   │   ├── l2a_classification/
+│   │   │   ├── r20m/
+│   │   │   │   └── Variables: scl
+│   │   │   └── r60m/
+│   │   │       └── Variables: scl
+│   │   └── detector_footprint/
+│   │       ├── r10m/
+│   │       │   └── Variables: b03, b04, b02, b08
+│   │       ├── r20m/
+│   │       │   └── Variables: b05, b06, b07, b11, b12, b8a
+│   │       └── r60m/
+│   │           └── Variables: b09, b01, b10
+│   └── meteorology/
+│       ├── cams/
+│       │   └── Variables: aod1240, aod469, aod550, bcaod550, duaod550, aod670, aod865, ssaod550, omaod550, suaod550, z
+│       └── ecmwf/
+│           └── Variables: r, msl, tco3, tcwv, u10, v10
+├── quality/
+│   ├── atmosphere/
+│   │   ├── r20m/
+│   │   │   └── Variables: aot, wvp
+│   │   ├── r60m/
+│   │   │   └── Variables: aot, wvp
+│   │   └── r10m/
+│   │       └── Variables: aot, wvp
+│   ├── mask/
+│   │   ├── r20m/
+│   │   │   └── Variables: b05, b8a, b07, b06, b11, b12
+│   │   ├── r60m/
+│   │   │   └── Variables: b01, b09, b10
+│   │   └── r10m/
+│   │       └── Variables: b02, b04, b03, b08
+│   ├── probability/
+│   │   └── r20m/
+│   │       └── Variables: cld, snw
+│   └── l2a_quicklook/
+│       ├── r10m/
+│       │   ├── 0/
+│       │   │   └── Variables: spatial_ref, tci
+│       │   ├── 1/
+│       │   │   └── Variables: spatial_ref, tci
+│       │   ├── 2/
+│       │   │   └── Variables: spatial_ref, tci
+│       │   ├── 3/
+│       │   │   └── Variables: spatial_ref, tci
+│       │   ├── 4/
+│       │   │   └── Variables: spatial_ref, tci
+│       │   └── 5/
+│       │       └── Variables: spatial_ref, tci
+│       ├── r20m/
+│       │   └── Variables: tci
+│       └── r60m/
+│           └── Variables: tci
+└── measurements/
+    └── reflectance/
+        ├── r20m/
+        │   ├── 0/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b11, b12, b8a, spatial_ref
+        │   ├── 1/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b11, b12, b8a, spatial_ref
+        │   ├── 2/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b11, b12, b8a, spatial_ref
+        │   ├── 3/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b11, b12, b8a, spatial_ref
+        │   └── 4/
+        │       └── Variables: b01, b02, b03, b04, b05, b06, b07, b11, b12, b8a, spatial_ref
+        ├── r60m/
+        │   ├── 0/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b09, b11, b12, b8a, spatial_ref
+        │   ├── 1/
+        │   │   └── Variables: b01, b02, b03, b04, b05, b06, b07, b09, b11, b12, b8a, spatial_ref
+        │   └── 2/
+        │       └── Variables: b01, b02, b03, b04, b05, b06, b07, b09, b11, b12, b8a, spatial_ref
+        └── r10m/
+            ├── 0/
+            │   └── Variables: b02, b03, b04, b08, spatial_ref
+            ├── 1/
+            │   └── Variables: b02, b03, b04, b08, spatial_ref
+            ├── 2/
+            │   └── Variables: b02, b03, b04, b08, spatial_ref
+            ├── 3/
+            │   └── Variables: b02, b03, b04, b08, spatial_ref
+            ├── 4/
+            │   └── Variables: b02, b03, b04, b08, spatial_ref
+            └── 5/
+                └── Variables: b02, b03, b04, b08, spatial_ref
+
+## Summary:
+- Main categories: conditions, quality, measurements
+- Resolution levels: r10m (10m), r20m (20m), r60m (60m)
+- Spectral bands: b01-b12, b8a
+- Mask types: l1c_classification, l2a_classification, detector_footprint
+- Quality metrics: atmosphere (aot, wvp), probability (cld, snw)
+- Meteorological data: CAMS aerosol data, ECMWF weather data
+- Geometric data: sun angles, viewing angles, spatial reference
+- Multiscale data: Multiple zoom levels (0-5) for visualization

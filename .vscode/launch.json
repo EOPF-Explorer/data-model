@@ -237,7 +237,7 @@
             "module": "eopf_geozarr",
             "args": [
                 "info",
-                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2B_MSIL2A_20250921T100029_N0511_R122_T33TTG_20250921T135752.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
                 "--verbose",
                 "--html-output", "dataset_info.html"
             ],
