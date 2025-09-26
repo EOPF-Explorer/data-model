@@ -59,6 +59,7 @@ dev = [
     "pre-commit>=3.0.0",
     "bandit[toml]>=1.7.0",
     "safety>=2.0.0",
+    "ruff>=0.8.4",
 ]
 test = [
     "pytest>=7.0.0",
@@ -91,6 +92,17 @@ include = ["eopf_geozarr*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.txt", "*.yml", "*.yaml", "*.json"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+ignore = ["E203", "E402"]
+select = ["E", "F", "I", "UP", "B", "S", "RUF"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
 
 [tool.black]
 line-length = 100
@@ -133,6 +145,7 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+mypy_path = ["src"]
 
 [[tool.mypy.overrides]]
 module = ["zarr.*", "xarray.*", "rioxarray.*", "cf_xarray.*", "dask.*"]
@@ -146,14 +159,12 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "network: marks tests that require network access",
+    "asyncio: marks asyncio tests",
 ]
 
 [tool.coverage.run]
 source = ["src"]
-omit = [
-    "tests/*",
-    "setup.py",
-]
+omit = ["tests/*", "setup.py"]
 
 [tool.coverage.report]
 exclude_lines = [
