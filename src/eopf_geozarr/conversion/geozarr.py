@@ -1522,7 +1522,7 @@ def _create_sharded_encoding(
         chunk_height = min(spatial_chunk, height)
         chunk_width = min(spatial_chunk, width)
         
-        # Create sharding codec
+        # Create sharding codec with proper codec chain
         sharding_codec = ShardingCodec(
             chunk_shape=(1, chunk_height, chunk_width),
             codecs=[compressor]
@@ -1530,7 +1530,7 @@ def _create_sharded_encoding(
         
         return {
             "chunks": (1, shard_height, shard_width),  # Full spatial dimensions per shard
-            "compressors": [sharding_codec],
+            "compressors": sharding_codec,  # Pass sharding codec directly, not in list
         }
     else:
         # 2D array (y, x)
@@ -1544,7 +1544,7 @@ def _create_sharded_encoding(
         chunk_height = min(spatial_chunk, height)
         chunk_width = min(spatial_chunk, width)
         
-        # Create sharding codec
+        # Create sharding codec with proper codec chain
         sharding_codec = ShardingCodec(
             chunk_shape=(chunk_height, chunk_width),
             codecs=[compressor]
@@ -1552,7 +1552,7 @@ def _create_sharded_encoding(
         
         return {
             "chunks": (shard_height, shard_width),  # Full spatial dimensions per shard
-            "compressors": [sharding_codec],
+            "compressors": sharding_codec,  # Pass sharding codec directly, not in list
         }
 
 
