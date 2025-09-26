@@ -26,7 +26,7 @@ import xarray as xr
 import zarr
 from pyproj import CRS
 from rasterio.warp import calculate_default_transform
-from zarr.codecs import BloscCodec
+from zarr.codecs import BloscCodec, ShardingCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
@@ -57,6 +57,7 @@ def create_geozarr_dataset(
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -81,6 +82,8 @@ def create_geozarr_dataset(
         Iterable of group names that need CRS information added on best-effort basis
     gcp_group : str, optional
         Group name where GCPs (Ground Control Points) are located.
+    enable_sharding : bool, default False
+        Enable zarr sharding for spatial dimensions of each variable
 
     Returns
     -------
@@ -89,6 +92,9 @@ def create_geozarr_dataset(
     """
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+    
+    if enable_sharding:
+        print("🔧 Zarr sharding enabled for spatial dimensions")
 
     if _is_sentinel1(dt_input):
         if gcp_group is None:
@@ -132,6 +138,7 @@ def create_geozarr_dataset(
         max_retries,
         crs_groups,
         gcp_group,
+        enable_sharding,
     )
 
     # Consolidate metadata at the root level AFTER all groups are written
@@ -230,6 +237,7 @@ def iterative_copy(
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Iteratively copy groups from original DataTree to GeoZarr DataTree.
@@ -301,6 +309,7 @@ def iterative_copy(
                 min_dimension=min_dimension,
                 tile_width=tile_width,
                 gcp_group=gcp_group,
+                enable_sharding=enable_sharding,
             )
             written_groups.add(current_group_path)
             continue
@@ -407,6 +416,7 @@ def write_geozarr_group(
     min_dimension: int = 256,
     tile_width: int = 256,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Write a group to a GeoZarr dataset with multiscales support.
@@ -451,7 +461,7 @@ def write_geozarr_group(
     dt.attrs = ds.attrs.copy()
 
     # Create encoding for all variables
-    encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk)
+    encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk, enable_sharding)
 
     # Write native data in the group 0 (overview level 0)
     native_dataset_group_name = f"{group_name}/0"
@@ -492,6 +502,7 @@ def write_geozarr_group(
             tile_width=tile_width,
             spatial_chunk=spatial_chunk,
             ds_gcp=ds_gcp,
+            enable_sharding=enable_sharding,
         )
     except Exception as e:
         print(
@@ -517,6 +528,7 @@ def create_geozarr_compliant_multiscales(
     tile_width: int = 256,
     spatial_chunk: int = 4096,
     ds_gcp: xr.Dataset | None = None,
+    enable_sharding: bool = False
 ) -> Dict[str, Any]:
     """
     Create GeoZarr-spec compliant multiscales following the specification exactly.
@@ -674,10 +686,11 @@ def create_geozarr_compliant_multiscales(
             native_bounds,
             data_vars,
             ds_gcp_overview,
+            enable_sharding,
         )
 
         # Create encoding for this overview level
-        encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk)
+        encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk, enable_sharding)
 
         # Write overview level
         overview_path = fs_utils.normalize_path(f"{output_path}/{group_name}/{level}")
@@ -885,6 +898,7 @@ def create_overview_dataset_all_vars(
     native_bounds: Tuple[float, float, float, float],
     data_vars: Sequence[Hashable],
     ds_gcp: xr.Dataset | None = None,
+    enable_sharding: bool = False,
 ) -> xr.Dataset:
     """
     Create an overview dataset containing all variables for a specific level.
@@ -1090,7 +1104,17 @@ def write_dataset_band_by_band_with_validation(
         for attempt in range(max_retries):
             try:
                 # Ensure the dataset is properly chunked to align with encoding
-                if var in var_encoding and "chunks" in var_encoding[var]:
+                if var in var_encoding and "shards" in var_encoding[var] and var_encoding[var]["shards"] is not None:
+                    # For sharded variables, use the shards dimensions
+                    shard_dims = var_encoding[var].get("shards", None)
+                    if shard_dims is not None:
+                        var_dims = single_var_ds[var].dims
+                        chunk_dict = {}
+                        for i, dim in enumerate(var_dims):
+                            if i < len(shard_dims):
+                                chunk_dict[dim] = shard_dims[i]
+                        single_var_ds[var] = single_var_ds[var].chunk(chunk_dict)
+                elif var in var_encoding and "chunks" in var_encoding[var]:
                     target_chunks = var_encoding[var]["chunks"]
                     # Create chunk dict using the actual dimensions of the variable
                     var_dims = single_var_ds[var].dims
@@ -1442,7 +1466,7 @@ def _create_encoding(
 
 
 def _create_geozarr_encoding(
-    ds: xr.Dataset, compressor: Any, spatial_chunk: int
+    ds: xr.Dataset, compressor: Any, spatial_chunk: int, enable_sharding: bool = False
 ) -> dict[Hashable, XarrayEncodingJSON]:
     """Create encoding for GeoZarr dataset variables."""
     encoding: dict[Hashable, XarrayEncodingJSON] = {}
@@ -1458,12 +1482,46 @@ def _create_geozarr_encoding(
                     utils.calculate_aligned_chunk_size(width, spatial_chunk),
                     utils.calculate_aligned_chunk_size(height, spatial_chunk),
                 )
+                
+                if len(data_shape) == 3:
+                    chunks = (1, spatial_chunk_aligned, spatial_chunk_aligned)
+                else:
+                    chunks = (spatial_chunk_aligned, spatial_chunk_aligned)
             else:
                 spatial_chunk_aligned = spatial_chunk
-
+                chunks = (spatial_chunk_aligned,)
+                
+            shards = None
+                
+            if enable_sharding:
+                # Calculate shard dimensions that are divisible by chunk dimensions
+                if len(data_shape) == 3:
+                    # For 3D data (time, y, x), ensure shard dimensions are divisible by chunks
+                    shard_time = data_shape[0]  # Keep full time dimension
+                    shard_y = _calculate_shard_dimension(data_shape[1], chunks[1])
+                    shard_x = _calculate_shard_dimension(data_shape[2], chunks[2])
+                    shards = (shard_time, shard_y, shard_x)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                elif len(data_shape) == 2:
+                    # For 2D data (y, x), ensure shard dimensions are divisible by chunks
+                    shard_y = _calculate_shard_dimension(data_shape[0], chunks[0])
+                    shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])
+                    shards = (shard_y, shard_x)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                else:
+                    # For 1D data, use the full dimension
+                    shards = (data_shape[0],)
+                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                
+                # Validate that shards are evenly divisible by chunks
+                for i, (shard_dim, chunk_dim) in enumerate(zip(shards, chunks)):
+                    if shard_dim % chunk_dim != 0:
+                        print(f"  ⚠️  Warning: Shard dimension {shard_dim} not evenly divisible by chunk dimension {chunk_dim} at axis {i}")
+                
             encoding[var] = {
-                "chunks": (spatial_chunk_aligned, spatial_chunk_aligned),
+                "chunks": chunks,
                 "compressors": compressor,
+                "shards": shards,
             }
 
     # Add coordinate encoding
@@ -1616,6 +1674,46 @@ def _add_grid_mapping_variable(
             if "grid_mapping" not in overview_ds[var_name].attrs:
                 overview_ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
                 print(f"  Added grid_mapping attribute to {var_name}")
+
+
+def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
+    """
+    Calculate shard dimension that is evenly divisible by chunk dimension.
+    
+    For Zarr v3 sharding with Dask, the shard dimension must be evenly 
+    divisible by the chunk dimension to avoid checksum mismatches.
+    
+    Parameters
+    ----------
+    data_dim : int
+        Size of the data dimension
+    chunk_dim : int
+        Size of the chunk dimension
+        
+    Returns
+    -------
+    int
+        Shard dimension that is evenly divisible by chunk_dim
+    """
+    # If chunk is larger than data dimension, the effective chunk will be data_dim
+    # In this case, shard should also be data_dim to maintain divisibility
+    if chunk_dim >= data_dim:
+        return data_dim
+    
+    # Calculate how many complete chunks fit in the data dimension
+    num_complete_chunks = data_dim // chunk_dim
+    
+    # If we have at least 2 complete chunks, use a multiple of chunk_dim
+    if num_complete_chunks >= 2:
+        # Use a shard size that's a multiple of chunk_dim
+        for multiplier in range(num_complete_chunks + 1, 2, -1):
+            shard_size = multiplier * chunk_dim
+            if shard_size <= data_dim:
+                return shard_size
+    
+    # Fallback: use the largest multiple of chunk_dim that fits
+    # If no complete chunks fit, use data_dim (this handles edge cases)
+    return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
 
 
 def _is_sentinel1(dt: xr.DataTree) -> bool:
