@@ -63,6 +63,7 @@ nav:
   - Installation: installation.md
   - Quick Start: quickstart.md
   - User Guide: converter.md
+  - Pipeline Integration: pipeline-integration.md
   - API Reference: api-reference.md
   - Examples: examples.md
   - Architecture: architecture.md

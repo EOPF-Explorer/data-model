@@ -70,8 +70,10 @@ eopf-geozarr --help
 
 ### Pipeline-Oriented CLI
 
-The package also ships a workflow-friendly entrypoint that mirrors the RabbitMQ Sensor payload. This is
-useful for dry runs or smoke tests that mimic the production event flow:
+The package also ships a workflow-friendly entrypoint that mirrors the RabbitMQ Sensor payload used in
+`data-model-pipeline`. Use it for dry runs or smoke tests that mimic the production event flow while
+keeping the canonical payload contract in a single place. Refer to
+[`docs/pipeline-integration.md`](docs/pipeline-integration.md) for the full cross-repository overview.
 
 ```bash
 # Inspect available arguments (mirrors Sensor → WorkflowTemplate parameters)
@@ -84,7 +86,8 @@ eopf-geozarr-pipeline run \
   --groups measurements/reflectance/r10m,measurements/reflectance/r20m \
   --register-collection sentinel-2-l2a \
   --register-url https://api.explorer.eopf.copernicus.eu/stac \
-  --overwrite replace
+  --overwrite replace \
+  --metrics-out s3://bucket/metrics/latest.json
 
 # Validate a produced GeoZarr store
 python - <<'PY'
@@ -95,6 +98,12 @@ print(report.summary())
 for line in report.detailed():
     print(" -", line)
 PY
+
+  ### Observability and Metrics
+
+  Both CLIs now support `--metrics-out`, allowing workflows to persist per-run diagnostics either to the
+  local filesystem or directly to `s3://` destinations. The payload helpers expose the same field so Argo
+  Workflow templates and RabbitMQ messages stay aligned.
 ```
 ```
 
