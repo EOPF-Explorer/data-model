@@ -51,8 +51,9 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
     try:
         from dask.distributed import Client
 
-        # Set up local cluster
-        client = Client()  # set up local cluster
+        # Set up local cluster with high memory limits
+        client = Client(memory_limit="8GB")  # set up local cluster
+        # client = Client()  # set up local cluster
 
         if verbose:
             print(f"🚀 Dask cluster started: {client}")

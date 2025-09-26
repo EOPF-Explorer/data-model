@@ -120,6 +120,7 @@
                 "--tile-width", "256",
                 "--max-retries", "2",
                 "--dask-cluster",
+                "--enable-sharding",
                 "--verbose"
             ],
             "cwd": "${workspaceFolder}",
