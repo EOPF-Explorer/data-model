@@ -1468,19 +1468,36 @@ def _create_geozarr_encoding(
                     utils.calculate_aligned_chunk_size(width, spatial_chunk),
                     utils.calculate_aligned_chunk_size(height, spatial_chunk),
                 )
+                
+                if len(data_shape) == 3:
+                    chunks = (1, spatial_chunk_aligned, spatial_chunk_aligned)
+                else:
+                    chunks = (spatial_chunk_aligned, spatial_chunk_aligned)
             else:
                 spatial_chunk_aligned = spatial_chunk
+                chunks = (spatial_chunk_aligned,)
                 
             shards = None
                 
             if enable_sharding:
+                # Calculate shard dimensions that are divisible by chunk dimensions
                 if len(data_shape) == 3:
-                    shards = (1, data_shape[1], data_shape[2])
+                    # For 3D data (time, y, x), ensure shard dimensions are divisible by chunks
+                    shard_time = data_shape[0]  # Keep full time dimension
+                    shard_y = _calculate_shard_dimension(data_shape[1], chunks[1])
+                    shard_x = _calculate_shard_dimension(data_shape[2], chunks[2])
+                    shards = (shard_time, shard_y, shard_x)
+                elif len(data_shape) == 2:
+                    # For 2D data (y, x), ensure shard dimensions are divisible by chunks
+                    shard_y = _calculate_shard_dimension(data_shape[0], chunks[0])
+                    shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])
+                    shards = (shard_y, shard_x)
                 else:
-                    shards = (data_shape[0], data_shape[1])
+                    # For 1D data, use the full dimension
+                    shards = (data_shape[0],)
                 
             encoding[var] = {
-                "chunks": (spatial_chunk_aligned, spatial_chunk_aligned),
+                "chunks": chunks,
                 "compressors": compressor,
                 "shards": shards,
             }
@@ -1635,6 +1652,31 @@ def _add_grid_mapping_variable(
             if "grid_mapping" not in overview_ds[var_name].attrs:
                 overview_ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
                 print(f"  Added grid_mapping attribute to {var_name}")
+
+
+def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
+    """
+    Calculate shard dimension that is divisible by chunk dimension.
+    
+    Parameters
+    ----------
+    data_dim : int
+        Size of the data dimension
+    chunk_dim : int
+        Size of the chunk dimension
+        
+    Returns
+    -------
+    int
+        Shard dimension that is divisible by chunk_dim
+    """
+    # If chunk is larger than or equal to data dimension, use full dimension
+    if chunk_dim >= data_dim:
+        return data_dim
+    
+    # Find the largest multiple of chunk_dim that doesn't exceed data_dim
+    # This ensures the shard dimension is divisible by chunk dimension
+    return (data_dim // chunk_dim) * chunk_dim
 
 
 def _is_sentinel1(dt: xr.DataTree) -> bool:
