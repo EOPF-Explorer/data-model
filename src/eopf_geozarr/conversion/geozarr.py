@@ -26,7 +26,7 @@ import xarray as xr
 import zarr
 from pyproj import CRS
 from rasterio.warp import calculate_default_transform
-from zarr.codecs import BloscCodec
+from zarr.codecs import BloscCodec, ShardingCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
@@ -57,6 +57,7 @@ def create_geozarr_dataset(
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
@@ -81,6 +82,8 @@ def create_geozarr_dataset(
         Iterable of group names that need CRS information added on best-effort basis
     gcp_group : str, optional
         Group name where GCPs (Ground Control Points) are located.
+    enable_sharding : bool, default False
+        Enable zarr sharding for spatial dimensions of each variable
 
     Returns
     -------
@@ -89,6 +92,9 @@ def create_geozarr_dataset(
     """
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+    
+    if enable_sharding:
+        print("🔧 Zarr sharding enabled for spatial dimensions")
 
     if _is_sentinel1(dt_input):
         if gcp_group is None:
@@ -132,6 +138,7 @@ def create_geozarr_dataset(
         max_retries,
         crs_groups,
         gcp_group,
+        enable_sharding,
     )
 
     # Consolidate metadata at the root level AFTER all groups are written
@@ -230,6 +237,7 @@ def iterative_copy(
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Iteratively copy groups from original DataTree to GeoZarr DataTree.
@@ -301,6 +309,7 @@ def iterative_copy(
                 min_dimension=min_dimension,
                 tile_width=tile_width,
                 gcp_group=gcp_group,
+                enable_sharding=enable_sharding,
             )
             written_groups.add(current_group_path)
             continue
@@ -407,6 +416,7 @@ def write_geozarr_group(
     min_dimension: int = 256,
     tile_width: int = 256,
     gcp_group: str | None = None,
+    enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
     Write a group to a GeoZarr dataset with multiscales support.
@@ -451,7 +461,7 @@ def write_geozarr_group(
     dt.attrs = ds.attrs.copy()
 
     # Create encoding for all variables
-    encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk)
+    encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk, enable_sharding)
 
     # Write native data in the group 0 (overview level 0)
     native_dataset_group_name = f"{group_name}/0"
@@ -1442,7 +1452,7 @@ def _create_encoding(
 
 
 def _create_geozarr_encoding(
-    ds: xr.Dataset, compressor: Any, spatial_chunk: int
+    ds: xr.Dataset, compressor: Any, spatial_chunk: int, enable_sharding: bool = False
 ) -> dict[Hashable, XarrayEncodingJSON]:
     """Create encoding for GeoZarr dataset variables."""
     encoding: dict[Hashable, XarrayEncodingJSON] = {}
@@ -1461,16 +1471,89 @@ def _create_geozarr_encoding(
             else:
                 spatial_chunk_aligned = spatial_chunk
 
-            encoding[var] = {
-                "chunks": (spatial_chunk_aligned, spatial_chunk_aligned),
-                "compressors": compressor,
-            }
+            if enable_sharding and len(data_shape) >= 2:
+                # Create sharding configuration for spatial dimensions
+                encoding[var] = _create_sharded_encoding(
+                    data_shape, spatial_chunk_aligned, compressor
+                )
+            else:
+                encoding[var] = {
+                    "chunks": (spatial_chunk_aligned, spatial_chunk_aligned),
+                    "compressors": compressor,
+                }
 
     # Add coordinate encoding
     for coord in ds.coords:
         encoding[coord] = {"compressors": None}
 
     return encoding
+
+
+def _create_sharded_encoding(
+    data_shape: tuple[int, ...], spatial_chunk: int, compressor: Any
+) -> XarrayEncodingJSON:
+    """
+    Create sharded encoding configuration for spatial dimensions.
+    
+    Parameters
+    ----------
+    data_shape : tuple[int, ...]
+        Shape of the data array
+    spatial_chunk : int
+        Spatial chunk size
+    compressor : Any
+        Compressor to use
+        
+    Returns
+    -------
+    dict
+        Encoding configuration with sharding
+    """
+    # Calculate shard configuration based on spatial dimensions
+    if len(data_shape) == 3:
+        # 3D array (time, y, x) or (band, y, x)
+        height, width = data_shape[-2:]
+        
+        # Use full spatial dimensions for shards
+        shard_height = height
+        shard_width = width
+        
+        # Chunk dimensions within shards
+        chunk_height = min(spatial_chunk, height)
+        chunk_width = min(spatial_chunk, width)
+        
+        # Create sharding codec
+        sharding_codec = ShardingCodec(
+            chunk_shape=(1, chunk_height, chunk_width),
+            codecs=[compressor]
+        )
+        
+        return {
+            "chunks": (1, shard_height, shard_width),  # Full spatial dimensions per shard
+            "compressors": [sharding_codec],
+        }
+    else:
+        # 2D array (y, x)
+        height, width = data_shape[-2:]
+        
+        # Use full spatial dimensions for shards
+        shard_height = height
+        shard_width = width
+        
+        # Chunk dimensions within shards
+        chunk_height = min(spatial_chunk, height)
+        chunk_width = min(spatial_chunk, width)
+        
+        # Create sharding codec
+        sharding_codec = ShardingCodec(
+            chunk_shape=(chunk_height, chunk_width),
+            codecs=[compressor]
+        )
+        
+        return {
+            "chunks": (shard_height, shard_width),  # Full spatial dimensions per shard
+            "compressors": [sharding_codec],
+        }
 
 
 def _load_existing_dataset(path: str) -> xr.Dataset | None:

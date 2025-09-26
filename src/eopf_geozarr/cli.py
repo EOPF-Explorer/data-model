@@ -175,6 +175,7 @@ def convert_command(args: argparse.Namespace) -> None:
             max_retries=args.max_retries,
             crs_groups=args.crs_groups,
             gcp_group=args.gcp_group,
+            enable_sharding=args.enable_sharding,
         )
 
         print("✅ Successfully converted EOPF dataset to GeoZarr format")
@@ -1108,6 +1109,11 @@ def create_parser() -> argparse.ArgumentParser:
         "--dask-cluster",
         action="store_true",
         help="Start a local dask cluster for parallel processing of chunks",
+    )
+    convert_parser.add_argument(
+        "--enable-sharding",
+        action="store_true",
+        help="Enable zarr sharding for spatial dimensions of each variable",
     )
     convert_parser.set_defaults(func=convert_command)
 
