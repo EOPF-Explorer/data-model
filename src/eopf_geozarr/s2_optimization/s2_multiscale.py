@@ -390,7 +390,7 @@ class S2MultiscalePyramid:
             
             # Add simplified sharding if enabled - shards match x/y dimensions exactly
             if self.enable_sharding and var_data.ndim >= 2:
-                shard_dims = self._calculate_simple_shard_dimensions(var_data.shape)
+                shard_dims = self._calculate_simple_shard_dimensions(var_data.shape, chunks)
                 var_encoding['shards'] = shard_dims
             
             encoding[var_name] = var_encoding
@@ -419,21 +419,34 @@ class S2MultiscalePyramid:
                 
         return best_chunk
 
-    def _calculate_simple_shard_dimensions(self, data_shape: Tuple) -> Tuple:
+    def _calculate_simple_shard_dimensions(self, data_shape: Tuple, chunks: Tuple) -> Tuple:
         """
-        Calculate shard dimensions that simply match x/y dimensions exactly.
+        Calculate shard dimensions that are compatible with chunk dimensions.
         
-        Shards dimensions will always be the same as the x and y dimensions.
+        Shard dimensions must be evenly divisible by chunk dimensions for Zarr v3.
+        When possible, shards should match x/y dimensions exactly as required.
         """
         shard_dims = []
         
-        for i, dim_size in enumerate(data_shape):
+        for i, (dim_size, chunk_size) in enumerate(zip(data_shape, chunks)):
             if i == 0 and len(data_shape) == 3:
                 # First dimension in 3D data (time) - use single time slice per shard
                 shard_dims.append(1)
             else:
-                # For x/y dimensions, shard dimension equals the full dimension size
-                shard_dims.append(dim_size)
+                # For x/y dimensions, try to use full dimension size
+                # But ensure it's divisible by chunk size
+                if dim_size % chunk_size == 0:
+                    # Perfect: full dimension is divisible by chunk
+                    shard_dims.append(dim_size)
+                else:
+                    # Find the largest multiple of chunk_size that fits
+                    num_chunks = dim_size // chunk_size
+                    if num_chunks > 0:
+                        shard_size = num_chunks * chunk_size
+                        shard_dims.append(shard_size)
+                    else:
+                        # Fallback: use chunk size itself
+                        shard_dims.append(chunk_size)
         
         return tuple(shard_dims)
 
