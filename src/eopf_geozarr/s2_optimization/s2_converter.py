@@ -153,12 +153,14 @@ class S2OptimizedConverter:
         verbose: bool
     ) -> None:
         """Write auxiliary group (geometry or meteorology)."""
-        # Create simple encoding
+        # Create simple encoding following geozarr.py pattern
+        from zarr.codecs import BloscCodec
+        compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
         encoding = {}
         for var_name in dataset.data_vars:
-            encoding[var_name] = {'compressor': 'default'}
+            encoding[var_name] = {'compressors': [compressor]}
         for coord_name in dataset.coords:
-            encoding[coord_name] = {'compressor': None}
+            encoding[coord_name] = {'compressors': None}
         
         # Write dataset
         storage_options = get_storage_options(group_path)
@@ -308,5 +310,16 @@ def convert_s2_optimized(
     Returns:
         Optimized DataTree
     """
-    converter = S2OptimizedConverter(**kwargs)
-    return converter.convert_s2_optimized(dt_input, output_path, **kwargs)
+    # Separate constructor args from method args
+    constructor_args = {
+        'enable_sharding': kwargs.pop('enable_sharding', True),
+        'spatial_chunk': kwargs.pop('spatial_chunk', 1024),
+        'compression_level': kwargs.pop('compression_level', 3),
+        'max_retries': kwargs.pop('max_retries', 3)
+    }
+    
+    # Remaining kwargs are for the convert_s2_optimized method
+    method_args = kwargs
+    
+    converter = S2OptimizedConverter(**constructor_args)
+    return converter.convert_s2_optimized(dt_input, output_path, **method_args)

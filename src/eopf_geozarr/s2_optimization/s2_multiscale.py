@@ -260,7 +260,11 @@ class S2MultiscalePyramid:
         else:
             # Write as single dataset with xy-aligned sharding
             print(f"  Writing level {level} to {level_path} (xy-aligned sharding)")
-            dataset.to_zarr(
+            
+            # Rechunk the dataset to align with encoding chunks (following geozarr.py pattern)
+            rechunked_dataset = self._rechunk_dataset_for_encoding(dataset, encoding)
+            
+            rechunked_dataset.to_zarr(
                 level_path,
                 mode='w',
                 consolidated=True,
@@ -376,10 +380,12 @@ class S2MultiscalePyramid:
             else:
                 chunks = (min(chunk_size, var_data.shape[0]),)
             
-            # Configure encoding
+            # Configure encoding - use proper compressor following geozarr.py pattern
+            from zarr.codecs import BloscCodec
+            compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
             var_encoding = {
                 'chunks': chunks,
-                'compressor': 'default'
+                'compressors': [compressor]
             }
             
             # Add simplified sharding if enabled - shards match x/y dimensions exactly
@@ -391,7 +397,7 @@ class S2MultiscalePyramid:
         
         # Add coordinate encoding
         for coord_name in dataset.coords:
-            encoding[coord_name] = {'compressor': None}
+            encoding[coord_name] = {'compressors': None}
         
         return encoding
 
@@ -430,3 +436,44 @@ class S2MultiscalePyramid:
                 shard_dims.append(dim_size)
         
         return tuple(shard_dims)
+
+    def _rechunk_dataset_for_encoding(self, dataset: xr.Dataset, encoding: Dict) -> xr.Dataset:
+        """
+        Rechunk dataset variables to align with sharding dimensions when sharding is enabled.
+        
+        When using Zarr v3 sharding, Dask chunks must align with shard dimensions to avoid 
+        checksum validation errors.
+        """
+        rechunked_vars = {}
+        
+        for var_name, var_data in dataset.data_vars.items():
+            if var_name in encoding:
+                var_encoding = encoding[var_name]
+                
+                # If sharding is enabled, rechunk based on shard dimensions
+                if 'shards' in var_encoding and var_encoding['shards'] is not None:
+                    target_chunks = var_encoding['shards']  # Use shard dimensions for rechunking
+                elif 'chunks' in var_encoding:
+                    target_chunks = var_encoding['chunks']  # Fallback to chunk dimensions
+                else:
+                    # No specific chunking needed, use original variable
+                    rechunked_vars[var_name] = var_data
+                    continue
+                
+                # Create chunk dict using the actual dimensions of the variable
+                var_dims = var_data.dims
+                chunk_dict = {}
+                for i, dim in enumerate(var_dims):
+                    if i < len(target_chunks):
+                        chunk_dict[dim] = target_chunks[i]
+                
+                # Rechunk the variable to match the target dimensions
+                rechunked_vars[var_name] = var_data.chunk(chunk_dict)
+            else:
+                # No specific chunking needed, use original variable
+                rechunked_vars[var_name] = var_data
+        
+        # Create new dataset with rechunked variables, preserving coordinates
+        rechunked_dataset = xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
+        
+        return rechunked_dataset
