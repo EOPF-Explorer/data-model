@@ -194,6 +194,26 @@ class S2MultiscalePyramid:
                         downsampled = downsampled.assign_coords(reference_coords)
                         all_vars[var_name] = downsampled
         
+        # Add downsampled 10m data
+        if 10 in measurements_by_resolution:
+            data_10m = measurements_by_resolution[10]
+            
+            for category, vars_dict in data_10m.items():
+                for var_name, var_data in vars_dict.items():
+                    if reference_coords:
+                        # Downsample to match 60m grid
+                        target_height = len(reference_coords['y'])
+                        target_width = len(reference_coords['x'])
+                        
+                        var_type = determine_variable_type(var_name, var_data)
+                        downsampled = self.resampler.downsample_variable(
+                            var_data, target_height, target_width, var_type
+                        )
+                        
+                        # Align coordinates
+                        downsampled = downsampled.assign_coords(reference_coords)
+                        all_vars[var_name] = downsampled
+        
         if not all_vars:
             return xr.Dataset()
         
@@ -210,25 +230,25 @@ class S2MultiscalePyramid:
         target_resolution: int,
         measurements_by_resolution: Dict
     ) -> xr.Dataset:
-        """Create downsampled dataset for levels 2+."""
-        # Start from level 1 data (20m) and downsample
-        level_1_dataset = self._create_level_1_dataset(measurements_by_resolution)
+        """Create downsampled dataset for levels 3+."""
+        # Start from level 2 data (60m) which includes all bands, and downsample
+        level_2_dataset = self._create_level_2_dataset(measurements_by_resolution)
         
-        if len(level_1_dataset.data_vars) == 0:
+        if len(level_2_dataset.data_vars) == 0:
             return xr.Dataset()
         
-        # Calculate target dimensions (downsample by factor of 2^(level-1))
-        downsample_factor = 2 ** (level - 1)
+        # Calculate target dimensions (downsample by factor of 2^(level-2))
+        downsample_factor = 2 ** (level - 2)
         
-        # Get reference dimensions from level 1
-        ref_var = next(iter(level_1_dataset.data_vars.values()))
+        # Get reference dimensions from level 2
+        ref_var = next(iter(level_2_dataset.data_vars.values()))
         current_height, current_width = ref_var.shape[-2:]
         target_height = current_height // downsample_factor
         target_width = current_width // downsample_factor
         
         downsampled_vars = {}
         
-        for var_name, var_data in level_1_dataset.data_vars.items():
+        for var_name, var_data in level_2_dataset.data_vars.items():
             var_type = determine_variable_type(var_name, var_data)
             downsampled = self.resampler.downsample_variable(
                 var_data, target_height, target_width, var_type
