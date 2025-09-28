@@ -963,7 +963,10 @@ class S2MultiscalePyramid:
         # Use standard CRS and transform if available
         if crs is not None:
             dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
+            # Add grid mapping variable
+            dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
             
-        # Set the grid mapping variable for all data variables
-        for var in dataset.data_vars.values():
-            var.attrs['grid_mapping'] = grid_mapping_var_name
+            # Set the grid mapping variable for all data variables
+            for var in dataset.data_vars.values():
+                var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+                
