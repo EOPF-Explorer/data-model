@@ -205,7 +205,7 @@ class S2OptimizedConverter:
         pyramid_datasets: Dict[int, xr.Dataset]
     ) -> None:
         """Add multiscales metadata at root level."""
-        from ..geozarr import create_native_crs_tile_matrix_set, calculate_overview_levels
+        from eopf_geozarr.conversion.geozarr import create_native_crs_tile_matrix_set, calculate_overview_levels
         
         # Get information from level 0 dataset
         if 0 not in pyramid_datasets:
