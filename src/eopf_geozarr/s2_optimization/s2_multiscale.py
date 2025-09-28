@@ -71,105 +71,59 @@ class S2MultiscalePyramid:
         output_path: str
     ) -> Dict[int, xr.Dataset]:
         """
-        Create multiscale pyramid with Dask parallelization.
-        
+        Create multiscale pyramid with streaming Dask parallelization.
+
         Strategy:
-        1. Levels 0, 1, 2 can be created in parallel (they use different source data)
-        2. Levels 3+ depend on level 2, so must be created after level 2
-        3. Writing can be parallelized across all levels
+        1. Process levels sequentially to minimize memory usage
+        2. Use parallel variable processing within each level
+        3. Write each level immediately after creation
+        4. Keep only necessary data from previous levels for dependencies
         """
-        print("Creating multiscale pyramid with Dask parallelization...")
+        print("Creating multiscale pyramid with streaming Dask parallelization...")
         pyramid_datasets = {}
-        
-        # Phase 1: Create base levels (0, 1, 2) in parallel
-        print("Phase 1: Creating base pyramid levels (0, 1, 2) in parallel...")
-        
-        @delayed
-        def create_and_prepare_level(level: int, target_resolution: int):
-            """Create a single pyramid level and prepare for writing."""
-            print(f"  Creating pyramid level {level} ({target_resolution}m)...")
-            dataset = self._create_level_dataset(
-                level, target_resolution, measurements_by_resolution
-            )
-            if dataset and len(dataset.data_vars) > 0:
-                return level, dataset
-            return level, None
-        
-        # Create base levels in parallel
-        base_level_tasks = []
-        for level in [0, 1, 2]:  # Base levels that don't depend on each other
-            if level in self.pyramid_levels:
-                target_resolution = self.pyramid_levels[level]
-                task = create_and_prepare_level(level, target_resolution)
-                base_level_tasks.append(task)
-        
-        # Compute base levels
-        if base_level_tasks:
-            print("  Computing base levels...")
-            base_results = compute(*base_level_tasks)
-            
-            # Store results
-            for level, dataset in base_results:
-                if dataset is not None:
-                    pyramid_datasets[level] = dataset
-        
-        # Phase 2: Create higher levels (3+) that depend on level 2
-        if 2 in pyramid_datasets:
-            print("Phase 2: Creating higher pyramid levels (3+) in parallel...")
-            
-            @delayed
-            def create_higher_level(level: int, target_resolution: int, level_2_data):
-                """Create higher pyramid levels from level 2 data."""
-                print(f"  Creating pyramid level {level} ({target_resolution}m)...")
-                dataset = self._create_downsampled_dataset_from_level2(
-                    level, target_resolution, level_2_data
+
+        # Process levels sequentially but with parallel variable processing
+        for level in sorted(self.pyramid_levels.keys()):
+            target_resolution = self.pyramid_levels[level]
+            print(f"Creating pyramid level {level} ({target_resolution}m)...")
+
+            # Create the level dataset with parallel variable processing
+            if level <= 2:
+                # Base levels: use source measurements data
+                dataset = self._create_level_dataset_parallel(
+                    level, target_resolution, measurements_by_resolution
                 )
-                if dataset and len(dataset.data_vars) > 0:
-                    return level, dataset
-                return level, None
-            
-            # Create higher levels in parallel
-            higher_level_tasks = []
-            level_2_dataset = pyramid_datasets[2]
-            
-            for level in range(3, max(self.pyramid_levels.keys()) + 1):
-                if level in self.pyramid_levels:
-                    target_resolution = self.pyramid_levels[level]
-                    task = create_higher_level(level, target_resolution, level_2_dataset)
-                    higher_level_tasks.append(task)
-            
-            # Compute higher levels
-            if higher_level_tasks:
-                print("  Computing higher levels...")
-                higher_results = compute(*higher_level_tasks)
-                
-                # Store results
-                for level, dataset in higher_results:
-                    if dataset is not None:
-                        pyramid_datasets[level] = dataset
-        
-        # Phase 3: Write all levels in parallel
-        print("Phase 3: Writing all pyramid levels in parallel...")
-        
-        @delayed
-        def write_level(level: int, dataset: xr.Dataset):
-            """Write a single pyramid level."""
-            level_path = f"{output_path}/measurements/{level}"
-            self._write_level_dataset(dataset, level_path, level)
-            return level
-        
-        # Create write tasks for all levels
-        write_tasks = []
-        for level, dataset in pyramid_datasets.items():
-            task = write_level(level, dataset)
-            write_tasks.append(task)
-        
-        # Execute all writes in parallel
-        if write_tasks:
-            print("  Writing levels...")
-            compute(*write_tasks)
-        
-        print(f"✅ Parallel pyramid creation complete: {len(pyramid_datasets)} levels")
+            else:
+                # Higher levels: use level 2 data if available
+                if 2 in pyramid_datasets:
+                    dataset = self._create_downsampled_dataset_from_level2_parallel(
+                        level, target_resolution, pyramid_datasets[2]
+                    )
+                else:
+                    print(f"  Skipping level {level} - level 2 not available")
+                    continue
+
+            if dataset and len(dataset.data_vars) > 0:
+                # Write immediately to avoid memory buildup
+                level_path = f"{output_path}/measurements/{level}"
+                print(f"  Writing level {level} to {level_path}")
+                self._write_level_dataset(dataset, level_path, level)
+
+                # Store only essential levels for dependencies
+                if level == 2:
+                    # Keep level 2 for creating higher levels
+                    pyramid_datasets[level] = dataset
+                elif level < 2:
+                    # Keep reference but could be cleaned up if memory is tight
+                    pyramid_datasets[level] = dataset
+
+                # Clean up memory for higher levels (they're already written)
+                if level > 2:
+                    pyramid_datasets[level] = None  # Just track that it was created
+            else:
+                print(f"  Skipping empty level {level}")
+
+        print(f"✅ Streaming pyramid creation complete: {len([k for k, v in pyramid_datasets.items() if v is not None])} levels")
         return pyramid_datasets
     
     def _create_multiscale_measurements_sequential(
@@ -222,6 +176,211 @@ class S2MultiscalePyramid:
             return self._create_downsampled_dataset(
                 level, target_resolution, measurements_by_resolution
             )
+    
+    def _create_level_dataset_parallel(
+        self,
+        level: int,
+        target_resolution: int,
+        measurements_by_resolution: Dict[int, Dict]
+    ) -> xr.Dataset:
+        """Create dataset for a specific pyramid level with parallel processing."""
+        
+        if level == 0:
+            # Level 0: Only native 10m data (no parallelization needed)
+            return self._create_level_0_dataset(measurements_by_resolution)
+        elif level == 1:
+            # Level 1: All data at 20m (native + downsampled from 10m) - parallel downsampling
+            return self._create_level_1_dataset_parallel(measurements_by_resolution)
+        elif level == 2:
+            # Level 2: All data at 60m (native + downsampled from 20m) - parallel downsampling
+            return self._create_level_2_dataset_parallel(measurements_by_resolution)
+        else:
+            # This shouldn't be called for levels 3+ in the streaming approach
+            return self._create_downsampled_dataset(
+                level, target_resolution, measurements_by_resolution
+            )
+    
+    def _create_level_1_dataset_parallel(self, measurements_by_resolution: Dict) -> xr.Dataset:
+        """Create level 1 dataset with parallel downsampling from 10m data."""
+        all_vars = {}
+        reference_coords = None
+        
+        # Start with native 20m data
+        if 20 in measurements_by_resolution:
+            data_20m = measurements_by_resolution[20]
+            for category, vars_dict in data_20m.items():
+                all_vars.update(vars_dict)
+            
+            # Get reference coordinates from 20m data
+            if all_vars:
+                first_var = next(iter(all_vars.values()))
+                reference_coords = {
+                    'x': first_var.coords['x'],
+                    'y': first_var.coords['y']
+                }
+        
+        # Add downsampled 10m data with parallelization
+        if 10 in measurements_by_resolution and reference_coords:
+            data_10m = measurements_by_resolution[10]
+            target_height = len(reference_coords['y'])
+            target_width = len(reference_coords['x'])
+            
+            # Collect all 10m variables for parallel processing
+            vars_to_downsample = []
+            for category, vars_dict in data_10m.items():
+                for var_name, var_data in vars_dict.items():
+                    vars_to_downsample.append((var_name, var_data))
+            
+            # Process variables in parallel if Dask is available
+            if DASK_AVAILABLE and vars_to_downsample:
+                @delayed
+                def downsample_10m_variable(var_name: str, var_data: xr.DataArray):
+                    var_type = determine_variable_type(var_name, var_data)
+                    downsampled = self.resampler.downsample_variable(
+                        var_data, target_height, target_width, var_type
+                    )
+                    # Align coordinates
+                    downsampled = downsampled.assign_coords(reference_coords)
+                    return var_name, downsampled
+                
+                # Create tasks for all variables
+                downsample_tasks = [
+                    downsample_10m_variable(var_name, var_data)
+                    for var_name, var_data in vars_to_downsample
+                ]
+                
+                # Compute all in parallel
+                print(f"    Parallel downsampling {len(downsample_tasks)} variables from 10m to 20m...")
+                results = compute(*downsample_tasks)
+                for var_name, downsampled_var in results:
+                    all_vars[var_name] = downsampled_var
+            else:
+                # Sequential fallback
+                for var_name, var_data in vars_to_downsample:
+                    var_type = determine_variable_type(var_name, var_data)
+                    downsampled = self.resampler.downsample_variable(
+                        var_data, target_height, target_width, var_type
+                    )
+                    # Align coordinates
+                    downsampled = downsampled.assign_coords(reference_coords)
+                    all_vars[var_name] = downsampled
+        
+        if not all_vars:
+            return xr.Dataset()
+        
+        # Create consolidated dataset
+        dataset = xr.Dataset(all_vars)
+        dataset.attrs['pyramid_level'] = 1
+        dataset.attrs['resolution_meters'] = 20
+        
+        return dataset
+    
+    def _create_level_2_dataset_parallel(self, measurements_by_resolution: Dict) -> xr.Dataset:
+        """Create level 2 dataset with parallel downsampling to 60m."""
+        all_vars = {}
+        reference_coords = None
+        
+        # Start with native 60m data
+        if 60 in measurements_by_resolution:
+            data_60m = measurements_by_resolution[60]
+            for category, vars_dict in data_60m.items():
+                all_vars.update(vars_dict)
+            
+            # Get reference coordinates from 60m data
+            if all_vars:
+                first_var = next(iter(all_vars.values()))
+                reference_coords = {
+                    'x': first_var.coords['x'],
+                    'y': first_var.coords['y']
+                }
+        
+        # Collect all variables that need downsampling to 60m
+        vars_to_downsample = []
+        if reference_coords:
+            target_height = len(reference_coords['y'])
+            target_width = len(reference_coords['x'])
+            
+            # Add 20m data for downsampling
+            if 20 in measurements_by_resolution:
+                data_20m = measurements_by_resolution[20]
+                for category, vars_dict in data_20m.items():
+                    for var_name, var_data in vars_dict.items():
+                        vars_to_downsample.append((var_name, var_data, '20m'))
+            
+            # Add 10m data for downsampling
+            if 10 in measurements_by_resolution:
+                data_10m = measurements_by_resolution[10]
+                for category, vars_dict in data_10m.items():
+                    for var_name, var_data in vars_dict.items():
+                        vars_to_downsample.append((var_name, var_data, '10m'))
+            
+            # Process all downsampling in parallel if Dask is available
+            if DASK_AVAILABLE and vars_to_downsample:
+                @delayed
+                def downsample_to_60m_variable(var_name: str, var_data: xr.DataArray, source_res: str):
+                    var_type = determine_variable_type(var_name, var_data)
+                    downsampled = self.resampler.downsample_variable(
+                        var_data, target_height, target_width, var_type
+                    )
+                    # Align coordinates
+                    downsampled = downsampled.assign_coords(reference_coords)
+                    return var_name, downsampled
+                
+                # Create tasks for all variables
+                downsample_tasks = [
+                    downsample_to_60m_variable(var_name, var_data, source_res)
+                    for var_name, var_data, source_res in vars_to_downsample
+                ]
+                
+                # Compute all in parallel
+                print(f"    Parallel downsampling {len(downsample_tasks)} variables to 60m...")
+                results = compute(*downsample_tasks)
+                for var_name, downsampled_var in results:
+                    all_vars[var_name] = downsampled_var
+            else:
+                # Sequential fallback
+                for var_name, var_data, source_res in vars_to_downsample:
+                    var_type = determine_variable_type(var_name, var_data)
+                    downsampled = self.resampler.downsample_variable(
+                        var_data, target_height, target_width, var_type
+                    )
+                    # Align coordinates
+                    downsampled = downsampled.assign_coords(reference_coords)
+                    all_vars[var_name] = downsampled
+        
+        if not all_vars:
+            return xr.Dataset()
+        
+        # Create consolidated dataset
+        dataset = xr.Dataset(all_vars)
+        dataset.attrs['pyramid_level'] = 2
+        dataset.attrs['resolution_meters'] = 60
+        
+        return dataset
+    
+    def _create_downsampled_dataset_from_level2_parallel(
+        self,
+        level: int,
+        target_resolution: int,
+        level_2_dataset: xr.Dataset
+    ) -> xr.Dataset:
+        """Create downsampled dataset from level 2 with parallel processing."""
+        if len(level_2_dataset.data_vars) == 0:
+            return xr.Dataset()
+        
+        # Calculate target dimensions (downsample by factor of 2^(level-2))
+        downsample_factor = 2 ** (level - 2)
+        
+        # Get reference dimensions from level 2
+        ref_var = next(iter(level_2_dataset.data_vars.values()))
+        current_height, current_width = ref_var.shape[-2:]
+        target_height = current_height // downsample_factor
+        target_width = current_width // downsample_factor
+        
+        # Always use parallel processing for higher levels
+        return self._downsample_variables_parallel(
+            level_2_dataset, level, target_resolution, target_height, target_width
+        )
     
     def _create_level_0_dataset(self, measurements_by_resolution: Dict) -> xr.Dataset:
         """Create level 0 dataset with only native 10m data."""
