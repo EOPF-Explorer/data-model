@@ -20,7 +20,7 @@ This specification defines a JSON object that encodes datum and coordinate refer
 
 ## Inheritance Model
 
-The `proj` key under the `geo` dictionary follows a simple group-to-array inheritance model that should be understood first:
+The `proj` key under the `geo` object follows a simple group-to-array inheritance model that should be understood first:
 
 ### Inheritance Rules
 
