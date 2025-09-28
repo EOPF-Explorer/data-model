@@ -230,6 +230,9 @@ class S2MultiscalePyramid:
             vars_to_downsample = []
             for category, vars_dict in data_10m.items():
                 for var_name, var_data in vars_dict.items():
+                    # skip if already present from 20m data
+                    if var_name in all_vars:
+                        continue
                     vars_to_downsample.append((var_name, var_data))
             
             # Process variables in parallel if Dask is available
