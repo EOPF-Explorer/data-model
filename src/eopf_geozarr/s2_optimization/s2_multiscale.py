@@ -8,6 +8,12 @@ from typing import Dict, List, Tuple
 from .s2_resampling import S2ResamplingEngine, determine_variable_type
 from .s2_band_mapping import get_bands_for_level, get_quality_data_for_level
 
+try:
+    import distributed
+    DISTRIBUTED_AVAILABLE = True
+except ImportError:
+    DISTRIBUTED_AVAILABLE = False
+
 class S2MultiscalePyramid:
     """Creates multiscale pyramids for consolidated S2 data."""
     
@@ -284,13 +290,29 @@ class S2MultiscalePyramid:
             # Rechunk the dataset to align with encoding chunks (following geozarr.py pattern)
             rechunked_dataset = self._rechunk_dataset_for_encoding(dataset, encoding)
             
-            rechunked_dataset.to_zarr(
+            # Create zarr write job with progress bar
+            write_job = rechunked_dataset.to_zarr(
                 level_path,
                 mode='w',
                 consolidated=True,
                 zarr_format=3,
-                encoding=encoding
+                encoding=encoding,
+                compute=False
             )
+            write_job = write_job.persist()
+            
+            # Show progress bar if distributed is available
+            if DISTRIBUTED_AVAILABLE:
+                try:
+                    # this will return an interactive (non-blocking) widget if in a notebook
+                    # environment. To force the widget to block, provide notebook=False.
+                    distributed.progress(write_job, notebook=False)
+                except Exception as e:
+                    print(f"    Warning: Could not display progress bar: {e}")
+                    write_job.compute()
+            else:
+                print(f"    Writing zarr file...")
+                write_job.compute()
     
     def _should_separate_time_files(self, dataset: xr.Dataset) -> bool:
         """Determine if time files should be separated for single file per variable per time."""
@@ -339,13 +361,27 @@ class S2MultiscalePyramid:
             time_encoding = self._update_encoding_for_time_slice(encoding, time_slice)
             
             print(f"    Writing time slice {t_idx} to {time_path}")
-            time_slice.to_zarr(
+            
+            # Create zarr write job with progress bar for time slice
+            write_job = time_slice.to_zarr(
                 time_path,
                 mode='w',
                 consolidated=True,
                 zarr_format=3,
-                encoding=time_encoding
+                encoding=time_encoding,
+                compute=False
             )
+            write_job = write_job.persist()
+            
+            # Show progress bar if distributed is available
+            if DISTRIBUTED_AVAILABLE:
+                try:
+                    distributed.progress(write_job, notebook=False)
+                except Exception as e:
+                    print(f"      Warning: Could not display progress bar: {e}")
+                    write_job.compute()
+            else:
+                write_job.compute()
     
     def _update_encoding_for_time_slice(self, encoding: Dict, time_slice: xr.Dataset) -> Dict:
         """Update encoding configuration for time slice data."""

@@ -13,6 +13,12 @@ from .s2_multiscale import S2MultiscalePyramid
 from .s2_validation import S2OptimizationValidator
 from eopf_geozarr.conversion.fs_utils import get_storage_options, normalize_path
 
+try:
+    import distributed
+    DISTRIBUTED_AVAILABLE = True
+except ImportError:
+    DISTRIBUTED_AVAILABLE = False
+
 class S2OptimizedConverter:
     """Optimized Sentinel-2 to GeoZarr converter."""
     
@@ -162,16 +168,33 @@ class S2OptimizedConverter:
         for coord_name in dataset.coords:
             encoding[coord_name] = {'compressors': None}
         
-        # Write dataset
+        # Write dataset with progress bar
         storage_options = get_storage_options(group_path)
-        dataset.to_zarr(
+        
+        # Create zarr write job with progress bar
+        write_job = dataset.to_zarr(
             group_path,
             mode='w',
             consolidated=True,
             zarr_format=3,
             encoding=encoding,
-            storage_options=storage_options
+            storage_options=storage_options,
+            compute=False
         )
+        write_job = write_job.persist()
+        
+        # Show progress bar if distributed is available
+        if DISTRIBUTED_AVAILABLE:
+            try:
+                # this will return an interactive (non-blocking) widget if in a notebook
+                # environment. To force the widget to block, provide notebook=False.
+                distributed.progress(write_job, notebook=False)
+            except Exception as e:
+                print(f"    Warning: Could not display progress bar: {e}")
+                write_job.compute()
+        else:
+            print(f"    Writing {group_type} zarr file...")
+            write_job.compute()
         
         if verbose:
             print(f"  {group_type.title()} group written: {len(dataset.data_vars)} variables")

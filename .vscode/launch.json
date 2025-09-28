@@ -148,6 +148,7 @@
                 "--spatial-chunk", "256",
                 "--compression-level", "5",
                 "--enable-sharding",
+                "--dask-cluster",
                 "--verbose"
             ],
             "cwd": "${workspaceFolder}",
