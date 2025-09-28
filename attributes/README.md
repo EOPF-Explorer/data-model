@@ -1,6 +1,6 @@
 # Zarr Attributes Specifications
 
-This directory contains detailed specifications for Zarr attribute extensions that are registered in the [zarr-extensions repository](https://github.com/zarr-developers/zarr-extensions).
+This directory contains specifications for encoding Geospatial metadata in Zarr hierarchies.
 
 ## Overview
 
