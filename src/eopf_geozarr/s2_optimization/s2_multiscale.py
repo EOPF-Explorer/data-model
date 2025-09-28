@@ -432,6 +432,9 @@ class S2MultiscalePyramid:
             
             for category, vars_dict in data_10m.items():
                 for var_name, var_data in vars_dict.items():
+                    # skip if already present from 20m data
+                    if var_name in all_vars:
+                        continue
                     if reference_coords:
                         # Downsample to match 20m grid
                         target_height = len(reference_coords['y'])
@@ -488,6 +491,9 @@ class S2MultiscalePyramid:
                 data_20m = measurements_by_resolution[20]
                 for category, vars_dict in data_20m.items():
                     for var_name, var_data in vars_dict.items():
+                        # skip if already present from 20m data
+                        if var_name in all_vars:
+                            continue
                         vars_to_downsample.append((var_name, var_data, '20m'))
             
             # Add 10m data for downsampling
@@ -495,6 +501,9 @@ class S2MultiscalePyramid:
                 data_10m = measurements_by_resolution[10]
                 for category, vars_dict in data_10m.items():
                     for var_name, var_data in vars_dict.items():
+                        # skip if already present from 20m data
+                        if var_name in all_vars:
+                            continue
                         vars_to_downsample.append((var_name, var_data, '10m'))
             
             # Process all downsampling in parallel if Dask is available
