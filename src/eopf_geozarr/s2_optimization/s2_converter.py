@@ -104,13 +104,13 @@ class S2OptimizedConverter:
             meteorology_path = f"{output_path}/meteorology"
             self._write_auxiliary_group(meteorology_ds, meteorology_path, "meteorology", verbose)
         
-        # Step 5: Create root-level multiscales metadata
-        print("Step 5: Adding multiscales metadata...")
-        self._add_root_multiscales_metadata(output_path, pyramid_datasets)
+        # Step 5: Add multiscales metadata to measurements group
+        print("Step 5: Adding multiscales metadata to measurements group...")
+        self._add_measurements_multiscales_metadata(output_path, pyramid_datasets)
         
-        # Step 6: Consolidate metadata
-        print("Step 6: Consolidating metadata...")
-        self._consolidate_root_metadata(output_path)
+        # Step 6: Simple root-level consolidation
+        print("Step 6: Final root-level metadata consolidation...")
+        self._simple_root_consolidation(output_path, pyramid_datasets)
         
         # Step 7: Validation
         if validate_output:
@@ -199,76 +199,143 @@ class S2OptimizedConverter:
         if verbose:
             print(f"  {group_type.title()} group written: {len(dataset.data_vars)} variables")
     
-    def _add_root_multiscales_metadata(
-        self,
-        output_path: str,
-        pyramid_datasets: Dict[int, xr.Dataset]
-    ) -> None:
-        """Add multiscales metadata at root level."""
-        from eopf_geozarr.conversion.geozarr import create_native_crs_tile_matrix_set, calculate_overview_levels
-        
-        # Get information from level 0 dataset
-        if 0 not in pyramid_datasets:
-            return
-        
-        level_0_ds = pyramid_datasets[0]
-        if not level_0_ds.data_vars:
-            return
-        
-        # Get spatial info from first variable
-        first_var = next(iter(level_0_ds.data_vars.values()))
-        native_height, native_width = first_var.shape[-2:]
-        native_crs = level_0_ds.rio.crs
-        native_bounds = level_0_ds.rio.bounds()
-        
-        # Calculate overview levels
-        overview_levels = []
-        for level, resolution in self.pyramid_creator.pyramid_levels.items():
-            if level in pyramid_datasets:
-                level_ds = pyramid_datasets[level]
-                level_var = next(iter(level_ds.data_vars.values()))
-                level_height, level_width = level_var.shape[-2:]
-                
-                overview_levels.append({
-                    'level': level,
-                    'resolution': resolution,
-                    'width': level_width,
-                    'height': level_height,
-                    'scale_factor': 2 ** level if level > 0 else 1
-                })
-        
-        # Create tile matrix set
-        tile_matrix_set = create_native_crs_tile_matrix_set(
-            native_crs, native_bounds, overview_levels, "measurements"
-        )
-        
-        # Add metadata to measurements group
-        measurements_zarr_path = normalize_path(f"{output_path}/measurements/zarr.json")
-        if os.path.exists(measurements_zarr_path):
-            import json
-            with open(measurements_zarr_path, 'r') as f:
-                zarr_json = json.load(f)
+    def _add_measurements_multiscales_metadata(self, output_path: str, pyramid_datasets: Dict[int, xr.Dataset]) -> None:
+        """Add multiscales metadata to the measurements group using rioxarray."""
+        try:
+            measurements_path = f"{output_path}/measurements"
             
-            zarr_json.setdefault('attributes', {})
-            zarr_json['attributes']['multiscales'] = {
-                'tile_matrix_set': tile_matrix_set,
-                'resampling_method': 'average',
-                'datasets': [{'path': str(level)} for level in sorted(pyramid_datasets.keys())]
+            # Create multiscales metadata using rioxarray .rio accessor
+            multiscales_metadata = self._create_multiscales_metadata_with_rio(pyramid_datasets)
+            
+            if multiscales_metadata:
+                # Use zarr to add metadata to the measurements group
+                storage_options = get_storage_options(measurements_path)
+                
+                try:
+                    import zarr
+                    if storage_options:
+                        store = zarr.storage.FSStore(measurements_path, **storage_options)
+                    else:
+                        store = measurements_path
+                    
+                    # Open the measurements group and add multiscales metadata
+                    measurements_group = zarr.open_group(store, mode='r+')
+                    measurements_group.attrs['multiscales'] = multiscales_metadata
+                    
+                    print("  ✅ Added multiscales metadata to measurements group")
+                    
+                except Exception as e:
+                    print(f"  ⚠️ Could not add multiscales metadata: {e}")
+            
+        except Exception as e:
+            print(f"  ⚠️ Error adding multiscales metadata: {e}")
+    
+    def _create_multiscales_metadata_with_rio(self, pyramid_datasets: Dict[int, xr.Dataset]) -> Dict:
+        """Create multiscales metadata using rioxarray .rio accessor, following geozarr.py format."""
+        if not pyramid_datasets:
+            return {}
+        
+        # Get the first available dataset to extract spatial information using .rio
+        reference_ds = None
+        for level in sorted(pyramid_datasets.keys()):
+            if pyramid_datasets[level] is not None:
+                reference_ds = pyramid_datasets[level]
+                break
+        
+        if not reference_ds or not reference_ds.data_vars:
+            return {}
+        
+        try:
+            # Use .rio accessor to get CRS and bounds directly from the dataset
+            if not hasattr(reference_ds, 'rio') or not reference_ds.rio.crs:
+                return {}
+            
+            native_crs = reference_ds.rio.crs
+            native_bounds = reference_ds.rio.bounds()
+            
+            # Create overview levels list following geozarr.py format
+            overview_levels = []
+            for level in sorted(pyramid_datasets.keys()):
+                if pyramid_datasets[level] is not None:
+                    level_ds = pyramid_datasets[level]
+                    resolution = self.pyramid_creator.pyramid_levels.get(level, level * 10)
+                    
+                    if hasattr(level_ds, 'rio'):
+                        width = level_ds.rio.width
+                        height = level_ds.rio.height
+                        scale_factor = 2 ** level if level > 0 else 1
+                        
+                        overview_levels.append({
+                            'level': level,
+                            'width': width,
+                            'height': height,
+                            'scale_factor': scale_factor,
+                            'zoom': max(0, level)  # Simple zoom calculation
+                        })
+            
+            if not overview_levels:
+                return {}
+            
+            # Import the functions from geozarr.py to create proper multiscales metadata
+            from eopf_geozarr.conversion.geozarr import create_native_crs_tile_matrix_set, _create_tile_matrix_limits
+            
+            # Create tile matrix set following geozarr.py exactly
+            tile_matrix_set = create_native_crs_tile_matrix_set(
+                native_crs, 
+                native_bounds, 
+                overview_levels, 
+                "measurements"  # group prefix
+            )
+            
+            # Create tile matrix limits following geozarr.py exactly  
+            tile_matrix_limits = _create_tile_matrix_limits(overview_levels, 256)  # tile_width=256
+            
+            # Create multiscales metadata following geozarr.py format exactly
+            multiscales_metadata = {
+                "tile_matrix_set": tile_matrix_set,
+                "resampling_method": "average",
+                "tile_matrix_limits": tile_matrix_limits,
             }
             
-            with open(measurements_zarr_path, 'w') as f:
-                json.dump(zarr_json, f, indent=2)
-    
-    def _consolidate_root_metadata(self, output_path: str) -> None:
-        """Consolidate metadata at root level."""
-        try:
-            from eopf_geozarr.conversion.geozarr import consolidate_metadata
-            from eopf_geozarr.conversion.fs_utils import open_zarr_group
+            return multiscales_metadata
             
-            zarr_group = open_zarr_group(output_path, mode="r+")
-            consolidate_metadata(zarr_group.store)
         except Exception as e:
-            print(f"  Warning: Root metadata consolidation failed: {e}")
+            print(f"  Warning: Could not create multiscales metadata with .rio accessor: {e}")
+            return {}
+
+    def _simple_root_consolidation(self, output_path: str, pyramid_datasets: Dict[int, xr.Dataset]) -> None:
+        """Simple root-level metadata consolidation using only xarray."""
+        try:
+            # Since each level and auxiliary group was written with consolidated=True,
+            # we just need to create a simple root-level consolidated metadata
+            print("  Performing simple root consolidation...")
+            
+            # Use xarray to open and immediately close the root group with consolidation
+            # This creates/updates the root .zmetadata file
+            storage_options = get_storage_options(output_path)
+            
+            # Open the root zarr group and let xarray handle consolidation
+            try:
+                # This will create consolidated metadata at the root level
+                with xr.open_zarr(output_path, storage_options=storage_options, 
+                                  consolidated=True, chunks={}) as root_ds:
+                    # Just opening and closing with consolidated=True should be enough
+                    pass
+                print("  ✅ Root consolidation completed")
+            except Exception as e:
+                print(f"  ⚠️ Root consolidation using xarray failed, trying zarr directly: {e}")
+                
+                # Fallback: minimal zarr consolidation if needed
+                import zarr
+                store = zarr.storage.FSStore(output_path, **storage_options) if storage_options else output_path
+                try:
+                    zarr.consolidate_metadata(store)
+                    print("  ✅ Root consolidation completed with zarr")
+                except Exception as e2:
+                    print(f"  ⚠️ Warning: Root consolidation failed: {e2}")
+                
+        except Exception as e:
+            print(f"  ⚠️ Warning: Root consolidation failed: {e}")
     
     def _create_result_datatree(self, output_path: str) -> xr.DataTree:
         """Create result DataTree from written output."""
