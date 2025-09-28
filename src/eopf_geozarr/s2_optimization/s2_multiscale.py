@@ -209,7 +209,7 @@ class S2MultiscalePyramid:
         # Start with native 20m data
         if 20 in measurements_by_resolution:
             data_20m = measurements_by_resolution[20]
-            for category, vars_dict in data_20m.items():
+             for category, vars_dict in data_20m.items():
                 all_vars.update(vars_dict)
             
             # Get reference coordinates from 20m data
@@ -276,6 +276,8 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(all_vars)
         dataset.attrs['pyramid_level'] = 1
         dataset.attrs['resolution_meters'] = 20
+        
+        self._write_geo_metadata(dataset)
         
         return dataset
     
@@ -359,6 +361,8 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(all_vars)
         dataset.attrs['pyramid_level'] = 2
         dataset.attrs['resolution_meters'] = 60
+        
+        self._write_geo_metadata(dataset)
         
         return dataset
     
