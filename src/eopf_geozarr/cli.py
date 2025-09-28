@@ -1208,10 +1208,20 @@ def add_s2_optimization_commands(subparsers):
         action='store_true',
         help='Enable verbose output'
     )
+    s2_parser.add_argument(
+        '--dask-cluster',
+        action='store_true',
+        help='Start a local dask cluster for parallel processing and progress bars'
+    )
     s2_parser.set_defaults(func=convert_s2_optimized_command)
 
 def convert_s2_optimized_command(args):
     """Execute S2 optimized conversion command."""
+    # Set up dask cluster if requested
+    dask_client = setup_dask_cluster(
+        enable_dask=getattr(args, "dask_cluster", False), verbose=args.verbose
+    )
+
     try:
         # Load input dataset
         print(f"Loading Sentinel-2 dataset from: {args.input_path}")
@@ -1245,6 +1255,17 @@ def convert_s2_optimized_command(args):
             import traceback
             traceback.print_exc()
         return 1
+    finally:
+        # Clean up dask client if it was created
+        if dask_client is not None:
+            try:
+                if hasattr(dask_client, "close"):
+                    dask_client.close()
+                if args.verbose:
+                    print("🔄 Dask cluster closed")
+            except Exception as e:
+                if args.verbose:
+                    print(f"Warning: Error closing dask cluster: {e}")
 
 
 def main() -> None:

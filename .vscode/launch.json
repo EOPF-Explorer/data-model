@@ -147,6 +147,7 @@
                 "./tests-output/eopf_geozarr/s2l2_optimized.zarr",
                 "--spatial-chunk", "256",
                 "--enable-sharding",
+                "--dask-cluster",
                 "--verbose"
             ],
             "cwd": "${workspaceFolder}",
