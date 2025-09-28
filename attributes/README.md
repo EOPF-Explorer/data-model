@@ -4,7 +4,7 @@ This directory contains specifications for encoding Geospatial metadata in Zarr 
 
 ## Overview
 
-Zarr attributes are metadata stored in the `attributes` dictionary of Zarr arrays and groups. While the `attributes` dictionary can contain arbitrary metadata, this directory provides specifications for commonly used attribute conventions within the Zarr community.
+Zarr attributes are metadata stored in the `attributes` object in Zarr array and group metadata documents. While the `attributes` can contain arbitrary metadata, this directory provides specifications for commonly used attribute conventions within the Zarr community. These specifications also define the structure of a Zarr hierarchy, e.g. the layout of groups, the names of the nodes in the hierarchy, and the properties of the arrays.
 
 ## Registered Attributes
 
