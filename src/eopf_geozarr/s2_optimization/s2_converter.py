@@ -12,6 +12,7 @@ from .s2_data_consolidator import S2DataConsolidator, create_consolidated_datase
 from .s2_multiscale import S2MultiscalePyramid
 from .s2_validation import S2OptimizationValidator
 from eopf_geozarr.conversion.fs_utils import get_storage_options, normalize_path
+from eopf_geozarr.conversion.geozarr import create_native_crs_tile_matrix_set, _create_tile_matrix_limits
 
 try:
     import distributed
@@ -275,9 +276,6 @@ class S2OptimizedConverter:
             
             if not overview_levels:
                 return {}
-            
-            # Import the functions from geozarr.py to create proper multiscales metadata
-            from eopf_geozarr.conversion.geozarr import create_native_crs_tile_matrix_set, _create_tile_matrix_limits
             
             # Create tile matrix set following geozarr.py exactly
             tile_matrix_set = create_native_crs_tile_matrix_set(

@@ -3,6 +3,7 @@ Multiscale pyramid creation for optimized S2 structure.
 """
 
 import numpy as np
+from pyproj import CRS
 import xarray as xr
 from typing import Dict, List, Tuple
 from .s2_resampling import S2ResamplingEngine, determine_variable_type
@@ -402,6 +403,8 @@ class S2MultiscalePyramid:
         dataset.attrs['pyramid_level'] = 0
         dataset.attrs['resolution_meters'] = 10
         
+        self._write_geo_metadata(dataset)
+        
         return dataset
     
     def _create_level_1_dataset(self, measurements_by_resolution: Dict) -> xr.Dataset:
@@ -450,6 +453,8 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(all_vars)
         dataset.attrs['pyramid_level'] = 1
         dataset.attrs['resolution_meters'] = 20
+        
+        self._write_geo_metadata(dataset)
         
         return dataset
     
@@ -532,6 +537,8 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(all_vars)
         dataset.attrs['pyramid_level'] = 2
         dataset.attrs['resolution_meters'] = 60
+        
+        self._write_geo_metadata(dataset)
         
         return dataset
     
@@ -617,6 +624,8 @@ class S2MultiscalePyramid:
         dataset.attrs['pyramid_level'] = level
         dataset.attrs['resolution_meters'] = target_resolution
         
+        self._write_geo_metadata(dataset)
+        
         return dataset
     
     def _downsample_variables_sequential(
@@ -641,6 +650,8 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(downsampled_vars)
         dataset.attrs['pyramid_level'] = level
         dataset.attrs['resolution_meters'] = target_resolution
+        
+        self._write_geo_metadata(dataset)
         
         return dataset
     
@@ -922,3 +933,24 @@ class S2MultiscalePyramid:
         rechunked_dataset = xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
         
         return rechunked_dataset
+
+    def _write_geo_metadata(self, dataset: xr.Dataset, grid_mapping_var_name: str = "spatial_ref") -> None:
+        """
+        Write geographic metadata to the dataset.
+        Adds a grid_mapping variable and updates all data variables to reference it.
+        """
+        
+        # take the CRS from one of the data variables if available
+        crs = None
+        for var in dataset.data_vars.values():
+            if hasattr(var, 'rio') and var.rio.crs:
+                crs = var.rio.crs
+                break
+            elif "proj:epsg" in var.attrs:
+                epsg = var.attrs["proj:epsg"]
+                crs = CRS.from_epsg(epsg)
+                break
+
+        # Use standard CRS and transform if available
+        if crs is not None:
+            dataset.rio.write_crs(crs, inplace=True)

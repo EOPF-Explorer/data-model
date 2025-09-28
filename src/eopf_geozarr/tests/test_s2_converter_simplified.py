@@ -336,20 +336,6 @@ class TestEndToEndSimplified:
     def test_convert_s2_optimized_simplified_flow(self, mock_validator, mock_pyramid, mock_consolidator, 
                                                   mock_s2_dataset, temp_output_dir):
         """Test the simplified conversion flow with all major components mocked."""
-        converter = S2OptimizedConverter()
-        
-        # Mock consolidator
-        mock_consolidator_instance = Mock()
-        mock_consolidator.return_value = mock_consolidator_instance
-        mock_consolidator_instance.consolidate_all_data.return_value = (
-            {10: {'bands': {'b02': Mock(), 'b03': Mock()}}},  # measurements
-            {'solar_zenith': Mock()},  # geometry  
-            {'temperature': Mock()}  # meteorology
-        )
-        
-        # Mock pyramid creator
-        mock_pyramid_instance = Mock()
-        mock_pyramid.return_value = mock_pyramid_instance
         
         # Create mock pyramid datasets with rioxarray
         pyramid_datasets = {}
@@ -365,6 +351,18 @@ class TestEndToEndSimplified:
             ds = ds.rio.write_crs('EPSG:32632')
             pyramid_datasets[level] = ds
         
+        # Mock consolidator
+        mock_consolidator_instance = Mock()
+        mock_consolidator.return_value = mock_consolidator_instance
+        mock_consolidator_instance.consolidate_all_data.return_value = (
+            {10: {'bands': {'b02': Mock(), 'b03': Mock()}}},  # measurements
+            {'solar_zenith': Mock()},  # geometry  
+            {'temperature': Mock()}  # meteorology
+        )
+        
+        # Mock pyramid creator
+        mock_pyramid_instance = Mock()
+        mock_pyramid.return_value = mock_pyramid_instance
         mock_pyramid_instance.create_multiscale_measurements.return_value = pyramid_datasets
         
         # Mock validator
@@ -374,6 +372,11 @@ class TestEndToEndSimplified:
             'is_valid': True,
             'issues': []
         }
+        
+        # Create converter and replace instances that were created during initialization
+        converter = S2OptimizedConverter()
+        converter.pyramid_creator = mock_pyramid_instance
+        converter.validator = mock_validator_instance
         
         # Mock the multiscales metadata methods
         with patch.object(converter, '_add_measurements_multiscales_metadata') as mock_add_metadata, \
