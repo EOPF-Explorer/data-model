@@ -135,6 +135,34 @@
 
         },
         {
+            // eopf_geozarr convert https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr /tmp/tmp7mmjkjk3/s2b_subset_test.zarr --groups /measurements/reflectance/r10m --spatial-chunk 512 --min-dimension 128 --tile-width 256 --max-retries 2 --verbose
+            "name": "Convert to GeoZarr S2L2A Optimized (S3)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eopf_geozarr",
+            "args": [
+                "convert-s2-optimized",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202509-s02msil2a/08/products/cpm_v256/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
+                "./tests-output/eopf_geozarr/s2l2_optimized.zarr",
+                "--spatial-chunk", "256",
+                "--compression-level", "5",
+                "--enable-sharding",
+                "--dask-cluster",
+                "--verbose"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin",
+                "AWS_PROFILE": "eopf-explorer",
+                "AWS_DEFAULT_REGION": "de",
+                "AWS_ENDPOINT_URL": "https://s3.de.io.cloud.ovh.net/"
+            },
+
+        },
+        {
             "name": "Convert to GeoZarr Sentinel-1 GRD (Local)",
             "type": "debugpy",
             "request": "launch",

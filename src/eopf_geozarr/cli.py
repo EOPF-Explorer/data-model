@@ -68,7 +68,7 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
 
     except ImportError:
         print(
-            "❌ Error: dask.distributed not available. Install with: pip install 'dask[distributed]'"vars_to_downsample
+            "❌ Error: dask.distributed not available. Install with: pip install 'dask[distributed]'"
         )
         sys.exit(1)
     except Exception as e:
