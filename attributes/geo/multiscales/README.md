@@ -242,6 +242,90 @@ The multiscales metadata enables complete discovery of the multiscale collection
 }
 ```
 
+### Example 2: WebMercatorQuad TileMatrixSet-Compatible Pyramid
+
+This example shows a multiscale pyramid that follows the OGC WebMercatorQuad TileMatrixSet structure, commonly used for web mapping applications.
+
+```json
+{
+  "zarr_format": 3,
+  "node_type": "group",
+  "attributes": {
+    "geo": {
+      "proj": {
+        "epsg": 3857,
+        "bbox": [-20037508.34, -20037508.34, 20037508.34, 20037508.34]
+      },
+      "multiscales": {
+        "version": "0.1.0",
+        "layout": ["18", "17", "16", "15", "14"],
+        "resampling_method": "average"
+      }
+    }
+  },
+  "consolidated_metadata": {
+    "kind": "inline",
+    "must_understand": false,
+    "metadata": {
+      "18": {
+        "zarr_format": 3,
+        "node_type": "group",
+        "attributes": {
+          "geo": {
+            "proj": {
+              "epsg": 3857,
+              "bbox": [-20037508.34, -20037508.34, 20037508.34, 20037508.34],
+              "transform": [0.5971642834779395, 0.0, -20037508.34, 0.0, -0.5971642834779395, 20037508.34, 0.0, 0.0, 1.0]
+            }
+          }
+        }
+      },
+      "18/red": {
+        "zarr_format": 3,
+        "node_type": "array",
+        "shape": [8192, 8192],
+        "dtype": "<u1",
+        "fill_value": 0,
+        "codecs": [...],
+        "attributes": {}
+      },
+      ...
+      "17": {
+        "zarr_format": 3,
+        "node_type": "group", 
+        "attributes": {
+          "geo": {
+            "proj": {
+              "epsg": 3857,
+              "bbox": [-20037508.34, -20037508.34, 20037508.34, 20037508.34],
+              "transform": [1.1943285669558790, 0.0, -20037508.34, 0.0, -1.1943285669558790, 20037508.34, 0.0, 0.0, 1.0]
+            }
+          }
+        }
+      },
+      "17/red": {
+        "zarr_format": 3,
+        "node_type": "array",
+        "shape": [4096, 4096],
+        "dtype": "<u1",
+        "fill_value": 0,
+        "codecs": [...],
+        "attributes": {}
+      },
+      ...
+    }
+  }
+}
+```
+
+**Key aspects of WebMercatorQuad compatibility:**
+
+- **EPSG:3857 projection**: Uses Web Mercator coordinate system
+- **Zoom level naming**: Uses tile matrix identifiers (18, 17, 16, etc.) as group names
+- **Power-of-2 decimation**: Each level has half the resolution of the previous level
+- **256x256 chunk alignment**: Chunks align with standard web map tile size
+- **Global extent**: Covers the full Web Mercator extent
+
 ## Versioning and Compatibility
 
 This specification uses semantic versioning (SemVer) for version management:
