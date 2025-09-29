@@ -8,7 +8,7 @@
 
 ## Description
 
-This specification defines a JSON object that encodes multiscale pyramid information for geospatial data stored in Zarr groups under the `multiscales` key within the `geo` dictionary in the attributes of Zarr groups. Additionally, it specifies the hierarchical layout of datasets representing different resolution levels, discovery mechanisms for clients to enumerate available levels and variables, and requirements for consolidated metadata to ensure complete discoverability of the multiscale structure.
+This specification defines a JSON object that encodes multiscale pyramid information for geospatial data stored in Zarr groups under the `multiscales` key within the `geo` dictionary in the attributes of Zarr groups. Additionally, it specifies the hierarchical layout of Zarr groups representing different resolution levels, discovery mechanisms for clients to enumerate available levels and variables, and requirements for consolidated metadata to ensure complete discoverability of the multiscale structure.
 
 ## Motivation
 
@@ -362,4 +362,4 @@ When implementing support for inconsistent pyramids:
 - [OGC TileMatrixSet 2.0 Specification](https://docs.ogc.org/is/17-083r4/17-083r4.html)
 - [GeoZarr Specification](https://github.com/zarr-developers/geozarr-spec)
 - [OME-NGFF Multiscale Specification](https://ngff.openmicroscopy.org/latest/#multiscale-md)
-- [STAC Projection Extension](https://github.com/stac-extensions/projection)
+- [GDAL Raster Data Model - Overviews](https://gdal.org/en/stable/user/raster_data_model.html#overviews)
