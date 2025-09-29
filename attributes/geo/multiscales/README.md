@@ -85,25 +85,25 @@ multiscales/                 # Group with `multiscales` metadata
 |   ├── b02                  # Native resolution variable
 |   ├── b03                  # Native resolution variable
 |   ├── b04                  # Native resolution variable
-|   ├── spatial_ref          # Auxiliary spatial reference variable
+|   ├── y          # Coordinate variable
+|   ├── x          # Coordinate variable
 ├── 1/                       # Second overview level
 │   ├── b01                  # All bands available at overview level
 │   ├── b02
 │   ├── b03
 │   ├── ...
-│   └── spatial_ref
+│   ├── y
+│   └── x
 └── 2/                       # Third overview level
     ├── b01
     ├── b02
     ├── b03
     ├── ...
-    └── spatial_ref
+    ├── y
+    └── x
 ```
 
-**Recommendations:**
-
-- All levels are stored in child groups with names matching layout keys (e.g., `0`, `1`, `2`, or custom names)
-- The native resolution dataset is stored in a child group (e.g., `0`) alongside overview levels
+All levels SHOULD be stored in child groups with names matching layout keys (e.g., `0`, `1`, `2`, or custom names)
 
 > [!Note] Layout can describe native resolution stored in the multiscale group directly by using the key `.` (dot) to represent the current group. This is not recommended but MAY be used for backward compatibility with existing datasets that are augmented with multiscale metadata. It is important to acknowledge that this layout is less optimal for clients and MAY lead to errors. For instance, xarray's `open_dataset` function does not support data tree where parent and children shape do not align.
 
@@ -145,7 +145,7 @@ The multiscales metadata enables complete discovery of the multiscale collection
 
 ## Examples
 
-### Example 1: Simple UTM Pyramid
+### Example 1: Simple Multiscale Pyramid with UTM Grid
 
 ```json
 {
