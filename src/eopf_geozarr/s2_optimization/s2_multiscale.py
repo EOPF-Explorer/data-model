@@ -213,7 +213,7 @@ class S2MultiscalePyramid:
     def _create_level_1_dataset_parallel(
         self, measurements_by_resolution: Dict
     ) -> xr.Dataset:
-        """Create level 1 dataset with parallel downsampling from 10m data."""
+        """Create level 1 dataset with batched parallel downsampling from 10m data."""
         all_vars = {}
         reference_coords = None
 
@@ -231,7 +231,7 @@ class S2MultiscalePyramid:
                     "y": first_var.coords["y"],
                 }
 
-        # Add downsampled 10m data with parallelization
+        # Add downsampled 10m data with batched parallelization
         if 10 in measurements_by_resolution and reference_coords:
             data_10m = measurements_by_resolution[10]
             target_height = len(reference_coords["y"])
@@ -246,34 +246,22 @@ class S2MultiscalePyramid:
                         continue
                     vars_to_downsample.append((var_name, var_data))
 
-            # Process variables in parallel if Dask is available
+            # Process variables in batches if Dask is available
             if DASK_AVAILABLE and vars_to_downsample:
-
-                @delayed
-                def downsample_10m_variable(var_name: str, var_data: xr.DataArray):
-                    var_type = determine_variable_type(var_name, var_data)
-                    downsampled = self.resampler.downsample_variable(
-                        var_data, target_height, target_width, var_type
+                batch_size = min(8, max(4, len(vars_to_downsample) // 4))  # Adaptive batch size
+                print(f"    Batched parallel downsampling {len(vars_to_downsample)} variables from 10m to 20m (batch size: {batch_size})...")
+                
+                # Process variables in batches
+                for i in range(0, len(vars_to_downsample), batch_size):
+                    batch = vars_to_downsample[i:i + batch_size]
+                    batch_vars = self._process_variable_batch_to_20m(
+                        batch, target_height, target_width, reference_coords
                     )
-                    # Align coordinates
-                    downsampled = downsampled.assign_coords(reference_coords)
-                    return var_name, downsampled
-
-                # Create tasks for all variables
-                downsample_tasks = [
-                    downsample_10m_variable(var_name, var_data)
-                    for var_name, var_data in vars_to_downsample
-                ]
-
-                # Compute all in parallel
-                print(
-                    f"    Parallel downsampling {len(downsample_tasks)} variables from 10m to 20m..."
-                )
-                results = compute(*downsample_tasks)
-                for var_name, downsampled_var in results:
-                    all_vars[var_name] = downsampled_var
+                    all_vars.update(batch_vars)
+                    print(f"      Completed batch {i//batch_size + 1}/{(len(vars_to_downsample) + batch_size - 1)//batch_size}")
             else:
                 # Sequential fallback
+                print(f"    Sequential downsampling {len(vars_to_downsample)} variables from 10m to 20m...")
                 for var_name, var_data in vars_to_downsample:
                     var_type = determine_variable_type(var_name, var_data)
                     downsampled = self.resampler.downsample_variable(
@@ -295,10 +283,37 @@ class S2MultiscalePyramid:
 
         return dataset
 
+    def _process_variable_batch_to_20m(
+        self, batch: list, target_height: int, target_width: int, reference_coords: dict
+    ) -> dict:
+        """Process a batch of variables for downsampling to 20m with memory management."""
+        
+        @delayed
+        def downsample_to_20m_variable(var_name: str, var_data: xr.DataArray):
+            var_type = determine_variable_type(var_name, var_data)
+            downsampled = self.resampler.downsample_variable(
+                var_data, target_height, target_width, var_type
+            )
+            # Align coordinates
+            downsampled = downsampled.assign_coords(reference_coords)
+            return var_name, downsampled
+
+        # Create tasks for this batch only
+        batch_tasks = [
+            downsample_to_20m_variable(var_name, var_data)
+            for var_name, var_data in batch
+        ]
+
+        # Compute batch in parallel
+        batch_results = compute(*batch_tasks)
+        
+        # Return as dictionary
+        return dict(batch_results)
+
     def _create_level_2_dataset_parallel(
         self, measurements_by_resolution: Dict
     ) -> xr.Dataset:
-        """Create level 2 dataset with parallel downsampling to 60m."""
+        """Create level 2 dataset with batched parallel downsampling to 60m."""
         all_vars = {}
         reference_coords = None
 
@@ -338,36 +353,22 @@ class S2MultiscalePyramid:
                         if var_name not in all_vars:
                             vars_to_downsample.append((var_name, var_data, '10m'))
 
-            # Process all downsampling in parallel if Dask is available
+            # Process downsampling in batches to manage memory
             if DASK_AVAILABLE and vars_to_downsample:
-
-                @delayed
-                def downsample_to_60m_variable(
-                    var_name: str, var_data: xr.DataArray, source_res: str
-                ):
-                    var_type = determine_variable_type(var_name, var_data)
-                    downsampled = self.resampler.downsample_variable(
-                        var_data, target_height, target_width, var_type
+                batch_size = min(8, max(4, len(vars_to_downsample) // 4))  # Adaptive batch size
+                print(f"    Batched parallel downsampling {len(vars_to_downsample)} variables to 60m (batch size: {batch_size})...")
+                
+                # Process variables in batches
+                for i in range(0, len(vars_to_downsample), batch_size):
+                    batch = vars_to_downsample[i:i + batch_size]
+                    batch_vars = self._process_variable_batch_to_60m(
+                        batch, target_height, target_width, reference_coords
                     )
-                    # Align coordinates
-                    downsampled = downsampled.assign_coords(reference_coords)
-                    return var_name, downsampled
-
-                # Create tasks for all variables
-                downsample_tasks = [
-                    downsample_to_60m_variable(var_name, var_data, source_res)
-                    for var_name, var_data, source_res in vars_to_downsample
-                ]
-
-                # Compute all in parallel
-                print(
-                    f"    Parallel downsampling {len(downsample_tasks)} variables to 60m..."
-                )
-                results = compute(*downsample_tasks)
-                for var_name, downsampled_var in results:
-                    all_vars[var_name] = downsampled_var
+                    all_vars.update(batch_vars)
+                    print(f"      Completed batch {i//batch_size + 1}/{(len(vars_to_downsample) + batch_size - 1)//batch_size}")
             else:
                 # Sequential fallback
+                print(f"    Sequential downsampling {len(vars_to_downsample)} variables to 60m...")
                 for var_name, var_data, source_res in vars_to_downsample:
                     var_type = determine_variable_type(var_name, var_data)
                     downsampled = self.resampler.downsample_variable(
@@ -388,6 +389,77 @@ class S2MultiscalePyramid:
         self._write_geo_metadata(dataset)
 
         return dataset
+
+    def _process_variable_batch_to_60m(
+        self, batch: list, target_height: int, target_width: int, reference_coords: dict
+    ) -> dict:
+        """Process a batch of variables for downsampling to 60m with memory management."""
+        
+        @delayed
+        def downsample_to_60m_variable(
+            var_name: str, var_data: xr.DataArray, source_res: str
+        ):
+            try:
+                var_type = determine_variable_type(var_name, var_data)
+                downsampled = self.resampler.downsample_variable(
+                    var_data, target_height, target_width, var_type
+                )
+                # Align coordinates
+                downsampled = downsampled.assign_coords(reference_coords)
+                return var_name, downsampled
+            except Exception as e:
+                print(f"        Warning: Failed to downsample {var_name} from {source_res}: {e}")
+                return var_name, None
+
+        # Create tasks for this batch only
+        batch_tasks = [
+            downsample_to_60m_variable(var_name, var_data, source_res)
+            for var_name, var_data, source_res in batch
+        ]
+
+        # Compute batch in parallel with memory management
+        try:
+            batch_results = compute(*batch_tasks)
+            
+            # Filter out failed results and return as dictionary
+            successful_results = {
+                var_name: result for var_name, result in batch_results 
+                if result is not None
+            }
+            
+            # Force garbage collection to free memory
+            import gc
+            gc.collect()
+            
+            return successful_results
+            
+        except Exception as e:
+            print(f"        Error processing batch: {e}")
+            # Fallback to sequential processing for this batch
+            return self._process_batch_sequential_fallback_60m(
+                batch, target_height, target_width, reference_coords
+            )
+
+    def _process_batch_sequential_fallback_60m(
+        self, batch: list, target_height: int, target_width: int, reference_coords: dict
+    ) -> dict:
+        """Sequential fallback for failed batch processing."""
+        print(f"        Falling back to sequential processing for {len(batch)} variables...")
+        results = {}
+        
+        for var_name, var_data, source_res in batch:
+            try:
+                var_type = determine_variable_type(var_name, var_data)
+                downsampled = self.resampler.downsample_variable(
+                    var_data, target_height, target_width, var_type
+                )
+                downsampled = downsampled.assign_coords(reference_coords)
+                results[var_name] = downsampled
+            except Exception as e:
+                print(f"          Warning: Failed to downsample {var_name}: {e}")
+                continue
+                
+        return results
 
     def _create_downsampled_dataset_from_level2_parallel(
         self, level: int, target_resolution: int, level_2_dataset: xr.Dataset
