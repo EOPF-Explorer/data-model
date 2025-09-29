@@ -31,6 +31,7 @@ For changes to attribute specifications:
 1. **Content Changes**: Submit PRs to this repository for specification content
 2. **Registration Changes**: Submit PRs to [zarr-extensions](https://github.com/zarr-developers/zarr-extensions) for registry updates
 3. **New Attributes**: Follow the [registration process](https://github.com/zarr-developers/zarr-extensions#registering-an-attribute) in zarr-extensions
+4. **Implementation Requirement**: Every specification should include a reference implementation in this repository to ensure the spec can be practically implemented
 
 ## License
 

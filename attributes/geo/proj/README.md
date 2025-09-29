@@ -37,15 +37,15 @@ The `proj` key under the `geo` dictionary can be added to Zarr arrays or groups 
 <!-- GENERATED_SCHEMA_DOCS_START -->
 **`geo -> proj` Properties**
 
-|   |Type|Description|Required|
-|---|---|---|---|
-|**version**|`string`|Projection metadata version| &#10003; Yes|
-|**code**|`["string", "null"]`|Authority:code identifier (e.g., EPSG:4326)|No|
-|**wkt2**|`["string", "null"]`|WKT2 (ISO 19162) CRS representation|No|
-|**projjson**|`any`|PROJJSON CRS representation|No|
-|**bbox**|`number` `[]`|Bounding box in CRS coordinates|No|
-|**transform**|`number` `[]`|Affine transformation coefficients|No|
-|**spatial_dimensions**|`string` `[2]`|Names of spatial dimensions [y_name, x_name]|No|
+|   |Type|Description|Required|Reference|
+|---|---|---|---|---|
+|**version**|`string`|Projection metadata version| &#10003; Yes|[geo -> proj.version](#geo---projversion)|
+|**code**|`["string", "null"]`|Authority:code identifier (e.g., EPSG:4326)|No|[geo -> proj.code](#geo---projcode)|
+|**wkt2**|`["string", "null"]`|WKT2 (ISO 19162) CRS representation|No|[geo -> proj.wkt2](#geo---projwkt2)|
+|**projjson**|`any`|PROJJSON CRS representation|No|[geo -> proj.projjson](#geo---projprojjson)|
+|**bbox**|`number` `[]`|Bounding box in CRS coordinates|No|[geo -> proj.bbox](#geo---projbbox)|
+|**transform**|`number` `[]`|Affine transformation coefficients|No|[geo -> proj.transform](#geo---projtransform)|
+|**spatial_dimensions**|`string` `[2]`|Names of spatial dimensions [y_name, x_name]|No|[geo -> proj.spatial_dimensions](#geo---projspatial_dimensions)|
 
 ### Field Details
 
@@ -270,6 +270,20 @@ The shape of spatial dimensions is determined on a per-array basis:
 3. Using the corresponding sizes from that same array's `shape` attribute
 
 This approach avoids redundancy and ensures consistency by using each array's own metadata rather than duplicating shape information.
+
+## Versioning and Compatibility
+
+This specification uses semantic versioning (SemVer) for version management:
+
+- **Major version** changes indicate backward-incompatible changes to the attribute schema
+- **Minor version** changes add new optional fields while maintaining backward compatibility  
+- **Patch version** changes fix documentation, clarify behavior, or make other non-breaking updates
+
+### Compatibility Guarantees
+
+- Parsers MUST support all fields defined in their major version
+- Parsers SHOULD gracefully handle unknown optional fields from newer minor versions
+- Producers SHOULD include the `version` field to indicate specification compliance level
 
 ## Examples
 
