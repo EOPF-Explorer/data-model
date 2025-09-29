@@ -26,7 +26,7 @@ except ImportError:
 class S2MultiscalePyramid:
     """Creates multiscale pyramids for consolidated S2 data."""
     
-    def __init__(self, enable_sharding: bool = True, spatial_chunk: int = 1024):
+    def __init__(self, enable_sharding: bool = True, spatial_chunk: int = 256):
         self.enable_sharding = enable_sharding
         self.spatial_chunk = spatial_chunk
         self.resampler = S2ResamplingEngine()
@@ -37,9 +37,8 @@ class S2MultiscalePyramid:
             1: 20,    # Level 1: 20m (native for b05,b06,b07,b11,b12,b8a + all quality)
             2: 60,    # Level 2: 60m (3x downsampling from 20m)
             3: 120,   # Level 3: 120m (2x downsampling from 60m)
-            4: 240,   # Level 4: 240m (2x downsampling from 120m)
-            5: 480,   # Level 5: 480m (2x downsampling from 240m)
-            6: 960    # Level 6: 960m (2x downsampling from 480m)
+            4: 360,   # Level 4: 360m (3x downsampling from 120m)
+            5: 720,   # Level 5: 720m (2x downsampling from 360m)
         }
     
     def create_multiscale_measurements(
@@ -108,15 +107,25 @@ class S2MultiscalePyramid:
                 # Write immediately to avoid memory buildup
                 level_path = f"{output_path}/measurements/{level}"
                 print(f"  Writing level {level} to {level_path}")
-                self._write_level_dataset(dataset, level_path, level)
+                dataset = self._write_level_dataset(dataset, level_path, level)
 
                 # Store only essential levels for dependencies
-                if level == 2:
+                if level <= 2:
                     # Keep level 2 for creating higher levels
                     pyramid_datasets[level] = dataset
-                elif level < 2:
-                    # Keep reference but could be cleaned up if memory is tight
-                    pyramid_datasets[level] = dataset
+                    # update measurements_by_resolution also to use the in memory dataset
+                    for var in dataset.data_vars:
+                        var_data = dataset[var]
+                        res = dataset.attrs.get('resolution_meters', None)
+                        if res:
+                            if var.startswith('b') or var.startswith('quality_') or var.startswith('detector_footprint_'):
+                                if var.startswith('b'):
+                                    measurements_by_resolution[res]['bands'][var] = var_data
+                                elif var.startswith('quality_'):
+                                    measurements_by_resolution[res]['quality'][var] = var_data
+                                elif var.startswith('detector_footprint_'):
+                                    measurements_by_resolution[res]['detector_footprints'][var] = var_data
+                    
 
                 # Clean up memory for higher levels (they're already written)
                 if level > 2:
@@ -209,7 +218,7 @@ class S2MultiscalePyramid:
         # Start with native 20m data
         if 20 in measurements_by_resolution:
             data_20m = measurements_by_resolution[20]
-             for category, vars_dict in data_20m.items():
+            for category, vars_dict in data_20m.items():
                 all_vars.update(vars_dict)
             
             # Get reference coordinates from 20m data
@@ -311,15 +320,17 @@ class S2MultiscalePyramid:
                 data_20m = measurements_by_resolution[20]
                 for category, vars_dict in data_20m.items():
                     for var_name, var_data in vars_dict.items():
-                        vars_to_downsample.append((var_name, var_data, '20m'))
+                        if var_name not in all_vars:
+                            vars_to_downsample.append((var_name, var_data, '20m'))
             
             # Add 10m data for downsampling
             if 10 in measurements_by_resolution:
                 data_10m = measurements_by_resolution[10]
                 for category, vars_dict in data_10m.items():
                     for var_name, var_data in vars_dict.items():
-                        vars_to_downsample.append((var_name, var_data, '10m'))
-            
+                        if var_name not in all_vars:
+                            vars_to_downsample.append((var_name, var_data, '10m'))
+
             # Process all downsampling in parallel if Dask is available
             if DASK_AVAILABLE and vars_to_downsample:
                 @delayed
@@ -499,7 +510,7 @@ class S2MultiscalePyramid:
                 for category, vars_dict in data_20m.items():
                     for var_name, var_data in vars_dict.items():
                         # skip if already present from 20m data
-                        if var_name in all_vars:
+                        if var_name in all_vars or var_name in [v[0] for v in vars_to_downsample]:
                             continue
                         vars_to_downsample.append((var_name, var_data, '20m'))
             
@@ -509,7 +520,7 @@ class S2MultiscalePyramid:
                 for category, vars_dict in data_10m.items():
                     for var_name, var_data in vars_dict.items():
                         # skip if already present from 20m data
-                        if var_name in all_vars:
+                        if var_name in all_vars or var_name in [v[0] for v in vars_to_downsample]:
                             continue
                         vars_to_downsample.append((var_name, var_data, '10m'))
             
@@ -671,7 +682,7 @@ class S2MultiscalePyramid:
         
         return dataset
     
-    def _write_level_dataset(self, dataset: xr.Dataset, level_path: str, level: int) -> None:
+    def _write_level_dataset(self, dataset: xr.Dataset, level_path: str, level: int) -> xr.Dataset:
         """
         Write a pyramid level dataset to storage with xy-aligned sharding.
         
@@ -686,7 +697,15 @@ class S2MultiscalePyramid:
         if has_time_dim and self._should_separate_time_files(dataset):
             # Write each time slice separately to ensure single file per variable per time
             self._write_time_separated_dataset(dataset, level_path, level, encoding)
+            return dataset
         else:
+            # check if level_path exists and skip writing if it does
+            import os
+            if os.path.exists(level_path):
+                print(f"  Level path {level_path} already exists. Skipping write.")
+                # return the existing dataset
+                return xr.open_dataset(level_path, engine='zarr')
+
             # Write as single dataset with xy-aligned sharding
             print(f"  Writing level {level} to {level_path} (xy-aligned sharding)")
             
@@ -716,7 +735,9 @@ class S2MultiscalePyramid:
             else:
                 print(f"    Writing zarr file...")
                 write_job.compute()
-    
+                
+            return rechunked_dataset
+
     def _should_separate_time_files(self, dataset: xr.Dataset) -> bool:
         """Determine if time files should be separated for single file per variable per time."""
         for var in dataset.data_vars.values():

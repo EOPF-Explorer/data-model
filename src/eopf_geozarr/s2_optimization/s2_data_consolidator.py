@@ -3,11 +3,7 @@ Data consolidation logic for reorganizing S2 structure.
 """
 
 import xarray as xr
-from typing import Dict, List, Tuple, Optional
-from .s2_band_mapping import (
-    NATIVE_BANDS, QUALITY_DATA_NATIVE, DETECTOR_FOOTPRINT_NATIVE,
-    get_bands_for_level, get_quality_data_for_level
-)
+from typing import Dict, List, Tuple
 
 class S2DataConsolidator:
     """Consolidates S2 data from scattered structure into organized groups."""
@@ -84,10 +80,8 @@ class S2DataConsolidator:
                     ds = group_node.to_dataset()
                 
                 # Extract only native bands for this resolution
-                native_bands = NATIVE_BANDS.get(res_num, [])
-                for band in native_bands:
-                    if band in ds.data_vars:
-                        self.measurements_data[res_num]['bands'][band] = ds[band]
+                for band in ds.data_vars:
+                    self.measurements_data[res_num]['bands'][band] = ds[band]
     
     def _extract_quality_data(self) -> None:
         """Extract quality mask data."""
@@ -100,11 +94,8 @@ class S2DataConsolidator:
             if group_path in self.dt_input.groups:
                 ds = self.dt_input[group_path].to_dataset()
                 
-                # Only extract quality for native bands at this resolution
-                native_bands = NATIVE_BANDS.get(res_num, [])
-                for band in native_bands:
-                    if band in ds.data_vars:
-                        self.measurements_data[res_num]['quality'][f'quality_{band}'] = ds[band]
+                for band in ds.data_vars:
+                    self.measurements_data[res_num]['quality'][f'quality_{band}'] = ds[band]
     
     def _extract_detector_footprints(self) -> None:
         """Extract detector footprint data."""
@@ -117,12 +108,9 @@ class S2DataConsolidator:
             if group_path in self.dt_input.groups:
                 ds = self.dt_input[group_path].to_dataset()
                 
-                # Only extract footprints for native bands
-                native_bands = NATIVE_BANDS.get(res_num, [])
-                for band in native_bands:
-                    if band in ds.data_vars:
-                        var_name = f'detector_footprint_{band}'
-                        self.measurements_data[res_num]['detector_footprints'][var_name] = ds[band]
+                for band in ds.data_vars:
+                    var_name = f'detector_footprint_{band}'
+                    self.measurements_data[res_num]['detector_footprints'][var_name] = ds[band]
     
     def _extract_atmosphere_data(self) -> None:
         """Extract atmosphere quality data (aot, wvp) - native at 20m."""

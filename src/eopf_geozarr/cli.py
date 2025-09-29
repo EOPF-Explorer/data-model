@@ -54,7 +54,7 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
         from dask.distributed import Client
 
         # Set up local cluster with high memory limits
-        client = Client(n_workers=3, memory_limit="4GB")  # set up local cluster with 3 workers and 8GB memory each
+        client = Client(n_workers=3, memory_limit="8GB")  # set up local cluster with 3 workers and 8GB memory each
         # client = Client()  # set up local cluster
 
         if verbose:
@@ -1173,8 +1173,8 @@ def add_s2_optimization_commands(subparsers):
     s2_parser.add_argument(
         '--spatial-chunk',
         type=int,
-        default=1024,
-        help='Spatial chunk size (default: 1024)'
+        default=256,
+        help='Spatial chunk size (default: 256)'
     )
     s2_parser.add_argument(
         '--enable-sharding',

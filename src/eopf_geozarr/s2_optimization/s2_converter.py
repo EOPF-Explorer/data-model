@@ -105,9 +105,9 @@ class S2OptimizedConverter:
             meteorology_path = f"{output_path}/meteorology"
             self._write_auxiliary_group(meteorology_ds, meteorology_path, "meteorology", verbose)
         
-        # Step 5: Add multiscales metadata to measurements group
-        print("Step 5: Adding multiscales metadata to measurements group...")
-        self._add_measurements_multiscales_metadata(output_path, pyramid_datasets)
+        # Step 5: Create measurements group and add multiscales metadata
+        print("Step 5: Creating measurements group...")
+        measurement_dt = self._write_measurements_group(pyramid_datasets, "measurements", verbose)
         
         # Step 6: Simple root-level consolidation
         print("Step 6: Final root-level metadata consolidation...")
@@ -200,36 +200,38 @@ class S2OptimizedConverter:
         if verbose:
             print(f"  {group_type.title()} group written: {len(dataset.data_vars)} variables")
     
-    def _add_measurements_multiscales_metadata(self, output_path: str, pyramid_datasets: Dict[int, xr.Dataset]) -> None:
-        """Add multiscales metadata to the measurements group using rioxarray."""
-        try:
-            measurements_path = f"{output_path}/measurements"
-            
-            # Create multiscales metadata using rioxarray .rio accessor
-            multiscales_metadata = self._create_multiscales_metadata_with_rio(pyramid_datasets)
-            
-            if multiscales_metadata:
-                # Use zarr to add metadata to the measurements group
-                storage_options = get_storage_options(measurements_path)
-                
-                try:
-                    import zarr
-                    if storage_options:
-                        store = zarr.storage.FSStore(measurements_path, **storage_options)
-                    else:
-                        store = measurements_path
-                    
-                    # Open the measurements group and add multiscales metadata
-                    measurements_group = zarr.open_group(store, mode='r+')
-                    measurements_group.attrs['multiscales'] = multiscales_metadata
-                    
-                    print("  ✅ Added multiscales metadata to measurements group")
-                    
-                except Exception as e:
-                    print(f"  ⚠️ Could not add multiscales metadata: {e}")
-            
-        except Exception as e:
-            print(f"  ⚠️ Error adding multiscales metadata: {e}")
+    def _write_measurements_group(
+        self,
+        pyramid_datasets: Dict[int, xr.Dataset],
+        group_name: str,
+        verbose: bool
+    ) -> None:
+        """Write measurements group with pyramid datasets."""
+        group_path = f"{group_name}"
+        
+        measurements_group = xr.DataTree()
+        for level, ds in pyramid_datasets.items():
+            if ds is not None:
+                measurements_group[level] = ds
+
+        multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
+        if multiscales_attrs:
+            measurements_group.attrs['multiscales'] = [multiscales_attrs]
+            if verbose:
+                print(f"  Multiscales metadata added with {len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))} levels")
+
+        # Write the measurements group with consolidation
+        storage_options = get_storage_options(group_path)
+        measurements_group.to_zarr(
+            group_path,
+            mode='w',
+            consolidated=True,
+            zarr_format=3,
+            storage_options=storage_options,
+            compute=True  # Direct compute for simplicity
+        )
+
+        return measurements_group
     
     def _create_multiscales_metadata_with_rio(self, pyramid_datasets: Dict[int, xr.Dataset]) -> Dict:
         """Create multiscales metadata using rioxarray .rio accessor, following geozarr.py format."""
