@@ -31,12 +31,11 @@ The `multiscales` key under the `geo` dictionary can be added to Zarr groups to 
 <!-- GENERATED_SCHEMA_DOCS_START -->
 **`geo -> multiscales` Properties**
 
-|                            | Type               | Description                                        | Required | Reference                                                                             |
-| -------------------------- | ------------------ | -------------------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
-| **version**                | `string`           | Multiscales metadata version                       | ✓ Yes   | [geo -> multiscales.version](#geo---multiscalesversion)                               |
-| **tile_matrix_set**        | `string \| object` | Tile matrix set definition or reference            | No       | [geo -> multiscales.tile_matrix_set](#geo---multiscalestile_matrix_set)               |
-| **resampling_method**      | `string`           | Resampling method used for downsampling            | No       | [geo -> multiscales.resampling_method](#geo---multiscalesresampling_method)           |
-| **tile_matrix_set_limits** | `object`           | Optional limits for available tiles per zoom level | No       | [geo -> multiscales.tile_matrix_set_limits](#geo---multiscalestile_matrix_set_limits) |
+|                       | Type       | Description                                          | Required | Reference                                                                   |
+| --------------------- | ---------- | ---------------------------------------------------- | -------- | --------------------------------------------------------------------------- |
+| **version**           | `string`   | Multiscales metadata version                         | ✓ Yes    | [geo -> multiscales.version](#geo---multiscalesversion)                     |
+| **layout**            | `[string]` | Array of group names representing the pyramid layout | ✓ Yes    | [geo -> multiscales.layout](#geo---multiscaleslayout)                       |
+| **resampling_method** | `string`   | Resampling method used for downsampling              | No       | [geo -> multiscales.resampling_method](#geo---multiscalesresampling_method) |
 
 ### Field Details
 
@@ -48,56 +47,16 @@ Multiscales metadata version
 
 * **Type**: `string`
 * **Required**: ✓ Yes
-* **Allowed values**: `0.1`
+* **Allowed values**: `0.1.0`
 
 #### geo -> multiscales.layout
 
-TileMatrixSet definition or reference
+Array of group names representing the pyramid layout
 
-* **Type**: `string | object`
-* **Required**: No
+* **Type**: array of `string`
+* **Required**: Yes
 
-This field can contain either:
-1. **Reference by identifier**: A string identifier referencing a well-known TileMatrixSet (e.g., "WebMercatorQuad")
-2. **URI reference**: A URI pointing to a JSON document describing the tile matrix set
-3. **Inline definition**: A complete TileMatrixSet JSON object following OGC TileMatrixSet 2.0 specification
-
-**Reference by identifier:**
-```json
-{
-  "tile_matrix_set": "WebMercatorQuad"
-}
-```
-
-**URI reference:**
-```json
-{
-  "tile_matrix_set": "https://maps.example.org/tileMatrixSets/WebMercatorQuad.json"
-}
-```
-
-**Inline definition:**
-```json
-{
-  "tile_matrix_set": {
-    "id": "Custom_Grid",
-    "title": "Custom Grid for Scientific Data",
-    "crs": "EPSG:4326",
-    "tileMatrices": [
-      {
-        "id": "0",
-        "scaleDenominator": 0.703125,
-        "cellSize": 0.0625,
-        "pointOfOrigin": [-180.0, 90.0],
-        "tileWidth": 256,
-        "tileHeight": 256,
-        "matrixWidth": 2,
-        "matrixHeight": 1
-      }
-    ]
-  }
-}
-```
+This field SHALL describe the pyramid hierarchy with an array of strings representing the group names for each resolution level, ordered from highest to lowest resolution.
 
 #### geo -> multiscales.resampling_method
 
@@ -110,58 +69,30 @@ Resampling method used for downsampling
 
 The same method SHALL apply across all levels.
 
-#### geo -> multiscales.tile_matrix_set_limits
-
-Optional limits for available tiles per zoom level
-
-* **Type**: `object`
-* **Required**: No
-
-Defines the available tile ranges for each zoom level. Keys must match TileMatrix.id values from the TileMatrixSet.
-
-```json
-{
-  "tile_matrix_set_limits": {
-    "0": {
-      "minTileRow": 0,
-      "maxTileRow": 0,
-      "minTileCol": 0,
-      "maxTileCol": 0
-    },
-    "1": {
-      "minTileRow": 0,
-      "maxTileRow": 1,
-      "minTileCol": 0,
-      "maxTileCol": 1
-    }
-  }
-}
-```
-
-
 <!-- GENERATED_SCHEMA_DOCS_END -->
 
 ### Hierarchical Layout
 
-Multiscale datasets follow a specific hierarchical structure that accommodates both native resolution storage and overview levels:
+Multiscale datasets SHOULD follow a specific hierarchical structure that accommodates both native resolution storage and overview levels:
 
-1. **Dataset Group**: Contains native resolution data and multiscales metadata
+1. **Multiscale Group**: Contains `multiscales` metadata
 2. **Overview Level Groups**: Child groups containing overview data at different resolutions
 
 ```
-/measurements/               # Dataset Group with multiscales metadata
+multiscales/                 # Group with `multiscales` metadata
 ├── 0/                       # First overview level
+│   ├── b01                  # Native resolution variable
 |   ├── b02                  # Native resolution variable
 |   ├── b03                  # Native resolution variable
 |   ├── b04                  # Native resolution variable
-|   ├── spatial_ref          # Coordinate reference variable
-├── 1/                       # First overview level
+|   ├── spatial_ref          # Auxiliary spatial reference variable
+├── 1/                       # Second overview level
 │   ├── b01                  # All bands available at overview level
 │   ├── b02
 │   ├── b03
 │   ├── ...
 │   └── spatial_ref
-└── 2/                       # Second overview level
+└── 2/                       # Third overview level
     ├── b01
     ├── b02
     ├── b03
@@ -169,41 +100,32 @@ Multiscale datasets follow a specific hierarchical structure that accommodates b
     └── spatial_ref
 ```
 
-**Key principles:**
-- Native resolution variables are stored directly in the Dataset Group (not in a separate "0/" group)
-- Overview levels are stored in child groups with names matching TileMatrix identifiers
-- This approach maintains efficiency by avoiding the need to restructure existing datasets when adding overviews
+**Recommendations:**
+
+- All levels are stored in child groups with names matching layout keys (e.g., `0`, `1`, `2`, or custom names)
+- The native resolution dataset is stored in a child group (e.g., `0`) alongside overview levels
+
+> [!Note] Layout can describe native resolution stored in the multiscale group directly by using the key `.` (dot) to represent the current group. This is not recommended but MAY be used for backward compatibility with existing datasets that are augmented with multiscale metadata. It is important to acknowledge that this layout is less optimal for clients and MAY lead to errors. For instance, xarray's `open_dataset` function does not support data tree where parent and children shape do not align.
 
 ### Group Discovery Methods
 
-The multiscales metadata enables complete discovery of the multiscale collection structure through multiple mechanisms:
+The multiscales metadata enables complete discovery of the multiscale collection structure through a simple layout mechanisms:
 
-1. **TileMatrixSet-based discovery**: 
-   - The TileMatrixSet definition specifies the exact set of zoom levels through its tileMatrices array
-   - Each TileMatrix.id value corresponds to a child group in the multiscale hierarchy
-   - Variable discovery within each zoom level group follows standard Zarr metadata conventions
-
-2. **Generic datasets-based discovery**:
-   - The `datasets` array explicitly lists all resolution levels and their paths
-   - Scale factors provide resolution relationships
-
-3. **Explicit limits**:
-   - `tile_matrix_set_limits` explicitly declares which zoom levels contain data
-   - For storage backends that do not support directory listing, this is the primary mechanism for discovering available zoom levels
+- The `layout` definition specifies the exact set of zoom levels through its array of group names
+- Each group name corresponds to a child group in the multiscale hierarchy
+- Variable discovery within each zoom level group follows standard Zarr metadata conventions and should use the consolidated metadata feature for efficiency
 
 ### Consolidated Metadata Requirements
 
-**Consolidated metadata is MANDATORY for multiscale groups** to ensure complete discoverability of pyramid structure and metadata without requiring individual access to each child dataset.
+**Consolidated metadata is HIGHLY RECOMMENDED for multiscale groups** to ensure complete discoverability of pyramid structure and metadata without requiring individual access to each child dataset.
 
 #### Requirements
 
 1. **Zarr Consolidated Metadata**: The multiscale group SHALL use Zarr's consolidated metadata feature to expose metadata from all child groups and arrays at the group level.
 
-2. **Projection Information Access**: All projection information (CRS, transforms, grid mappings) from child datasets SHALL be accessible through the consolidated metadata at the multiscale group level.
+2. **Variable Discovery**: The consolidated metadata SHALL include complete variable listings for all resolution levels, enabling clients to understand the full pyramid structure without traversing child groups.
 
-3. **Variable Discovery**: The consolidated metadata SHALL include complete variable listings for all resolution levels, enabling clients to understand the full pyramid structure without traversing child groups.
-
-4. **Coordinate Information**: Coordinate arrays and their metadata from all resolution levels SHALL be included in the consolidated metadata.
+3. **Projection Information Access**: All projection information via the [`geo/proj` attribute](../proj/README.md) from child datasets SHALL be accessible through the consolidated metadata at the multiscale group level. According to the attributes provided, the client shall be able to discover the CRS, bounding box, and resolution information from any resolution level.
 
 #### Client Implementation Guidelines
 
@@ -218,24 +140,12 @@ The multiscales metadata enables complete discovery of the multiscale collection
 ### Validation Rules
 
 - **Consolidated Metadata**: Multiscale groups SHALL provide consolidated metadata as specified above
-- **Level Consistency**: Resolution level group names SHALL match either TileMatrix.id values (when using TileMatrixSet) or dataset path values
-- **Structural Consistency**: All resolution level groups SHALL have the same member structure for variables they contain
+- **Level Consistency**: Resolution level group names SHALL match children group path values in the `layout` array
 - **Coordinate System Consistency**: All resolution levels SHALL use the same coordinate reference system
-- **Chunking Alignment**: Chunks SHALL be aligned with the tile grid (1:1 mapping between chunks and tiles) when using TileMatrixSet
-
-### Decimation Requirements and Custom Scaling
-
-While TileMatrixSet commonly assumes quadtree decimation (scaling by factor of 2), custom TileMatrixSets MAY use alternative decimation factors:
-
-- **Factor of 2 (quadtree)**: Standard web mapping approach where each zoom level has 4x more tiles
-- **Factor of 3 (nonary tree)**: Each zoom level has 9x more tiles, useful for certain scientific gridding schemes  
-- **Other integer factors**: Application-specific requirements may dictate alternative decimation
-
-When using non-standard decimation factors, the TileMatrixSet definition SHALL explicitly specify the matrixWidth and matrixHeight values for each TileMatrix to ensure correct spatial alignment and resolution relationships.
 
 ## Examples
 
-### Example 1: Simple TileMatrixSet Reference
+### Example 1: Simple UTM Pyramid
 
 ```json
 {
@@ -243,126 +153,90 @@ When using non-standard decimation factors, the TileMatrixSet definition SHALL e
   "node_type": "group",
   "attributes": {
     "geo": {
+      "proj": {
+        "epsg": 32633,
+        "bbox": [500000.0, 0.0, 600000.0, 1000000.0],
+      },
       "multiscales": {
-        "version": "0.1",
-        "tile_matrix_set": "WebMercatorQuad",
-        "resampling_method": "average",
-        "tile_matrix_set_limits": {
-          "7": {"minTileRow": 42, "maxTileRow": 43, "minTileCol": 67, "maxTileCol": 68},
-          "8": {"minTileRow": 85, "maxTileRow": 87, "minTileCol": 134, "maxTileCol": 137}
+        "version": "0.1.0",
+        "layout": ["0", "1", "2", "3"],
+        "resampling_method": "average"
+      }
+    }
+  },
+  "consolidated_metadata": {
+    "kind": "inline",
+    "must_understand": false,
+    "metadata": { 
+      "0": {
+        "zarr_format": 3,
+        "node_type": "group",
+        "attributes": {
+          "geo": {
+            "proj": {
+              "epsg": 32633,
+              "bbox": [50000.0, 0.0, 60000.0, 100000.0],
+              "transform": [10.0, 0.0, 50000.0, 0.0, -10.0, 100000.0, 0.0, 0.0, 1.0]
+            }
+          }
         }
-      }
-    }
-  }
-}
-```
-
-### Example 2: Custom UTM TileMatrixSet
-
-```json
-{
-  "zarr_format": 3,
-  "node_type": "group", 
-  "attributes": {
-    "geo": {
-      "multiscales": {
-        "version": "0.1",
-        "tile_matrix_set": {
-          "id": "UTM_Zone_33N_Custom",
-          "title": "UTM Zone 33N for Sentinel-2 native resolution",
-          "crs": "EPSG:32633",
-          "orderedAxes": ["E", "N"],
-          "tileMatrices": [
-            {
-              "id": "0",
-              "scaleDenominator": 35.28,
-              "cellSize": 10.0,
-              "pointOfOrigin": [299960.0, 9000000.0],
-              "tileWidth": 1024,
-              "tileHeight": 1024,
-              "matrixWidth": 1094,
-              "matrixHeight": 1094
-            },
-            {
-              "id": "1",
-              "scaleDenominator": 70.56,
-              "cellSize": 20.0,
-              "pointOfOrigin": [299960.0, 9000000.0],
-              "tileWidth": 512,
-              "tileHeight": 512,
-              "matrixWidth": 547,
-              "matrixHeight": 547
+      },
+      "0/b01": {
+        "zarr_format": 3,
+        "node_type": "array",
+        "shape": [10000, 10000],
+        "dtype": "<u2",
+        "fill_value": 0,
+        "codecs": [...],
+        "attributes": {}
+      },
+      ...
+      "1": {
+        "zarr_format": 3,
+        "node_type": "group",
+        "attributes": {
+          "geo": {
+            "proj": {
+              "epsg": 32633,
+              "bbox": [50000.0, 0.0, 60000.0, 100000.0],
+              "transform": [20.0, 0.0, 50000.0, 0.0, -20.0, 100000.0, 0.0, 0.0, 1.0]
             }
-          ]
-        },
-        "resampling_method": "average"
-      }
-    }
-  }
-}
-```
-
-### Example 3: Generic Datasets-based Pyramid
-
-```json
-{
-  "zarr_format": 3,
-  "node_type": "group",
-  "attributes": {
-    "geo": {
-      "multiscales": {
-        "version": "0.1",
-        "datasets": [
-          {"path": "", "scale": [1.0, 1.0, 1.0]},
-          {"path": "level_1", "scale": [1.0, 2.0, 2.0]},
-          {"path": "level_2", "scale": [1.0, 4.0, 4.0]}
-        ],
-        "resampling_method": "average"
-      }
-    }
-  }
-}
-```
-
-### Example 4: Factor-of-3 Decimation
-
-```json
-{
-  "zarr_format": 3,
-  "node_type": "group",
-  "attributes": {
-    "geo": {
-      "multiscales": {
-        "version": "0.1",
-        "tile_matrix_set": {
-          "id": "Custom_Nonary_Grid",
-          "crs": "EPSG:4326",
-          "tileMatrices": [
-            {
-              "id": "0",
-              "matrixWidth": 1,
-              "matrixHeight": 1,
-              "tileWidth": 256,
-              "tileHeight": 256
-            },
-            {
-              "id": "1",
-              "matrixWidth": 3,
-              "matrixHeight": 3,
-              "tileWidth": 256,
-              "tileHeight": 256
-            },
-            {
-              "id": "2",
-              "matrixWidth": 9,
-              "matrixHeight": 9,
-              "tileWidth": 256,
-              "tileHeight": 256
+          }
+        }
+      },
+      "1/b01": {
+        "zarr_format": 3,
+        "node_type": "array",
+        "shape": [5000, 5000],
+        "dtype": "<u2",
+        "fill_value": 0,
+        "codecs": [...],
+        "attributes": {}
+      },
+      ...
+      "2": {
+        "zarr_format": 3,
+        "node_type": "group",
+        "attributes": {
+          "geo": {
+            "proj": {
+              "epsg": 32633,
+              "bbox": [50000.0, 0.0, 60000.0, 100000.0],
+              "transform": [40.0, 0.0, 50000.0, 0.0, -40.0, 100000.0, 0.0, 0.0, 1.0]
             }
-          ]
-        },
-        "resampling_method": "average"
-      }
+          }
+        }
+      },
+      "2/b01": {
+        "zarr_format": 3,
+        "node_type": "array",
+        "shape": [2500, 2500],
+        "dtype": "<u2",
+        "fill_value": 0,
+        "codecs": [...],
+        "attributes": {}
+      },
+      ...
     }
   }
 }
@@ -392,25 +266,12 @@ When implementing support for inconsistent pyramids:
 2. **Fallback Logic**: When a variable is not available at the optimal resolution level, fall back to the finest resolution level containing that variable
 3. **Metadata Consistency**: Ensure that coordinate system and chunking information remains consistent across levels
 
-### Performance Considerations
-
-- **Chunking Alignment**: For TileMatrixSet-based pyramids, chunks SHOULD be aligned with the tile grid (1:1 mapping between chunks and tiles)
-- **Chunk Sizes**: Chunk sizes SHOULD match the `tileWidth` and `tileHeight` declared in the TileMatrix
-- **Compression**: Use compression codecs appropriate for the data type and use case
-- **Access Patterns**: Structure data to optimize common access patterns (spatial locality, multi-resolution queries)
-
-### TileMatrixSet Integration
-
-- **CRS Consistency**: The spatial reference system declared in `supportedCRS` SHALL match the one declared in the corresponding `grid_mapping` of the data variables
-- **Group Naming**: Group names in the multiscale hierarchy SHALL correspond exactly to the TileMatrix identifier values
-- **Conflict Avoidance**: Additional groups or arrays MAY be present alongside zoom level groups, but SHALL NOT use names that conflict with TileMatrix identifiers
-
 ## Compatibility Notes
 
-- The specification supports both TileMatrixSet-based and generic datasets-based approaches for maximum flexibility
+- The specification uses a simple layout-based approach for maximum flexibility and ease of implementation
 - Consolidated metadata at the multiscale group level provides complete information about all child datasets
 - Integration with existing `geo.proj` attributes provides complete geospatial metadata coverage
-- Native resolution storage in the Dataset Group maintains efficiency and compatibility with existing datasets
+- Hierarchical storage with explicit layout definition enables efficient discovery and access patterns
 
 ## References
 

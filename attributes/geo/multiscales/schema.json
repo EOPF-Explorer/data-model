@@ -7,119 +7,16 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": ["0.1"],
+      "enum": ["0.1.0"],
       "description": "Multiscales metadata version"
     },
-    "tile_matrix_set": {
-      "oneOf": [
-        {
-          "type": "string",
-          "description": "Reference by identifier or URI to a TileMatrixSet"
-        },
-        {
-          "type": "object",
-          "description": "Inline TileMatrixSet definition following OGC TileMatrixSet 2.0 specification",
-          "properties": {
-            "id": {
-              "type": "string",
-              "description": "Identifier for the TileMatrixSet"
-            },
-            "title": {
-              "type": "string",
-              "description": "Human-readable title for the TileMatrixSet"
-            },
-            "crs": {
-              "type": "string",
-              "description": "Coordinate reference system identifier"
-            },
-            "orderedAxes": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Ordered list of axis abbreviations"
-            },
-            "tileMatrices": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "TileMatrix identifier"
-                  },
-                  "scaleDenominator": {
-                    "type": "number",
-                    "description": "Scale denominator for this zoom level"
-                  },
-                  "cellSize": {
-                    "type": "number",
-                    "description": "Cell size in CRS units"
-                  },
-                  "pointOfOrigin": {
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    },
-                    "minItems": 2,
-                    "maxItems": 2,
-                    "description": "Top-left corner coordinates"
-                  },
-                  "tileWidth": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Width of each tile in pixels"
-                  },
-                  "tileHeight": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Height of each tile in pixels"
-                  },
-                  "matrixWidth": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Number of tiles horizontally"
-                  },
-                  "matrixHeight": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Number of tiles vertically"
-                  }
-                },
-                "required": ["id", "tileWidth", "tileHeight", "matrixWidth", "matrixHeight"],
-                "additionalProperties": false
-              },
-              "description": "Array of TileMatrix definitions"
-            }
-          },
-          "required": ["id", "crs", "tileMatrices"],
-          "additionalProperties": true
-        }
-      ],
-      "description": "TileMatrixSet definition or reference"
-    },
-    "datasets": {
+    "layout": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string",
-            "description": "Path to the dataset group (empty string for root level)"
-          },
-          "scale": {
-            "type": "array",
-            "items": {
-              "type": "number",
-              "minimum": 0
-            },
-            "description": "Scale factors for each axis relative to the finest resolution"
-          }
-        },
-        "required": ["path"],
-        "additionalProperties": false
+        "type": "string"
       },
-      "description": "Array of dataset definitions for each resolution level"
+      "minItems": 1,
+      "description": "Array of group names representing the pyramid layout, ordered from highest to lowest resolution"
     },
     "resampling_method": {
       "type": "string",
@@ -142,49 +39,8 @@
       ],
       "default": "nearest",
       "description": "Resampling method used for downsampling"
-    },
-    "tile_matrix_set_limits": {
-      "type": "object",
-      "patternProperties": {
-        "^.*$": {
-          "type": "object",
-          "properties": {
-            "minTileRow": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "Minimum tile row index"
-            },
-            "maxTileRow": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "Maximum tile row index"
-            },
-            "minTileCol": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "Minimum tile column index"
-            },
-            "maxTileCol": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "Maximum tile column index"
-            }
-          },
-          "required": ["minTileRow", "maxTileRow", "minTileCol", "maxTileCol"],
-          "additionalProperties": false
-        }
-      },
-      "description": "Optional limits for available tiles per zoom level"
     }
   },
-  "required": ["version"],
-  "anyOf": [
-    {
-      "required": ["tile_matrix_set"]
-    },
-    {
-      "required": ["datasets"]
-    }
-  ],
+  "required": ["version", "layout"],
   "additionalProperties": true
 }
