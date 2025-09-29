@@ -26,7 +26,7 @@ import xarray as xr
 import zarr
 from pyproj import CRS
 from rasterio.warp import calculate_default_transform
-from zarr.codecs import BloscCodec, ShardingCodec
+from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
