@@ -1476,6 +1476,7 @@ def _create_geozarr_encoding(
 ) -> dict[Hashable, XarrayEncodingJSON]:
     """Create encoding for GeoZarr dataset variables."""
     encoding: dict[Hashable, XarrayEncodingJSON] = {}
+    chunks: tuple[int, ...]
     for var in ds.data_vars:
         if utils.is_grid_mapping_variable(ds, var):
             encoding[var] = {"compressors": None}
@@ -1497,7 +1498,7 @@ def _create_geozarr_encoding(
                 spatial_chunk_aligned = spatial_chunk
                 chunks = (spatial_chunk_aligned,)
 
-            shards = None
+            shards: tuple[int, ...] | None = None
 
             if enable_sharding:
                 # Calculate shard dimensions that are divisible by chunk dimensions
