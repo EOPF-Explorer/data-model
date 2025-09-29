@@ -88,9 +88,7 @@ class S2ResamplingEngine:
     def _downsample_classification(
         self, data: xr.DataArray, target_height: int, target_width: int
     ) -> xr.DataArray:
-        """Mode-based downsampling for classification data."""
-        from scipy import stats
-
+        """Fast nearest neighbor downsampling for classification data."""
         current_height, current_width = data.shape[-2:]
         block_h = current_height // target_height
         block_w = current_width // target_width
@@ -100,35 +98,25 @@ class S2ResamplingEngine:
         new_width = (current_width // block_w) * block_w
         data = data[..., :new_height, :new_width]
 
-        # Reshape for block processing
+        # Use simple nearest neighbor sampling (much faster than mode)
+        # Take the center pixel of each block as representative
+        center_h = block_h // 2
+        center_w = block_w // 2
+        
         if data.ndim == 3:
-            reshaped = data.values.reshape(
-                data.shape[0], target_height, block_h, target_width, block_w
-            )
-            # Compute mode for each block
-            downsampled = np.zeros(
-                (data.shape[0], target_height, target_width), dtype=data.dtype
-            )
-            for t in range(data.shape[0]):
-                for i in range(target_height):
-                    for j in range(target_width):
-                        block = reshaped[t, i, :, j, :].flatten()
-                        mode_val = stats.mode(block, keepdims=False)[0]
-                        downsampled[t, i, j] = mode_val
+            # Sample every block_h and block_w pixels, starting from center
+            downsampled = data.values[:, center_h::block_h, center_w::block_w]
+            # Ensure we get exactly the target dimensions
+            downsampled = downsampled[:, :target_height, :target_width]
         else:
-            reshaped = data.values.reshape(
-                target_height, block_h, target_width, block_w
-            )
-            downsampled = np.zeros((target_height, target_width), dtype=data.dtype)
-            for i in range(target_height):
-                for j in range(target_width):
-                    block = reshaped[i, :, j, :].flatten()
-                    mode_val = stats.mode(block, keepdims=False)[0]
-                    downsampled[i, j] = mode_val
+            # Sample every block_h and block_w pixels, starting from center  
+            downsampled = data.values[center_h::block_h, center_w::block_w]
+            # Ensure we get exactly the target dimensions
+            downsampled = downsampled[:target_height, :target_width]
 
-        # Create coordinates
-        y_coords = data.coords[data.dims[-2]][::block_h][:target_height]
-        x_coords = data.coords[data.dims[-1]][::block_w][:target_width]
+        # Create coordinates (sample from the center positions)
+        y_coords = data.coords[data.dims[-2]][center_h::block_h][:target_height]
+        x_coords = data.coords[data.dims[-1]][center_w::block_w][:target_width]
 
         if data.ndim == 3:
             coords = {
