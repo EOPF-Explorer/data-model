@@ -10,12 +10,10 @@ Zarr attributes are metadata stored in the `attributes` object in Zarr array and
 
 ### [`geo/proj`](./geo/proj/README.md) - Geo Projection Attribute Extension
 
-**Status**: Proposed  
-**Registry Entry**: [zarr-extensions/attributes/geo/proj](https://github.com/zarr-developers/zarr-extensions/tree/main/attributes/geo/proj)
-
 Defines a JSON object that encodes datum and coordinate reference system (CRS) information for geospatial data stored under the `proj` key within the `geo` dictionary.
 
 **Key Features**:
+
 - Simple, standardized CRS encoding without complex nested structures
 - Compatible with existing geospatial tools (GDAL, rasterio, pyproj)
 - Based on the proven STAC Projection Extension model
