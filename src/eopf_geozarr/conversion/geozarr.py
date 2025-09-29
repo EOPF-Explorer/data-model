@@ -26,7 +26,7 @@ import xarray as xr
 import zarr
 from pyproj import CRS
 from rasterio.warp import calculate_default_transform
-from zarr.codecs import BloscCodec, ShardingCodec
+from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
@@ -92,7 +92,7 @@ def create_geozarr_dataset(
     """
     dt = dt_input.copy()
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
-    
+
     if enable_sharding:
         print("🔧 Zarr sharding enabled for spatial dimensions")
 
@@ -528,7 +528,7 @@ def create_geozarr_compliant_multiscales(
     tile_width: int = 256,
     spatial_chunk: int = 4096,
     ds_gcp: xr.Dataset | None = None,
-    enable_sharding: bool = False
+    enable_sharding: bool = False,
 ) -> Dict[str, Any]:
     """
     Create GeoZarr-spec compliant multiscales following the specification exactly.
@@ -690,7 +690,9 @@ def create_geozarr_compliant_multiscales(
         )
 
         # Create encoding for this overview level
-        encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk, enable_sharding)
+        encoding = _create_geozarr_encoding(
+            overview_ds, compressor, spatial_chunk, enable_sharding
+        )
 
         # Write overview level
         overview_path = fs_utils.normalize_path(f"{output_path}/{group_name}/{level}")
@@ -1104,7 +1106,11 @@ def write_dataset_band_by_band_with_validation(
         for attempt in range(max_retries):
             try:
                 # Ensure the dataset is properly chunked to align with encoding
-                if var in var_encoding and "shards" in var_encoding[var] and var_encoding[var]["shards"] is not None:
+                if (
+                    var in var_encoding
+                    and "shards" in var_encoding[var]
+                    and var_encoding[var]["shards"] is not None
+                ):
                     # For sharded variables, use the shards dimensions
                     shard_dims = var_encoding[var].get("shards", None)
                     if shard_dims is not None:
@@ -1482,7 +1488,7 @@ def _create_geozarr_encoding(
                     utils.calculate_aligned_chunk_size(width, spatial_chunk),
                     utils.calculate_aligned_chunk_size(height, spatial_chunk),
                 )
-                
+
                 if len(data_shape) == 3:
                     chunks = (1, spatial_chunk_aligned, spatial_chunk_aligned)
                 else:
@@ -1490,9 +1496,9 @@ def _create_geozarr_encoding(
             else:
                 spatial_chunk_aligned = spatial_chunk
                 chunks = (spatial_chunk_aligned,)
-                
+
             shards = None
-                
+
             if enable_sharding:
                 # Calculate shard dimensions that are divisible by chunk dimensions
                 if len(data_shape) == 3:
@@ -1501,23 +1507,31 @@ def _create_geozarr_encoding(
                     shard_y = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shard_x = _calculate_shard_dimension(data_shape[2], chunks[2])
                     shards = (shard_time, shard_y, shard_x)
-                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                    print(
+                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    )
                 elif len(data_shape) == 2:
                     # For 2D data (y, x), ensure shard dimensions are divisible by chunks
                     shard_y = _calculate_shard_dimension(data_shape[0], chunks[0])
                     shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shards = (shard_y, shard_x)
-                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
+                    print(
+                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    )
                 else:
                     # For 1D data, use the full dimension
                     shards = (data_shape[0],)
-                    print(f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}")
-                
+                    print(
+                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    )
+
                 # Validate that shards are evenly divisible by chunks
                 for i, (shard_dim, chunk_dim) in enumerate(zip(shards, chunks)):
                     if shard_dim % chunk_dim != 0:
-                        print(f"  ⚠️  Warning: Shard dimension {shard_dim} not evenly divisible by chunk dimension {chunk_dim} at axis {i}")
-                
+                        print(
+                            f"  ⚠️  Warning: Shard dimension {shard_dim} not evenly divisible by chunk dimension {chunk_dim} at axis {i}"
+                        )
+
             encoding[var] = {
                 "chunks": chunks,
                 "compressors": compressor,
@@ -1679,17 +1693,17 @@ def _add_grid_mapping_variable(
 def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     """
     Calculate shard dimension that is evenly divisible by chunk dimension.
-    
-    For Zarr v3 sharding with Dask, the shard dimension must be evenly 
+
+    For Zarr v3 sharding with Dask, the shard dimension must be evenly
     divisible by the chunk dimension to avoid checksum mismatches.
-    
+
     Parameters
     ----------
     data_dim : int
         Size of the data dimension
     chunk_dim : int
         Size of the chunk dimension
-        
+
     Returns
     -------
     int
@@ -1699,10 +1713,10 @@ def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
     # In this case, shard should also be data_dim to maintain divisibility
     if chunk_dim >= data_dim:
         return data_dim
-    
+
     # Calculate how many complete chunks fit in the data dimension
     num_complete_chunks = data_dim // chunk_dim
-    
+
     # If we have at least 2 complete chunks, use a multiple of chunk_dim
     if num_complete_chunks >= 2:
         # Use a shard size that's a multiple of chunk_dim
@@ -1710,7 +1724,7 @@ def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
             shard_size = multiplier * chunk_dim
             if shard_size <= data_dim:
                 return shard_size
-    
+
     # Fallback: use the largest multiple of chunk_dim that fits
     # If no complete chunks fit, use data_dim (this handles edge cases)
     return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
