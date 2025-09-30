@@ -384,10 +384,10 @@ class S2StreamingMultiscalePyramid:
         self, lazy_dataset: xr.Dataset, level_path: str, level: int
     ) -> None:
         """
-        Stream write a lazy dataset - computation happens during write.
+        Stream write a lazy dataset with advanced chunking and sharding.
         
         This is where the magic happens: all the lazy downsampling operations
-        are executed as the data is streamed to storage.
+        are executed as the data is streamed to storage with optimal performance.
         """
         import os
         
@@ -396,24 +396,89 @@ class S2StreamingMultiscalePyramid:
             print(f"    Level path {level_path} already exists. Skipping write.")
             return
 
-        # Create encoding for streaming write
+        # Create advanced encoding for streaming write
         encoding = self._create_level_encoding(lazy_dataset, level)
         
         print(f"    Streaming computation and write to {level_path}")
         print(f"    Variables: {list(lazy_dataset.data_vars.keys())}")
         
-        # Write with streaming computation
+        # Rechunk dataset to align with encoding when sharding is enabled
+        if self.enable_sharding:
+            lazy_dataset = self._rechunk_dataset_for_encoding(lazy_dataset, encoding)
+        
+        # Write with streaming computation and progress tracking
         # The to_zarr operation will trigger all lazy computations
-        lazy_dataset.to_zarr(
+        write_job = lazy_dataset.to_zarr(
             level_path,
             mode="w",
             consolidated=True,
             zarr_format=3,
             encoding=encoding,
-            compute=True,  # This triggers the lazy computation during write
+            compute=False,  # Create job first for progress tracking
         )
+        write_job = write_job.persist()
+
+        # Show progress bar if distributed is available
+        if DISTRIBUTED_AVAILABLE:
+            try:
+                distributed.progress(write_job, notebook=False)
+            except Exception as e:
+                print(f"    Warning: Could not display progress bar: {e}")
+                write_job.compute()
+        else:
+            print("    Writing zarr file...")
+            write_job.compute()
         
         print(f"    ✅ Streaming write complete for level {level}")
+
+    def _rechunk_dataset_for_encoding(
+        self, dataset: xr.Dataset, encoding: Dict
+    ) -> xr.Dataset:
+        """
+        Rechunk dataset variables to align with sharding dimensions when sharding is enabled.
+
+        When using Zarr v3 sharding, Dask chunks must align with shard dimensions to avoid
+        checksum validation errors.
+        """
+        rechunked_vars = {}
+
+        for var_name, var_data in dataset.data_vars.items():
+            if var_name in encoding:
+                var_encoding = encoding[var_name]
+
+                # If sharding is enabled, rechunk based on shard dimensions
+                if "shards" in var_encoding and var_encoding["shards"] is not None:
+                    target_chunks = var_encoding[
+                        "shards"
+                    ]  # Use shard dimensions for rechunking
+                elif "chunks" in var_encoding:
+                    target_chunks = var_encoding[
+                        "chunks"
+                    ]  # Fallback to chunk dimensions
+                else:
+                    # No specific chunking needed, use original variable
+                    rechunked_vars[var_name] = var_data
+                    continue
+
+                # Create chunk dict using the actual dimensions of the variable
+                var_dims = var_data.dims
+                chunk_dict = {}
+                for i, dim in enumerate(var_dims):
+                    if i < len(target_chunks):
+                        chunk_dict[dim] = target_chunks[i]
+
+                # Rechunk the variable to match the target dimensions
+                rechunked_vars[var_name] = var_data.chunk(chunk_dict)
+            else:
+                # No specific chunking needed, use original variable
+                rechunked_vars[var_name] = var_data
+
+        # Create new dataset with rechunked variables, preserving coordinates
+        rechunked_dataset = xr.Dataset(
+            rechunked_vars, coords=dataset.coords, attrs=dataset.attrs
+        )
+
+        return rechunked_dataset
 
     def _create_level_0_dataset(self, measurements_by_resolution: Dict) -> xr.Dataset:
         """Create level 0 dataset with only native 10m data (no lazy operations needed)."""
