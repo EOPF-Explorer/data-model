@@ -227,47 +227,49 @@ class S2OptimizedConverter:
         group_name: str,
         verbose: bool
     ) -> None:
-        """Write measurements group with pyramid datasets."""
+        """Write measurements group metadata and consolidate all level metadata."""
+        import zarr
+        import os
+        
         group_path = f"{group_name}"
         
-        measurements_group = xr.DataTree()
-        for level, ds in pyramid_datasets.items():
-            if ds is not None:
-                measurements_group[f"{level}"] = ds
-
-        multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
-        if multiscales_attrs:
-            measurements_group.attrs['multiscales'] = [multiscales_attrs]
-            if verbose:
-                print(f"  Multiscales metadata added with {len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))} levels")
-
-        # Create proper Zarr v3 compatible encoding
-        encoding = {}
-        from zarr.codecs import BloscCodec
+        print("  Creating measurements group with consolidated metadata...")
         
-        # Add encoding for any variables that might need it
-        for level, ds in pyramid_datasets.items():
-            if ds is not None:
-                for var_name in ds.data_vars:
-                    encoding[var_name] = {
-                        "compressors": [BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)]
-                    }
-                for coord_name in ds.coords:
-                    encoding[coord_name] = {"compressors": None}
-
-        # Write the measurements group with consolidation
+        # Create multiscales metadata
+        multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
+        
+        # Get storage options
         storage_options = get_storage_options(group_path)
-        measurements_group.to_zarr(
-            group_path,
-            mode='w',
-            consolidated=True,
-            zarr_format=3,
-            encoding=encoding,  # Use proper Zarr v3 encoding
-            storage_options=storage_options,
-            compute=True  # Direct compute for simplicity
-        )
+        
+        # Open/create the measurements group
+        if storage_options:
+            store = zarr.storage.FSStore(group_path, **storage_options)
+        else:
+            store = group_path
+            
+        # Create or open the measurements group
+        if not os.path.exists(group_path):
+            group = zarr.open_group(store, mode='w')
+        else:
+            group = zarr.open_group(store, mode='r+')
+        
+        # Add multiscales metadata
+        if multiscales_attrs:
+            group.attrs['multiscales'] = [multiscales_attrs]
+            if verbose:
+                num_levels = len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))
+                print(f"  Multiscales metadata added with {num_levels} levels")
+        
+        # Consolidate all level metadata into the group
+        print("  Consolidating metadata from all pyramid levels...")
+        try:
+            # Force consolidation of the entire measurements tree
+            zarr.consolidate_metadata(store)
+            print("  ✅ Measurements group metadata consolidated")
+        except Exception as e:
+            print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
 
-        return measurements_group
+        return None
     
     def _create_multiscales_metadata_with_rio(self, pyramid_datasets: Dict[int, xr.Dataset]) -> Dict:
         """Create multiscales metadata using rioxarray .rio accessor, following geozarr.py format."""
