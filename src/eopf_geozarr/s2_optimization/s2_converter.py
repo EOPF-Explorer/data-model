@@ -129,7 +129,8 @@ class S2OptimizedConverter:
         
         # Step 5: Create measurements group and add multiscales metadata
         print("Step 5: Creating measurements group...")
-        measurement_dt = self._write_measurements_group(pyramid_datasets, "measurements", verbose)
+        measurement_path = f"{output_path}/measurements"
+        measurement_dt = self._write_measurements_group(measurement_path, pyramid_datasets, verbose)
         
         # Step 6: Simple root-level consolidation
         print("Step 6: Final root-level metadata consolidation...")
@@ -223,16 +224,14 @@ class S2OptimizedConverter:
     
     def _write_measurements_group(
         self,
+        group_path: str,
         pyramid_datasets: Dict[int, xr.Dataset],
-        group_name: str,
         verbose: bool
     ) -> None:
         """Write measurements group metadata and consolidate all level metadata."""
         import zarr
         import os
-        
-        group_path = f"{group_name}"
-        
+
         print("  Creating measurements group with consolidated metadata...")
         
         # Create multiscales metadata
@@ -248,10 +247,7 @@ class S2OptimizedConverter:
             store = group_path
             
         # Create or open the measurements group
-        if not os.path.exists(group_path):
-            group = zarr.open_group(store, mode='w')
-        else:
-            group = zarr.open_group(store, mode='r+')
+        group = zarr.open_group(store, mode='a')
         
         # Add multiscales metadata
         if multiscales_attrs:

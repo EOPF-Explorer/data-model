@@ -149,6 +149,7 @@
                 "--compression-level", "5",
                 "--enable-sharding",
                 "--dask-cluster",
+                "--enable-streaming",
                 "--verbose"
             ],
             "cwd": "${workspaceFolder}",
