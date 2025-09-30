@@ -271,8 +271,9 @@ class S2StreamingMultiscalePyramid:
             )
             lazy_vars[var_name] = lazy_downsampled
 
-        # Create dataset with lazy variables
-        dataset = xr.Dataset(lazy_vars, coords=level_2_dataset.coords)
+        # Create dataset with lazy variables - don't pass coords to avoid alignment issues
+        # The coordinates will be computed when the lazy operations are executed
+        dataset = xr.Dataset(lazy_vars)
         dataset.attrs["pyramid_level"] = level
         dataset.attrs["resolution_meters"] = target_resolution
 
@@ -370,7 +371,8 @@ class S2StreamingMultiscalePyramid:
             dtype=source_data.dtype
         ).rechunk(chunks)
         
-        # Return as xarray DataArray with lazy data
+        # Return as xarray DataArray with lazy data - no coords to avoid alignment issues
+        # Coordinates will be set when the lazy operation is computed
         return xr.DataArray(
             dask_array,
             dims=source_data.dims,
