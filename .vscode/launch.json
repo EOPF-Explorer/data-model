@@ -267,7 +267,8 @@
             "module": "eopf_geozarr",
             "args": [
                 "info",
-                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
                 "--verbose",
                 "--html-output", "dataset_info.html"
             ],

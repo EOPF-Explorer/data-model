@@ -265,6 +265,11 @@ class S2StreamingMultiscalePyramid:
         target_height = current_height // downsample_factor
         target_width = current_width // downsample_factor
 
+        # Create downsampled coordinates from level 2
+        downsampled_coords = self._create_downsampled_coordinates(
+            level_2_dataset, target_height, target_width, downsample_factor
+        )
+
         # Create lazy downsampling operations for all variables
         lazy_vars = {}
         for var_name, var_data in level_2_dataset.data_vars.items():
@@ -273,9 +278,8 @@ class S2StreamingMultiscalePyramid:
             )
             lazy_vars[var_name] = lazy_downsampled
 
-        # Create dataset with lazy variables - don't pass coords to avoid alignment issues
-        # The coordinates will be computed when the lazy operations are executed
-        dataset = xr.Dataset(lazy_vars)
+        # Create dataset with lazy variables AND proper coordinates
+        dataset = xr.Dataset(lazy_vars, coords=downsampled_coords)
         dataset.attrs["pyramid_level"] = level
         dataset.attrs["resolution_meters"] = target_resolution
 
@@ -614,6 +618,42 @@ class S2StreamingMultiscalePyramid:
                         shard_dims.append(chunk_size)
 
         return tuple(shard_dims)
+
+    def _create_downsampled_coordinates(
+        self, level_2_dataset: xr.Dataset, target_height: int, target_width: int, downsample_factor: int
+    ) -> Dict:
+        """Create downsampled coordinates for higher pyramid levels."""
+        import numpy as np
+        
+        # Get original coordinates from level 2
+        if 'x' not in level_2_dataset.coords or 'y' not in level_2_dataset.coords:
+            return {}
+        
+        x_coords_orig = level_2_dataset.coords['x'].values
+        y_coords_orig = level_2_dataset.coords['y'].values
+        
+        # Calculate downsampled coordinates by taking every nth point
+        # where n is the downsample_factor
+        x_coords_downsampled = x_coords_orig[::downsample_factor][:target_width]
+        y_coords_downsampled = y_coords_orig[::downsample_factor][:target_height]
+        
+        # Create coordinate dictionary with proper attributes
+        coords = {}
+        
+        # Copy x coordinate with attributes
+        x_attrs = level_2_dataset.coords['x'].attrs.copy()
+        coords['x'] = (['x'], x_coords_downsampled, x_attrs)
+        
+        # Copy y coordinate with attributes  
+        y_attrs = level_2_dataset.coords['y'].attrs.copy()
+        coords['y'] = (['y'], y_coords_downsampled, y_attrs)
+        
+        # Copy any other coordinates that might exist
+        for coord_name, coord_data in level_2_dataset.coords.items():
+            if coord_name not in ['x', 'y']:
+                coords[coord_name] = coord_data
+        
+        return coords
 
     def _write_geo_metadata(
         self, dataset: xr.Dataset, grid_mapping_var_name: str = "spatial_ref"
