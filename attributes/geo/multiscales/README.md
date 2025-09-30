@@ -34,7 +34,7 @@ The `multiscales` key under the `geo` dictionary can be added to Zarr groups to 
 |                       | Type       | Description                                          | Required | Reference                                                                   |
 | --------------------- | ---------- | ---------------------------------------------------- | -------- | --------------------------------------------------------------------------- |
 | **version**           | `string`   | Multiscales metadata version                         | ✓ Yes    | [geo -> multiscales.version](#geo---multiscalesversion)                     |
-| **layout**            | `[string]` | Array of group names representing the pyramid layout | ✓ Yes    | [geo -> multiscales.layout](#geo---multiscaleslayout)                       |
+| **layout**            | `[object]` | Array of objects representing the pyramid layout | ✓ Yes    | [geo -> multiscales.layout](#geo---multiscaleslayout)                       |
 | **resampling_method** | `string`   | Resampling method used for downsampling              | No       | [geo -> multiscales.resampling_method](#geo---multiscalesresampling_method) |
 
 ### Field Details
@@ -51,12 +51,19 @@ Multiscales metadata version
 
 #### geo -> multiscales.layout
 
-Array of group names representing the pyramid layout
+Array of objects representing the pyramid layout and decimation relationships
 
-* **Type**: array of `string`
+* **Type**: array of `object`
 * **Required**: Yes
 
-This field SHALL describe the pyramid hierarchy with an array of strings representing the group names for each resolution level, ordered from highest to lowest resolution.
+This field SHALL describe the pyramid hierarchy with an array of objects representing each resolution level, ordered from highest to lowest resolution. Each object contains:
+
+- **`group`** (required): Group name for this resolution level
+- **`from_group`** (optional): Source group used to generate this level 
+- **`factors`** (optional): Array of decimation factors per axis (e.g., `[2, 2]` for 2x decimation in X and Y)
+- **`resampling_method`** (optional): Resampling method for this specific level
+
+The first level typically contains only the `group` field (native resolution), while subsequent levels include derivation information.
 
 #### geo -> multiscales.resampling_method
 
@@ -159,8 +166,12 @@ The multiscales metadata enables complete discovery of the multiscale collection
       },
       "multiscales": {
         "version": "0.1.0",
-        "layout": ["0", "1", "2", "3"],
-        "resampling_method": "average"
+        "layout": [
+          {"group": "0"}, 
+          {"group": "1", "from_group": "0", "factors": [2, 2], "resampling_method": "average"},
+          {"group": "2", "from_group": "1", "factors": [2, 2], "resampling_method": "average"},
+          {"group": "3", "from_group": "2", "factors": [2, 2], "resampling_method": "average"}
+        ]
       }
     }
   },
@@ -258,8 +269,13 @@ This example shows a multiscale pyramid that follows the OGC WebMercatorQuad Til
       },
       "multiscales": {
         "version": "0.1.0",
-        "layout": ["18", "17", "16", "15", "14"],
-        "resampling_method": "average"
+        "layout": [
+          {"group": "18"}, 
+          {"group": "17", "from_group": "18", "factors": [2, 2], "resampling_method": "average"},
+          {"group": "16", "from_group": "17", "factors": [2, 2], "resampling_method": "average"},
+          {"group": "15", "from_group": "16", "factors": [2, 2], "resampling_method": "average"},
+          {"group": "14", "from_group": "15", "factors": [2, 2], "resampling_method": "average"}
+        ]
       }
     }
   },
