@@ -6,7 +6,9 @@ import time
 from typing import Dict
 
 import xarray as xr
+from zarr import consolidate_metadata
 
+from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import (
     _create_tile_matrix_limits,
@@ -236,19 +238,10 @@ class S2OptimizedConverter:
         
         # Create multiscales metadata
         multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
-        
-        # Get storage options
-        storage_options = get_storage_options(group_path)
-        
-        # Open/create the measurements group
-        if storage_options:
-            store = zarr.storage.FSStore(group_path, **storage_options)
-        else:
-            store = group_path
             
         # Create or open the measurements group
-        group = zarr.open_group(store, mode='a')
-        
+        group = fs_utils.open_zarr_group(group_path, mode='a')
+
         # Add multiscales metadata
         if multiscales_attrs:
             group.attrs['multiscales'] = [multiscales_attrs]
@@ -260,7 +253,7 @@ class S2OptimizedConverter:
         print("  Consolidating metadata from all pyramid levels...")
         try:
             # Force consolidation of the entire measurements tree
-            zarr.consolidate_metadata(store)
+            consolidate_metadata(group.store)
             print("  ✅ Measurements group metadata consolidated")
         except Exception as e:
             print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
@@ -351,20 +344,10 @@ class S2OptimizedConverter:
         """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
             print("  Performing root consolidation...")
-            storage_options = get_storage_options(output_path)
-
-            # First, ensure the root zarr group exists
-            import zarr
-            import os
-
-            if storage_options:
-                store = zarr.storage.FSStore(output_path, **storage_options)
-            else:
-                store = output_path
 
             # Create root zarr group if it doesn't exist
             print("  Creating root zarr group...")
-            root_group = zarr.open_group(store, mode='a')
+            root_group = fs_utils.open_zarr_group(output_path, mode="a")
             root_group.attrs.update({
                 "title": "Optimized Sentinel-2 Dataset",
                 "description": "Multiscale pyramid structure for efficient access",
@@ -372,23 +355,23 @@ class S2OptimizedConverter:
             })
 
             # Ensure subgroups are properly linked
-            if self.enable_streaming:
-                # In streaming mode, link existing subgroups
-                for subgroup in ['measurements', 'geometry', 'meteorology']:
-                    subgroup_path = os.path.join(output_path, subgroup)
-                    if os.path.exists(subgroup_path):
-                        try:
-                            if subgroup not in root_group:
-                                # Link the subgroup to the root
-                                subgroup_obj = zarr.open_group(subgroup_path, mode='r')
-                                # Copy attributes to root group reference
-                                root_group.attrs[f"{subgroup}_info"] = f"Subgroup: {subgroup}"
-                        except Exception as e:
-                            print(f"    Warning: Could not link subgroup {subgroup}: {e}")
+            # if self.enable_streaming:
+            #     # In streaming mode, link existing subgroups
+            #     for subgroup in ['measurements', 'geometry', 'meteorology']:
+            #         subgroup_path = os.path.join(output_path, subgroup)
+            #         if os.path.exists(subgroup_path):
+            #             try:
+            #                 if subgroup not in root_group:
+            #                     # Link the subgroup to the root
+            #                     subgroup_obj = zarr.open_group(subgroup_path, mode='r')
+            #                     # Copy attributes to root group reference
+            #                     root_group.attrs[f"{subgroup}_info"] = f"Subgroup: {subgroup}"
+            #             except Exception as e:
+            #                 print(f"    Warning: Could not link subgroup {subgroup}: {e}")
 
             # Consolidate metadata
             try:
-                zarr.consolidate_metadata(store)
+                consolidate_metadata(root_group.store)
                 print("  ✅ Root consolidation completed")
             except Exception as e:
                 print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
