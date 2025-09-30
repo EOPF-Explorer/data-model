@@ -365,7 +365,7 @@ class S2OptimizedConverter:
             # Create root zarr group if it doesn't exist
             if not os.path.exists(os.path.join(output_path, 'zarr.json')):
                 print("  Creating root zarr group...")
-                root_group = zarr.open_group(store, mode='w')
+                root_group = zarr.open_group(store, mode='a')
                 root_group.attrs.update({
                     "title": "Optimized Sentinel-2 Dataset",
                     "description": "Multiscale pyramid structure for efficient access",
