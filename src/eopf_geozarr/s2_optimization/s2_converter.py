@@ -220,7 +220,7 @@ class S2OptimizedConverter:
         measurements_group = xr.DataTree()
         for level, ds in pyramid_datasets.items():
             if ds is not None:
-                measurements_group[level] = ds
+                measurements_group[f"{level}"] = ds
 
         multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
         if multiscales_attrs:
@@ -235,6 +235,7 @@ class S2OptimizedConverter:
             mode='w',
             consolidated=True,
             zarr_format=3,
+            encoding={},  # Encoding handled at individual dataset level
             storage_options=storage_options,
             compute=True  # Direct compute for simplicity
         )

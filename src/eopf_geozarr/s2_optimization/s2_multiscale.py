@@ -785,7 +785,7 @@ class S2MultiscalePyramid:
             if os.path.exists(level_path):
                 print(f"  Level path {level_path} already exists. Skipping write.")
                 # return the existing dataset
-                return xr.open_dataset(level_path, engine='zarr')
+                return xr.open_dataset(level_path, engine='zarr', chunks={}, decode_coords="all")
 
             # Write as single dataset with xy-aligned sharding
             print(f"  Writing level {level} to {level_path} (xy-aligned sharding)")
