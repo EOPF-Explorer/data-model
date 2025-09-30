@@ -8,6 +8,8 @@ from typing import Dict, Tuple
 import xarray as xr
 from pyproj import CRS
 
+from eopf_geozarr.conversion import fs_utils
+
 from .s2_resampling import S2ResamplingEngine, determine_variable_type
 
 try:
@@ -389,10 +391,9 @@ class S2StreamingMultiscalePyramid:
         This is where the magic happens: all the lazy downsampling operations
         are executed as the data is streamed to storage with optimal performance.
         """
-        import os
         
         # Check if level already exists
-        if os.path.exists(level_path):
+        if fs_utils.path_exists(level_path):
             print(f"    Level path {level_path} already exists. Skipping write.")
             return
 

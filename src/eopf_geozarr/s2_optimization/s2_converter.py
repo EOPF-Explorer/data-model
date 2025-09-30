@@ -244,7 +244,7 @@ class S2OptimizedConverter:
 
         # Add multiscales metadata
         if multiscales_attrs:
-            group.attrs['multiscales'] = [multiscales_attrs]
+            group.attrs['multiscales'] = multiscales_attrs
             if verbose:
                 num_levels = len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))
                 print(f"  Multiscales metadata added with {num_levels} levels")
@@ -315,7 +315,7 @@ class S2OptimizedConverter:
                 native_crs,
                 native_bounds,
                 overview_levels,
-                "measurements",  # group prefix
+                "",  # group prefix
             )
 
             # Create tile matrix limits following geozarr.py exactly
