@@ -513,47 +513,106 @@ class S2StreamingMultiscalePyramid:
         return {}
 
     def _create_level_encoding(self, dataset: xr.Dataset, level: int) -> Dict:
-        """Create encoding optimized for streaming writes."""
+        """Create optimized encoding for a pyramid level with advanced chunking and sharding."""
         encoding = {}
-        
-        # Calculate level-appropriate chunk sizes for streaming
+
+        # Calculate level-appropriate chunk sizes
         chunk_size = max(256, self.spatial_chunk // (2**level))
 
         for var_name, var_data in dataset.data_vars.items():
-            if hasattr(var_data.data, 'chunks'):
-                # Use existing chunks from Dask array
-                chunks = var_data.data.chunks
-                if len(chunks) >= 2:
-                    # Convert chunk tuples to sizes
-                    encoding_chunks = tuple(chunks[i][0] for i in range(len(chunks)))
-                else:
-                    encoding_chunks = (chunk_size,)
-            else:
-                # Fallback chunk calculation
-                if var_data.ndim >= 2:
-                    if var_data.ndim == 3:
-                        encoding_chunks = (1, chunk_size, chunk_size)
-                    else:
-                        encoding_chunks = (chunk_size, chunk_size)
-                else:
-                    encoding_chunks = (min(chunk_size, var_data.shape[0]),)
+            if var_data.ndim >= 2:
+                height, width = var_data.shape[-2:]
 
-            # Configure encoding for streaming
+                # Use advanced aligned chunk calculation
+                spatial_chunk_aligned = min(
+                    chunk_size,
+                    self._calculate_aligned_chunk_size(width, chunk_size),
+                    self._calculate_aligned_chunk_size(height, chunk_size),
+                )
+
+                if var_data.ndim == 3:
+                    # Single file per variable per time: chunk time dimension to 1
+                    chunks = (1, spatial_chunk_aligned, spatial_chunk_aligned)
+                else:
+                    chunks = (spatial_chunk_aligned, spatial_chunk_aligned)
+            else:
+                chunks = (min(chunk_size, var_data.shape[0]),)
+
+            # Configure encoding - use proper compressor following geozarr.py pattern
             from zarr.codecs import BloscCodec
-            
+
             compressor = BloscCodec(
                 cname="zstd", clevel=3, shuffle="shuffle", blocksize=0
             )
-            encoding[var_name] = {
-                "chunks": encoding_chunks, 
-                "compressors": [compressor]
-            }
+            var_encoding = {"chunks": chunks, "compressors": [compressor]}
+
+            # Add advanced sharding if enabled - shards match x/y dimensions exactly
+            if self.enable_sharding and var_data.ndim >= 2:
+                shard_dims = self._calculate_simple_shard_dimensions(
+                    var_data.shape, chunks
+                )
+                var_encoding["shards"] = shard_dims
+
+            encoding[var_name] = var_encoding
 
         # Add coordinate encoding
         for coord_name in dataset.coords:
             encoding[coord_name] = {"compressors": None}
 
         return encoding
+
+    def _calculate_aligned_chunk_size(
+        self, dimension_size: int, target_chunk: int
+    ) -> int:
+        """
+        Calculate aligned chunk size following geozarr.py logic.
+
+        This ensures good chunk alignment without complex calculations.
+        """
+        if target_chunk >= dimension_size:
+            return dimension_size
+
+        # Find the largest divisor of dimension_size that's close to target_chunk
+        best_chunk = target_chunk
+        for chunk_candidate in range(target_chunk, max(target_chunk // 2, 1), -1):
+            if dimension_size % chunk_candidate == 0:
+                best_chunk = chunk_candidate
+                break
+
+        return best_chunk
+
+    def _calculate_simple_shard_dimensions(
+        self, data_shape: tuple, chunks: tuple
+    ) -> tuple:
+        """
+        Calculate shard dimensions that are compatible with chunk dimensions.
+
+        Shard dimensions must be evenly divisible by chunk dimensions for Zarr v3.
+        When possible, shards should match x/y dimensions exactly as required.
+        """
+        shard_dims = []
+
+        for i, (dim_size, chunk_size) in enumerate(zip(data_shape, chunks)):
+            if i == 0 and len(data_shape) == 3:
+                # First dimension in 3D data (time) - use single time slice per shard
+                shard_dims.append(1)
+            else:
+                # For x/y dimensions, try to use full dimension size
+                # But ensure it's divisible by chunk size
+                if dim_size % chunk_size == 0:
+                    # Perfect: full dimension is divisible by chunk
+                    shard_dims.append(dim_size)
+                else:
+                    # Find the largest multiple of chunk_size that fits
+                    num_chunks = dim_size // chunk_size
+                    if num_chunks > 0:
+                        shard_size = num_chunks * chunk_size
+                        shard_dims.append(shard_size)
+                    else:
+                        # Fallback: use chunk size itself
+                        shard_dims.append(chunk_size)
+
+        return tuple(shard_dims)
 
     def _write_geo_metadata(
         self, dataset: xr.Dataset, grid_mapping_var_name: str = "spatial_ref"
