@@ -241,6 +241,20 @@ class S2OptimizedConverter:
             if verbose:
                 print(f"  Multiscales metadata added with {len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))} levels")
 
+        # Create proper Zarr v3 compatible encoding
+        encoding = {}
+        from zarr.codecs import BloscCodec
+        
+        # Add encoding for any variables that might need it
+        for level, ds in pyramid_datasets.items():
+            if ds is not None:
+                for var_name in ds.data_vars:
+                    encoding[var_name] = {
+                        "compressors": [BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)]
+                    }
+                for coord_name in ds.coords:
+                    encoding[coord_name] = {"compressors": None}
+
         # Write the measurements group with consolidation
         storage_options = get_storage_options(group_path)
         measurements_group.to_zarr(
@@ -248,7 +262,7 @@ class S2OptimizedConverter:
             mode='w',
             consolidated=True,
             zarr_format=3,
-            encoding={},  # Encoding handled at individual dataset level
+            encoding=encoding,  # Use proper Zarr v3 encoding
             storage_options=storage_options,
             compute=True  # Direct compute for simplicity
         )
