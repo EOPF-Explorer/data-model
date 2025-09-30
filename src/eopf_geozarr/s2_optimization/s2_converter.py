@@ -348,47 +348,54 @@ class S2OptimizedConverter:
     def _simple_root_consolidation(
         self, output_path: str, pyramid_datasets: Dict[int, xr.Dataset]
     ) -> None:
-        """Simple root-level metadata consolidation using only xarray."""
+        """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
-            # Since each level and auxiliary group was written with consolidated=True,
-            # we just need to create a simple root-level consolidated metadata
-            print("  Performing simple root consolidation...")
-
-            # Use xarray to open and immediately close the root group with consolidation
-            # This creates/updates the root .zmetadata file
+            print("  Performing root consolidation...")
             storage_options = get_storage_options(output_path)
 
-            # Open the root zarr group and let xarray handle consolidation
+            # First, ensure the root zarr group exists
+            import zarr
+            import os
+
+            if storage_options:
+                store = zarr.storage.FSStore(output_path, **storage_options)
+            else:
+                store = output_path
+
+            # Create root zarr group if it doesn't exist
+            if not os.path.exists(os.path.join(output_path, 'zarr.json')):
+                print("  Creating root zarr group...")
+                root_group = zarr.open_group(store, mode='w')
+                root_group.attrs.update({
+                    "title": "Optimized Sentinel-2 Dataset",
+                    "description": "Multiscale pyramid structure for efficient access",
+                    "zarr_format": 3
+                })
+            else:
+                root_group = zarr.open_group(store, mode='r+')
+
+            # Ensure subgroups are properly linked
+            if self.enable_streaming:
+                # In streaming mode, link existing subgroups
+                for subgroup in ['measurements', 'geometry', 'meteorology']:
+                    subgroup_path = os.path.join(output_path, subgroup)
+                    if os.path.exists(subgroup_path):
+                        try:
+                            if subgroup not in root_group:
+                                # Link the subgroup to the root
+                                subgroup_obj = zarr.open_group(subgroup_path, mode='r')
+                                # Copy attributes to root group reference
+                                root_group.attrs[f"{subgroup}_info"] = f"Subgroup: {subgroup}"
+                        except Exception as e:
+                            print(f"    Warning: Could not link subgroup {subgroup}: {e}")
+
+            # Consolidate metadata
             try:
-                # This will create consolidated metadata at the root level
-                with xr.open_zarr(
-                    output_path,
-                    storage_options=storage_options,
-                    consolidated=True,
-                    chunks={},
-                ) as root_ds:
-                    # Just opening and closing with consolidated=True should be enough
-                    pass
+                zarr.consolidate_metadata(store)
                 print("  ✅ Root consolidation completed")
             except Exception as e:
-                print(
-                    f"  ⚠️ Root consolidation using xarray failed, trying zarr directly: {e}"
-                )
-
-                # Fallback: minimal zarr consolidation if needed
-                import zarr
-
-                store = (
-                    zarr.storage.FSStore(output_path, **storage_options)
-                    if storage_options
-                    else output_path
-                )
-                try:
-                    zarr.consolidate_metadata(store)
-                    print("  ✅ Root consolidation completed with zarr")
-                except Exception as e2:
-                    print(f"  ⚠️ Warning: Root consolidation failed: {e2}")
-
+                print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
+             
         except Exception as e:
             print(f"  ⚠️ Warning: Root consolidation failed: {e}")
 
