@@ -143,8 +143,8 @@
             "args": [
                 "convert-s2-optimized",
                 "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202509-s02msil2a/08/products/cpm_v256/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
-                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
-                "./tests-output/eopf_geozarr/s2l2_optimized.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
+                // "./tests-output/eopf_geozarr/s2l2_optimized.zarr",
                 "--spatial-chunk", "256",
                 "--compression-level", "5",
                 "--enable-sharding",

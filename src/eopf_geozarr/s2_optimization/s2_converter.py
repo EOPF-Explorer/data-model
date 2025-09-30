@@ -363,16 +363,13 @@ class S2OptimizedConverter:
                 store = output_path
 
             # Create root zarr group if it doesn't exist
-            if not os.path.exists(os.path.join(output_path, 'zarr.json')):
-                print("  Creating root zarr group...")
-                root_group = zarr.open_group(store, mode='a')
-                root_group.attrs.update({
-                    "title": "Optimized Sentinel-2 Dataset",
-                    "description": "Multiscale pyramid structure for efficient access",
-                    "zarr_format": 3
-                })
-            else:
-                root_group = zarr.open_group(store, mode='r+')
+            print("  Creating root zarr group...")
+            root_group = zarr.open_group(store, mode='a')
+            root_group.attrs.update({
+                "title": "Optimized Sentinel-2 Dataset",
+                "description": "Multiscale pyramid structure for efficient access",
+                "zarr_format": 3
+            })
 
             # Ensure subgroups are properly linked
             if self.enable_streaming:
