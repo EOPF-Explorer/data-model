@@ -1201,6 +1201,11 @@ def add_s2_optimization_commands(subparsers):
         action="store_true",
         help="Start a local dask cluster for parallel processing and progress bars",
     )
+    s2_parser.add_argument(
+        "--enable-streaming",
+        action="store_true",
+        help="Enable streaming mode for large datasets (experimental)",
+    )
     s2_parser.set_defaults(func=convert_s2_optimized_command)
 
 
@@ -1233,6 +1238,7 @@ def convert_s2_optimized_command(args):
             create_meteorology_group=not args.skip_meteorology,
             validate_output=not args.skip_validation,
             verbose=args.verbose,
+            enable_streaming=args.enable_streaming,
         )
 
         print(f"✅ S2 optimization completed: {args.output_path}")
