@@ -29,7 +29,7 @@
           "description": "PROJJSON CRS representation"
         },
         "bbox": {
-          "type": "array",
+          "type": ["array", "null"],
           "oneOf": [
             {
               "minItems": 4,
@@ -46,7 +46,7 @@
           "description": "Bounding box in CRS coordinates"
         },
         "transform": {
-          "type": "array",
+          "type": ["array", "null"],
           "oneOf": [
             {
               "minItems": 6,
@@ -63,7 +63,7 @@
           "description": "Affine transformation coefficients"
         },
         "spatial_dimensions": {
-          "type": "array",
+          "type": ["array", "null"],
           "minItems": 2,
           "maxItems": 2,
           "items": {

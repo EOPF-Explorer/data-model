@@ -49,7 +49,10 @@ The `proj` key under the `geo` dictionary can be added to Zarr arrays or groups 
 
 ### Field Details
 
-Additional properties are allowed.
+Additional properties are allowed. 
+
+Unless otherwise stated, a key set to the value `null` is semantically equivalent to 
+that key being omitted from the object that contains it.  
 
 #### geo -> proj.version
 
@@ -79,11 +82,13 @@ clients are likely to support are listed in the following table.
 | Open Geospatial Consortium (OGC)        | <http://www.opengis.net/def/crs/OGC>                       |
 | ESRI                                    | <https://spatialreference.org/ref/esri/>                   |
 
-The `proj.code` field SHOULD be set to `null` in the following cases:
+The `proj.code` field SHOULD be set to `null` or omitted in the following cases:
 
 - The data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid EPSG code for it. In this case, the CRS should be provided in `proj.wkt2` and/or `proj.projjson`.
   Clients can prefer to take either, although there may be discrepancies in how each might be interpreted.
+
+The `proj.code` field MUST NOT set to `null` or unset if both the `proj.wkt2` field or `proj.projjson` fields are set to `null` or unset.
 
 #### geo -> proj.wkt2
 
@@ -95,36 +100,40 @@ WKT2 (ISO 19162) CRS representation
 A Coordinate Reference System (CRS) is the data reference system (sometimes called a 'projection')
 used by the asset data. This value is a [WKT2](http://docs.opengeospatial.org/is/12-063r5/12-063r5.html) string.
 
-This field SHOULD be set to `null` in the following cases:
+This field SHOULD be set to `null` or omitted in the following cases:
 
 - The asset data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid WKT2 string for it.
+
+The `proj.wkt2` field MUST NOT set to `null` or unset if both the `proj.code` field or `proj.projjson` fields are set to `null` or unset.
 
 #### geo -> proj.projjson
 
 PROJJSON CRS representation
 
-* **Type**: `any`
+* **Type**: `[projjson, null]`
 * **Required**: No
 
 A Coordinate Reference System (CRS) is the data reference system (sometimes called a 'projection')
 used by the asset data. This value is a [PROJJSON](https://proj.org/specifications/projjson.html) object,
 see the [JSON Schema](https://proj.org/schemas/v0.5/projjson.schema.json) for details.
 
-This field SHOULD be set to `null` in the following cases:
+This field SHOULD be set to `null` or omitted in the following cases:
 
 - The asset data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid PROJJSON for it.
+
+The `proj.projjson` field MUST NOT set to `null` or unset if both the `proj.code` field or `proj.wkt2` fields are set to `null` or unset.
 
 #### geo -> proj.bbox
 
 Bounding box in CRS coordinates
 
-* **Type**: `number` `[]`
+* **Type**: `[number [], null]`
 * **Required**: No
 
-Bounding box of the assets represented by this Item in the asset data CRS. Specified as 4 coordinates
-based on the CRS defined in the `proj.code`, `proj.projjson` or `proj.wkt2` fields.  First two numbers are coordinates
+Bounding box of the assets represented by this Item in the asset data CRS. Specified as 4 numbers
+based on the CRS defined in the `proj.code`, `proj.projjson` or `proj.wkt2` fields. The first two numbers are coordinates
 of the lower left corner, followed by coordinates of upper right corner, , e.g., \[west, south, east, north],
 \[xmin, ymin, xmax, ymax], \[left, down, right, up], or \[west, south, lowest, east, north, highest].
 The length of the array must be 2\*n where n is the number of dimensions. The array contains all axes of the southwesterly
@@ -135,7 +144,7 @@ based on [WGS 84](http://www.opengis.net/def/crs/OGC/1.3/CRS84).
 
 Affine transformation coefficients
 
-* **Type**: `number` `[]`
+* **Type**: `[number [6], null]`
 * **Required**: No
 
 Linear mapping from pixel coordinate space (Pixel, Line) to projection coordinate space (Xp, Yp). It is
@@ -167,7 +176,7 @@ proj_transform = [g[1], g[2], g[0],
 
 Names of spatial dimensions [y_name, x_name]
 
-* **Type**: `string` `[2]`
+* **Type**: `[string [2], null]`
 * **Required**: No
 
 See the [Spatial Dimension Identification](#spatial-dimension-identification) section below for details on how spatial dimensions are identified.
@@ -192,6 +201,7 @@ The extension identifies these array dimensions through:
   "geo": {
     "proj": {
       "version": "0.1",
+      "code": "EPSG:4326",
       "spatial_dimensions": ["latitude", "longitude"]
     }
   }
