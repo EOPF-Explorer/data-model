@@ -72,7 +72,8 @@ jobs:
 
   test-network:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Temporarily enabled for PR to verify test fix
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
     - uses: actions/checkout@v5
 
