@@ -112,10 +112,6 @@ class S2StreamingMultiscalePyramid:
                 level_path = f"{output_path}/measurements/{level}"
                 print(f"  Streaming write of level {level} to {level_path}")
                 self._stream_write_lazy_dataset(lazy_dataset, level_path, level)
-                
-                # For levels 3+, we can discard after writing to save memory
-                if level > 2:
-                    pyramid_datasets[level] = None
             else:
                 print(f"  Skipping empty level {level}")
 
@@ -675,6 +671,8 @@ class S2StreamingMultiscalePyramid:
                 crs, grid_mapping_name=grid_mapping_var_name, inplace=True
             )
             dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+            dataset.attrs["grid_mapping"] = grid_mapping_var_name
 
             for var in dataset.data_vars.values():
                 var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+                var.attrs["grid_mapping"] = grid_mapping_var_name
