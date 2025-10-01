@@ -352,6 +352,13 @@ def iterative_copy(
     return dt_result if isinstance(dt_result, xr.DataTree) else xr.DataTree(dt_result)
 
 
+def _embed_crs_in_attrs(ds: xr.Dataset) -> None:
+    """Embed EPSG code in dataset attrs for Zarr persistence (modifies in-place)."""
+    if epsg_code := ds.rio.crs.to_epsg():
+        ds.attrs["proj:epsg"] = epsg_code
+        ds.attrs["proj:code"] = f"EPSG:{epsg_code}"
+
+
 def prepare_dataset_with_crs_info(
     ds: xr.Dataset, reference_crs: str | None = None
 ) -> xr.Dataset:
@@ -380,6 +387,7 @@ def prepare_dataset_with_crs_info(
         print(f"  Adding CRS information: {reference_crs}")
         ds = ds.rio.write_crs(reference_crs)
         ds.attrs["grid_mapping"] = "spatial_ref"
+        _embed_crs_in_attrs(ds)
 
         # Ensure spatial_ref variable has proper attributes
         if "spatial_ref" in ds:
@@ -1003,9 +1011,10 @@ def create_overview_dataset_all_vars(
     # Create overview dataset
     overview_ds = xr.Dataset(overview_data_vars, coords=overview_coords)
 
-    # Set CRS using rioxarray first
+    # Set CRS using rioxarray
     overview_ds.rio.write_crs(native_crs, inplace=True)
     overview_ds.attrs["grid_mapping"] = grid_mapping_var_name
+    _embed_crs_in_attrs(overview_ds)
 
     # Add grid_mapping variable after setting CRS
     # TODO: refactor? grid mapping attributes and variables are handled
