@@ -256,8 +256,10 @@ class S2StreamingMultiscalePyramid:
         if len(level_2_dataset.data_vars) == 0:
             return xr.Dataset()
 
-        # Calculate target dimensions
-        downsample_factor = 2 ** (level - 2)
+        # Calculate target dimensions based on resolution ratios from pyramid_levels
+        level_2_resolution = self.pyramid_levels[2]  # 60m
+        target_level_resolution = self.pyramid_levels[level]  # e.g., 120m, 360m, 720m
+        downsample_factor = target_level_resolution // level_2_resolution  # 2x, 6x, 12x
         
         # Get reference dimensions from level 2
         ref_var = next(iter(level_2_dataset.data_vars.values()))
