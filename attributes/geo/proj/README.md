@@ -191,6 +191,7 @@ The extension identifies these array dimensions through:
 {
   "geo": {
     "proj": {
+      "version": "0.1",
       "spatial_dimensions": ["latitude", "longitude"]
     }
   }
@@ -235,6 +236,7 @@ When `proj` is defined under the `geo` dictionary at the group level but `spatia
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:4326",
         "transform": [0.1, 0.0, -180.0, 0.0, -0.1, 90.0]
       }
@@ -296,6 +298,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:3857",
         "transform": [156543.03392804097, 0.0, -20037508.342789244, 0.0, -156543.03392804097, 20037508.342789244],
         "bbox": [-20037508.342789244, -20037508.342789244, 20037508.342789244, 20037508.342789244]
@@ -315,6 +318,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:32633",
         "spatial_dimensions": ["y", "x"],
         "transform": [30.0, 0.0, 500000.0, 0.0, -30.0, 5000000.0],
@@ -335,6 +339,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:4326",
         "transform": [0.1, 0.0, -180.0, 0.0, -0.1, 90.0],
         "bbox": [-180.0, -90.0, 180.0, 90.0]
@@ -354,6 +359,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "wkt2": "PROJCRS[\"WGS 84 / UTM zone 33N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]]],CONVERSION[\"UTM zone 33N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Longitude of natural origin\",15,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]]]",
         "transform": [30.0, 0.0, 500000.0, 0.0, -30.0, 5000000.0]
       }
