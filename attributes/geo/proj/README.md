@@ -49,7 +49,7 @@ The `proj` key under the `geo` dictionary can be added to Zarr arrays or groups 
 
 ### Field Details
 
-Additional properties are allowed.
+Additional properties are allowed. 
 
 #### geo -> proj.version
 
@@ -63,7 +63,7 @@ Projection metadata version
 
 Authority:code identifier (e.g., EPSG:4326)
 
-* **Type**: `["string", "null"]`
+* **Type**: `string | null`
 * **Required**: No
 * **Pattern**: `^[A-Z]+:[0-9]+$`
 
@@ -79,52 +79,58 @@ clients are likely to support are listed in the following table.
 | Open Geospatial Consortium (OGC)        | <http://www.opengis.net/def/crs/OGC>                       |
 | ESRI                                    | <https://spatialreference.org/ref/esri/>                   |
 
-The `proj.code` field SHOULD be set to `null` in the following cases:
+The `proj.code` field SHOULD be set to `null` or omitted in the following cases:
 
 - The data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid EPSG code for it. In this case, the CRS should be provided in `proj.wkt2` and/or `proj.projjson`.
   Clients can prefer to take either, although there may be discrepancies in how each might be interpreted.
 
+The `proj.code` field MUST NOT be set to `null` or unset if both the `proj.wkt2` field or `proj.projjson` fields are set to `null` or unset.
+
 #### geo -> proj.wkt2
 
 WKT2 (ISO 19162) CRS representation
 
-* **Type**: `["string", "null"]`
+* **Type**: `string | null`
 * **Required**: No
 
 A Coordinate Reference System (CRS) is the data reference system (sometimes called a 'projection')
 used by the asset data. This value is a [WKT2](http://docs.opengeospatial.org/is/12-063r5/12-063r5.html) string.
 
-This field SHOULD be set to `null` in the following cases:
+This field SHOULD be set to `null` or omitted in the following cases:
 
 - The asset data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid WKT2 string for it.
+
+The `proj.wkt2` field MUST NOT be set to `null` or unset if both the `proj.code` field or `proj.projjson` fields are set to `null` or unset.
 
 #### geo -> proj.projjson
 
 PROJJSON CRS representation
 
-* **Type**: `any`
+* **Type**: `object | null`
 * **Required**: No
 
 A Coordinate Reference System (CRS) is the data reference system (sometimes called a 'projection')
 used by the asset data. This value is a [PROJJSON](https://proj.org/specifications/projjson.html) object,
-see the [JSON Schema](https://proj.org/schemas/v0.5/projjson.schema.json) for details.
+see the [JSON Schema](https://proj.org/schemas/v0.7/projjson.schema.json) for details.
 
-This field SHOULD be set to `null` in the following cases:
+This field SHOULD be set to `null` or omitted in the following cases:
 
 - The asset data does not have a CRS, such as in the case of non-rectified imagery with Ground Control Points.
 - A CRS exists, but there is no valid PROJJSON for it.
+
+The `proj.projjson` field MUST NOT be set to `null` or unset if both the `proj.code` field or `proj.wkt2` fields are set to `null` or unset.
 
 #### geo -> proj.bbox
 
 Bounding box in CRS coordinates
 
-* **Type**: `number` `[]`
+* **Type**: `number[4] | null`
 * **Required**: No
 
-Bounding box of the assets represented by this Item in the asset data CRS. Specified as 4 coordinates
-based on the CRS defined in the `proj.code`, `proj.projjson` or `proj.wkt2` fields.  First two numbers are coordinates
+Bounding box of the assets represented by this Item in the asset data CRS. Specified as 4 numbers
+based on the CRS defined in the `proj.code`, `proj.projjson` or `proj.wkt2` fields. The first two numbers are coordinates
 of the lower left corner, followed by coordinates of upper right corner, , e.g., \[west, south, east, north],
 \[xmin, ymin, xmax, ymax], \[left, down, right, up], or \[west, south, lowest, east, north, highest].
 The length of the array must be 2\*n where n is the number of dimensions. The array contains all axes of the southwesterly
@@ -135,7 +141,7 @@ based on [WGS 84](http://www.opengis.net/def/crs/OGC/1.3/CRS84).
 
 Affine transformation coefficients
 
-* **Type**: `number` `[]`
+* **Type**: `number[6] | null`
 * **Required**: No
 
 Linear mapping from pixel coordinate space (Pixel, Line) to projection coordinate space (Xp, Yp). It is
@@ -167,7 +173,7 @@ proj_transform = [g[1], g[2], g[0],
 
 Names of spatial dimensions [y_name, x_name]
 
-* **Type**: `string` `[2]`
+* **Type**: `[string [2], null]`
 * **Required**: No
 
 See the [Spatial Dimension Identification](#spatial-dimension-identification) section below for details on how spatial dimensions are identified.
@@ -191,6 +197,8 @@ The extension identifies these array dimensions through:
 {
   "geo": {
     "proj": {
+      "version": "0.1",
+      "code": "EPSG:4326",
       "spatial_dimensions": ["latitude", "longitude"]
     }
   }
@@ -235,6 +243,7 @@ When `proj` is defined under the `geo` dictionary at the group level but `spatia
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:4326",
         "transform": [0.1, 0.0, -180.0, 0.0, -0.1, 90.0]
       }
@@ -259,7 +268,9 @@ With data arrays:
 
 - **Shape Inference**: Once spatial dimensions are identified (either explicitly through `spatial_dimensions` or through pattern-based detection), their sizes are obtained from the Zarr array's shape metadata
 - **Error Handling**: If spatial dimensions cannot be identified through either method, implementations MUST raise an error
-- **Semantic Identity Requirement**: If more than one CRS representation (`code`, `wkt2`, `projjson`) is provided, they MUST be semantically identical (i.e., describe the same coordinate reference system). Implementations SHOULD validate this consistency and raise an error if the representations describe different CRS
+- **Semantic Identity Requirement**: If more than one CRS representation (`code`, `wkt2`, `projjson`) is provided, they MUST be semantically consistent (i.e., describe the same coordinate reference system). Implementations SHOULD validate this consistency and raise an error if the representations describe different CRS.
+- **Unset keys** Unless otherwise stated, a key set to the value `null` is semantically equivalent to 
+that key being omitted from the object that contains it.
 
 ### Shape Reconciliation
 
@@ -296,6 +307,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:3857",
         "transform": [156543.03392804097, 0.0, -20037508.342789244, 0.0, -156543.03392804097, 20037508.342789244],
         "bbox": [-20037508.342789244, -20037508.342789244, 20037508.342789244, 20037508.342789244]
@@ -315,6 +327,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:32633",
         "spatial_dimensions": ["y", "x"],
         "transform": [30.0, 0.0, 500000.0, 0.0, -30.0, 5000000.0],
@@ -335,6 +348,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "code": "EPSG:4326",
         "transform": [0.1, 0.0, -180.0, 0.0, -0.1, 90.0],
         "bbox": [-180.0, -90.0, 180.0, 90.0]
@@ -354,6 +368,7 @@ This specification uses semantic versioning (SemVer) for version management:
   "attributes": {
     "geo": {
       "proj": {
+        "version": "0.1",
         "wkt2": "PROJCRS[\"WGS 84 / UTM zone 33N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]]],CONVERSION[\"UTM zone 33N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Longitude of natural origin\",15,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]]]",
         "transform": [30.0, 0.0, 500000.0, 0.0, -30.0, 5000000.0]
       }
