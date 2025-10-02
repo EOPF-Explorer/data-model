@@ -935,10 +935,14 @@ def create_overview_dataset_all_vars(
     # Calculate the transform for this overview level
     overview_transform = rasterio.transform.from_bounds(*native_bounds, width, height)
 
-    # Create coordinate arrays
+    # Determine coordinate dtype from parent dataset to maintain alignment
+    parent_x_dtype = ds.coords["x"].dtype if "x" in ds.coords else np.float64
+    parent_y_dtype = ds.coords["y"].dtype if "y" in ds.coords else np.float64
+
+    # Create coordinate arrays preserving parent dtype
     left, bottom, right, top = native_bounds
-    x_coords = np.linspace(left, right, width, endpoint=False)
-    y_coords = np.linspace(top, bottom, height, endpoint=False)
+    x_coords = np.linspace(left, right, width, endpoint=False, dtype=parent_x_dtype)
+    y_coords = np.linspace(top, bottom, height, endpoint=False, dtype=parent_y_dtype)
 
     # Check if we're dealing with geographic coordinates (EPSG:4326)
     if native_crs and native_crs.to_epsg() == 4326:
