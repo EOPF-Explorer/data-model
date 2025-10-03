@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eopf-explorer.github.io/data-model/attributes/multiscales/schema.json",
+  "title": "Multiscales Attribute Extension",
+  "description": "JSON schema for the multiscales attribute in Zarr groups",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["0.1.0"],
+      "description": "Multiscales metadata version"
+    },
+    "layout": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "Group name for this resolution level"
+          },
+          "from_group": {
+            "type": "string",
+            "description": "Source group used to generate this level"
+          },
+          "factors": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 1
+            },
+            "description": "Array of decimation factors per axis (e.g., [2, 2] for 2x decimation)"
+          },
+          "scale": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Array of scale factors per axis describing the resolution change"
+          },
+          "translation": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Array of translation offsets per axis in the coordinate space"
+          },
+          "resampling_method": {
+            "type": "string",
+            "enum": [
+              "nearest",
+              "average",
+              "bilinear",
+              "cubic",
+              "cubic_spline",
+              "lanczos",
+              "mode",
+              "max",
+              "min",
+              "med",
+              "sum",
+              "q1",
+              "q3",
+              "rms",
+              "gauss"
+            ],
+            "description": "Resampling method for this specific level"
+          }
+        },
+        "required": ["group"],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "description": "Array of objects representing the pyramid layout and transformation relationships, ordered from highest to lowest resolution"
+    },
+    "resampling_method": {
+      "type": "string",
+      "enum": [
+        "nearest",
+        "average",
+        "bilinear",
+        "cubic",
+        "cubic_spline",
+        "lanczos",
+        "mode",
+        "max",
+        "min",
+        "med",
+        "sum",
+        "q1",
+        "q3",
+        "rms",
+        "gauss"
+      ],
+      "default": "nearest",
+      "description": "Resampling method used for downsampling"
+    }
+  },
+  "required": ["version", "layout"],
+  "additionalProperties": true
+}
