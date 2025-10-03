@@ -18,8 +18,6 @@ from eopf_geozarr.data_api.geozarr.common import (
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V2
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V3
 
-from .conftest import example_group
-
 
 @pytest.mark.parametrize(
     "obj",
@@ -73,7 +71,7 @@ def test_check_standard_name_invalid() -> None:
         check_standard_name("invalid_standard_name")
 
 
-def test_multiscales_round_trip() -> None:
+def test_multiscales_round_trip(example_group) -> None:
     """
     Ensure that we can round-trip multiscale metadata through the `Multiscales` model.
     """
