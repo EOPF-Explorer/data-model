@@ -192,6 +192,10 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
             print("  ✅ Reprojection completed, dataset now has x/y coordinates")
 
+        # Set spatial dims before any rio operations (required for correct bounds)
+        if "x" in ds.coords and "y" in ds.coords:
+            ds.rio.set_spatial_dims(x_dim="x", y_dim="y", inplace=True)
+
         # Process all variables in the group
         for var_name in ds.data_vars:
             print(f"  Processing variable / band: {var_name}")
