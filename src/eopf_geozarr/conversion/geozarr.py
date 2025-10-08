@@ -1084,9 +1084,14 @@ def write_dataset_band_by_band_with_validation(
                 skipped_vars.append(var)
                 successful_vars.append(var)
                 continue
-            var_path = os.path.join(output_path, group_name.lstrip("/"), str(var))
-            if os.path.exists(var_path):
-                shutil.rmtree(var_path)
+            # Remove invalid existing variable using filesystem-agnostic method
+            var_path = fs_utils.normalize_path(
+                f"{output_path}/{group_name.lstrip('/')}/{var}"
+            )
+            fs = fs_utils.get_filesystem(output_path)
+            if fs.exists(var_path):
+                print(f"    🧹 Removing invalid existing variable {var}...")
+                fs.rm(var_path, recursive=True)
 
         print(f"  Writing data variable {var}...")
 
