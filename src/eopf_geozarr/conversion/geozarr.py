@@ -707,6 +707,8 @@ def create_geozarr_compliant_multiscales(
 
         # Write the overview dataset
         overview_group = f"{group_name}/{level}"
+        # When sharding enabled, let Dask rechunk to shard boundaries
+        align_chunks_flag = False if enable_sharding else True
         overview_ds.to_zarr(
             output_path,
             group=overview_group,
@@ -714,7 +716,7 @@ def create_geozarr_compliant_multiscales(
             consolidated=True,
             zarr_format=3,
             encoding=encoding,
-            align_chunks=True,
+            align_chunks=align_chunks_flag,
             storage_options=storage_options,
         )
 
