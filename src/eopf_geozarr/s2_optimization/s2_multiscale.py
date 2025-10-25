@@ -54,7 +54,7 @@ class S2MultiscalePyramid:
     ) -> Dict[str, Dict]:
         """
         Create multiscale versions preserving original structure.
-        Keeps r10m, r20m, r60m as-is, adds r120m, r360m, r720m.
+        Keeps all original groups, adds r120m, r360m, r720m downsampled versions.
         
         Args:
             dt_input: Input DataTree with original structure
@@ -66,23 +66,37 @@ class S2MultiscalePyramid:
         """
         processed_groups = {}
         
-        # Step 1: Copy original resolution groups (r10m, r20m, r60m) as-is
+        # Step 1: Copy all original groups as-is
         for group_path in dt_input.groups:
             if group_path == ".":
                 continue
             
-            # Check if this is a resolution group we should preserve
-            if any(group_path.endswith(f"/{res}") for res in ["r10m", "r20m", "r60m"]):
+            group_node = dt_input[group_path]
+            
+            # Skip parent groups that have children (only process leaf groups)
+            if hasattr(group_node, 'children') and len(group_node.children) > 0:
+                continue
+            
+            dataset = group_node.to_dataset()
+            
+            # Skip empty groups
+            if not dataset.data_vars:
                 if verbose:
-                    print(f"  Copying original group: {group_path}")
-                
-                group_node = dt_input[group_path]
-                dataset = group_node.to_dataset()
-                
-                if dataset.data_vars:
-                    output_group_path = f"{output_path}{group_path}"
-                    self._stream_write_lazy_dataset(dataset, output_group_path, 0)
-                    processed_groups[group_path] = {"type": "original", "resolution": group_path.split("/")[-1]}
+                    print(f"  Skipping empty group: {group_path}")
+                continue
+            
+            if verbose:
+                print(f"  Copying original group: {group_path}")
+            
+            output_group_path = f"{output_path}{group_path}"
+            self._stream_write_lazy_dataset(dataset, output_group_path, 0)
+            
+            # Determine if this is a resolution group
+            group_name = group_path.split("/")[-1]
+            if group_name.startswith("r") and group_name.endswith("m"):
+                processed_groups[group_path] = {"type": "original", "resolution": group_name}
+            else:
+                processed_groups[group_path] = {"type": "original", "category": group_name}
         
         # Step 2: Create downsampled resolution groups from r60m
         # Find r60m groups to use as source
