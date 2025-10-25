@@ -17,7 +17,6 @@ from eopf_geozarr.conversion.geozarr import (
 
 from .s2_data_consolidator import S2DataConsolidator
 from .s2_multiscale import S2MultiscalePyramid
-from .s2_multiscale_streaming import S2StreamingMultiscalePyramid
 from .s2_validation import S2OptimizationValidator
 
 try:
@@ -37,19 +36,14 @@ class S2OptimizedConverter:
         spatial_chunk: int = 1024,
         compression_level: int = 3,
         max_retries: int = 3,
-        enable_streaming: bool = True,
     ):
         self.enable_sharding = enable_sharding
         self.spatial_chunk = spatial_chunk
         self.compression_level = compression_level
         self.max_retries = max_retries
-        self.enable_streaming = enable_streaming
 
-        # Initialize components - choose between streaming and traditional
-        if enable_streaming:
-            self.pyramid_creator = S2StreamingMultiscalePyramid(enable_sharding, spatial_chunk)
-        else:
-            self.pyramid_creator = S2MultiscalePyramid(enable_sharding, spatial_chunk)
+        # Initialize components - streaming is always enabled
+        self.pyramid_creator = S2MultiscalePyramid(enable_sharding, spatial_chunk)
         self.validator = S2OptimizationValidator()
 
     def convert_s2_optimized(
@@ -102,17 +96,10 @@ class S2OptimizedConverter:
 
         # Step 2: Create multiscale measurements
         print("Step 2: Creating multiscale measurements pyramid...")
-        if self.enable_streaming:
-            # Use streaming approach - computation happens during write
-            pyramid_datasets = self.pyramid_creator.create_multiscale_measurements_streaming(
-                measurements_data, output_path
-            )
-        else:
-            # Use traditional approach
-            pyramid_datasets = self.pyramid_creator.create_multiscale_measurements(
-                measurements_data, output_path
-            )
-
+        # Use streaming approach - computation happens during write
+        pyramid_datasets = self.pyramid_creator.create_multiscale_measurements_streaming(
+            measurements_data, output_path
+        )
         print(f"  Created {len(pyramid_datasets)} pyramid levels")
 
         # Step 3: Create geometry group
@@ -447,7 +434,6 @@ def convert_s2_optimized(
         "spatial_chunk": kwargs.pop("spatial_chunk", 1024),
         "compression_level": kwargs.pop("compression_level", 3),
         "max_retries": kwargs.pop("max_retries", 3),
-        "enable_streaming": kwargs.pop("enable_streaming", True),
     }
 
     # Remaining kwargs are for the convert_s2_optimized method
