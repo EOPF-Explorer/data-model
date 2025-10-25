@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://zarr-specs.readthedocs.io/en/latest/extensions/attributes/projection/v0.1.0/schema.json",
+  "title": "Zarr Geo Projection Attribute Extension",
+  "description": "Geo Projection attribute extension for Zarr arrays and groups",
+  "type": "object",
+  "definitions": {
+    "projectionMetadataV0_1": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": ["string", "null"],
+          "description": "Authority:code identifier (e.g., EPSG:4326)",
+          "pattern": "^[A-Z]+:[0-9]+$"
+        },
+        "wkt2": {
+          "type": ["string", "null"],
+          "description": "WKT2 (ISO 19162) CRS representation"
+        },
+        "projjson": {
+          "oneOf": [
+            {
+              "$ref": "https://proj.org/schemas/v0.7/projjson.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "PROJJSON CRS representation"
+        },
+        "bbox": {
+          "type": ["array", "null"],
+          "oneOf": [
+            {
+              "minItems": 4,
+              "maxItems": 4
+            },
+            {
+              "minItems": 6,
+              "maxItems": 6
+            }
+          ],
+          "items": {
+            "type": "number"
+          },
+          "description": "Bounding box in CRS coordinates"
+        },
+        "transform": {
+          "type": ["array", "null"],
+          "oneOf": [
+            {
+              "minItems": 6,
+              "maxItems": 6
+            },
+            {
+              "minItems": 9,
+              "maxItems": 9
+            }
+          ],
+          "items": {
+            "type": "number"
+          },
+          "description": "Affine transformation coefficients"
+        },
+        "spatial_dimensions": {
+          "type": ["array", "null"],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "string"
+          },
+          "description": "Names of spatial dimensions [y_name, x_name]"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["code"]
+        },
+        {
+          "required": ["wkt2"]
+        },
+        {
+          "required": ["projjson"]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "attributes": {
+      "type": "object",
+      "properties": {
+        "geo": {
+          "type": "object",
+          "description": "Geo extension namespace",
+          "properties": {
+            "proj": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "description": "Projection attribute extension version",
+                      "enum": ["0.1"]
+                    },
+                    "code": {
+                      "type": ["string", "null"],
+                      "description": "Authority:code identifier (e.g., EPSG:4326)",
+                      "pattern": "^[A-Z]+:[0-9]+$"
+                    },
+                    "wkt2": {
+                      "type": ["string", "null"],
+                      "description": "WKT2 (ISO 19162) CRS representation"
+                    },
+                    "projjson": {
+                      "oneOf": [
+                        {
+                          "$ref": "https://proj.org/schemas/v0.7/projjson.schema.json"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "PROJJSON CRS representation"
+                    },
+                    "bbox": {
+                      "type": "array",
+                      "minItems": 4,
+                      "maxItems": 4,
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Bounding box in CRS coordinates"
+                    },
+                    "transform": {
+                      "type": "array",
+                      "oneOf": [
+                        {
+                          "minItems": 6,
+                          "maxItems": 6
+                        },
+                        {
+                          "minItems": 9,
+                          "maxItems": 9
+                        }
+                      ],
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Affine transformation coefficients"
+                    },
+                    "spatial_dimensions": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 2,
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Names of spatial dimensions [y_name, x_name]"
+                    }
+                  },
+                  "required": ["version"]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@ import argparse
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import xarray as xr
 
@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore", message=".*", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*", category=RuntimeWarning)
 
 
-def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:
+def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Any | None:
     """
     Set up a dask cluster for parallel processing.
 

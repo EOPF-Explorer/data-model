@@ -13,7 +13,8 @@ import rioxarray  # noqa: F401  # Import to enable .rio accessor
 import xarray as xr
 
 from eopf_geozarr.conversion import create_geozarr_dataset
-from eopf_geozarr.tests import _verify_basic_structure
+
+from .conftest import _verify_basic_structure
 
 
 class MockSentinel1L1GRDBuilder:

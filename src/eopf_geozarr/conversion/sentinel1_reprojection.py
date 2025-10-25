@@ -5,8 +5,6 @@ This module provides functions to reproject Sentinel-1 GRD data from radar geome
 to geographic coordinates (lat/lon) using Ground Control Points (GCPs).
 """
 
-from typing import Optional, Tuple, Union
-
 import numpy as np
 import rasterio
 import rioxarray  # noqa: F401  # Import to enable .rio accessor
@@ -19,7 +17,7 @@ def reproject_sentinel1_with_gcps(
     ds_gcp: xr.Dataset,
     target_crs: str = "EPSG:4326",
     resampling: Resampling = Resampling.bilinear,
-    nodata_value: Optional[float] = None,
+    nodata_value: float | None = None,
 ) -> xr.Dataset:
     """
     Reproject Sentinel-1 dataset from radar geometry to geographic coordinates using GCPs.
@@ -177,7 +175,7 @@ def _create_target_coordinates(
     return coords
 
 
-def _determine_nodata_value(data_var: xr.DataArray) -> Union[float, np.floating]:
+def _determine_nodata_value(data_var: xr.DataArray) -> float | np.floating:
     """
     Determine appropriate nodata value based on data type and existing attributes.
 
@@ -334,7 +332,7 @@ def _reproject_2d_array(
 
 def calculate_reprojected_bounds(
     ds_gcp: xr.Dataset, target_crs: str = "EPSG:4326"
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Calculate bounds of reprojected data based on GCPs.
 

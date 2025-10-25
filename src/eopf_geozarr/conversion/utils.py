@@ -1,7 +1,5 @@
 """Utility functions for GeoZarr conversion."""
 
-from typing import Optional
-
 import numpy as np
 import rasterio  # noqa: F401  # Import to enable .rio accessor
 import xarray as xr
@@ -11,7 +9,7 @@ def downsample_2d_array(
     source_data: np.ndarray,
     target_height: int,
     target_width: int,
-    nodata_value: Optional[float] = None,
+    nodata_value: float | None = None,
 ) -> np.ndarray:
     """
     Downsample a 2D array using block averaging with proper nodata handling.
