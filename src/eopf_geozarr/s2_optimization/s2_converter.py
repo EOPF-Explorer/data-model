@@ -15,7 +15,6 @@ from eopf_geozarr.conversion.geozarr import (
     create_native_crs_tile_matrix_set,
 )
 
-from .s2_data_consolidator import S2DataConsolidator
 from .s2_multiscale import S2MultiscalePyramid
 from .s2_validation import S2OptimizationValidator
 
@@ -80,54 +79,23 @@ class S2OptimizedConverter:
         if not self._is_sentinel2_dataset(dt_input):
             raise ValueError("Input dataset is not a Sentinel-2 product")
 
-        # Step 1: Consolidate data from scattered structure
-        print("Step 1: Consolidating EOPF data structure...")
-        consolidator = S2DataConsolidator(dt_input)
-        measurements_data, geometry_data, meteorology_data = (
-            consolidator.consolidate_all_data()
-        )
-
-        if verbose:
-            print(
-                f"  Measurements data extracted: {sum(len(d['bands']) for d in measurements_data.values())} bands"
-            )
-            print(f"  Geometry variables: {len(geometry_data)}")
-            print(f"  Meteorology variables: {len(meteorology_data)}")
-
-        # Step 2: Create multiscale measurements
-        print("Step 2: Creating multiscale measurements pyramid...")
-        # Use streaming approach - computation happens during write
-        pyramid_datasets = self.pyramid_creator.create_multiscale_measurements_streaming(
-            measurements_data, output_path
-        )
-        print(f"  Created {len(pyramid_datasets)} pyramid levels")
-
-        # Step 3: Create geometry group
-        if create_geometry_group and geometry_data:
-            print("Step 3: Creating consolidated geometry group...")
-            geometry_ds = xr.Dataset(geometry_data)
-            geometry_path = f"{output_path}/geometry"
-            self._write_auxiliary_group(geometry_ds, geometry_path, "geometry", verbose)
-
-        # Step 4: Create meteorology group
-        if create_meteorology_group and meteorology_data:
-            print("Step 4: Creating consolidated meteorology group...")
-            meteorology_ds = xr.Dataset(meteorology_data)
-            meteorology_path = f"{output_path}/meteorology"
-            self._write_auxiliary_group(meteorology_ds, meteorology_path, "meteorology", verbose)
+        # Step 1: Process data while preserving original structure
+        print("Step 1: Processing data with original structure preserved...")
         
-        # Step 5: Create measurements group and add multiscales metadata
-        print("Step 5: Creating measurements group...")
-        measurement_path = f"{output_path}/measurements"
-        measurement_dt = self._write_measurements_group(measurement_path, pyramid_datasets, verbose)
+        # Step 2: Create multiscale pyramids for each group in the original structure
+        print("Step 2: Creating multiscale pyramids (preserving original hierarchy)...")
+        pyramid_datasets = self.pyramid_creator.create_multiscale_from_datatree(
+            dt_input, output_path, verbose
+        )
+        print(f"  Created multiscale pyramids for {len(pyramid_datasets)} groups")
         
-        # Step 6: Simple root-level consolidation
-        print("Step 6: Final root-level metadata consolidation...")
+        # Step 3: Root-level consolidation
+        print("Step 3: Final root-level metadata consolidation...")
         self._simple_root_consolidation(output_path, pyramid_datasets)
 
-        # Step 7: Validation
+        # Step 4: Validation
         if validate_output:
-            print("Step 7: Validating optimized dataset...")
+            print("Step 4: Validating optimized dataset...")
             validation_results = self.validator.validate_optimized_dataset(output_path)
             if not validation_results["is_valid"]:
                 print("  Warning: Validation issues found:")
@@ -166,167 +134,9 @@ class S2OptimizedConverter:
         )
         return found_indicators >= 2
 
-    def _write_auxiliary_group(
-        self, dataset: xr.Dataset, group_path: str, group_type: str, verbose: bool
-    ) -> None:
-        """Write auxiliary group (geometry or meteorology)."""
-        # Create simple encoding following geozarr.py pattern
-        from zarr.codecs import BloscCodec
-
-        compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
-        encoding = {}
-        for var_name in dataset.data_vars:
-            encoding[var_name] = {"compressors": [compressor]}
-        for coord_name in dataset.coords:
-            encoding[coord_name] = {"compressors": None}
-
-        # Write dataset with progress bar
-        storage_options = get_storage_options(group_path)
-
-        # Create zarr write job with progress bar
-        write_job = dataset.to_zarr(
-            group_path,
-            mode="w",
-            consolidated=True,
-            zarr_format=3,
-            encoding=encoding,
-            storage_options=storage_options,
-            compute=False,
-        )
-        write_job = write_job.persist()
-
-        # Show progress bar if distributed is available
-        if DISTRIBUTED_AVAILABLE:
-            try:
-                # this will return an interactive (non-blocking) widget if in a notebook
-                # environment. To force the widget to block, provide notebook=False.
-                distributed.progress(write_job, notebook=False)
-            except Exception as e:
-                print(f"    Warning: Could not display progress bar: {e}")
-                write_job.compute()
-        else:
-            print(f"    Writing {group_type} zarr file...")
-            write_job.compute()
-
-        if verbose:
-            print(f"  {group_type.title()} group written: {len(dataset.data_vars)} variables")
-    
-    def _write_measurements_group(
-        self,
-        group_path: str,
-        pyramid_datasets: Dict[int, xr.Dataset],
-        verbose: bool
-    ) -> None:
-        """Write measurements group metadata and consolidate all level metadata."""
-        import zarr
-        import os
-
-        print("  Creating measurements group with consolidated metadata...")
-        
-        # Create multiscales metadata
-        multiscales_attrs = self._create_multiscales_metadata_with_rio(pyramid_datasets)
-            
-        # Create or open the measurements group
-        group = fs_utils.open_zarr_group(group_path, mode='a')
-
-        # Add multiscales metadata
-        if multiscales_attrs:
-            group.attrs['multiscales'] = multiscales_attrs
-            if verbose:
-                num_levels = len(multiscales_attrs.get('tile_matrix_set', {}).get('matrices', []))
-                print(f"  Multiscales metadata added with {num_levels} levels")
-        
-        # Consolidate all level metadata into the group
-        print("  Consolidating metadata from all pyramid levels...")
-        try:
-            # Force consolidation of the entire measurements tree
-            consolidate_metadata(group.store)
-            print("  ✅ Measurements group metadata consolidated")
-        except Exception as e:
-            print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
-
-        return None
-    
-    def _create_multiscales_metadata_with_rio(self, pyramid_datasets: Dict[int, xr.Dataset]) -> Dict:
-        """Create multiscales metadata using rioxarray .rio accessor, following geozarr.py format."""
-        if not pyramid_datasets:
-            return {}
-
-        # Get the first available dataset to extract spatial information using .rio
-        reference_ds = None
-        for level in sorted(pyramid_datasets.keys()):
-            if pyramid_datasets[level] is not None:
-                reference_ds = pyramid_datasets[level]
-                break
-
-        if not reference_ds or not reference_ds.data_vars:
-            return {}
-
-        try:
-            # Use .rio accessor to get CRS and bounds directly from the dataset
-            if not hasattr(reference_ds, "rio") or not reference_ds.rio.crs:
-                return {}
-
-            native_crs = reference_ds.rio.crs
-            native_bounds = reference_ds.rio.bounds()
-
-            # Create overview levels list following geozarr.py format
-            overview_levels = []
-            for level in sorted(pyramid_datasets.keys()):
-                if pyramid_datasets[level] is not None:
-                    level_ds = pyramid_datasets[level]
-                    resolution = self.pyramid_creator.pyramid_levels.get(
-                        level, level * 10
-                    )
-
-                    if hasattr(level_ds, "rio"):
-                        width = level_ds.rio.width
-                        height = level_ds.rio.height
-                        scale_factor = 2**level if level > 0 else 1
-
-                        overview_levels.append(
-                            {
-                                "level": level,
-                                "width": width,
-                                "height": height,
-                                "scale_factor": scale_factor,
-                                "zoom": max(0, level),  # Simple zoom calculation
-                            }
-                        )
-
-            if not overview_levels:
-                return {}
-
-            # Create tile matrix set following geozarr.py exactly
-            tile_matrix_set = create_native_crs_tile_matrix_set(
-                native_crs,
-                native_bounds,
-                overview_levels,
-                "",  # group prefix
-            )
-
-            # Create tile matrix limits following geozarr.py exactly
-            tile_matrix_limits = _create_tile_matrix_limits(
-                overview_levels, 256
-            )  # tile_width=256
-
-            # Create multiscales metadata following geozarr.py format exactly
-            multiscales_metadata = {
-                "tile_matrix_set": tile_matrix_set,
-                "resampling_method": "average",
-                "tile_matrix_limits": tile_matrix_limits,
-            }
-
-            return multiscales_metadata
-
-        except Exception as e:
-            print(
-                f"  Warning: Could not create multiscales metadata with .rio accessor: {e}"
-            )
-            return {}
 
     def _simple_root_consolidation(
-        self, output_path: str, pyramid_datasets: Dict[int, xr.Dataset]
+        self, output_path: str, pyramid_datasets: Dict[str, Dict]
     ) -> None:
         """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
@@ -340,21 +150,6 @@ class S2OptimizedConverter:
                 "description": "Multiscale pyramid structure for efficient access",
                 "zarr_format": 3
             })
-
-            # Ensure subgroups are properly linked
-            # if self.enable_streaming:
-            #     # In streaming mode, link existing subgroups
-            #     for subgroup in ['measurements', 'geometry', 'meteorology']:
-            #         subgroup_path = os.path.join(output_path, subgroup)
-            #         if os.path.exists(subgroup_path):
-            #             try:
-            #                 if subgroup not in root_group:
-            #                     # Link the subgroup to the root
-            #                     subgroup_obj = zarr.open_group(subgroup_path, mode='r')
-            #                     # Copy attributes to root group reference
-            #                     root_group.attrs[f"{subgroup}_info"] = f"Subgroup: {subgroup}"
-            #             except Exception as e:
-            #                 print(f"    Warning: Could not link subgroup {subgroup}: {e}")
 
             # Consolidate metadata
             try:
@@ -404,12 +199,10 @@ class S2OptimizedConverter:
         )
 
         # Show structure
-        print("\nNew structure:")
-        print("  /measurements/  (multiscale: levels 0-6)")
-        if f"{output_path}/geometry" in str(dt_output):
-            print("  /geometry/      (consolidated)")
-        if f"{output_path}/meteorology" in str(dt_output):
-            print("  /meteorology/   (consolidated)")
+        print("\nNew structure: (original hierarchy preserved with multiscale pyramids)")
+        for group in dt_output.groups:
+            if group != ".":
+                print(f"  {group}")
 
         print("=" * 50)
 

@@ -43,11 +43,141 @@ class S2MultiscalePyramid:
         self.pyramid_levels = {
             0: 10,    # Level 0: 10m (native for b02,b03,b04,b08)
             1: 20,    # Level 1: 20m (native for b05,b06,b07,b11,b12,b8a + all quality)
-            2: 60,    # Level 2: 60m (3x downsampling from 20m)
+            2: 60,    # Level 2: 60m (native for b01,b09,b10)
             3: 120,   # Level 3: 120m (2x downsampling from 60m)
             4: 360,   # Level 4: 360m (3x downsampling from 120m)
             5: 720,   # Level 5: 720m (2x downsampling from 360m)
         }
+
+    def create_multiscale_from_datatree(
+        self, dt_input: xr.DataTree, output_path: str, verbose: bool = False
+    ) -> Dict[str, Dict]:
+        """
+        Create multiscale versions preserving original structure.
+        Keeps r10m, r20m, r60m as-is, adds r120m, r360m, r720m.
+        
+        Args:
+            dt_input: Input DataTree with original structure
+            output_path: Base output path
+            verbose: Enable verbose logging
+            
+        Returns:
+            Dictionary of processed groups
+        """
+        processed_groups = {}
+        
+        # Step 1: Copy original resolution groups (r10m, r20m, r60m) as-is
+        for group_path in dt_input.groups:
+            if group_path == ".":
+                continue
+            
+            # Check if this is a resolution group we should preserve
+            if any(group_path.endswith(f"/{res}") for res in ["r10m", "r20m", "r60m"]):
+                if verbose:
+                    print(f"  Copying original group: {group_path}")
+                
+                group_node = dt_input[group_path]
+                dataset = group_node.to_dataset()
+                
+                if dataset.data_vars:
+                    output_group_path = f"{output_path}{group_path}"
+                    self._stream_write_lazy_dataset(dataset, output_group_path, 0)
+                    processed_groups[group_path] = {"type": "original", "resolution": group_path.split("/")[-1]}
+        
+        # Step 2: Create downsampled resolution groups from r60m
+        # Find r60m groups to use as source
+        r60m_groups = [g for g in dt_input.groups if g.endswith("/r60m")]
+        
+        for r60m_path in r60m_groups:
+            base_path = r60m_path.rsplit("/", 1)[0]  # e.g., /measurements/reflectance
+            
+            # Get r60m dataset
+            r60m_dataset = dt_input[r60m_path].to_dataset()
+            if not r60m_dataset.data_vars:
+                continue
+            
+            if verbose:
+                print(f"  Creating downsampled versions from: {r60m_path}")
+            
+            # Create r120m (2x downsample from r60m)
+            r120m_path = f"{base_path}/r120m"
+            r120m_dataset = self._create_downsampled_resolution_group(
+                r60m_dataset, factor=2, verbose=verbose
+            )
+            if r120m_dataset and len(r120m_dataset.data_vars) > 0:
+                output_path_120 = f"{output_path}{r120m_path}"
+                self._stream_write_lazy_dataset(r120m_dataset, output_path_120, 0)
+                processed_groups[r120m_path] = {"type": "downsampled", "resolution": "r120m", "source": r60m_path}
+            
+            # Create r360m (6x downsample from r60m, or 3x from r120m)
+            r360m_dataset = self._create_downsampled_resolution_group(
+                r120m_dataset if r120m_dataset else r60m_dataset,
+                factor=3 if r120m_dataset else 6,
+                verbose=verbose
+            )
+            if r360m_dataset and len(r360m_dataset.data_vars) > 0:
+                r360m_path = f"{base_path}/r360m"
+                output_path_360 = f"{output_path}{r360m_path}"
+                self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
+                processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r60m_path}
+            
+            # Create r720m (12x downsample from r60m, or 2x from r360m)
+            r720m_dataset = self._create_downsampled_resolution_group(
+                r360m_dataset if r360m_dataset else r60m_dataset,
+                factor=2 if r360m_dataset else 12,
+                verbose=verbose
+            )
+            if r720m_dataset and len(r720m_dataset.data_vars) > 0:
+                r720m_path = f"{base_path}/r720m"
+                output_path_720 = f"{output_path}{r720m_path}"
+                self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
+                processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r60m_path}
+        
+        return processed_groups
+    
+    def _create_downsampled_resolution_group(
+        self, source_dataset: xr.Dataset, factor: int, verbose: bool = False
+    ) -> xr.Dataset:
+        """Create a downsampled version of a dataset by given factor."""
+        if not source_dataset or len(source_dataset.data_vars) == 0:
+            return xr.Dataset()
+        
+        # Get reference dimensions
+        ref_var = next(iter(source_dataset.data_vars.values()))
+        if ref_var.ndim < 2:
+            return xr.Dataset()
+        
+        current_height, current_width = ref_var.shape[-2:]
+        target_height = current_height // factor
+        target_width = current_width // factor
+        
+        if target_height < 1 or target_width < 1:
+            return xr.Dataset()
+        
+        # Create downsampled coordinates
+        downsampled_coords = self._create_downsampled_coordinates(
+            source_dataset, target_height, target_width, factor
+        )
+        
+        # Downsample all variables using existing lazy operations
+        lazy_vars = {}
+        for var_name, var_data in source_dataset.data_vars.items():
+            if var_data.ndim < 2:
+                continue
+            
+            lazy_downsampled = self._create_lazy_downsample_operation_from_existing(
+                var_data, target_height, target_width
+            )
+            lazy_vars[var_name] = lazy_downsampled
+        
+        if not lazy_vars:
+            return xr.Dataset()
+        
+        # Create dataset with lazy variables and coordinates
+        dataset = xr.Dataset(lazy_vars, coords=downsampled_coords)
+        dataset.attrs.update(source_dataset.attrs)
+        
+        return dataset
 
     def create_multiscale_measurements_streaming(
         self, measurements_by_resolution: Dict[int, Dict], output_path: str
