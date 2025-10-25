@@ -89,13 +89,21 @@ class S2MultiscalePyramid:
                 print(f"  Copying original group: {group_path}")
             
             output_group_path = f"{output_path}{group_path}"
-            self._stream_write_lazy_dataset(dataset, output_group_path, 0)
             
-            # Determine if this is a resolution group
+            # Determine if this is a measurement-related resolution group
             group_name = group_path.split("/")[-1]
-            if group_name.startswith("r") and group_name.endswith("m"):
+            is_measurement_group = (
+                group_name.startswith("r") and group_name.endswith("m") and
+                "/measurements/" in group_path
+            )
+            
+            if is_measurement_group:
+                # Measurement groups: apply custom encoding
+                self._stream_write_lazy_dataset(dataset, output_group_path, 0)
                 processed_groups[group_path] = {"type": "original", "resolution": group_name}
             else:
+                # Non-measurement groups: preserve original chunking
+                self._write_group_preserving_original_encoding(dataset, output_group_path)
                 processed_groups[group_path] = {"type": "original", "category": group_name}
         
         # Step 2: Create downsampled resolution groups from r60m
@@ -148,6 +156,43 @@ class S2MultiscalePyramid:
                 processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r60m_path}
         
         return processed_groups
+    
+    def _write_group_preserving_original_encoding(
+        self, dataset: xr.Dataset, group_path: str
+    ) -> None:
+        """Write a group preserving its original chunking and encoding."""
+        from zarr.codecs import BloscCodec
+        
+        # Simple encoding that preserves original structure
+        compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+        encoding = {}
+        
+        for var_name in dataset.data_vars:
+            # Preserve original chunking if it exists
+            var_data = dataset.data_vars[var_name]
+            if hasattr(var_data, 'encoding') and 'chunks' in var_data.encoding:
+                # Use original chunks
+                chunks = var_data.encoding['chunks']
+            else:
+                # No specific chunking - let xarray decide
+                chunks = None
+            
+            if chunks:
+                encoding[var_name] = {"chunks": chunks, "compressors": [compressor]}
+            else:
+                encoding[var_name] = {"compressors": [compressor]}
+        
+        for coord_name in dataset.coords:
+            encoding[coord_name] = {"compressors": None}
+        
+        # Write dataset with original encoding preserved
+        dataset.to_zarr(
+            group_path,
+            mode="w",
+            consolidated=True,
+            zarr_format=3,
+            encoding=encoding,
+        )
     
     def _create_downsampled_resolution_group(
         self, source_dataset: xr.Dataset, factor: int, verbose: bool = False
