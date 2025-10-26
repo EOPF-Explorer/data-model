@@ -106,10 +106,14 @@ class S2MultiscalePyramid:
                 self._write_group_preserving_original_encoding(dataset, output_group_path)
                 processed_groups[group_path] = {"type": "original", "category": group_name}
         
-        # Step 2: Create downsampled resolution groups from coarsest available resolution
-        # Find all resolution-based groups and organize by base path
+        # Step 2: Create downsampled resolution groups ONLY for measurements
+        # Find all resolution-based groups under /measurements/ and organize by base path
         resolution_groups = {}
         for group_path in processed_groups.keys():
+            # Only process groups under /measurements/
+            if not group_path.startswith("/measurements/"):
+                continue
+                
             group_name = group_path.split("/")[-1]
             if group_name in ["r10m", "r20m", "r60m"]:
                 base_path = group_path.rsplit("/", 1)[0]
