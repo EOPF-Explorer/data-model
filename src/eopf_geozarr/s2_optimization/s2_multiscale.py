@@ -167,23 +167,37 @@ class S2MultiscalePyramid:
         compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
         encoding = {}
         
+        # Rechunk each variable individually to match original encoding
+        rechunked_vars = {}
         for var_name in dataset.data_vars:
-            # Preserve original chunking if it exists
             var_data = dataset.data_vars[var_name]
-            if hasattr(var_data, 'encoding') and 'chunks' in var_data.encoding:
-                # Use original chunks
-                chunks = var_data.encoding['chunks']
-            else:
-                # No specific chunking - let xarray decide
-                chunks = None
             
-            if chunks:
-                encoding[var_name] = {"chunks": chunks, "compressors": [compressor]}
+            # Get original chunks if they exist
+            if hasattr(var_data, 'encoding') and 'chunks' in var_data.encoding:
+                original_chunks = var_data.encoding['chunks']
+                
+                # Create rechunk dictionary using dimension names
+                chunk_dict = {}
+                for i, dim in enumerate(var_data.dims):
+                    if i < len(original_chunks):
+                        chunk_dict[dim] = original_chunks[i]
+                
+                # Rechunk this specific variable
+                rechunked_vars[var_name] = var_data.chunk(chunk_dict)
+                
+                # Set encoding with original chunks
+                encoding[var_name] = {"chunks": original_chunks, "compressors": [compressor]}
             else:
+                # No specific chunking - use as is
+                rechunked_vars[var_name] = var_data
                 encoding[var_name] = {"compressors": [compressor]}
         
         for coord_name in dataset.coords:
             encoding[coord_name] = {"compressors": None}
+        
+        # Recreate dataset with rechunked variables
+        if rechunked_vars:
+            dataset = xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
         
         # Write dataset with original encoding preserved
         dataset.to_zarr(
