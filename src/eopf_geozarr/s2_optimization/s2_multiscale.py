@@ -106,54 +106,72 @@ class S2MultiscalePyramid:
                 self._write_group_preserving_original_encoding(dataset, output_group_path)
                 processed_groups[group_path] = {"type": "original", "category": group_name}
         
-        # Step 2: Create downsampled resolution groups from r60m
-        # Find r60m groups to use as source
-        r60m_groups = [g for g in dt_input.groups if g.endswith("/r60m")]
+        # Step 2: Create downsampled resolution groups from coarsest available resolution
+        # Find all resolution-based groups and organize by base path
+        resolution_groups = {}
+        for group_path in processed_groups.keys():
+            group_name = group_path.split("/")[-1]
+            if group_name in ["r10m", "r20m", "r60m"]:
+                base_path = group_path.rsplit("/", 1)[0]
+                if base_path not in resolution_groups:
+                    resolution_groups[base_path] = []
+                resolution_groups[base_path].append(group_path)
         
-        for r60m_path in r60m_groups:
-            base_path = r60m_path.rsplit("/", 1)[0]  # e.g., /measurements/reflectance
+        # For each base path, create downsampled versions from coarsest resolution
+        for base_path, res_list in resolution_groups.items():
+            # Find the coarsest resolution (r60m > r20m > r10m)
+            source_path = None
+            source_resolution = None
             
-            # Get r60m dataset
-            r60m_dataset = dt_input[r60m_path].to_dataset()
-            if not r60m_dataset.data_vars:
+            for res in ["r60m", "r20m", "r10m"]:
+                candidate = f"{base_path}/{res}"
+                if candidate in res_list:
+                    source_path = candidate
+                    source_resolution = int(res[1:-1])  # Extract number
+                    break
+            
+            if not source_path:
+                continue
+            
+            # Get source dataset
+            source_dataset = dt_input[source_path].to_dataset()
+            if not source_dataset.data_vars:
                 continue
             
             if verbose:
-                print(f"  Creating downsampled versions from: {r60m_path}")
+                print(f"  Creating downsampled versions from: {source_path}")
             
-            # Create r120m (2x downsample from r60m)
+            # Create r120m
             r120m_path = f"{base_path}/r120m"
-            r120m_dataset = self._create_downsampled_resolution_group(
-                r60m_dataset, factor=2, verbose=verbose
-            )
-            if r120m_dataset and len(r120m_dataset.data_vars) > 0:
-                output_path_120 = f"{output_path}{r120m_path}"
-                self._stream_write_lazy_dataset(r120m_dataset, output_path_120, 0)
-                processed_groups[r120m_path] = {"type": "downsampled", "resolution": "r120m", "source": r60m_path}
-            
-            # Create r360m (6x downsample from r60m, or 3x from r120m)
-            r360m_dataset = self._create_downsampled_resolution_group(
-                r120m_dataset if r120m_dataset else r60m_dataset,
-                factor=3 if r120m_dataset else 6,
-                verbose=verbose
-            )
-            if r360m_dataset and len(r360m_dataset.data_vars) > 0:
-                r360m_path = f"{base_path}/r360m"
-                output_path_360 = f"{output_path}{r360m_path}"
-                self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
-                processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r60m_path}
-            
-            # Create r720m (12x downsample from r60m, or 2x from r360m)
-            r720m_dataset = self._create_downsampled_resolution_group(
-                r360m_dataset if r360m_dataset else r60m_dataset,
-                factor=2 if r360m_dataset else 12,
-                verbose=verbose
-            )
-            if r720m_dataset and len(r720m_dataset.data_vars) > 0:
-                r720m_path = f"{base_path}/r720m"
-                output_path_720 = f"{output_path}{r720m_path}"
-                self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
-                processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r60m_path}
+            if source_resolution <= 60:  # Can create r120m from r60m or coarser
+                factor = 120 // source_resolution
+                r120m_dataset = self._create_downsampled_resolution_group(
+                    source_dataset, factor=factor, verbose=verbose
+                )
+                if r120m_dataset and len(r120m_dataset.data_vars) > 0:
+                    output_path_120 = f"{output_path}{r120m_path}"
+                    self._stream_write_lazy_dataset(r120m_dataset, output_path_120, 0)
+                    processed_groups[r120m_path] = {"type": "downsampled", "resolution": "r120m", "source": source_path}
+                    
+                    # Create r360m from r120m
+                    r360m_path = f"{base_path}/r360m"
+                    r360m_dataset = self._create_downsampled_resolution_group(
+                        r120m_dataset, factor=3, verbose=verbose
+                    )
+                    if r360m_dataset and len(r360m_dataset.data_vars) > 0:
+                        output_path_360 = f"{output_path}{r360m_path}"
+                        self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
+                        processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r120m_path}
+                        
+                        # Create r720m from r360m
+                        r720m_path = f"{base_path}/r720m"
+                        r720m_dataset = self._create_downsampled_resolution_group(
+                            r360m_dataset, factor=2, verbose=verbose
+                        )
+                        if r720m_dataset and len(r720m_dataset.data_vars) > 0:
+                            output_path_720 = f"{output_path}{r720m_path}"
+                            self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
+                            processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r360m_path}
         
         return processed_groups
     
