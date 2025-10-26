@@ -131,47 +131,90 @@ class S2MultiscalePyramid:
                     break
             
             if not source_path:
+                if verbose:
+                    print(f"  No source resolution found for {base_path}")
                 continue
             
             # Get source dataset
-            source_dataset = dt_input[source_path].to_dataset()
-            if not source_dataset.data_vars:
+            try:
+                source_dataset = dt_input[source_path].to_dataset()
+                if not source_dataset.data_vars:
+                    if verbose:
+                        print(f"  Source dataset {source_path} has no variables, skipping")
+                    continue
+            except Exception as e:
+                print(f"  Warning: Could not get source dataset {source_path}: {e}")
                 continue
             
             if verbose:
-                print(f"  Creating downsampled versions from: {source_path}")
+                print(f"  Creating downsampled versions from: {source_path} ({source_resolution}m)")
             
             # Create r120m
-            r120m_path = f"{base_path}/r120m"
-            if source_resolution <= 60:  # Can create r120m from r60m or coarser
+            try:
+                r120m_path = f"{base_path}/r120m"
                 factor = 120 // source_resolution
+                if verbose:
+                    print(f"    Creating r120m with factor {factor}")
+                
                 r120m_dataset = self._create_downsampled_resolution_group(
                     source_dataset, factor=factor, verbose=verbose
                 )
+                
                 if r120m_dataset and len(r120m_dataset.data_vars) > 0:
                     output_path_120 = f"{output_path}{r120m_path}"
+                    if verbose:
+                        print(f"    Writing r120m to {output_path_120}")
                     self._stream_write_lazy_dataset(r120m_dataset, output_path_120, 0)
                     processed_groups[r120m_path] = {"type": "downsampled", "resolution": "r120m", "source": source_path}
                     
                     # Create r360m from r120m
-                    r360m_path = f"{base_path}/r360m"
-                    r360m_dataset = self._create_downsampled_resolution_group(
-                        r120m_dataset, factor=3, verbose=verbose
-                    )
-                    if r360m_dataset and len(r360m_dataset.data_vars) > 0:
-                        output_path_360 = f"{output_path}{r360m_path}"
-                        self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
-                        processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r120m_path}
+                    try:
+                        r360m_path = f"{base_path}/r360m"
+                        if verbose:
+                            print(f"    Creating r360m with factor 3")
                         
-                        # Create r720m from r360m
-                        r720m_path = f"{base_path}/r720m"
-                        r720m_dataset = self._create_downsampled_resolution_group(
-                            r360m_dataset, factor=2, verbose=verbose
+                        r360m_dataset = self._create_downsampled_resolution_group(
+                            r120m_dataset, factor=3, verbose=verbose
                         )
-                        if r720m_dataset and len(r720m_dataset.data_vars) > 0:
-                            output_path_720 = f"{output_path}{r720m_path}"
-                            self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
-                            processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r360m_path}
+                        
+                        if r360m_dataset and len(r360m_dataset.data_vars) > 0:
+                            output_path_360 = f"{output_path}{r360m_path}"
+                            if verbose:
+                                print(f"    Writing r360m to {output_path_360}")
+                            self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
+                            processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r120m_path}
+                            
+                            # Create r720m from r360m
+                            try:
+                                r720m_path = f"{base_path}/r720m"
+                                if verbose:
+                                    print(f"    Creating r720m with factor 2")
+                                
+                                r720m_dataset = self._create_downsampled_resolution_group(
+                                    r360m_dataset, factor=2, verbose=verbose
+                                )
+                                
+                                if r720m_dataset and len(r720m_dataset.data_vars) > 0:
+                                    output_path_720 = f"{output_path}{r720m_path}"
+                                    if verbose:
+                                        print(f"    Writing r720m to {output_path_720}")
+                                    self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
+                                    processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r360m_path}
+                                else:
+                                    if verbose:
+                                        print(f"    r720m dataset is empty, skipping")
+                            except Exception as e:
+                                print(f"  Warning: Could not create r720m for {base_path}: {e}")
+                        else:
+                            if verbose:
+                                print(f"    r360m dataset is empty, skipping")
+                    except Exception as e:
+                        print(f"  Warning: Could not create r360m for {base_path}: {e}")
+                else:
+                    if verbose:
+                        print(f"    r120m dataset is empty, skipping")
+            except Exception as e:
+                print(f"  Warning: Could not create r120m for {base_path}: {e}")
         
         return processed_groups
     
