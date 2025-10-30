@@ -12,8 +12,6 @@ from eopf_geozarr.data_api.geozarr.v3 import (
     check_valid_coordinates,
 )
 
-from .conftest import example_group
-
 
 class TestCheckValidCoordinates:
     @staticmethod
@@ -63,7 +61,7 @@ class TestCheckValidCoordinates:
             check_valid_coordinates(group)
 
 
-def test_dataarray_round_trip() -> None:
+def test_dataarray_round_trip(example_group) -> None:
     """
     Ensure that we can round-trip dataarray attributes through the `Multiscales` model.
     """
@@ -75,7 +73,7 @@ def test_dataarray_round_trip() -> None:
             assert DataArray(**model_json).model_dump() == model_json
 
 
-def test_multiscale_attrs_round_trip() -> None:
+def test_multiscale_attrs_round_trip(example_group) -> None:
     """
     Test that multiscale datasets round-trip through the `Multiscales` model
     """
