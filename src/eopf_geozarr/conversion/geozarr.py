@@ -25,6 +25,7 @@ import numpy as np
 import xarray as xr
 import zarr
 from pyproj import CRS
+from rasterio.crs import CRS as RioCRS
 from rasterio.warp import calculate_default_transform
 from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
@@ -153,6 +154,101 @@ def create_geozarr_dataset(
     return dt_geozarr
 
 
+def _candidate_group_paths(group_name: str) -> list[str]:
+    """Return measurement groups that can share CRS metadata with quicklooks."""
+
+    normalized = group_name.strip("/")
+    if not normalized.startswith("quality/l2a_quicklook/"):
+        return []
+
+    parts = normalized.split("/")
+    if len(parts) < 3:
+        return []
+
+    resolution = parts[2]
+    candidates = [f"/measurements/reflectance/{resolution}"]
+
+    if "/measurements/reflectance" not in candidates:
+        candidates.append("/measurements/reflectance")
+
+    return candidates
+
+
+def _derive_crs_from_dataset(ds: xr.Dataset) -> RioCRS | None:
+    """Extract CRS information from dataset or its variables, if available."""
+
+    if ds.rio.crs:
+        return ds.rio.crs
+
+    attr_sources = [ds.attrs, getattr(ds, "encoding", {})]
+    epsg_keys = ("proj:epsg", "epsg", "epsg_code")
+
+    for source in attr_sources:
+        for key in epsg_keys:
+            epsg = source.get(key)
+            if epsg is None:
+                continue
+            try:
+                return RioCRS.from_epsg(int(epsg))
+            except Exception:
+                continue
+
+    for var in ds.data_vars.values():
+        for key in epsg_keys:
+            epsg = var.attrs.get(key)
+            if epsg is None:
+                continue
+            try:
+                return RioCRS.from_epsg(int(epsg))
+            except Exception:
+                continue
+
+        gm_name = var.attrs.get("grid_mapping")
+        if gm_name and gm_name in ds.variables:
+            gm_var = ds[gm_name]
+            for attr_key in ("crs_wkt", "spatial_ref", "proj4text"):
+                attr_value = gm_var.attrs.get(attr_key)
+                if not attr_value:
+                    continue
+                try:
+                    return RioCRS.from_wkt(attr_value)
+                except Exception:
+                    continue
+
+    return None
+
+
+def _maybe_assign_dataset_crs(
+    dt: xr.DataTree, group_name: str, ds: xr.Dataset
+) -> tuple[xr.Dataset, RioCRS | None]:
+    """Ensure dataset has a CRS by inferring from itself or sibling groups."""
+
+    inferred_crs = _derive_crs_from_dataset(ds)
+
+    if inferred_crs is None:
+        for candidate in _candidate_group_paths(group_name):
+            try:
+                sibling_ds = dt[candidate].to_dataset()
+            except (KeyError, AttributeError):
+                continue
+
+            inferred_crs = _derive_crs_from_dataset(sibling_ds)
+            if inferred_crs is not None:
+                break
+
+    if inferred_crs is None:
+        return ds, None
+
+    epsg_code = inferred_crs.to_epsg()
+    crs_arg = f"epsg:{epsg_code}" if epsg_code else inferred_crs.to_wkt()
+    ds = ds.rio.write_crs(crs_arg)
+
+    if epsg_code is not None:
+        ds.attrs.setdefault("proj:epsg", int(epsg_code))
+
+    return ds, inferred_crs
+
+
 def setup_datatree_metadata_geozarr_spec_compliant(
     dt: xr.DataTree, groups: Iterable[str], gcp_group: str | None = None
 ) -> dict[str, xr.Dataset]:
@@ -175,11 +271,19 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     grid_mapping_var_name = "spatial_ref"
 
     for key in groups:
-        if not dt[key].data_vars:
+        try:
+            node = dt[key]
+        except KeyError:
+            print(f"Skipping group for GeoZarr compliance (missing): {key}")
+            continue
+
+        if not node.data_vars:
             continue
 
         print(f"Processing group for GeoZarr compliance: {key}")
-        ds = dt[key].to_dataset().copy()
+        ds = node.to_dataset().copy()
+        ds, assigned_crs = _maybe_assign_dataset_crs(dt, key, ds)
+        assigned_epsg = assigned_crs.to_epsg() if assigned_crs else None
 
         if gcp_group is not None:
             ds_gcp = dt[gcp_group].to_dataset()
@@ -214,6 +318,8 @@ def setup_datatree_metadata_geozarr_spec_compliant(
                 epsg = ds[var_name].attrs["proj:epsg"]
                 print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
+            elif assigned_epsg is not None:
+                ds[var_name].attrs["proj:epsg"] = int(assigned_epsg)
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
         _add_coordinate_metadata(ds)
