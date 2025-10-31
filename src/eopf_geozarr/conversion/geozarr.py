@@ -16,6 +16,7 @@ Key compliance features:
 import dataclasses
 import itertools
 import os
+import re
 import shutil
 import time
 from collections.abc import Hashable, Iterable, Mapping, Sequence
@@ -173,6 +174,8 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     """
     geozarr_groups: dict[str, xr.Dataset] = {}
     grid_mapping_var_name = "spatial_ref"
+    fallback_crs: CRS | None = None
+    tree_crs_hint: CRS | None = _find_global_crs_hint(dt)
 
     for key in groups:
         if not dt[key].data_vars:
@@ -192,6 +195,8 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
             print("  ✅ Reprojection completed, dataset now has x/y coordinates")
 
+        ds, fallback_crs = _ensure_dataset_crs(ds, dt, key, fallback_crs, tree_crs_hint)
+
         # Process all variables in the group
         for var_name in ds.data_vars:
             print(f"  Processing variable / band: {var_name}")
@@ -208,12 +213,6 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             if hasattr(ds[var_name], "dims"):
                 ds[var_name].attrs["_ARRAY_DIMENSIONS"] = list(ds[var_name].dims)
             ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
-
-            # Set CRS if available
-            if "proj:epsg" in ds[var_name].attrs:
-                epsg = ds[var_name].attrs["proj:epsg"]
-                print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
-                ds = ds.rio.write_crs(f"epsg:{epsg}")
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
         _add_coordinate_metadata(ds)
@@ -1393,8 +1392,158 @@ def _add_coordinate_metadata(ds: xr.Dataset) -> None:
                 ds[coord_name].attrs["_ARRAY_DIMENSIONS"] = [coord_name]
 
 
+def _normalize_epsg_value(value: Any) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        match = re.search(r"\d{3,}", value)
+        if match:
+            try:
+                return int(match.group())
+            except ValueError:
+                return None
+    return None
+
+
+def _extract_epsg_from_mapping(obj: Any) -> int | None:
+    if isinstance(obj, Mapping):
+        for key, val in obj.items():
+            lowered = key.lower()
+            if lowered in {"proj:epsg", "proj_epsg", "epsg", "epsg_code", "epsg:code"}:
+                epsg = _normalize_epsg_value(val)
+                if epsg is not None:
+                    return epsg
+            epsg = _extract_epsg_from_mapping(val)
+            if epsg is not None:
+                return epsg
+    elif isinstance(obj, Sequence) and not isinstance(obj, (str, bytes)):
+        for item in obj:
+            epsg = _extract_epsg_from_mapping(item)
+            if epsg is not None:
+                return epsg
+    return None
+
+
+def _collect_epsg_from_dataset(ds: xr.Dataset) -> int | None:
+    for data_array in ds.data_vars.values():
+        epsg = _extract_epsg_from_mapping(getattr(data_array, "attrs", {}))
+        if epsg is not None:
+            return epsg
+    return None
+
+
+def _to_pyproj_crs(crs_like: Any) -> CRS | None:
+    if crs_like is None:
+        return None
+    if isinstance(crs_like, CRS):
+        return crs_like
+    try:
+        if hasattr(crs_like, "to_wkt"):
+            return CRS.from_wkt(crs_like.to_wkt())
+        return CRS.from_user_input(crs_like)
+    except Exception:
+        return None
+
+
+def _ensure_spatial_ref_variable(ds: xr.Dataset, crs_like: Any) -> None:
+    crs_obj = _to_pyproj_crs(crs_like)
+    if crs_obj is None:
+        return
+
+    wkt_value = crs_obj.to_wkt()
+    if "spatial_ref" not in ds:
+        ds.coords["spatial_ref"] = xr.DataArray(
+            data=np.array(b"", dtype="S1"),
+            attrs={"_ARRAY_DIMENSIONS": [], "spatial_ref": wkt_value},
+        )
+    else:
+        attrs = dict(ds["spatial_ref"].attrs)
+        attrs.setdefault("_ARRAY_DIMENSIONS", [])
+        attrs.setdefault("spatial_ref", wkt_value)
+        ds["spatial_ref"].attrs = attrs
+
+
+def _find_global_crs_hint(dt: xr.DataTree) -> CRS | None:
+    epsg = _extract_epsg_from_mapping(dt.attrs)
+    if epsg is not None:
+        try:
+            return CRS.from_epsg(epsg)
+        except Exception:
+            pass
+
+    for _, node in dt.subtree_with_keys:
+        try:
+            ds = node.to_dataset()
+        except Exception:
+            ds = None
+        if ds is not None and ds.rio.crs:
+            found = _to_pyproj_crs(ds.rio.crs)
+            if found is not None:
+                return found
+        epsg = _extract_epsg_from_mapping(node.attrs)
+        if epsg is not None:
+            try:
+                return CRS.from_epsg(epsg)
+            except Exception:
+                continue
+    return None
+
+
+def _ensure_dataset_crs(
+    ds: xr.Dataset,
+    dt: xr.DataTree,
+    group_key: str,
+    fallback_crs: CRS | None,
+    tree_crs_hint: CRS | None,
+) -> tuple[xr.Dataset, CRS | None]:
+    current_crs = _to_pyproj_crs(ds.rio.crs)
+
+    if current_crs is None:
+        epsg_candidate = (
+            _extract_epsg_from_mapping(ds.attrs)
+            or _collect_epsg_from_dataset(ds)
+            or _extract_epsg_from_mapping(dt[group_key].attrs)
+            or _extract_epsg_from_mapping(dt.attrs)
+        )
+
+        target_crs: CRS | None
+        if epsg_candidate is not None:
+            try:
+                target_crs = CRS.from_epsg(epsg_candidate)
+            except Exception:
+                target_crs = None
+        elif fallback_crs is not None:
+            target_crs = fallback_crs
+        else:
+            target_crs = tree_crs_hint
+
+        if target_crs is None:
+            return ds, fallback_crs
+
+        ds = ds.rio.write_crs(target_crs)
+        _ensure_spatial_ref_variable(ds, target_crs)
+        epsg_code = target_crs.to_epsg()
+        if epsg_code is not None:
+            ds.attrs.setdefault("proj:epsg", epsg_code)
+            for var_name in ds.data_vars:
+                ds[var_name].attrs.setdefault("proj:epsg", epsg_code)
+
+        current_crs = target_crs
+    else:
+        _ensure_spatial_ref_variable(ds, current_crs)
+
+    return ds, current_crs
+
+
 def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None:
     """Set up spatial_ref variable with GeoZarr required attributes."""
+
+    if ds.rio.crs:
+        _ensure_spatial_ref_variable(ds, ds.rio.crs)
 
     # Use standard CRS and transform if available
     if ds.rio.crs and "spatial_ref" in ds:

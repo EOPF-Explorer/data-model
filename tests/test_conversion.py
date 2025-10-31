@@ -205,6 +205,37 @@ class TestMetadataSetup:
             assert "_ARRAY_DIMENSIONS" in processed_ds[coord].attrs
             assert "standard_name" in processed_ds[coord].attrs
 
+    def test_setup_datatree_metadata_infers_quicklook_crs(self) -> None:
+        """Quicklook datasets without CRS inherit it from band metadata."""
+        quicklook_ds = xr.Dataset(
+            {
+                "preview": (
+                    ["y", "x"],
+                    np.ones((2, 2), dtype=np.float32),
+                    {"proj:epsg": 32632},
+                )
+            },
+            coords={
+                "y": ("y", np.array([0.0, -10.0], dtype=np.float32)),
+                "x": ("x", np.array([0.0, 10.0], dtype=np.float32)),
+            },
+        )
+
+        dt = xr.DataTree()
+        dt["quality/l2a_quicklook/r10m"] = quicklook_ds
+
+        with patch("eopf_geozarr.conversion.geozarr.print"):
+            processed_groups = setup_datatree_metadata_geozarr_spec_compliant(
+                dt, ["/quality/l2a_quicklook/r10m"]
+            )
+
+        quicklook_processed = processed_groups["/quality/l2a_quicklook/r10m"]
+
+        assert quicklook_processed.rio.crs
+        assert quicklook_processed.rio.crs.to_epsg() == 32632
+        assert "spatial_ref" in quicklook_processed
+        assert quicklook_processed["spatial_ref"].attrs.get("spatial_ref")
+
 
 class TestIntegration:
     """Integration tests."""
