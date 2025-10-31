@@ -153,6 +153,63 @@ def create_geozarr_dataset(
     return dt_geozarr
 
 
+# Borrow the reflectance CRS so quicklook datasets stay readable when the upstream quicklook metadata lacks `proj:epsg`.
+_QUICKLOOK_PREFIX = "/quality/l2a_quicklook/"
+
+
+def _infer_epsg(ds: xr.Dataset) -> int | None:
+    """Return an EPSG code advertised by the dataset, if any."""
+
+    if ds.rio.crs:
+        epsg = ds.rio.crs.to_epsg()
+        if epsg is not None:
+            return int(epsg)
+
+    for source in (ds.attrs, getattr(ds, "encoding", {})):
+        for key in ("proj:epsg", "epsg", "epsg_code"):
+            value = source.get(key)
+            if value is None:
+                continue
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                continue
+
+    return None
+
+
+def _ensure_quicklook_crs(
+    dt: xr.DataTree, group_name: str, ds: xr.Dataset
+) -> tuple[xr.Dataset, int | None]:
+    """Backfill CRS metadata for quicklook datasets by borrowing from reflectance."""
+
+    if not group_name.startswith(_QUICKLOOK_PREFIX) or ds.rio.crs:
+        return ds, None
+
+    remainder = group_name[len(_QUICKLOOK_PREFIX) :].lstrip("/")
+    resolution = remainder.split("/", 1)[0]
+    candidates = [
+        f"/measurements/reflectance/{resolution}",
+        "/measurements/reflectance",
+    ]
+
+    for candidate in candidates:
+        try:
+            sibling = dt[candidate].to_dataset()
+        except KeyError:
+            continue
+
+        epsg = _infer_epsg(sibling)
+        if epsg is None:
+            continue
+
+        ds = ds.rio.write_crs(f"epsg:{epsg}")
+        ds.attrs.setdefault("proj:epsg", epsg)
+        return ds, epsg
+
+    return ds, None
+
+
 def setup_datatree_metadata_geozarr_spec_compliant(
     dt: xr.DataTree, groups: Iterable[str], gcp_group: str | None = None
 ) -> dict[str, xr.Dataset]:
@@ -175,11 +232,17 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     grid_mapping_var_name = "spatial_ref"
 
     for key in groups:
-        if not dt[key].data_vars:
+        try:
+            node = dt[key]
+        except KeyError:
+            continue
+
+        if not node.data_vars:
             continue
 
         print(f"Processing group for GeoZarr compliance: {key}")
-        ds = dt[key].to_dataset().copy()
+        ds = node.to_dataset().copy()
+        ds, assigned_epsg = _ensure_quicklook_crs(dt, key, ds)
 
         if gcp_group is not None:
             ds_gcp = dt[gcp_group].to_dataset()
@@ -214,6 +277,8 @@ def setup_datatree_metadata_geozarr_spec_compliant(
                 epsg = ds[var_name].attrs["proj:epsg"]
                 print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
+            elif assigned_epsg is not None:
+                ds[var_name].attrs["proj:epsg"] = int(assigned_epsg)
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
         _add_coordinate_metadata(ds)
