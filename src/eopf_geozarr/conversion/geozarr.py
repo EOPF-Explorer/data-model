@@ -1461,7 +1461,9 @@ def _create_encoding(
                 )
         else:
             data_shape = ds[var].shape
-            if len(data_shape) >= 2:
+            if len(data_shape) == 0:
+                chunking = ()
+            elif len(data_shape) >= 2:
                 chunk_y = min(spatial_chunk, data_shape[-2])
                 chunk_x = min(spatial_chunk, data_shape[-1])
                 if len(data_shape) == 3:

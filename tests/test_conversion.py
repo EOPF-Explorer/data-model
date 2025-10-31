@@ -16,6 +16,7 @@ from eopf_geozarr.conversion import (
     validate_existing_band_data,
 )
 from eopf_geozarr.conversion.geozarr import (
+    _create_encoding,
     create_overview_dataset_all_vars,
     prepare_dataset_with_crs_info,
 )
@@ -145,6 +146,14 @@ class TestUtilityFunctions:
         assert levels[2]["width"] == 256
         assert levels[2]["height"] == 256
         assert levels[2]["scale_factor"] == 4
+
+    def test_create_encoding_handles_scalar_variable(self) -> None:
+        """Ensure encoding generation handles zero-dimensional variables."""
+        ds = xr.Dataset({"scalar": ([], np.array(1.0))})
+
+        encoding = _create_encoding(ds, compressor=None, spatial_chunk=128)
+
+        assert encoding["scalar"]["chunks"] == ()
 
 
 class TestMetadataSetup:
