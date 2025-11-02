@@ -16,7 +16,6 @@ Key compliance features:
 import dataclasses
 import itertools
 import os
-import shutil
 import time
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from typing import Any
@@ -1073,6 +1072,23 @@ def write_dataset_band_by_band_with_validation(
 
     store_exists = existing_dataset is not None and len(existing_dataset.data_vars) > 0
 
+    store_storage_options = fs_utils.get_storage_options(output_path)
+    fs = fs_utils.get_filesystem(output_path, **(store_storage_options or {}))
+
+    def cleanup_prefix(prefix: str) -> None:
+        key = prefix.lstrip("/")
+        base_path = output_path.rstrip("/")
+        if fs_utils.is_s3_path(base_path):
+            target_path = fs_utils.normalize_path(f"{base_path}/{key}")
+        else:
+            target_path = os.path.join(base_path, key)
+        try:
+            fs.rm(target_path, recursive=True)
+        except FileNotFoundError:
+            pass
+        except Exception as cleanup_error:
+            print(f"    ⚠️ Failed to remove {target_path}: {cleanup_error}")
+
     # Write data variables one by one with validation
     for var in data_vars:
         # Check if this variable already exists and is valid
@@ -1085,13 +1101,8 @@ def write_dataset_band_by_band_with_validation(
                 successful_vars.append(var)
                 continue
             # Remove invalid existing variable using filesystem-agnostic method
-            var_path = fs_utils.normalize_path(
-                f"{output_path}/{group_name.lstrip('/')}/{var}"
-            )
-            fs = fs_utils.get_filesystem(output_path)
-            if fs.exists(var_path):
-                print(f"    🧹 Removing invalid existing variable {var}...")
-                fs.rm(var_path, recursive=True)
+            print(f"    🧹 Removing invalid existing variable {var}...")
+            cleanup_prefix(f"{group_name.lstrip('/')}/{var}")
 
         print(f"  Writing data variable {var}...")
 
@@ -1142,8 +1153,6 @@ def write_dataset_band_by_band_with_validation(
                 else:
                     single_var_ds[var] = single_var_ds[var].chunk()
 
-                # Get storage options and write variable
-                storage_options = fs_utils.get_storage_options(output_path)
                 single_var_ds.to_zarr(
                     output_path,
                     group=group_name,
@@ -1151,7 +1160,7 @@ def write_dataset_band_by_band_with_validation(
                     consolidated=False,
                     zarr_format=3,
                     encoding=var_encoding,
-                    storage_options=storage_options,
+                    storage_options=store_storage_options,
                 )
 
                 print(f"    ✅ Successfully wrote {var}")
@@ -1161,28 +1170,24 @@ def write_dataset_band_by_band_with_validation(
                     group_path = fs_utils.normalize_path(
                         f"{output_path}/{group_name.lstrip('/')}"
                     )
-                    storage_options = fs_utils.get_storage_options(output_path)
                     existing_dataset = xr.open_dataset(
                         group_path,
                         mode="r",
                         engine="zarr",
                         decode_coords="all",
                         chunks="auto",
-                        storage_options=storage_options,
+                        storage_options=store_storage_options,
                     )
                 break
 
             except Exception as e:
                 # Delete the started data array to avoid conflict on next attempt
                 for written_var in var_encoding.keys():
-                    if os.path.exists(
-                        os.path.join(output_path, group_name.lstrip("/"), written_var)
-                    ):
-                        shutil.rmtree(
-                            os.path.join(
-                                output_path, group_name.lstrip("/"), written_var
-                            )
-                        )
+                    target_components = [group_name.lstrip("/"), str(written_var)]
+                    target_prefix = "/".join(
+                        component for component in target_components if component
+                    )
+                    cleanup_prefix(target_prefix)
                 if attempt < max_retries - 1:
                     print(
                         f"    ⚠️  Attempt {attempt + 1} failed for {var}: {e}, retrying in 2 seconds..."
