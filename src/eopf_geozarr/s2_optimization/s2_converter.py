@@ -142,28 +142,24 @@ class S2OptimizedConverter:
         try:
             print("  Performing root consolidation...")
             
-            # create missing parent groups (/conditions, /quality, etc.)
-            dt_root = xr.DataTree()
-            dt_root.to_zarr(
-                f"{output_path}/conditions",
-                mode="a",
-                consolidated=True,
-                zarr_format=3,
-            )
-            dt_root = xr.DataTree()
-            dt_root.to_zarr(
-                f"{output_path}/quality",
-                mode="a",
-                consolidated=True,
-                zarr_format=3,
-            )
-            dt_root = xr.DataTree()
-            dt_root.to_zarr(
-                f"{output_path}/measurements",
-                mode="a",
-                consolidated=True,
-                zarr_format=3,
-            )
+            # create missing intermediary groups (/conditions, /quality, etc.)
+            # using the keys of the datasets dict
+            missing_groups = set()
+            for group_path in datasets.keys():
+                # extract all the parent paths
+                parts = group_path.strip("/").split("/")
+                for i in range(1, len(parts)):
+                    parent_path = "/" + "/".join(parts[:i])
+                    if parent_path not in datasets:
+                        missing_groups.add(parent_path)
+                        
+            for group_path in missing_groups:
+                dt_parent = xr.DataTree()
+                dt_parent.to_zarr(
+                    output_path + group_path,
+                    mode="a",
+                    zqarr_format=3,
+                )
 
             # Create root zarr group if it doesn't exist
             print("  Creating root zarr group...")
