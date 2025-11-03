@@ -700,7 +700,7 @@ class TestS2MultiscalePyramidIntegration:
         level_0 = pyramid._create_level_0_dataset(real_measurements_data)
 
         if len(level_0.data_vars) > 0:
-            encoding = pyramid._create_level_encoding(level_0, level=0)
+            encoding = pyramid._create_measurements_encoding(level_0, level=0)
 
             # Check encoding structure
             for var_name, var_data in level_0.data_vars.items():

@@ -3,12 +3,20 @@ Streaming multiscale pyramid creation for optimized S2 structure.
 Uses lazy evaluation to minimize memory usage during dataset preparation.
 """
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
+import numpy as np
 
 import xarray as xr
 from pyproj import CRS
 
+import os
+import json
+
 from eopf_geozarr.conversion import fs_utils
+from eopf_geozarr.conversion.geozarr import (
+    create_native_crs_tile_matrix_set,
+    _create_tile_matrix_limits,
+)
 
 from .s2_resampling import S2ResamplingEngine, determine_variable_type
 
@@ -99,132 +107,146 @@ class S2MultiscalePyramid:
             
             if is_measurement_group:
                 # Measurement groups: apply custom encoding
-                self._stream_write_lazy_dataset(dataset, output_group_path, 0)
-                processed_groups[group_path] = {"type": "original", "resolution": group_name}
+                encoding = self._create_measurements_encoding(dataset)
             else:
                 # Non-measurement groups: preserve original chunking
-                self._write_group_preserving_original_encoding(dataset, output_group_path)
-                processed_groups[group_path] = {"type": "original", "category": group_name}
-        
+                encoding = self._create_original_encoding(dataset)
+
+            ds_out = self._stream_write_dataset(dataset, output_group_path, encoding)
+            processed_groups[group_path] = ds_out
+
         # Step 2: Create downsampled resolution groups ONLY for measurements
         # Find all resolution-based groups under /measurements/ and organize by base path
         resolution_groups = {}
+        base_path = "/measurements/reflectance"
         for group_path in processed_groups.keys():
-            # Only process groups under /measurements/
-            if not group_path.startswith("/measurements/"):
+            # Only process groups under /measurements/reflectance
+            if not group_path.startswith(base_path):
                 continue
                 
             group_name = group_path.split("/")[-1]
             if group_name in ["r10m", "r20m", "r60m"]:
-                base_path = group_path.rsplit("/", 1)[0]
-                if base_path not in resolution_groups:
-                    resolution_groups[base_path] = []
-                resolution_groups[base_path].append(group_path)
+                resolution_groups[group_name] = processed_groups[group_path]
+
+        # Find the coarsest resolution (r60m > r20m > r10m)
+        source_dataset = None
+        source_resolution = None
         
-        # For each base path, create downsampled versions from coarsest resolution
-        for base_path, res_list in resolution_groups.items():
-            # Find the coarsest resolution (r60m > r20m > r10m)
-            source_path = None
-            source_resolution = None
-            
-            for res in ["r60m", "r20m", "r10m"]:
-                candidate = f"{base_path}/{res}"
-                if candidate in res_list:
-                    source_path = candidate
-                    source_resolution = int(res[1:-1])  # Extract number
-                    break
-            
-            if not source_path:
-                if verbose:
-                    print(f"  No source resolution found for {base_path}")
-                continue
-            
-            # Get source dataset
-            try:
-                source_dataset = dt_input[source_path].to_dataset()
-                if not source_dataset.data_vars:
-                    if verbose:
-                        print(f"  Source dataset {source_path} has no variables, skipping")
-                    continue
-            except Exception as e:
-                print(f"  Warning: Could not get source dataset {source_path}: {e}")
-                continue
-            
+        for res in ["r60m", "r20m", "r10m"]:
+            if res in resolution_groups:
+                source_dataset = resolution_groups[res]
+                source_resolution = int(res[1:-1])  # Extract number
+                break
+        
+        if not source_dataset:
             if verbose:
-                print(f"  Creating downsampled versions from: {source_path} ({source_resolution}m)")
+                print(f"  No source resolution found for downsampling, skipping downsampled levels")
+            return  # Stop processing if no valid source dataset is found
+
+        if verbose:
+            print(f"  Creating downsampled versions from: {source_dataset} ({source_resolution}m)")
+        
+        # Create r120m
+        try:
+            r120m_path = f"{base_path}/r120m"
+            factor = 120 // source_resolution
+            if verbose:
+                print(f"    Creating r120m with factor {factor}")
             
-            # Create r120m
-            try:
-                r120m_path = f"{base_path}/r120m"
-                factor = 120 // source_resolution
+            r120m_dataset = self._create_downsampled_resolution_group(
+                source_dataset, factor=factor, verbose=verbose
+            )
+            
+            if r120m_dataset and len(r120m_dataset.data_vars) > 0:
+                
+                output_path_120 = f"{output_path}{r120m_path}"
                 if verbose:
-                    print(f"    Creating r120m with factor {factor}")
+                    print(f"    Writing r120m to {output_path_120}")
+                encoding_120 = self._create_measurements_encoding(r120m_dataset)
+                ds_120 =self._stream_write_dataset(r120m_dataset, output_path_120, encoding_120)
+                processed_groups[r120m_path] = ds_120
+                resolution_groups["r120m"] = ds_120
                 
-                r120m_dataset = self._create_downsampled_resolution_group(
-                    source_dataset, factor=factor, verbose=verbose
-                )
-                
-                if r120m_dataset and len(r120m_dataset.data_vars) > 0:
-                    output_path_120 = f"{output_path}{r120m_path}"
+                # Create r360m from r120m
+                try:
+                    r360m_path = f"{base_path}/r360m"
                     if verbose:
-                        print(f"    Writing r120m to {output_path_120}")
-                    self._stream_write_lazy_dataset(r120m_dataset, output_path_120, 0)
-                    processed_groups[r120m_path] = {"type": "downsampled", "resolution": "r120m", "source": source_path}
+                        print(f"    Creating r360m with factor 3")
                     
-                    # Create r360m from r120m
-                    try:
-                        r360m_path = f"{base_path}/r360m"
+                    r360m_dataset = self._create_downsampled_resolution_group(
+                        r120m_dataset, factor=3, verbose=verbose
+                    )
+                    
+                    if r360m_dataset and len(r360m_dataset.data_vars) > 0:
+                        output_path_360 = f"{output_path}{r360m_path}"
                         if verbose:
-                            print(f"    Creating r360m with factor 3")
-                        
-                        r360m_dataset = self._create_downsampled_resolution_group(
-                            r120m_dataset, factor=3, verbose=verbose
-                        )
-                        
-                        if r360m_dataset and len(r360m_dataset.data_vars) > 0:
-                            output_path_360 = f"{output_path}{r360m_path}"
+                            print(f"    Writing r360m to {output_path_360}")
+                        encoding_360 = self._create_measurements_encoding(r360m_dataset)
+                        ds_360 = self._stream_write_dataset(r360m_dataset, output_path_360, encoding_360)
+                        processed_groups[r360m_path] = ds_360
+                        resolution_groups["r360m"] = ds_360
+
+                        # Create r720m from r360m
+                        try:
+                            r720m_path = f"{base_path}/r720m"
                             if verbose:
-                                print(f"    Writing r360m to {output_path_360}")
-                            self._stream_write_lazy_dataset(r360m_dataset, output_path_360, 0)
-                            processed_groups[r360m_path] = {"type": "downsampled", "resolution": "r360m", "source": r120m_path}
+                                print(f"    Creating r720m with factor 2")
                             
-                            # Create r720m from r360m
-                            try:
-                                r720m_path = f"{base_path}/r720m"
+                            r720m_dataset = self._create_downsampled_resolution_group(
+                                r360m_dataset, factor=2, verbose=verbose
+                            )
+                            
+                            if r720m_dataset and len(r720m_dataset.data_vars) > 0:
+                                output_path_720 = f"{output_path}{r720m_path}"
                                 if verbose:
-                                    print(f"    Creating r720m with factor 2")
-                                
-                                r720m_dataset = self._create_downsampled_resolution_group(
-                                    r360m_dataset, factor=2, verbose=verbose
-                                )
-                                
-                                if r720m_dataset and len(r720m_dataset.data_vars) > 0:
-                                    output_path_720 = f"{output_path}{r720m_path}"
-                                    if verbose:
-                                        print(f"    Writing r720m to {output_path_720}")
-                                    self._stream_write_lazy_dataset(r720m_dataset, output_path_720, 0)
-                                    processed_groups[r720m_path] = {"type": "downsampled", "resolution": "r720m", "source": r360m_path}
-                                else:
-                                    if verbose:
-                                        print(f"    r720m dataset is empty, skipping")
-                            except Exception as e:
-                                print(f"  Warning: Could not create r720m for {base_path}: {e}")
-                        else:
-                            if verbose:
-                                print(f"    r360m dataset is empty, skipping")
-                    except Exception as e:
-                        print(f"  Warning: Could not create r360m for {base_path}: {e}")
-                else:
-                    if verbose:
-                        print(f"    r120m dataset is empty, skipping")
-            except Exception as e:
-                print(f"  Warning: Could not create r120m for {base_path}: {e}")
+                                    print(f"    Writing r720m to {output_path_720}")
+                                encoding_720 = self._create_measurements_encoding(r720m_dataset)
+                                ds_720 = self._stream_write_dataset(r720m_dataset, output_path_720, encoding_720)
+                                processed_groups[r720m_path] = ds_720
+                                resolution_groups["r720m"] = ds_720
+                            else:
+                                if verbose:
+                                    print(f"    r720m dataset is empty, skipping")
+                        except Exception as e:
+                            print(f"  Warning: Could not create r720m for {base_path}: {e}")
+                    else:
+                        if verbose:
+                            print(f"    r360m dataset is empty, skipping")
+                except Exception as e:
+                    print(f"  Warning: Could not create r360m for {base_path}: {e}")
+                # Track r120m for multiscales if created
+                if verbose:
+                    print(f"  Tracking r120m for multiscales metadata")
+            else:
+                if verbose:
+                    print(f"    r120m dataset is empty, skipping")
+        except Exception as e:
+            print(f"  Warning: Could not create r120m for {base_path}: {e}")
+        
+        # Step 3: Add multiscales metadata to parent groups
+        if verbose:
+            print("\n  Adding multiscales metadata to parent groups...")
+            
+        # Get the datatree again from output to ensure proper loading
+        dt_output_measurements = xr.open_datatree(
+            f"{output_path}{base_path}",
+            engine="zarr",
+            chunks="auto",
+            storage_options=fs_utils.get_storage_options(f"{output_path}{base_path}"),
+        )
+        
+        try:
+            self._add_multiscales_metadata_to_parent(
+                output_path, base_path, resolution_groups, dt_output_measurements, verbose
+            )
+        except Exception as e:
+            print(f"  Warning: Could not add multiscales metadata to {base_path}: {e}")
         
         return processed_groups
-    
-    def _write_group_preserving_original_encoding(
-        self, dataset: xr.Dataset, group_path: str
-    ) -> None:
+
+    def _create_original_encoding(
+        self, dataset: xr.Dataset
+    ) -> dict:
         """Write a group preserving its original chunking and encoding."""
         from zarr.codecs import BloscCodec
         
@@ -232,8 +254,6 @@ class S2MultiscalePyramid:
         compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
         encoding = {}
         
-        # Rechunk each variable individually to match original encoding
-        rechunked_vars = {}
         for var_name in dataset.data_vars:
             var_data = dataset.data_vars[var_name]
             
@@ -241,38 +261,17 @@ class S2MultiscalePyramid:
             if hasattr(var_data, 'encoding') and 'chunks' in var_data.encoding:
                 original_chunks = var_data.encoding['chunks']
                 
-                # Create rechunk dictionary using dimension names
-                chunk_dict = {}
-                for i, dim in enumerate(var_data.dims):
-                    if i < len(original_chunks):
-                        chunk_dict[dim] = original_chunks[i]
-                
-                # Rechunk this specific variable
-                rechunked_vars[var_name] = var_data.chunk(chunk_dict)
-                
                 # Set encoding with original chunks
                 encoding[var_name] = {"chunks": original_chunks, "compressors": [compressor]}
             else:
                 # No specific chunking - use as is
-                rechunked_vars[var_name] = var_data
                 encoding[var_name] = {"compressors": [compressor]}
         
         for coord_name in dataset.coords:
             encoding[coord_name] = {"compressors": None}
-        
-        # Recreate dataset with rechunked variables
-        if rechunked_vars:
-            dataset = xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
-        
-        # Write dataset with original encoding preserved
-        dataset.to_zarr(
-            group_path,
-            mode="w",
-            consolidated=True,
-            zarr_format=3,
-            encoding=encoding,
-        )
-    
+
+        return encoding
+
     def _create_downsampled_resolution_group(
         self, source_dataset: xr.Dataset, factor: int, verbose: bool = False
     ) -> xr.Dataset:
@@ -315,240 +314,6 @@ class S2MultiscalePyramid:
         dataset = xr.Dataset(lazy_vars, coords=downsampled_coords)
         dataset.attrs.update(source_dataset.attrs)
         
-        return dataset
-
-    def create_multiscale_measurements_streaming(
-        self, measurements_by_resolution: Dict[int, Dict], output_path: str
-    ) -> Dict[int, xr.Dataset]:
-        """
-        Create multiscale pyramid with streaming lazy evaluation.
-        
-        Key innovation: Downsampling operations are prepared as computation graphs
-        but not executed until write time, enabling true streaming processing.
-        """
-        if DASK_AVAILABLE:
-            return self._create_streaming_measurements_lazy(
-                measurements_by_resolution, output_path
-            )
-        else:
-            # Fallback to regular processing
-            return self._create_multiscale_measurements_sequential(
-                measurements_by_resolution, output_path
-            )
-
-    def _create_streaming_measurements_lazy(
-        self, measurements_by_resolution: Dict[int, Dict], output_path: str
-    ) -> Dict[int, xr.Dataset]:
-        """
-        Create multiscale pyramid with lazy evaluation and streaming writes.
-        
-        Strategy:
-        1. Create lazy datasets with delayed downsampling operations
-        2. Write each level with streaming execution
-        3. Computation happens only during zarr write operations
-        4. Minimal memory usage - no intermediate results stored
-        """
-        print("Creating streaming multiscale pyramid with lazy evaluation...")
-        pyramid_datasets = {}
-
-        # Process levels sequentially but prepare lazy operations
-        for level in sorted(self.pyramid_levels.keys()):
-            target_resolution = self.pyramid_levels[level]
-            print(f"Preparing lazy operations for level {level} ({target_resolution}m)...")
-
-            # Create lazy dataset with delayed operations
-            if level <= 2:
-                # Base levels: use source measurements data
-                lazy_dataset = self._create_lazy_level_dataset(
-                    level, target_resolution, measurements_by_resolution
-                )
-            else:
-                # Higher levels: use level 2 data if available
-                if 2 in pyramid_datasets:
-                    lazy_dataset = self._create_lazy_downsampled_dataset_from_level2(
-                        level, target_resolution, pyramid_datasets[2]
-                    )
-                else:
-                    print(f"  Skipping level {level} - level 2 not available")
-                    continue
-
-            if lazy_dataset and len(lazy_dataset.data_vars) > 0:
-                # Store lazy dataset for potential use by higher levels
-                pyramid_datasets[level] = lazy_dataset
-                
-                # Stream write the lazy dataset (computation happens here)
-                level_path = f"{output_path}/measurements/{level}"
-                print(f"  Streaming write of level {level} to {level_path}")
-                self._stream_write_lazy_dataset(lazy_dataset, level_path, level)
-            else:
-                print(f"  Skipping empty level {level}")
-
-        print(f"✅ Streaming pyramid creation complete")
-        return pyramid_datasets
-
-    def _create_lazy_level_dataset(
-        self,
-        level: int,
-        target_resolution: int,
-        measurements_by_resolution: Dict[int, Dict],
-    ) -> xr.Dataset:
-        """Create dataset with lazy downsampling operations."""
-
-        if level == 0:
-            # Level 0: Only native 10m data (no downsampling needed)
-            return self._create_level_0_dataset(measurements_by_resolution)
-        elif level == 1:
-            # Level 1: All data at 20m (native + lazy downsampled from 10m)
-            return self._create_lazy_level_1_dataset(measurements_by_resolution)
-        elif level == 2:
-            # Level 2: All data at 60m (native + lazy downsampled from 20m/10m)
-            return self._create_lazy_level_2_dataset(measurements_by_resolution)
-        else:
-            # Should not be called for levels 3+ in streaming approach
-            raise ValueError(f"Use _create_lazy_downsampled_dataset_from_level2 for level {level}")
-
-    def _create_lazy_level_1_dataset(
-        self, measurements_by_resolution: Dict
-    ) -> xr.Dataset:
-        """Create level 1 dataset with lazy downsampling from 10m data."""
-        all_vars = {}
-        reference_coords = None
-
-        # Start with native 20m data
-        if 20 in measurements_by_resolution:
-            data_20m = measurements_by_resolution[20]
-            for category, vars_dict in data_20m.items():
-                all_vars.update(vars_dict)
-
-            # Get reference coordinates from 20m data
-            if all_vars:
-                first_var = next(iter(all_vars.values()))
-                reference_coords = {
-                    "x": first_var.coords["x"],
-                    "y": first_var.coords["y"],
-                }
-
-        # Add lazy downsampled 10m data
-        if 10 in measurements_by_resolution and reference_coords:
-            data_10m = measurements_by_resolution[10]
-            target_height = len(reference_coords["y"])
-            target_width = len(reference_coords["x"])
-
-            # Create lazy downsampling operations
-            for category, vars_dict in data_10m.items():
-                for var_name, var_data in vars_dict.items():
-                    if var_name in all_vars:
-                        continue
-                    
-                    # Create lazy downsampling operation
-                    lazy_downsampled = self._create_lazy_downsample_operation(
-                        var_data, target_height, target_width, reference_coords
-                    )
-                    all_vars[var_name] = lazy_downsampled
-
-        if not all_vars:
-            return xr.Dataset()
-
-        # Create dataset with lazy variables
-        dataset = xr.Dataset(all_vars)
-        dataset.attrs["pyramid_level"] = 1
-        dataset.attrs["resolution_meters"] = 20
-
-        return dataset
-
-    def _create_lazy_level_2_dataset(
-        self, measurements_by_resolution: Dict
-    ) -> xr.Dataset:
-        """Create level 2 dataset with lazy downsampling to 60m."""
-        all_vars = {}
-        reference_coords = None
-
-        # Start with native 60m data
-        if 60 in measurements_by_resolution:
-            data_60m = measurements_by_resolution[60]
-            for category, vars_dict in data_60m.items():
-                all_vars.update(vars_dict)
-
-            # Get reference coordinates from 60m data
-            if all_vars:
-                first_var = next(iter(all_vars.values()))
-                reference_coords = {
-                    "x": first_var.coords["x"],
-                    "y": first_var.coords["y"],
-                }
-
-        if reference_coords:
-            target_height = len(reference_coords["y"])
-            target_width = len(reference_coords["x"])
-
-            # Add lazy downsampling from 20m data
-            if 20 in measurements_by_resolution:
-                data_20m = measurements_by_resolution[20]
-                for category, vars_dict in data_20m.items():
-                    for var_name, var_data in vars_dict.items():
-                        if var_name not in all_vars:
-                            lazy_downsampled = self._create_lazy_downsample_operation(
-                                var_data, target_height, target_width, reference_coords
-                            )
-                            all_vars[var_name] = lazy_downsampled
-            
-            # Add lazy downsampling from 10m data
-            if 10 in measurements_by_resolution:
-                data_10m = measurements_by_resolution[10]
-                for category, vars_dict in data_10m.items():
-                    for var_name, var_data in vars_dict.items():
-                        if var_name not in all_vars:
-                            lazy_downsampled = self._create_lazy_downsample_operation(
-                                var_data, target_height, target_width, reference_coords
-                            )
-                            all_vars[var_name] = lazy_downsampled
-
-        if not all_vars:
-            return xr.Dataset()
-
-        # Create dataset with lazy variables
-        dataset = xr.Dataset(all_vars)
-        dataset.attrs["pyramid_level"] = 2
-        dataset.attrs["resolution_meters"] = 60
-
-        return dataset
-
-    def _create_lazy_downsampled_dataset_from_level2(
-        self, level: int, target_resolution: int, level_2_dataset: xr.Dataset
-    ) -> xr.Dataset:
-        """Create lazy downsampled dataset from level 2."""
-        if len(level_2_dataset.data_vars) == 0:
-            return xr.Dataset()
-
-        # Calculate target dimensions based on resolution ratios from pyramid_levels
-        level_2_resolution = self.pyramid_levels[2]  # 60m
-        target_level_resolution = self.pyramid_levels[level]  # e.g., 120m, 360m, 720m
-        downsample_factor = target_level_resolution // level_2_resolution  # 2x, 6x, 12x
-        
-        # Get reference dimensions from level 2
-        ref_var = next(iter(level_2_dataset.data_vars.values()))
-        current_height, current_width = ref_var.shape[-2:]
-        target_height = current_height // downsample_factor
-        target_width = current_width // downsample_factor
-
-        # Create downsampled coordinates from level 2
-        downsampled_coords = self._create_downsampled_coordinates(
-            level_2_dataset, target_height, target_width, downsample_factor
-        )
-
-        # Create lazy downsampling operations for all variables
-        lazy_vars = {}
-        for var_name, var_data in level_2_dataset.data_vars.items():
-            lazy_downsampled = self._create_lazy_downsample_operation_from_existing(
-                var_data, target_height, target_width
-            )
-            lazy_vars[var_name] = lazy_downsampled
-
-        # Create dataset with lazy variables AND proper coordinates
-        dataset = xr.Dataset(lazy_vars, coords=downsampled_coords)
-        dataset.attrs["pyramid_level"] = level
-        dataset.attrs["resolution_meters"] = target_resolution
-
         return dataset
 
     def _create_lazy_downsample_operation(
@@ -652,9 +417,9 @@ class S2MultiscalePyramid:
             name=source_data.name
         )
 
-    def _stream_write_lazy_dataset(
-        self, lazy_dataset: xr.Dataset, level_path: str, level: int
-    ) -> None:
+    def _stream_write_dataset(
+        self, dataset: xr.Dataset, dataset_path: str, encoding: Dict[str, Any]
+    ) -> xr.Dataset:
         """
         Stream write a lazy dataset with advanced chunking and sharding.
         
@@ -663,24 +428,30 @@ class S2MultiscalePyramid:
         """
         
         # Check if level already exists
-        if fs_utils.path_exists(level_path):
-            print(f"    Level path {level_path} already exists. Skipping write.")
-            return
-
-        # Create advanced encoding for streaming write
-        encoding = self._create_level_encoding(lazy_dataset, level)
+        if fs_utils.path_exists(dataset_path):
+            print(f"    Level path {dataset_path} already exists. Skipping write.")
+            existing_ds = xr.open_dataset(
+                dataset_path,
+                engine="zarr",
+                chunks={},
+                decode_coords="all",
+            )
+            return existing_ds
         
-        print(f"    Streaming computation and write to {level_path}")
-        print(f"    Variables: {list(lazy_dataset.data_vars.keys())}")
+        print(f"    Streaming computation and write to {dataset_path}")
+        print(f"    Variables: {list(dataset.data_vars.keys())}")
         
         # Rechunk dataset to align with encoding when sharding is enabled
         if self.enable_sharding:
-            lazy_dataset = self._rechunk_dataset_for_encoding(lazy_dataset, encoding)
+            dataset = self._rechunk_dataset_for_encoding(dataset, encoding)
+            
+        # Add the geo metadata before writing
+        self._write_geo_metadata(dataset)
         
         # Write with streaming computation and progress tracking
         # The to_zarr operation will trigger all lazy computations
-        write_job = lazy_dataset.to_zarr(
-            level_path,
+        write_job = dataset.to_zarr(
+            dataset_path,
             mode="w",
             consolidated=True,
             zarr_format=3,
@@ -699,8 +470,9 @@ class S2MultiscalePyramid:
         else:
             print("    Writing zarr file...")
             write_job.compute()
-        
-        print(f"    ✅ Streaming write complete for level {level}")
+
+        print(f"    ✅ Streaming write complete for dataset {dataset_path}")
+        return write_job.result()
 
     def _rechunk_dataset_for_encoding(
         self, dataset: xr.Dataset, encoding: Dict
@@ -783,12 +555,9 @@ class S2MultiscalePyramid:
         # This is a fallback - the main value is in the streaming approach
         return {}
 
-    def _create_level_encoding(self, dataset: xr.Dataset, level: int) -> Dict:
+    def _create_measurements_encoding(self, dataset: xr.Dataset) -> Dict:
         """Create optimized encoding for a pyramid level with advanced chunking and sharding."""
         encoding = {}
-
-        # Calculate level-appropriate chunk sizes
-        chunk_size = max(256, self.spatial_chunk // (2**level))
 
         for var_name, var_data in dataset.data_vars.items():
             if var_data.ndim >= 2:
@@ -796,9 +565,9 @@ class S2MultiscalePyramid:
 
                 # Use advanced aligned chunk calculation
                 spatial_chunk_aligned = min(
-                    chunk_size,
-                    self._calculate_aligned_chunk_size(width, chunk_size),
-                    self._calculate_aligned_chunk_size(height, chunk_size),
+                    self.spatial_chunk,
+                    self._calculate_aligned_chunk_size(width, self.spatial_chunk),
+                    self._calculate_aligned_chunk_size(height, self.spatial_chunk),
                 )
 
                 if var_data.ndim == 3:
@@ -807,7 +576,7 @@ class S2MultiscalePyramid:
                 else:
                     chunks = (spatial_chunk_aligned, spatial_chunk_aligned)
             else:
-                chunks = (min(chunk_size, var_data.shape[0]),)
+                chunks = (min(self.spatial_chunk, var_data.shape[0]),)
 
             # Configure encoding - use proper compressor following geozarr.py pattern
             from zarr.codecs import BloscCodec
@@ -921,6 +690,118 @@ class S2MultiscalePyramid:
         
         return coords
 
+    def _add_multiscales_metadata_to_parent(
+        self, output_path: str, base_path: str, res_groups: dict, dt_measurements: xr.DataTree, verbose: bool = False
+    ) -> None:
+        """Add GeoZarr-compliant multiscales metadata to parent group."""
+        
+        # Sort by resolution (finest to coarsest)
+        res_order = {"r10m": 10, "r20m": 20, "r60m": 60, "r120m": 120, "r360m": 360, "r720m": 720}
+        all_resolutions = sorted(set(res_groups.keys()), key=lambda x: res_order.get(x, 999))
+        
+        if len(all_resolutions) < 2:
+            if verbose:
+                print(f"    Skipping {base_path} - only one resolution available")
+            return
+        
+        # Get CRS and bounds from first available dataset (load from output path)
+        first_res = all_resolutions[0]
+        first_dataset = res_groups[first_res]
+
+        # Get CRS and bounds
+        native_crs = first_dataset.rio.crs if hasattr(first_dataset, 'rio') else None
+        if native_crs is None:
+            if verbose:
+                print(f"    No CRS found for {base_path}, skipping multiscales metadata")
+            return
+        
+        native_bounds = first_dataset.rio.bounds() if hasattr(first_dataset, 'rio') else None
+        if native_bounds is None:
+            if verbose:
+                print(f"    No bounds found for {base_path}, skipping multiscales metadata")
+            return
+        
+        # Create overview_levels structure with string-based level names
+        overview_levels = []
+        for res_name in all_resolutions:
+            res_meters = res_order[res_name]
+        
+            dataset = res_groups[res_name]
+            
+            if dataset is None:
+                continue
+            
+            # Get first data variable to extract dimensions
+            first_var = next(iter(dataset.data_vars.values()))
+            height, width = first_var.shape[-2:]
+            
+            # Calculate zoom level (higher resolution = higher zoom)
+            tile_width = 256
+            zoom_for_width = max(0, int(np.ceil(np.log2(width / tile_width))))
+            zoom_for_height = max(0, int(np.ceil(np.log2(height / tile_width))))
+            zoom = max(zoom_for_width, zoom_for_height)
+            
+            # Calculate scale factor relative to finest resolution
+            finest_res_meters = res_order[all_resolutions[0]]
+            scale_factor = res_meters // finest_res_meters
+            
+            overview_levels.append({
+                "level": res_name,  # Use string-based level name
+                "zoom": zoom,
+                "width": width,
+                "height": height,
+                "scale_factor": scale_factor,
+                "chunks": dataset.data_vars[first_var.name].chunks
+            })
+        
+        if len(overview_levels) < 2:
+            if verbose:
+                print(f"    Could not create overview levels for {base_path}")
+            return
+        
+        # Create tile matrix set using geozarr function
+        tile_matrix_set = create_native_crs_tile_matrix_set(
+            native_crs, native_bounds, overview_levels, group_prefix=None
+        )
+        
+        # Create tile matrix limits
+        tile_matrix_limits = _create_tile_matrix_limits(overview_levels, tile_width=256)
+        
+        # Write multiscales metadata to parent group zarr.json
+        parent_zarr_path = os.path.join(output_path, base_path.lstrip('/'), 'zarr.json')
+        
+        # Create parent group if it doesn't exist
+        parent_group_path = os.path.join(output_path, base_path.lstrip('/'))
+        os.makedirs(parent_group_path, exist_ok=True)
+        
+        # Read or create zarr.json
+        if os.path.exists(parent_zarr_path):
+            with open(parent_zarr_path, 'r') as f:
+                zarr_json = json.load(f)
+        else:
+            zarr_json = {
+                "zarr_format": 3,
+                "node_type": "group",
+                "attributes": {}
+            }
+        
+        # Add multiscales metadata
+        if "attributes" not in zarr_json:
+            zarr_json["attributes"] = {}
+        
+        zarr_json["attributes"]["multiscales"] = {
+            "tile_matrix_set": tile_matrix_set,
+            "resampling_method": "average",
+            "tile_matrix_limits": tile_matrix_limits,
+        }
+        
+        # Write updated zarr.json
+        with open(parent_zarr_path, 'w') as f:
+            json.dump(zarr_json, f, indent=2)
+        
+        if verbose:
+            print(f"    ✅ Added multiscales metadata to {base_path} ({len(overview_levels)} resolutions)")
+    
     def _write_geo_metadata(
         self, dataset: xr.Dataset, grid_mapping_var_name: str = "spatial_ref"
     ) -> None:

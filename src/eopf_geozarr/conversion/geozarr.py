@@ -853,8 +853,8 @@ def create_native_crs_tile_matrix_set(
         scale_denominator = cell_size * 3779.5275
 
         # Calculate matrix dimensions
-        tile_width = 256
-        tile_height = 256
+        tile_width = overview["chunks"][1][0] if "chunks" in overview else 256
+        tile_height = overview["chunks"][0][0] if "chunks" in overview else 256
         matrix_width = int(np.ceil(width / tile_width))
         matrix_height = int(np.ceil(height / tile_height))
 
