@@ -228,9 +228,10 @@ class S2MultiscalePyramid:
             print("\n  Adding multiscales metadata to parent groups...")
             
         try:
-            self._add_multiscales_metadata_to_parent(
+            dt_multiscale = self._add_multiscales_metadata_to_parent(
                 output_path, base_path, resolution_groups, verbose
             )
+            processed_groups[base_path] = dt_multiscale
         except Exception as e:
             print(f"  Warning: Could not add multiscales metadata to {base_path}: {e}")
         
