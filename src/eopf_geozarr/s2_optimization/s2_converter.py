@@ -84,14 +84,14 @@ class S2OptimizedConverter:
         
         # Step 2: Create multiscale pyramids for each group in the original structure
         print("Step 2: Creating multiscale pyramids (preserving original hierarchy)...")
-        pyramid_datasets = self.pyramid_creator.create_multiscale_from_datatree(
+        datasets = self.pyramid_creator.create_multiscale_from_datatree(
             dt_input, output_path, verbose
         )
-        print(f"  Created multiscale pyramids for {len(pyramid_datasets)} groups")
+        print(f"  Created multiscale pyramids for {len(datasets)} groups")
         
         # Step 3: Root-level consolidation
         print("Step 3: Final root-level metadata consolidation...")
-        self._simple_root_consolidation(output_path, pyramid_datasets)
+        self._simple_root_consolidation(output_path, datasets)
 
         # Step 4: Validation
         if validate_output:
@@ -136,7 +136,7 @@ class S2OptimizedConverter:
 
 
     def _simple_root_consolidation(
-        self, output_path: str, pyramid_datasets: Dict[str, Dict]
+        self, output_path: str, datasets: Dict[str, Dict]
     ) -> None:
         """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
