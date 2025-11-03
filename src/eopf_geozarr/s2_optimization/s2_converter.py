@@ -149,7 +149,7 @@ class S2OptimizedConverter:
                 dt_root[group_path] = xr.DataTree()
             dt_root.to_zarr(
                 output_path,
-                modea="a",
+                mode="a",
                 consolidated=True,
                 zarr_format=3,
             )
