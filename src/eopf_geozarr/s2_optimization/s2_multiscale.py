@@ -227,17 +227,9 @@ class S2MultiscalePyramid:
         if verbose:
             print("\n  Adding multiscales metadata to parent groups...")
             
-        # Get the datatree again from output to ensure proper loading
-        dt_output_measurements = xr.open_datatree(
-            f"{output_path}{base_path}",
-            engine="zarr",
-            chunks="auto",
-            storage_options=fs_utils.get_storage_options(f"{output_path}{base_path}"),
-        )
-        
         try:
             self._add_multiscales_metadata_to_parent(
-                output_path, base_path, resolution_groups, dt_output_measurements, verbose
+                output_path, base_path, resolution_groups, verbose
             )
         except Exception as e:
             print(f"  Warning: Could not add multiscales metadata to {base_path}: {e}")
@@ -459,6 +451,8 @@ class S2MultiscalePyramid:
             compute=False,  # Create job first for progress tracking
         )
         write_job = write_job.persist()
+        
+        ds_out = None
 
         # Show progress bar if distributed is available
         if DISTRIBUTED_AVAILABLE:
@@ -466,13 +460,13 @@ class S2MultiscalePyramid:
                 distributed.progress(write_job, notebook=False)
             except Exception as e:
                 print(f"    Warning: Could not display progress bar: {e}")
-                write_job.compute()
+                ds_out = write_job.compute()
         else:
             print("    Writing zarr file...")
-            write_job.compute()
+            ds_out = write_job.compute()
 
         print(f"    ✅ Streaming write complete for dataset {dataset_path}")
-        return write_job.result()
+        return ds_out
 
     def _rechunk_dataset_for_encoding(
         self, dataset: xr.Dataset, encoding: Dict
@@ -691,7 +685,7 @@ class S2MultiscalePyramid:
         return coords
 
     def _add_multiscales_metadata_to_parent(
-        self, output_path: str, base_path: str, res_groups: dict, dt_measurements: xr.DataTree, verbose: bool = False
+        self, output_path: str, base_path: str, res_groups: dict, verbose: bool = False
     ) -> None:
         """Add GeoZarr-compliant multiscales metadata to parent group."""
         
