@@ -144,16 +144,18 @@ class S2OptimizedConverter:
 
             # Create root zarr group if it doesn't exist
             print("  Creating root zarr group...")
-            root_group = fs_utils.open_zarr_group(output_path, mode="a")
-            root_group.attrs.update({
-                "title": "Optimized Sentinel-2 Dataset",
-                "description": "Multiscale pyramid structure for efficient access",
-                "zarr_format": 3
-            })
+            dt_root = xr.DataTree()
+            for group_path, dataset in datasets.items():
+                dt_root[group_path] = xr.DataTree(dataset)
+            dt_root.to_zarr(
+                output_path,
+                mode="a",
+                consolidated=True,
+                zarr_format=3,
+            )
+            print("  ✅ Root zarr group created")
 
-            # Consolidate metadata
             try:
-                consolidate_metadata(root_group.store)
                 print("  ✅ Root consolidation completed")
             except Exception as e:
                 print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")

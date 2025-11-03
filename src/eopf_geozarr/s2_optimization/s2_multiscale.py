@@ -670,40 +670,30 @@ class S2MultiscalePyramid:
         # Create tile matrix limits
         tile_matrix_limits = _create_tile_matrix_limits(overview_levels, tile_width=256)
         
-        # Write multiscales metadata to parent group zarr.json
-        parent_zarr_path = os.path.join(output_path, base_path.lstrip('/'), 'zarr.json')
         
-        # Create parent group if it doesn't exist
-        parent_group_path = os.path.join(output_path, base_path.lstrip('/'))
-        os.makedirs(parent_group_path, exist_ok=True)
-        
-        # Read or create zarr.json
-        if os.path.exists(parent_zarr_path):
-            with open(parent_zarr_path, 'r') as f:
-                zarr_json = json.load(f)
-        else:
-            zarr_json = {
-                "zarr_format": 3,
-                "node_type": "group",
-                "attributes": {}
-            }
-        
-        # Add multiscales metadata
-        if "attributes" not in zarr_json:
-            zarr_json["attributes"] = {}
-        
-        zarr_json["attributes"]["multiscales"] = {
+        multiscales = {
             "tile_matrix_set": tile_matrix_set,
             "resampling_method": "average",
             "tile_matrix_limits": tile_matrix_limits,
         }
         
-        # Write updated zarr.json
-        with open(parent_zarr_path, 'w') as f:
-            json.dump(zarr_json, f, indent=2)
+        # Create parent group path
+        parent_group_path = f"{output_path}{base_path}"
+        dt_multiscale = xr.DataTree()
+        for res in all_resolutions:
+            dt_multiscale[res] = xr.DataTree(res_groups[res])
+        dt_multiscale.attrs["multiscales"] = multiscales
+        dt_multiscale.to_zarr(
+            parent_group_path,
+            mode="a",
+            consolidated=True,
+            zarr_format=3,
+        )
         
         if verbose:
             print(f"    ✅ Added multiscales metadata to {base_path} ({len(overview_levels)} resolutions)")
+            
+        return dt_multiscale
     
     def _write_geo_metadata(
         self, dataset: xr.Dataset, grid_mapping_var_name: str = "spatial_ref"
