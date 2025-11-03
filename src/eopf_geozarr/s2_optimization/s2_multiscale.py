@@ -685,7 +685,7 @@ class S2MultiscalePyramid:
         dt_multiscale.attrs["multiscales"] = multiscales
         dt_multiscale.to_zarr(
             parent_group_path,
-            mode="a",
+            mode="r+",
             consolidated=True,
             zarr_format=3,
         )
