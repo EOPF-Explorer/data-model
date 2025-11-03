@@ -114,9 +114,9 @@ class S2ResamplingEngine:
             # Ensure we get exactly the target dimensions
             downsampled = downsampled[:target_height, :target_width]
 
-        # Create coordinates (sample from the center positions)
-        y_coords = data.coords[data.dims[-2]][center_h::block_h][:target_height]
-        x_coords = data.coords[data.dims[-1]][center_w::block_w][:target_width]
+        # Create coordinates (use same sampling as other methods for consistency)
+        y_coords = data.coords[data.dims[-2]][::block_h][:target_height]
+        x_coords = data.coords[data.dims[-1]][::block_w][:target_width]
 
         if data.ndim == 3:
             coords = {

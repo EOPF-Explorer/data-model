@@ -117,39 +117,38 @@ class TestS2OptimizedConverter:
 class TestMetadataConsolidation:
     """Test metadata consolidation functionality."""
 
-    @patch("xarray.open_zarr")
-    def test_simple_root_consolidation_success(self, mock_open_zarr, temp_output_dir):
-        """Test successful root consolidation with xarray."""
+    @patch("xarray.DataTree.to_zarr")
+    def test_simple_root_consolidation_success(self, mock_to_zarr, temp_output_dir):
+        """Test successful root consolidation with DataTree."""
         converter = S2OptimizedConverter()
 
-        # Mock successful xarray consolidation
-        mock_ds = Mock()
-        mock_open_zarr.return_value.__enter__.return_value = mock_ds
-
+        # Call the method with empty datasets
         converter._simple_root_consolidation(temp_output_dir, {})
 
-        # Verify xarray.open_zarr was called with correct parameters
-        mock_open_zarr.assert_called_once()
-        args, kwargs = mock_open_zarr.call_args
-        assert args[0] == temp_output_dir
-        assert kwargs["consolidated"] is True
-        assert kwargs["chunks"] == {}
+        # Verify to_zarr was called multiple times to create root group
+        assert mock_to_zarr.call_count >= 2
 
-    @patch("zarr.consolidate_metadata")
-    @patch("xarray.open_zarr")
-    def test_simple_root_consolidation_fallback(
-        self, mock_open_zarr, mock_consolidate, temp_output_dir
+        # Verify the calls included consolidated=True
+        calls = mock_to_zarr.call_args_list
+        assert any(kwargs.get("consolidated", False) for args, kwargs in calls)
+
+    @patch("xarray.DataTree.to_zarr")
+    def test_simple_root_consolidation_with_groups(
+        self, mock_to_zarr, temp_output_dir
     ):
-        """Test fallback to zarr consolidation when xarray fails."""
+        """Test root consolidation with nested groups."""
         converter = S2OptimizedConverter()
 
-        # Mock xarray failure
-        mock_open_zarr.side_effect = Exception("xarray failed")
+        # Create test datasets dict with nested groups
+        datasets = {
+            "/measurements/reflectance/r10m": Mock(),
+            "/quality/atmosphere": Mock(),
+        }
 
-        converter._simple_root_consolidation(temp_output_dir, {})
+        converter._simple_root_consolidation(temp_output_dir, datasets)
 
-        # Verify fallback to zarr.consolidate_metadata
-        mock_consolidate.assert_called_once()
+        # Verify to_zarr was called (for root + intermediary groups)
+        assert mock_to_zarr.call_count >= 2
 
 
 class TestConvenienceFunction:

@@ -212,32 +212,42 @@ class TestWriteGeoMetadata:
         # Verify rio CRS was used (priority over attributes)
         assert ds.rio.crs.to_epsg() == 4326  # Should still be 4326, not 32632
 
-    def test_write_geo_metadata_integration_with_level_creation(self, pyramid_creator):
-        """Test that _write_geo_metadata is properly integrated in level creation methods."""
+    def test_write_geo_metadata_integration_with_stream_write(
+        self, pyramid_creator, tmp_path
+    ):
+        """Test that _write_geo_metadata is properly integrated in _stream_write_dataset."""
 
-        # Create mock measurements data
-        measurements_by_resolution = {
-            10: {
-                "bands": {
-                    "b02": xr.DataArray(
-                        np.random.rand(100, 100),
-                        dims=["y", "x"],
-                        coords={
-                            "x": (["x"], np.linspace(0, 1000, 100)),
-                            "y": (["y"], np.linspace(0, 1000, 100)),
-                        },
-                    ).rio.write_crs("EPSG:32632")
-                }
-            }
+        # Create a simple dataset with CRS
+        coords = {
+            "x": (["x"], np.linspace(0, 1000, 100)),
+            "y": (["y"], np.linspace(0, 1000, 100)),
         }
 
-        # Create level 0 dataset (which should call _write_geo_metadata)
-        level_0_ds = pyramid_creator._create_level_0_dataset(measurements_by_resolution)
+        data_vars = {
+            "b02": (["y", "x"], np.random.rand(100, 100)),
+        }
 
-        # Verify CRS was written by _write_geo_metadata
-        assert hasattr(level_0_ds, "rio")
-        assert level_0_ds.rio.crs is not None
-        assert level_0_ds.rio.crs.to_epsg() == 32632
+        ds = xr.Dataset(data_vars, coords=coords)
+        ds = ds.rio.write_crs("EPSG:32632")
+
+        # Create encoding for the dataset
+        encoding = pyramid_creator._create_measurements_encoding(ds)
+
+        # Create a temporary output path
+        output_path = str(tmp_path / "test_dataset.zarr")
+
+        # Call _stream_write_dataset (which should call _write_geo_metadata internally)
+        pyramid_creator._stream_write_dataset(ds, output_path, encoding)
+
+        # Re-open the written dataset to verify CRS was persisted
+        written_ds = xr.open_dataset(
+            output_path, engine="zarr", chunks={}, decode_coords="all"
+        )
+
+        # Verify CRS was written and persisted
+        assert hasattr(written_ds, "rio")
+        assert written_ds.rio.crs is not None
+        assert written_ds.rio.crs.to_epsg() == 32632
 
 
 class TestWriteGeoMetadataEdgeCases:
