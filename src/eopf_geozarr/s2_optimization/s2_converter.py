@@ -141,15 +141,45 @@ class S2OptimizedConverter:
         """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
             print("  Performing root consolidation...")
+            
+            # create missing parent groups (/conditions, /quality, etc.)
+            dt_root = xr.DataTree()
+            dt_root.to_zarr(
+                f"{output_path}/conditions",
+                mode="a",
+                consolidated=True,
+                zarr_format=3,
+            )
+            dt_root = xr.DataTree()
+            dt_root.to_zarr(
+                f"{output_path}/quality",
+                mode="a",
+                consolidated=True,
+                zarr_format=3,
+            )
+            dt_root = xr.DataTree()
+            dt_root.to_zarr(
+                f"{output_path}/measurements",
+                mode="a",
+                consolidated=True,
+                zarr_format=3,
+            )
 
             # Create root zarr group if it doesn't exist
             print("  Creating root zarr group...")
+            dt_root = xr.DataTree()
+            dt_root.to_zarr(
+                output_path,
+                mode="a",
+                consolidated=True,
+                zarr_format=3,
+            )
             dt_root = xr.DataTree()
             for group_path, dataset in datasets.items():
                 dt_root[group_path] = xr.DataTree()
             dt_root.to_zarr(
                 output_path,
-                mode="a",
+                mode="r+",
                 consolidated=True,
                 zarr_format=3,
             )
