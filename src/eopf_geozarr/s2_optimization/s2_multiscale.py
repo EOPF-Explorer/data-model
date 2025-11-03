@@ -308,65 +308,6 @@ class S2MultiscalePyramid:
         
         return dataset
 
-    def _create_lazy_downsample_operation(
-        self, 
-        source_data: xr.DataArray, 
-        target_height: int, 
-        target_width: int, 
-        reference_coords: dict
-    ) -> xr.DataArray:
-        """Create a lazy downsampling operation using Dask delayed."""
-        
-        @delayed
-        def downsample_operation():
-            var_type = determine_variable_type(source_data.name, source_data)
-            downsampled = self.resampler.downsample_variable(
-                source_data, target_height, target_width, var_type
-            )
-            # Align coordinates
-            return downsampled.assign_coords(reference_coords)
-        
-        # Create delayed operation
-        lazy_result = downsample_operation()
-        
-        # Convert to Dask array with proper shape and chunks
-        # Estimate output shape based on target dimensions
-        if source_data.ndim == 3:
-            output_shape = (source_data.shape[0], target_height, target_width)
-            chunks = (1, min(256, target_height), min(256, target_width))
-        else:
-            output_shape = (target_height, target_width)
-            chunks = (min(256, target_height), min(256, target_width))
-        
-        # Create Dask array from delayed operation
-        dask_array = da.from_delayed(
-            lazy_result, 
-            shape=output_shape, 
-            dtype=source_data.dtype
-        ).rechunk(chunks)
-        
-        # Create coordinates for the output
-        if source_data.ndim == 3:
-            coords = {
-                source_data.dims[0]: source_data.coords[source_data.dims[0]],
-                source_data.dims[-2]: reference_coords["y"],
-                source_data.dims[-1]: reference_coords["x"],
-            }
-        else:
-            coords = {
-                source_data.dims[-2]: reference_coords["y"],
-                source_data.dims[-1]: reference_coords["x"],
-            }
-        
-        # Return as xarray DataArray with lazy data
-        return xr.DataArray(
-            dask_array,
-            dims=source_data.dims,
-            coords=coords,
-            attrs=source_data.attrs.copy(),
-            name=source_data.name
-        )
-
     def _create_lazy_downsample_operation_from_existing(
         self, 
         source_data: xr.DataArray, 
@@ -516,38 +457,6 @@ class S2MultiscalePyramid:
         )
 
         return rechunked_dataset
-
-    def _create_level_0_dataset(self, measurements_by_resolution: Dict) -> xr.Dataset:
-        """Create level 0 dataset with only native 10m data (no lazy operations needed)."""
-        if 10 not in measurements_by_resolution:
-            return xr.Dataset()
-
-        data_10m = measurements_by_resolution[10]
-        all_vars = {}
-
-        # Add only native 10m bands and their associated data
-        for category, vars_dict in data_10m.items():
-            all_vars.update(vars_dict)
-
-        if not all_vars:
-            return xr.Dataset()
-
-        # Create consolidated dataset
-        dataset = xr.Dataset(all_vars)
-        dataset.attrs["pyramid_level"] = 0
-        dataset.attrs["resolution_meters"] = 10
-
-        self._write_geo_metadata(dataset)
-        return dataset
-
-    def _create_multiscale_measurements_sequential(
-        self, measurements_by_resolution: Dict[int, Dict], output_path: str
-    ) -> Dict[int, xr.Dataset]:
-        """Fallback sequential processing for non-Dask environments."""
-        print("Creating multiscale pyramid sequentially (no streaming)...")
-        # Implementation would be similar to the original sequential approach
-        # This is a fallback - the main value is in the streaming approach
-        return {}
 
     def _create_measurements_encoding(self, dataset: xr.Dataset) -> Dict:
         """Create optimized encoding for a pyramid level with advanced chunking and sharding."""
