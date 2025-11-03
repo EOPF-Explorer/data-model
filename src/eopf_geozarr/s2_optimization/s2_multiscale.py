@@ -392,8 +392,6 @@ class S2MultiscalePyramid:
             compute=False,  # Create job first for progress tracking
         )
         write_job = write_job.persist()
-        
-        ds_out = None
 
         # Show progress bar if distributed is available
         if DISTRIBUTED_AVAILABLE:
@@ -401,13 +399,13 @@ class S2MultiscalePyramid:
                 distributed.progress(write_job, notebook=False)
             except Exception as e:
                 print(f"    Warning: Could not display progress bar: {e}")
-                ds_out = write_job.compute()
+                write_job.compute()
         else:
             print("    Writing zarr file...")
-            ds_out = write_job.compute()
+            write_job.compute()
 
         print(f"    ✅ Streaming write complete for dataset {dataset_path}")
-        return ds_out
+        return dataset
 
     def _rechunk_dataset_for_encoding(
         self, dataset: xr.Dataset, encoding: Dict
@@ -681,11 +679,11 @@ class S2MultiscalePyramid:
         parent_group_path = f"{output_path}{base_path}"
         dt_multiscale = xr.DataTree()
         for res in all_resolutions:
-            dt_multiscale[res] = xr.DataTree(res_groups[res])
+            dt_multiscale[res] = xr.DataTree()
         dt_multiscale.attrs["multiscales"] = multiscales
         dt_multiscale.to_zarr(
             parent_group_path,
-            mode="r+",
+            mode="a",
             consolidated=True,
             zarr_format=3,
         )

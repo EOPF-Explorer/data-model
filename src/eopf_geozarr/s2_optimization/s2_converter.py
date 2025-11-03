@@ -146,10 +146,10 @@ class S2OptimizedConverter:
             print("  Creating root zarr group...")
             dt_root = xr.DataTree()
             for group_path, dataset in datasets.items():
-                dt_root[group_path] = xr.DataTree(dataset)
+                dt_root[group_path] = xr.DataTree()
             dt_root.to_zarr(
                 output_path,
-                mode="r+",
+                modea="a",
                 consolidated=True,
                 zarr_format=3,
             )
