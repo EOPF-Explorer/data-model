@@ -158,7 +158,7 @@ class S2OptimizedConverter:
                 dt_parent.to_zarr(
                     output_path + group_path,
                     mode="a",
-                    zqarr_format=3,
+                    zarr_format=3,
                 )
 
             # Create root zarr group if it doesn't exist
