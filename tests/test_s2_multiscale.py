@@ -116,7 +116,7 @@ class TestS2MultiscalePyramid:
         assert pyramid.enable_sharding is True
         assert pyramid.spatial_chunk == 512
         assert hasattr(pyramid, "resampler")
-        assert len(pyramid.pyramid_levels) == 7
+        assert len(pyramid.pyramid_levels) == 6
         assert pyramid.pyramid_levels[0] == 10
         assert pyramid.pyramid_levels[1] == 20
         assert pyramid.pyramid_levels[2] == 60
@@ -124,13 +124,12 @@ class TestS2MultiscalePyramid:
     def test_pyramid_levels_structure(self, pyramid):
         """Test the pyramid levels structure."""
         expected_levels = {
-            0: 10,  # Level 0: 10m
-            1: 20,  # Level 1: 20m
-            2: 60,  # Level 2: 60m
-            3: 120,  # Level 3: 120m
-            4: 240,  # Level 4: 240m
-            5: 480,  # Level 5: 480m
-            6: 960,  # Level 6: 960m
+            0: 10,    # Level 0: 10m
+            1: 20,    # Level 1: 20m
+            2: 60,    # Level 2: 60m
+            3: 120,   # Level 3: 120m
+            4: 360,   # Level 4: 360m
+            5: 720,   # Level 5: 720m
         }
 
         assert pyramid.pyramid_levels == expected_levels
