@@ -13,9 +13,12 @@
             "module": "eopf_geozarr",
             "args": [
                 "convert",
-                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                // "https://objects.eodc.eu:443/e05ab01a9d56408d82ac32d69a5aae2a:202511-s02msil2a-eu/04/products/cpm_v262/S2C_MSIL2A_20251104T103231_N0511_R108_T31TGH_20251104T142114.zarr",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202511-s02msil2a-eu/04/products/cpm_v262/S2A_MSIL2A_20251104T131341_N0511_R081_T27WVM_20251104T143709.zarr",
+                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s02msil2a-eu/25/products/cpm_v256/S2A_MSIL2A_20251025T095111_N0511_R079_T33SVB_20251025T121315.zarr",
                 "./tests-output/eopf_geozarr/s2l2_test.zarr",
-                "--groups", "/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m", "/quality/l2a_quicklook/r10m",
+                "--groups", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m",
                 "--crs-groups", "/conditions/geometry",
                 "--spatial-chunk", "512",
                 "--min-dimension", "256",
@@ -251,7 +254,8 @@
             "module": "eopf_geozarr",
             "args": [
                 "info",
-                "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                // "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s02msil2a/11/products/cpm_v256/S2C_MSIL2A_20250811T112131_N0511_R037_T29TPF_20250811T152216.zarr",
+                "https://objects.eodc.eu:443/e05ab01a9d56408d82ac32d69a5aae2a:202511-s02msil2a-eu/04/products/cpm_v262/S2C_MSIL2A_20251104T103231_N0511_R108_T31TGH_20251104T142114.zarr",
                 "--verbose",
                 "--html-output", "eopf_dataset_info.html"
             ],
@@ -290,7 +294,8 @@
             "args": [
                 "info",
                 // "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2A_MSIL2A_20250704T094051_N0511_R036_T33SWB_20250704T115824.zarr",
-                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
+                // "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-opt/S2A_MSIL2A_20250908T100041_N0511_R122_T32TQM_20250908T115116.zarr",
+                "s3://esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a-dp-test/S2C_MSIL2A_20251104T103231_N0511_R108_T31TGH_20251104T142114.zarr",
                 "--verbose",
                 "--html-output", "dataset_info.html"
             ],
