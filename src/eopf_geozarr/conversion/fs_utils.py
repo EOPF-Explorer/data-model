@@ -106,7 +106,7 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> S3FsOptions:
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         Storage options dictionary for xarray
     """
     # Set up default S3 configuration
@@ -147,7 +147,7 @@ def get_storage_options(path: str, **kwargs: Any) -> S3FsOptions | None:
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    dict[str, Any] | None
         Storage options dictionary for xarray/zarr, or None for local paths
     """
     if is_s3_path(path):
@@ -181,29 +181,6 @@ def normalize_path(path: str) -> str:
         import os.path
 
         return os.path.normpath(path)
-
-
-def create_s3_store(s3_path: str, **s3_kwargs: Any) -> str:
-    """
-    Create an S3 path with storage options for Zarr operations.
-
-    This function now returns the S3 path directly, to be used with
-    xarray's storage_options parameter instead of creating a store.
-
-    Parameters
-    ----------
-    s3_path : str
-        S3 path in format s3://bucket/key
-    **s3_kwargs
-        Additional keyword arguments for s3fs.S3FileSystem
-
-    Returns
-    -------
-    str
-        S3 path to be used with storage_options
-    """
-    # Just return the S3 path - storage options will be handled separately
-    return s3_path
 
 
 def write_s3_json_metadata(
@@ -390,7 +367,7 @@ def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, str | None
 
     Returns
     -------
-    tuple[bool, Optional[str]]
+    tuple[bool, str | None]
         Tuple of (success, error_message)
     """
     try:

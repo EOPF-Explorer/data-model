@@ -9,9 +9,11 @@ import argparse
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import xarray as xr
+
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
@@ -29,7 +31,7 @@ warnings.filterwarnings("ignore", message=".*", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*", category=RuntimeWarning)
 
 
-def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any]:
+def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Any | None:
     """
     Set up a dask cluster for parallel processing.
 
@@ -52,7 +54,9 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Optional[Any
         from dask.distributed import Client
 
         # Set up local cluster with high memory limits
-        client = Client(memory_limit="8GB")  # set up local cluster
+        client = Client(
+            n_workers=3, memory_limit="8GB"
+        )  # set up local cluster with 3 workers and 8GB memory each
         # client = Client()  # set up local cluster
 
         if verbose:
@@ -1145,7 +1149,115 @@ def create_parser() -> argparse.ArgumentParser:
     )
     validate_parser.set_defaults(func=validate_command)
 
+    # Add S2 optimization commands
+    add_s2_optimization_commands(subparsers)
+
     return parser
+
+
+def add_s2_optimization_commands(subparsers: Any) -> None:
+    """Add S2 optimization commands to CLI parser."""
+
+    # Convert S2 optimized command
+    s2_parser = subparsers.add_parser(
+        "convert-s2-optimized", help="Convert Sentinel-2 dataset to optimized structure"
+    )
+    s2_parser.add_argument(
+        "input_path", type=str, help="Path to input Sentinel-2 dataset (Zarr format)"
+    )
+    s2_parser.add_argument(
+        "output_path", type=str, help="Path for output optimized dataset"
+    )
+    s2_parser.add_argument(
+        "--spatial-chunk",
+        type=int,
+        default=256,
+        help="Spatial chunk size (default: 256)",
+    )
+    s2_parser.add_argument(
+        "--enable-sharding", action="store_true", help="Enable Zarr v3 sharding"
+    )
+    s2_parser.add_argument(
+        "--compression-level",
+        type=int,
+        default=3,
+        choices=range(1, 10),
+        help="Compression level 1-9 (default: 3)",
+    )
+    s2_parser.add_argument(
+        "--skip-geometry", action="store_true", help="Skip creating geometry group"
+    )
+    s2_parser.add_argument(
+        "--skip-meteorology",
+        action="store_true",
+        help="Skip creating meteorology group",
+    )
+    s2_parser.add_argument(
+        "--skip-validation", action="store_true", help="Skip output validation"
+    )
+    s2_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
+    s2_parser.add_argument(
+        "--dask-cluster",
+        action="store_true",
+        help="Start a local dask cluster for parallel processing and progress bars",
+    )
+    s2_parser.set_defaults(func=convert_s2_optimized_command)
+
+
+def convert_s2_optimized_command(args: Any) -> int:
+    """Execute S2 optimized conversion command."""
+    # Set up dask cluster if requested
+    dask_client = setup_dask_cluster(
+        enable_dask=getattr(args, "dask_cluster", False), verbose=args.verbose
+    )
+
+    try:
+        # Load input dataset
+        print(f"Loading Sentinel-2 dataset from: {args.input_path}")
+        storage_options = get_storage_options(str(args.input_path))
+        dt_input = xr.open_datatree(
+            str(args.input_path),
+            engine="zarr",
+            chunks="auto",
+            storage_options=storage_options,
+        )
+
+        # Convert
+        convert_s2_optimized(
+            dt_input=dt_input,
+            output_path=args.output_path,
+            enable_sharding=args.enable_sharding,
+            spatial_chunk=args.spatial_chunk,
+            compression_level=args.compression_level,
+            create_geometry_group=not args.skip_geometry,
+            create_meteorology_group=not args.skip_meteorology,
+            validate_output=not args.skip_validation,
+            verbose=args.verbose,
+        )
+
+        print(f"✅ S2 optimization completed: {args.output_path}")
+        return 0
+
+    except Exception as e:
+        print(f"❌ Error during S2 optimization: {e}")
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        return 1
+    finally:
+        # Clean up dask client if it was created
+        if dask_client is not None:
+            try:
+                if hasattr(dask_client, "close"):
+                    dask_client.close()
+                if args.verbose:
+                    print("🔄 Dask cluster closed")
+            except Exception as e:
+                if args.verbose:
+                    print(f"Warning: Error closing dask cluster: {e}")
 
 
 def main() -> None:

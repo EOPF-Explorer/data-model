@@ -19,7 +19,7 @@ import os
 import shutil
 import time
 from collections.abc import Hashable, Iterable, Mapping, Sequence
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -155,7 +155,7 @@ def create_geozarr_dataset(
 
 def setup_datatree_metadata_geozarr_spec_compliant(
     dt: xr.DataTree, groups: Iterable[str], gcp_group: str | None = None
-) -> Dict[str, xr.Dataset]:
+) -> dict[str, xr.Dataset]:
     """
     Set up GeoZarr-spec compliant CF standard names and CRS information.
 
@@ -529,7 +529,7 @@ def create_geozarr_compliant_multiscales(
     spatial_chunk: int = 4096,
     ds_gcp: xr.Dataset | None = None,
     enable_sharding: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create GeoZarr-spec compliant multiscales following the specification exactly.
 
@@ -653,6 +653,8 @@ def create_geozarr_compliant_multiscales(
 
     for overview in overview_levels:
         level = overview["level"]
+        if isinstance(level, str):
+            level = int(level)
 
         # Skip level 0 - native resolution is already in group 0
         if level == 0:
@@ -796,15 +798,14 @@ def calculate_overview_levels(
         zoom_for_height = max(0, int(np.ceil(np.log2(current_height / tile_width))))
         zoom = max(zoom_for_width, zoom_for_height)
 
-        overview_levels.append(
-            {
-                "level": level,
-                "zoom": zoom,
-                "width": current_width,
-                "height": current_height,
-                "scale_factor": 2**level,
-            }
-        )
+        overview_level: dict[str, Any] = {
+            "level": level,
+            "zoom": zoom,
+            "width": current_width,
+            "height": current_height,
+            "scale_factor": 2**level,
+        }
+        overview_levels.append(overview_level)  # type: ignore[arg-type]
 
         level += 1
         current_width = native_width // (2**level)
@@ -855,8 +856,8 @@ def create_native_crs_tile_matrix_set(
         scale_denominator = cell_size * 3779.5275
 
         # Calculate matrix dimensions
-        tile_width = 256
-        tile_height = 256
+        tile_width = overview["chunks"][1][0] if "chunks" in overview else 256
+        tile_height = overview["chunks"][0][0] if "chunks" in overview else 256
         matrix_width = int(np.ceil(width / tile_width))
         matrix_height = int(np.ceil(height / tile_height))
 
@@ -899,7 +900,7 @@ def create_overview_dataset_all_vars(
     width: int,
     height: int,
     native_crs: Any,
-    native_bounds: Tuple[float, float, float, float],
+    native_bounds: tuple[float, float, float, float],
     data_vars: Sequence[Hashable],
     ds_gcp: xr.Dataset | None = None,
     enable_sharding: bool = False,
@@ -937,10 +938,14 @@ def create_overview_dataset_all_vars(
     # Calculate the transform for this overview level
     overview_transform = rasterio.transform.from_bounds(*native_bounds, width, height)
 
-    # Create coordinate arrays
+    # Determine coordinate dtype from parent dataset to maintain alignment
+    parent_x_dtype = ds.coords["x"].dtype if "x" in ds.coords else np.float64
+    parent_y_dtype = ds.coords["y"].dtype if "y" in ds.coords else np.float64
+
+    # Create coordinate arrays preserving parent dtype
     left, bottom, right, top = native_bounds
-    x_coords = np.linspace(left, right, width, endpoint=False)
-    y_coords = np.linspace(top, bottom, height, endpoint=False)
+    x_coords = np.linspace(left, right, width, endpoint=False, dtype=parent_x_dtype)
+    y_coords = np.linspace(top, bottom, height, endpoint=False, dtype=parent_y_dtype)
 
     # Check if we're dealing with geographic coordinates (EPSG:4326)
     if native_crs and native_crs.to_epsg() == 4326:
