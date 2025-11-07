@@ -110,7 +110,9 @@ class TestS2MultiscalePyramid:
 
         assert len(shard_dims) == 2
         # Should use largest multiple of chunk_size that fits
-        assert shard_dims[0] == 768  # 3 * 256 = 768 (largest multiple that fits in 1000)
+        assert (
+            shard_dims[0] == 768
+        )  # 3 * 256 = 768 (largest multiple that fits in 1000)
         assert shard_dims[1] == 768  # 3 * 256 = 768
 
     def test_create_measurements_encoding(self, pyramid, sample_dataset):

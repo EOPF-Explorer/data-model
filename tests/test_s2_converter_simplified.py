@@ -4,7 +4,6 @@ Unit tests for simplified S2 converter implementation.
 Tests the new simplified approach that uses only xarray and proper metadata consolidation.
 """
 
-import os
 import shutil
 import tempfile
 from unittest.mock import Mock, patch
@@ -12,7 +11,6 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import xarray as xr
-import zarr
 
 from eopf_geozarr.s2_optimization.s2_converter import S2OptimizedConverter
 
@@ -133,9 +131,7 @@ class TestMetadataConsolidation:
         assert any(kwargs.get("consolidated", False) for args, kwargs in calls)
 
     @patch("xarray.DataTree.to_zarr")
-    def test_simple_root_consolidation_with_groups(
-        self, mock_to_zarr, temp_output_dir
-    ):
+    def test_simple_root_consolidation_with_groups(self, mock_to_zarr, temp_output_dir):
         """Test root consolidation with nested groups."""
         converter = S2OptimizedConverter()
 
@@ -167,7 +163,7 @@ class TestConvenienceFunction:
         dt_input = Mock()
         output_path = "/test/path"
 
-        result = convert_s2_optimized(
+        convert_s2_optimized(
             dt_input,
             output_path,
             enable_sharding=False,

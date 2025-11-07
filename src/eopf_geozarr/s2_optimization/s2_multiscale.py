@@ -29,10 +29,10 @@ except ImportError:
     DASK_AVAILABLE = False
 
     # Create dummy delayed function for non-dask environments
-    def delayed(func):
+    def delayed(func: Any) -> Any:
         return func
 
-    def compute(*args, **kwargs):
+    def compute(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
         return args
 
 
@@ -136,12 +136,14 @@ class S2MultiscalePyramid:
                 source_resolution = int(res[1:-1])  # Extract number
                 break
 
-        if not source_dataset:
+        if not source_dataset or source_resolution is None:
             if verbose:
                 print(
                     "  No source resolution found for downsampling, skipping downsampled levels"
                 )
-            return  # Stop processing if no valid source dataset is found
+            return (
+                processed_groups  # Stop processing if no valid source dataset is found
+            )
 
         if verbose:
             print(
@@ -326,8 +328,8 @@ class S2MultiscalePyramid:
     ) -> xr.DataArray:
         """Create lazy downsampling operation from existing data."""
 
-        @delayed
-        def downsample_operation():
+        @delayed  # type: ignore[misc]
+        def downsample_operation() -> Any:
             var_type = determine_variable_type(source_data.name, source_data)
             return self.resampler.downsample_variable(
                 source_data, target_height, target_width, var_type
@@ -337,6 +339,8 @@ class S2MultiscalePyramid:
         lazy_result = downsample_operation()
 
         # Estimate output shape and chunks
+        output_shape: tuple[int, ...]
+        chunks: tuple[int, ...]
         if source_data.ndim == 3:
             output_shape = (source_data.shape[0], target_height, target_width)
             chunks = (1, min(256, target_height), min(256, target_width))
@@ -469,6 +473,7 @@ class S2MultiscalePyramid:
         encoding = {}
 
         for var_name, var_data in dataset.data_vars.items():
+            chunks: tuple[int, ...] = ()
             if var_data.ndim >= 2:
                 height, width = var_data.shape[-2:]
 
@@ -506,7 +511,7 @@ class S2MultiscalePyramid:
 
         # Add coordinate encoding
         for coord_name in dataset.coords:
-            encoding[coord_name] = {"compressors": None}
+            encoding[coord_name] = {"compressors": []}
 
         return encoding
 
@@ -604,7 +609,7 @@ class S2MultiscalePyramid:
 
     def _add_multiscales_metadata_to_parent(
         self, output_path: str, base_path: str, res_groups: dict, verbose: bool = False
-    ) -> None:
+    ) -> xr.DataTree:
         """Add GeoZarr-compliant multiscales metadata to parent group."""
 
         # Sort by resolution (finest to coarsest)
@@ -690,11 +695,17 @@ class S2MultiscalePyramid:
 
         # Create tile matrix set using geozarr function
         tile_matrix_set = create_native_crs_tile_matrix_set(
-            native_crs, native_bounds, overview_levels, group_prefix=None
+            native_crs,
+            native_bounds,
+            overview_levels,  # type: ignore[arg-type]
+            group_prefix=None,
         )
 
         # Create tile matrix limits
-        tile_matrix_limits = _create_tile_matrix_limits(overview_levels, tile_width=256)
+        tile_matrix_limits = _create_tile_matrix_limits(
+            overview_levels,  # type: ignore[arg-type]
+            tile_width=256,
+        )
 
         multiscales = {
             "tile_matrix_set": tile_matrix_set,

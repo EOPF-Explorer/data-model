@@ -54,7 +54,9 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> Any | None:
         from dask.distributed import Client
 
         # Set up local cluster with high memory limits
-        client = Client(n_workers=3, memory_limit="8GB")  # set up local cluster with 3 workers and 8GB memory each
+        client = Client(
+            n_workers=3, memory_limit="8GB"
+        )  # set up local cluster with 3 workers and 8GB memory each
         # client = Client()  # set up local cluster
 
         if verbose:
@@ -1153,7 +1155,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def add_s2_optimization_commands(subparsers):
+def add_s2_optimization_commands(subparsers: Any) -> None:
     """Add S2 optimization commands to CLI parser."""
 
     # Convert S2 optimized command
@@ -1170,7 +1172,7 @@ def add_s2_optimization_commands(subparsers):
         "--spatial-chunk",
         type=int,
         default=256,
-        help='Spatial chunk size (default: 256)'
+        help="Spatial chunk size (default: 256)",
     )
     s2_parser.add_argument(
         "--enable-sharding", action="store_true", help="Enable Zarr v3 sharding"
@@ -1204,7 +1206,7 @@ def add_s2_optimization_commands(subparsers):
     s2_parser.set_defaults(func=convert_s2_optimized_command)
 
 
-def convert_s2_optimized_command(args):
+def convert_s2_optimized_command(args: Any) -> int:
     """Execute S2 optimized conversion command."""
     # Set up dask cluster if requested
     dask_client = setup_dask_cluster(
@@ -1223,7 +1225,7 @@ def convert_s2_optimized_command(args):
         )
 
         # Convert
-        dt_optimized = convert_s2_optimized(
+        convert_s2_optimized(
             dt_input=dt_input,
             output_path=args.output_path,
             enable_sharding=args.enable_sharding,
