@@ -218,7 +218,9 @@ def setup_datatree_metadata_geozarr_spec_compliant(
                 print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
             elif epsg_CPM_260:
-                print(f"    Setting CRS for {var_name} to EPSG:{epsg_CPM_260} (CPM 2.6.0 default)")
+                print(
+                    f"    Setting CRS for {var_name} to EPSG:{epsg_CPM_260} (CPM 2.6.0 default)"
+                )
                 ds = ds.rio.write_crs(f"epsg:{epsg_CPM_260}")
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
