@@ -165,7 +165,6 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]
 
 ```python
 # S3 store creation and validation
-def create_s3_store(s3_path: str, **s3_kwargs: Any) -> str
 def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, Optional[str]]
 def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool
 

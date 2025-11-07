@@ -5,7 +5,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from eopf_geozarr.conversion.fs_utils import (
-    create_s3_store,
     get_s3_credentials_info,
     get_s3_storage_options,
     get_storage_options,
@@ -85,17 +84,6 @@ def test_validate_s3_access_failure(mock_s3fs):
     success, error = validate_s3_access("s3://test-bucket/path")
     assert success is False
     assert "Access denied" in error
-
-
-def test_create_s3_store_path_handling():
-    """Test that create_s3_store returns the S3 path correctly."""
-    # Test with S3 path
-    result = create_s3_store("s3://test-bucket/path/to/data")
-    assert result == "s3://test-bucket/path/to/data"
-
-    # Test with bucket only
-    result = create_s3_store("s3://test-bucket")
-    assert result == "s3://test-bucket"
 
 
 def test_get_s3_storage_options():

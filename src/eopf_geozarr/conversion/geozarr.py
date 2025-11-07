@@ -652,6 +652,8 @@ def create_geozarr_compliant_multiscales(
 
     for overview in overview_levels:
         level = overview["level"]
+        if isinstance(level, str):
+            level = int(level)
 
         # Skip level 0 - native resolution is already in group 0
         if level == 0:
@@ -793,15 +795,14 @@ def calculate_overview_levels(
         zoom_for_height = max(0, int(np.ceil(np.log2(current_height / tile_width))))
         zoom = max(zoom_for_width, zoom_for_height)
 
-        overview_levels.append(
-            {
-                "level": level,
-                "zoom": zoom,
-                "width": current_width,
-                "height": current_height,
-                "scale_factor": 2**level,
-            }
-        )
+        overview_level: dict[str, Any] = {
+            "level": level,
+            "zoom": zoom,
+            "width": current_width,
+            "height": current_height,
+            "scale_factor": 2**level,
+        }
+        overview_levels.append(overview_level)  # type: ignore[arg-type]
 
         level += 1
         current_width = native_width // (2**level)
@@ -852,8 +853,8 @@ def create_native_crs_tile_matrix_set(
         scale_denominator = cell_size * 3779.5275
 
         # Calculate matrix dimensions
-        tile_width = 256
-        tile_height = 256
+        tile_width = overview["chunks"][1][0] if "chunks" in overview else 256
+        tile_height = overview["chunks"][0][0] if "chunks" in overview else 256
         matrix_width = int(np.ceil(width / tile_width))
         matrix_height = int(np.ceil(height / tile_height))
 

@@ -48,11 +48,12 @@ class StandardLatCoordAttrsJSON(TypedDict):
 
 
 class OverviewLevelJSON(TypedDict):
-    level: int
+    level: int | str
     zoom: int
     width: int
     height: int
     scale_factor: int
+    chunks: tuple[tuple[int, ...], ...] | list[tuple[int, ...]]
 
 
 class TileMatrixJSON(TypedDict):

@@ -183,29 +183,6 @@ def normalize_path(path: str) -> str:
         return os.path.normpath(path)
 
 
-def create_s3_store(s3_path: str, **s3_kwargs: Any) -> str:
-    """
-    Create an S3 path with storage options for Zarr operations.
-
-    This function now returns the S3 path directly, to be used with
-    xarray's storage_options parameter instead of creating a store.
-
-    Parameters
-    ----------
-    s3_path : str
-        S3 path in format s3://bucket/key
-    **s3_kwargs
-        Additional keyword arguments for s3fs.S3FileSystem
-
-    Returns
-    -------
-    str
-        S3 path to be used with storage_options
-    """
-    # Just return the S3 path - storage options will be handled separately
-    return s3_path
-
-
 def write_s3_json_metadata(
     s3_path: str, metadata: Mapping[str, Any], **s3_kwargs: Any
 ) -> None:
