@@ -2,6 +2,8 @@
 Data consolidation logic for reorganizing S2 structure.
 """
 
+from typing import Any
+
 import xarray as xr
 
 
@@ -10,9 +12,9 @@ class S2DataConsolidator:
 
     def __init__(self, dt_input: xr.DataTree):
         self.dt_input = dt_input
-        self.measurements_data: dict[str, object] = {}
-        self.geometry_data: dict[str, object]  = {}
-        self.meteorology_data: dict[str, object] = {}
+        self.measurements_data: dict[int, Any] = {}
+        self.geometry_data: dict[str, Any] = {}
+        self.meteorology_data: dict[str, Any] = {}
 
     def consolidate_all_data(self) -> tuple[dict, dict, dict]:
         """
