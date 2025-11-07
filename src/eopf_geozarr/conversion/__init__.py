@@ -1,7 +1,6 @@
 """Conversion tools for EOPF datasets to GeoZarr compliant format."""
 
 from .fs_utils import (
-    create_s3_store,
     get_s3_credentials_info,
     is_s3_path,
     open_s3_zarr_group,
@@ -36,7 +35,6 @@ __all__ = [
     "calculate_aligned_chunk_size",
     "is_grid_mapping_variable",
     "validate_existing_band_data",
-    "create_s3_store",
     "get_s3_credentials_info",
     "is_s3_path",
     "open_s3_zarr_group",
