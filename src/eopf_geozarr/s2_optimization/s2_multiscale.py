@@ -404,8 +404,9 @@ class S2MultiscalePyramid:
         if self.enable_sharding:
             dataset = self._rechunk_dataset_for_encoding(dataset, encoding)
 
-        # Add the geo metadata before writing
-        self._write_geo_metadata(dataset)
+        # Add the geo metadata before writing for /measurements/ groups
+        if "/measurements/" in dataset_path:
+            self._write_geo_metadata(dataset)
 
         # Write with streaming computation and progress tracking
         # The to_zarr operation will trigger all lazy computations
