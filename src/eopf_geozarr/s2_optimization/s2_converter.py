@@ -76,14 +76,16 @@ class S2OptimizedConverter:
 
         # Step 1: Process data while preserving original structure
         log.info("Step 1: Processing data with original structure preserved...")
-        
+
         # Step 2: Create multiscale pyramids for each group in the original structure
-        log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)...")
+        log.info(
+            "Step 2: Creating multiscale pyramids (preserving original hierarchy)..."
+        )
         datasets = self.pyramid_creator.create_multiscale_from_datatree(
             dt_input, output_path, verbose
         )
         log.info(f"  Created multiscale pyramids for {len(datasets)} groups")
-        
+
         # Step 3: Root-level consolidation
         log.info("Step 3: Final root-level metadata consolidation...")
         self._simple_root_consolidation(output_path, datasets)

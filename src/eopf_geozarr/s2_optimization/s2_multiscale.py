@@ -41,6 +41,7 @@ except ImportError:
 
 class S2MultiscalePyramid:
     """Creates streaming multiscale pyramids with lazy evaluation."""
+
     def __init__(self, enable_sharding: bool = True, spatial_chunk: int = 256):
         self.enable_sharding = enable_sharding
         self.spatial_chunk = spatial_chunk
