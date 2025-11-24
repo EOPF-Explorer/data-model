@@ -67,6 +67,7 @@ export AWS_DEFAULT_REGION=us-east-1
 Inspect your EOPF dataset first:
 
 ```python
+# test: skip
 import xarray as xr
 
 dt = xr.open_datatree("input.zarr", engine="zarr")
@@ -85,6 +86,7 @@ groups = [
 The optimal chunk size depends on your data and use case:
 
 ```python
+# test: skip
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
 # For typical Sentinel-2 data (10980x10980)
@@ -102,6 +104,7 @@ print(optimal_chunk)  # Returns 3660
 Use Dask for distributed processing:
 
 ```python
+# test: skip
 from dask.distributed import Client
 
 # Start Dask cluster
@@ -121,6 +124,7 @@ dt_geozarr = create_geozarr_dataset(
 Currently, the library processes all bands within a group. To process specific bands, you would need to create a subset of your input dataset first:
 
 ```python
+# test: skip
 # Create subset with specific bands
 dt_subset = dt.copy()
 ds_10m = dt_subset["/measurements/r10m"].ds
@@ -144,6 +148,7 @@ dt_geozarr = create_geozarr_dataset(
 **Solutions**:
 
 ```bash
+# test: skip
 # Verify installation
 pip list | grep eopf-geozarr
 
@@ -162,6 +167,7 @@ python --version
 **Solution**:
 
 ```python
+# test: skip
 # Check available groups
 dt = xr.open_datatree("input.zarr", engine="zarr")
 print("Available groups:", list(dt.groups))
@@ -177,6 +183,7 @@ groups = [g for g in dt.groups if "measurements" in g]
 **Solutions**:
 
 ```python
+# test: skip
 # 1. Use smaller chunks
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
@@ -205,6 +212,7 @@ for group in ["/measurements/r10m", "/measurements/r20m"]:
 **Solutions**:
 
 ```python
+# test: skip
 # 1. Verify credentials
 from eopf_geozarr.conversion.fs_utils import get_s3_credentials_info
 print(get_s3_credentials_info())
@@ -224,6 +232,7 @@ print(f"Valid: {is_valid}, Error: {error}")
 **Solutions**:
 
 ```python
+# test: skip
 # 1. Validate input dataset
 try:
     dt = xr.open_datatree("input.zarr", engine="zarr")
@@ -247,6 +256,7 @@ zarr.consolidate_metadata("input.zarr")
 **Solutions**:
 
 ```python
+# test: skip
 # Check CRS information
 ds = dt["/measurements/r10m"].ds
 print("CRS variables:", [v for v in ds.data_vars if 'crs' in v.lower() or 'spatial_ref' in v])
@@ -278,6 +288,7 @@ Several factors affect performance:
 **Optimization strategies**:
 
 ```python
+# test: skip
 # 1. Optimal chunking
 chunk_size = calculate_aligned_chunk_size(data_width, 4096)
 
@@ -301,6 +312,7 @@ os.environ['TMPDIR'] = '/path/to/fast/storage'
 Enable verbose logging:
 
 ```python
+# test: skip
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -319,6 +331,7 @@ GeoZarr datasets are typically larger than input due to:
 **Estimation**:
 
 ```python
+# test: skip
 # Rough estimate: input_size * 1.4 (with 2 overview levels)
 # For Sentinel-2 10m band: ~400MB input → ~560MB GeoZarr
 ```
@@ -335,6 +348,7 @@ GeoZarr datasets are typically larger than input due to:
 ### How do I optimize S3 performance?
 
 ```python
+# test: skip
 # 1. Use appropriate region
 os.environ['AWS_DEFAULT_REGION'] = 'us-west-2'  # Close to your data
 
@@ -356,6 +370,7 @@ s3_config = {
 Yes, the library supports mixed storage:
 
 ```python
+# test: skip
 # Local input, S3 output
 dt = xr.open_datatree("local_input.zarr", engine="zarr")
 dt_geozarr = create_geozarr_dataset(
@@ -378,6 +393,7 @@ dt_geozarr = create_geozarr_dataset(
 ### How do I verify the conversion worked correctly?
 
 ```python
+# test: skip
 # 1. Use built-in validation
 from eopf_geozarr.cli import validate_command
 import argparse
@@ -418,6 +434,7 @@ for var_name in ds.data_vars:
 ### How do I compare input and output data?
 
 ```python
+# test: skip
 # Load both datasets
 dt_input = xr.open_datatree("input.zarr", engine="zarr")
 dt_output = xr.open_datatree("output.zarr", engine="zarr")
@@ -450,6 +467,7 @@ The library works well in Jupyter environments. See [Examples](examples.md#jupyt
 Absolutely! The library is designed for integration:
 
 ```python
+# test: skip
 # Example pipeline integration
 def process_sentinel2_scene(input_path: str, output_path: str):
     """Process a single Sentinel-2 scene to GeoZarr."""
@@ -488,6 +506,7 @@ When reporting issues, please include:
 1. **Version information**:
 
    ```bash
+   # test: skip
    eopf-geozarr --version
    python --version
    pip list | grep -E "(xarray|zarr|dask)"

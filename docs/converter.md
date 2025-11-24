@@ -45,6 +45,7 @@ The converter also provides a Python API for programmatic usage:
 ### Example: Basic Conversion
 
 ```python
+# test: skip
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 

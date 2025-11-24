@@ -1,0 +1,58 @@
+{
+    "zarr_format": 3,
+    "node_type": "group",
+    "attributes": {
+        "zarr_conventions_version": "0.1.0",
+        "zarr_conventions": {
+            "d35379db-88df-4056-af3a-620245f8e347": {
+                "version": "0.1.0",
+                "schema": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1.0/schema.json",
+                "name": "multiscales",
+                "description": "Multiscale layout of zarr datasets",
+                "spec": "https://github.com/zarr-conventions/multiscales/blob/v0.1.0/README.md"
+            },
+            "f17cb550-5864-4468-aeb7-f3180cfb622f": {
+                "version": "0.1.0",
+                "schema": "https://raw.githubusercontent.com/zarr-conventions/geo-proj/refs/tags/v0.1.0/schema.json",
+                "name": "geo-proj",
+                "description": "Coordinate reference system information for geospatial data",
+                "spec": "https://github.com/zarr-conventions/geo-proj/blob/v0.1.0/README.md"
+            }
+        },
+        "multiscales": {
+            "layout": [
+                {
+                    "group": "dem_30m",
+                    "factors": [1.0, 1.0],
+                    "scale": [1.0, 1.0]
+                },
+                {
+                    "group": "dem_90m",
+                    "from_group": "dem_30m",
+                    "factors": [3.0, 3.0],
+                    "scale": [3.0, 3.0],
+                    "resampling_method": "average"
+                },
+                {
+                    "group": "dem_270m",
+                    "from_group": "dem_90m",
+                    "factors": [9.0, 9.0],
+                    "scale": [3.0, 3.0],
+                    "resampling_method": "average"
+                },
+                {
+                    "group": "dem_10m_superres",
+                    "from_group": "dem_30m",
+                    "factors": [0.333, 0.333],
+                    "scale": [0.333, 0.333],
+                    "resampling_method": "cubic"
+                }
+            ],
+            "resampling_method": "cubic"
+        },
+        "proj:code": "EPSG:4326",
+        "proj:spatial_dimensions": ["latitude", "longitude"],
+        "proj:transform": [0.000277778, 0.0, -180.0, 0.0, -0.000277778, 90.0],
+        "proj:bbox": [-180.0, -90.0, 180.0, 90.0]
+    }
+}

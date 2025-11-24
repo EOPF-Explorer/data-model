@@ -1,0 +1,39 @@
+{
+    "zarr_format": 3,
+    "node_type": "group",
+    "attributes": {
+        "zarr_conventions_version": "0.1.0",
+        "zarr_conventions": {
+            "d35379db-88df-4056-af3a-620245f8e347": {
+                "version": "0.1.0",
+                "schema": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1.0/schema.json",
+                "name": "multiscales",
+                "description": "Multiscale layout of zarr datasets",
+                "spec": "https://github.com/zarr-conventions/multiscales/blob/v0.1.0/README.md"
+            }
+        },
+        "multiscales": {
+            "layout": [
+                {
+                    "group": "0",
+                    "scale": [1.0, 1.0]
+                },
+                {
+                    "group": "1",
+                    "from_group": "0",
+                    "scale": [2.0, 2.0],
+                    "translation": [0.0, 0.0],
+                    "resampling_method": "average"
+                },
+                {
+                    "group": "2",
+                    "from_group": "1",
+                    "scale": [4.0, 4.0],
+                    "translation": [0.0, 0.0],
+                    "resampling_method": "average"
+                }
+            ],
+            "resampling_method": "average"
+        }
+    }
+}

@@ -67,5 +67,8 @@ nav:
   - Examples: examples.md
   - Architecture: architecture.md
   - GeoZarr Mini Spec: geozarr-minispec.md
+  - Pydantic models: 
+      - Sentinel1: models/sentinel1.md
+      - Sentinel2: models/sentinel2.md
   - GeoZarr Specification: geozarr-specification-contribution.md
   - FAQ: faq.md

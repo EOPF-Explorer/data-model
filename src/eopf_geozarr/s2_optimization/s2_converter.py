@@ -2,28 +2,21 @@
 Main S2 optimization converter.
 """
 
+import importlib.util
 import time
-from typing import Dict
+from typing import Any, Dict
 
+import structlog
 import xarray as xr
-from zarr import consolidate_metadata
 
-from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.conversion.fs_utils import get_storage_options
-from eopf_geozarr.conversion.geozarr import (
-    _create_tile_matrix_limits,
-    create_native_crs_tile_matrix_set,
-)
 
 from .s2_multiscale import S2MultiscalePyramid
 from .s2_validation import S2OptimizationValidator
 
-try:
-    import distributed
+log = structlog.get_logger()
 
-    DISTRIBUTED_AVAILABLE = True
-except ImportError:
-    DISTRIBUTED_AVAILABLE = False
+DISTRIBUTED_AVAILABLE = importlib.util.find_spec("distributed") is not None
 
 
 class S2OptimizedConverter:
@@ -71,42 +64,44 @@ class S2OptimizedConverter:
         start_time = time.time()
 
         if verbose:
-            print("Starting S2 optimized conversion...")
-            print(f"Input: {len(dt_input.groups)} groups")
-            print(f"Output: {output_path}")
+            log.info(
+                "Starting S2 optimized conversion",
+                num_groups=len(dt_input.groups),
+                output_path=output_path,
+            )
 
         # Validate input is S2
         if not self._is_sentinel2_dataset(dt_input):
             raise ValueError("Input dataset is not a Sentinel-2 product")
 
         # Step 1: Process data while preserving original structure
-        print("Step 1: Processing data with original structure preserved...")
+        log.info("Step 1: Processing data with original structure preserved...")
         
         # Step 2: Create multiscale pyramids for each group in the original structure
-        print("Step 2: Creating multiscale pyramids (preserving original hierarchy)...")
+        log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)...")
         datasets = self.pyramid_creator.create_multiscale_from_datatree(
             dt_input, output_path, verbose
         )
-        print(f"  Created multiscale pyramids for {len(datasets)} groups")
+        log.info(f"  Created multiscale pyramids for {len(datasets)} groups")
         
         # Step 3: Root-level consolidation
-        print("Step 3: Final root-level metadata consolidation...")
+        log.info("Step 3: Final root-level metadata consolidation...")
         self._simple_root_consolidation(output_path, datasets)
 
         # Step 4: Validation
         if validate_output:
-            print("Step 4: Validating optimized dataset...")
+            log.info("Step 4: Validating optimized dataset...")
             validation_results = self.validator.validate_optimized_dataset(output_path)
             if not validation_results["is_valid"]:
-                print("  Warning: Validation issues found:")
+                log.info("  Warning: Validation issues found:")
                 for issue in validation_results["issues"]:
-                    print(f"    - {issue}")
+                    log.info(f"    - {issue}")
 
         # Create result DataTree
         result_dt = self._create_result_datatree(output_path)
 
         total_time = time.time() - start_time
-        print(f"Optimization complete in {total_time:.2f}s")
+        log.info("Optimization complete", duration_seconds=round(total_time, 2))
 
         if verbose:
             self._print_optimization_summary(dt_input, result_dt, output_path)
@@ -134,14 +129,13 @@ class S2OptimizedConverter:
         )
         return found_indicators >= 2
 
-
     def _simple_root_consolidation(
         self, output_path: str, datasets: Dict[str, Dict]
     ) -> None:
         """Simple root-level metadata consolidation with proper zarr group creation."""
         try:
-            print("  Performing root consolidation...")
-            
+            log.info("Performing root consolidation")
+
             # create missing intermediary groups (/conditions, /quality, etc.)
             # using the keys of the datasets dict
             missing_groups = set()
@@ -152,7 +146,6 @@ class S2OptimizedConverter:
                     parent_path = "/" + "/".join(parts[:i])
                     if parent_path not in datasets:
                         missing_groups.add(parent_path)
-                        
             for group_path in missing_groups:
                 dt_parent = xr.DataTree()
                 dt_parent.to_zarr(
@@ -162,7 +155,7 @@ class S2OptimizedConverter:
                 )
 
             # Create root zarr group if it doesn't exist
-            print("  Creating root zarr group...")
+            log.info("Creating root zarr group")
             dt_root = xr.DataTree()
             dt_root.to_zarr(
                 output_path,
@@ -179,15 +172,15 @@ class S2OptimizedConverter:
                 consolidated=True,
                 zarr_format=3,
             )
-            print("  ✅ Root zarr group created")
+            log.info("Root zarr group created")
 
             try:
-                print("  ✅ Root consolidation completed")
+                log.info("Root consolidation completed")
             except Exception as e:
-                print(f"  ⚠️ Warning: Metadata consolidation failed: {e}")
-             
+                log.warning("Metadata consolidation failed", error=str(e))
+
         except Exception as e:
-            print(f"  ⚠️ Warning: Root consolidation failed: {e}")
+            log.warning("Root consolidation failed", error=str(e))
 
     def _create_result_datatree(self, output_path: str) -> xr.DataTree:
         """Create result DataTree from written output."""
@@ -200,43 +193,50 @@ class S2OptimizedConverter:
                 storage_options=storage_options,
             )
         except Exception as e:
-            print(f"Warning: Could not open result DataTree: {e}")
+            log.warning("Could not open result DataTree", error=str(e))
             return xr.DataTree()
 
     def _print_optimization_summary(
         self, dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str
     ) -> None:
         """Print optimization summary statistics."""
-        print("\n" + "=" * 50)
-        print("OPTIMIZATION SUMMARY")
-        print("=" * 50)
-
         # Count groups
         input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
         output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
 
-        print(
-            f"Groups: {input_groups} → {output_groups} ({((output_groups - input_groups) / input_groups * 100):+.1f}%)"
-        )
-
         # Estimate file count reduction
         estimated_input_files = input_groups * 10  # Rough estimate
         estimated_output_files = output_groups * 5  # Fewer files per group
-        print(
-            f"Estimated files: {estimated_input_files} → {estimated_output_files} ({((estimated_output_files - estimated_input_files) / estimated_input_files * 100):+.1f}%)"
+        group_change_pct = (
+            ((output_groups - input_groups) / input_groups * 100)
+            if input_groups > 0
+            else 0
+        )
+        file_change_pct = (
+            (
+                (estimated_output_files - estimated_input_files)
+                / estimated_input_files
+                * 100
+            )
+            if estimated_input_files > 0
+            else 0
         )
 
-        # Show structure
-        print("\nNew structure: (original hierarchy preserved with multiscale pyramids)")
-        for group in dt_output.groups:
-            if group != ".":
-                print(f"  {group}")
-
-        print("=" * 50)
+        log.info(
+            "OPTIMIZATION SUMMARY",
+            input_groups=input_groups,
+            output_groups=output_groups,
+            group_change_pct=f"{group_change_pct:+.1f}%",
+            estimated_input_files=estimated_input_files,
+            estimated_output_files=estimated_output_files,
+            file_change_pct=f"{file_change_pct:+.1f}%",
+            output_path=output_path,
+            groups=[g for g in dt_output.groups if g != "."],
+        )
 
 
 def convert_s2_optimized(
-    dt_input: xr.DataTree, output_path: str, **kwargs
+    dt_input: xr.DataTree, output_path: str, **kwargs: Any
 ) -> xr.DataTree:
     """
     Convenience function for S2 optimization.

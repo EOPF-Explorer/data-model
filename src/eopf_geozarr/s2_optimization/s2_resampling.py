@@ -9,7 +9,7 @@ import xarray as xr
 class S2ResamplingEngine:
     """Handles downsampling operations for S2 multiscale creation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.resampling_methods = {
             "reflectance": self._downsample_reflectance,
             "classification": self._downsample_classification,
@@ -102,14 +102,13 @@ class S2ResamplingEngine:
         # Take the center pixel of each block as representative
         center_h = block_h // 2
         center_w = block_w // 2
-        
         if data.ndim == 3:
             # Sample every block_h and block_w pixels, starting from center
             downsampled = data.values[:, center_h::block_h, center_w::block_w]
             # Ensure we get exactly the target dimensions
             downsampled = downsampled[:, :target_height, :target_width]
         else:
-            # Sample every block_h and block_w pixels, starting from center  
+            # Sample every block_h and block_w pixels, starting from center
             downsampled = data.values[center_h::block_h, center_w::block_w]
             # Ensure we get exactly the target dimensions
             downsampled = downsampled[:target_height, :target_width]

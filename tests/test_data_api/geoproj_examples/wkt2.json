@@ -1,0 +1,19 @@
+{
+    "zarr_format": 3,
+    "node_type": "array",
+    "attributes": {
+        "zarr_conventions_version": "0.1.0",
+        "zarr_conventions": {
+            "f17cb550-5864-4468-aeb7-f3180cfb622f": {
+                "version": "0.1.0",
+                "schema": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v0.1.0/schema.json",
+                "name": "geo-proj",
+                "description": "Coordinate reference system information for geospatial data",
+                "spec": "https://github.com/zarr-experimental/geo-proj/blob/v0.1.0/README.md"
+            }
+        },
+        "proj:wkt2": "PROJCRS[\"WGS 84 / UTM zone 33N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]]],CONVERSION[\"UTM zone 33N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Longitude of natural origin\",15,ANGLEUNIT[\"degree\",0.0174532925199433]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]]]",
+        "proj:spatial_dimensions": ["Y", "X"],
+        "proj:transform": [30.0, 0.0, 500000.0, 0.0, -30.0, 5000000.0]
+    }
+}

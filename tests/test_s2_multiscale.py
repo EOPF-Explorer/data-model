@@ -9,6 +9,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import xarray as xr
+from structlog.testing import capture_logs
 
 from eopf_geozarr.s2_optimization.s2_multiscale import S2MultiscalePyramid
 
@@ -110,7 +111,9 @@ class TestS2MultiscalePyramid:
 
         assert len(shard_dims) == 2
         # Should use largest multiple of chunk_size that fits
-        assert shard_dims[0] == 768  # 3 * 256 = 768 (largest multiple that fits in 1000)
+        assert (
+            shard_dims[0] == 768
+        )  # 3 * 256 = 768 (largest multiple that fits in 1000)
         assert shard_dims[1] == 768  # 3 * 256 = 768
 
     def test_create_measurements_encoding(self, pyramid, sample_dataset):
@@ -190,10 +193,9 @@ class TestS2MultiscalePyramidIntegration:
 
         return dt
 
-    @patch("builtins.print")
     @patch.object(S2MultiscalePyramid, "_stream_write_dataset")
     def test_create_multiscale_from_datatree(
-        self, mock_write, mock_print, simple_datatree, tmp_path
+        self, mock_write, simple_datatree, tmp_path
     ):
         """Test multiscale creation from DataTree."""
         pyramid = S2MultiscalePyramid(enable_sharding=True, spatial_chunk=256)
@@ -203,14 +205,20 @@ class TestS2MultiscalePyramidIntegration:
         # Mock the write to avoid actual file I/O
         mock_write.return_value = xr.Dataset({"b02": xr.DataArray([1, 2, 3])})
 
-        result = pyramid.create_multiscale_from_datatree(
-            simple_datatree, output_path, verbose=False
-        )
+        # Capture log output using structlog's testing context manager
+        with capture_logs() as cap_logs:
+            result = pyramid.create_multiscale_from_datatree(
+                simple_datatree, output_path, verbose=False
+            )
 
         # Should process groups
         assert isinstance(result, dict)
         # At minimum, should write the original group
         assert mock_write.call_count >= 1
+
+        # Optionally verify log messages (cap_logs contains all logged events)
+        # With verbose=False, there won't be many logs, but we can check the structure
+        assert isinstance(cap_logs, list)
 
 
 if __name__ == "__main__":

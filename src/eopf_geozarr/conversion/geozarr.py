@@ -16,12 +16,12 @@ Key compliance features:
 import dataclasses
 import itertools
 import os
-import shutil
 import time
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
+import structlog
 import xarray as xr
 import zarr
 from pyproj import CRS
@@ -45,6 +45,8 @@ from eopf_geozarr.types import (
 
 from . import fs_utils, utils
 from .sentinel1_reprojection import reproject_sentinel1_with_gcps
+
+log = structlog.get_logger()
 
 
 def create_geozarr_dataset(
@@ -94,7 +96,7 @@ def create_geozarr_dataset(
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
 
     if enable_sharding:
-        print("🔧 Zarr sharding enabled for spatial dimensions")
+        log.info("🔧 Zarr sharding enabled for spatial dimensions")
 
     if _is_sentinel1(dt_input):
         if gcp_group is None:
@@ -142,13 +144,13 @@ def create_geozarr_dataset(
     )
 
     # Consolidate metadata at the root level AFTER all groups are written
-    print("Consolidating metadata at root level for consistent zarr access...")
+    log.info("Consolidating metadata at root level for consistent zarr access...")
     try:
         zarr_group = fs_utils.open_zarr_group(output_path, mode="r+")
         consolidate_metadata(zarr_group.store)
-        print("✅ Root level metadata consolidation completed")
+        log.info("✅ Root level metadata consolidation completed")
     except Exception as e:
-        print(f"⚠️ Warning: Root level consolidation failed: {e}")
+        log.warning("Root level consolidation failed", error=str(e))
 
     return dt_geozarr
 
@@ -173,12 +175,15 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     """
     geozarr_groups: dict[str, xr.Dataset] = {}
     grid_mapping_var_name = "spatial_ref"
+    epsg_CPM_260 = dt.attrs.get("other_metadata", {}).get("horizontal_CRS_code", None)
+    if epsg_CPM_260 is not None:
+        epsg_CPM_260 = epsg_CPM_260.split(":")[-1]
 
     for key in groups:
         if not dt[key].data_vars:
             continue
 
-        print(f"Processing group for GeoZarr compliance: {key}")
+        log.info(f"Processing group {key} for GeoZarr compliance")
         ds = dt[key].to_dataset().copy()
 
         if gcp_group is not None:
@@ -188,13 +193,13 @@ def setup_datatree_metadata_geozarr_spec_compliant(
 
         # Apply Sentinel-1 reprojection if needed
         if _is_sentinel1(dt) and ds_gcp is not None:
-            print(f"  Applying Sentinel-1 reprojection for group: {key}")
+            log.info(f"Applying Sentinel-1 reprojection for group {key}")
             ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
-            print("  ✅ Reprojection completed, dataset now has x/y coordinates")
+            log.info("✅ Reprojection complete")
 
         # Process all variables in the group
         for var_name in ds.data_vars:
-            print(f"  Processing variable / band: {var_name}")
+            log.info(f"Processing variable / band {var_name}")
 
             # Set CF standard name and _ARRAY_DIMENSIONS
             if _is_sentinel1(dt):
@@ -212,8 +217,14 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             # Set CRS if available
             if "proj:epsg" in ds[var_name].attrs:
                 epsg = ds[var_name].attrs["proj:epsg"]
-                print(f"    Setting CRS for {var_name} to EPSG:{epsg}")
+                log.info(f"Setting CRS for variable {var_name} to EPSG {epsg}")
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
+            elif epsg_CPM_260:
+                log.info(
+                    f"Setting CRS for variable {var_name} to EPSG (CPM 2.6.0 default)",
+                    var_name=var_name,
+                )
+                ds = ds.rio.write_crs(f"epsg:{epsg_CPM_260}")
 
         # Add _ARRAY_DIMENSIONS to coordinate variables
         _add_coordinate_metadata(ds)
@@ -293,10 +304,10 @@ def iterative_copy(
             continue
 
         current_group_path = "/" + relative_path
-        print(f"Processing group '{current_group_path}' in iterative copy")
+        log.info(f"Processing group {current_group_path} in iterative copy")
 
         if current_group_path in geozarr_groups:
-            print(f"Processing '{current_group_path}' as GeoZarr group")
+            log.info(f"Processing {current_group_path} as GeoZarr group")
             write_geozarr_group(
                 dt_input,
                 dt_result,
@@ -319,15 +330,15 @@ def iterative_copy(
 
         # Add CRS information if needed
         if crs_groups and current_group_path in crs_groups:
-            print(f"Adding CRS information for group '{current_group_path}'")
+            log.info(f"Adding CRS information for group {current_group_path}")
             if reference_crs is None:
                 reference_crs = _find_reference_crs(geozarr_groups)
             ds = prepare_dataset_with_crs_info(ds, reference_crs=reference_crs)
 
         # Process groups with data variables
         if node.data_vars:
-            print(
-                f"Writing group '{current_group_path}' with data variables to GeoZarr DataTree"
+            log.info(
+                f"Writing {current_group_path} with data variables to GeoZarr DataTree",
             )
 
             # Set up encoding
@@ -377,7 +388,7 @@ def prepare_dataset_with_crs_info(
 
     # Add CRS information if we have spatial coordinates and a reference CRS
     if "x" in ds.coords and "y" in ds.coords and reference_crs:
-        print(f"  Adding CRS information: {reference_crs}")
+        log.info(f"Adding CRS information with reference CRS {reference_crs}")
         ds = ds.rio.write_crs(reference_crs)
         ds.attrs["grid_mapping"] = "spatial_ref"
 
@@ -453,7 +464,7 @@ def write_geozarr_group(
     xarray.DataTree
         The written GeoZarr DataTree with multiscale groups as children
     """
-    print(f"\n=== Processing {group_name} with GeoZarr-spec compliance ===")
+    log.info(f"Processing group {group_name} with GeoZarr-spec compliance")
 
     # Create a new container for the group
     dt = xr.DataTree()
@@ -493,7 +504,7 @@ def write_geozarr_group(
         ds_gcp = None
 
     try:
-        print(f"Creating GeoZarr-spec compliant multiscales for {group_name}")
+        log.info("Creating GeoZarr-spec compliant multiscales", group_name=group_name)
         create_geozarr_compliant_multiscales(
             ds=ds,
             output_path=output_path,
@@ -505,17 +516,19 @@ def write_geozarr_group(
             enable_sharding=enable_sharding,
         )
     except Exception as e:
-        print(
-            f"Warning: Failed to create GeoZarr-spec compliant multiscales for {group_name}: {e}"
+        log.warning(
+            "Failed to create GeoZarr-spec compliant multiscales",
+            group_name=group_name,
+            error=str(e),
         )
-        print("Continuing with next group...")
+        log.info("Continuing with next group...")
 
     # Consolidate metadata
-    print(f"  Consolidating metadata for group {group_name}...")
+    log.info(f"Consolidating metadata for group {group_name}")
     group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
     zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
-    print("  ✅ Metadata consolidated")
+    log.info("✅ Metadata consolidated")
 
     return dt
 
@@ -596,7 +609,7 @@ def create_geozarr_compliant_multiscales(
                 native_bounds = ds.rio.bounds()
 
         except Exception as e:
-            print(f"Error computing native bounds: {e}")
+            log.info("Error computing native bounds", error=str(e))
             # TODO: check GCP bounds vs. raster data bounds?
             # Below we compute GCP bbox and assume that it roughly corresponds
             # to the data bounds, which might be too crude / wrong approximation.
@@ -609,20 +622,23 @@ def create_geozarr_compliant_multiscales(
                 ds_gcp["latitude"].values.max(),
             )
 
-    print(f"Creating GeoZarr-compliant multiscales for {group_name}")
-    print(f"Native resolution: {native_width} x {native_height}")
-    print(f"Native CRS: {native_crs}")
+    log.info(f"Creating GeoZarr-compliant multiscales in group {group_name}")
+    log.info("Native resolution", width=native_width, height=native_height)
+    log.info(f"Native CRS: {native_crs}")
 
     # Calculate overview levels
     overview_levels = calculate_overview_levels(
         native_width, native_height, min_dimension, tile_width
     )
 
-    print(f"Total overview levels: {len(overview_levels)}")
+    log.info(f"Total overview levels: {len(overview_levels)}")
     for ol in overview_levels:
-        print(
-            f"Overview level {ol['level']}: {ol['width']} x {ol['height']} "
-            f"(scale factor: {ol['scale_factor']})"
+        log.info(
+            "Overview level",
+            level=ol["level"],
+            width=ol["width"],
+            height=ol["height"],
+            scale_factor=ol["scale_factor"],
         )
 
     # Create native CRS tile matrix set
@@ -644,7 +660,7 @@ def create_geozarr_compliant_multiscales(
     }
     fs_utils.write_json_metadata(zarr_json_path, zarr_json)
 
-    print(f"Added multiscales metadata to {group_name}")
+    log.info(f"Added multiscales metadata to group {group_name}")
 
     # Create overview levels as children groups
     timing_data = []
@@ -653,20 +669,24 @@ def create_geozarr_compliant_multiscales(
 
     for overview in overview_levels:
         level = overview["level"]
+        if isinstance(level, str):
+            level = int(level)
 
         # Skip level 0 - native resolution is already in group 0
         if level == 0:
-            print("Skipping level 0 - native resolution is already in group 0")
+            log.info("Skipping level 0 - native resolution is already in group 0")
             continue
 
         width = overview["width"]
         height = overview["height"]
         scale_factor = overview["scale_factor"]
 
-        print(f"\nCreating overview level {level} (1:{scale_factor} scale)...")
-        print(f"Target dimensions: {width} x {height}")
-        print(
-            f"  Using pyramid approach: creating level {level} from level {level - 1}"
+        log.info(
+            f"Creating overview level (scale) {level} with scale factor {scale_factor}"
+        )
+        log.info("Target dimensions:", width=width, height=height)
+        log.info(
+            f"Using pyramid approach: creating level {level} from previous level {level - 1}",
         )
 
         if ds_gcp is not None:
@@ -699,7 +719,7 @@ def create_geozarr_compliant_multiscales(
         start_time = time.time()
 
         storage_options = fs_utils.get_storage_options(overview_path)
-        print(f"Writing overview level {level} at {overview_path}")
+        log.info(f"Writing overview level at path {overview_path}")
 
         # Ensure the directory exists for local paths
         if not fs_utils.is_s3_path(overview_path):
@@ -707,6 +727,8 @@ def create_geozarr_compliant_multiscales(
 
         # Write the overview dataset
         overview_group = f"{group_name}/{level}"
+        # When sharding enabled, let Dask rechunk to shard boundaries
+        align_chunks_flag = False if enable_sharding else True
         overview_ds.to_zarr(
             output_path,
             group=overview_group,
@@ -714,7 +736,7 @@ def create_geozarr_compliant_multiscales(
             consolidated=True,
             zarr_format=3,
             encoding=encoding,
-            align_chunks=True,
+            align_chunks=align_chunks_flag,
             storage_options=storage_options,
         )
 
@@ -732,7 +754,9 @@ def create_geozarr_compliant_multiscales(
             }
         )
 
-        print(f"Level {level}: Successfully created in {proc_time:.2f}s")
+        log.info(
+            f"Level {level} created in {round(proc_time, 2)} seconds",
+        )
 
         # Consolidate metadata
         group_path = fs_utils.normalize_path(
@@ -740,13 +764,14 @@ def create_geozarr_compliant_multiscales(
         )
         zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
         consolidate_metadata(zarr_group.store)
-        print(f"  ✅ Metadata consolidated for overview level {level}")
+        log.info(f"✅ Metadata consolidated for overview level {level}")
 
         # Update previous_level_ds for the next iteration
         previous_level_ds = overview_ds
 
-    print(
-        f"\n✅ Created {len(overview_levels)} GeoZarr-compliant overview levels using pyramid approach"
+    log.info(
+        "✅ Created GeoZarr-compliant overview levels using pyramid approach",
+        count=len(overview_levels),
     )
 
     return {
@@ -794,15 +819,14 @@ def calculate_overview_levels(
         zoom_for_height = max(0, int(np.ceil(np.log2(current_height / tile_width))))
         zoom = max(zoom_for_width, zoom_for_height)
 
-        overview_levels.append(
-            {
-                "level": level,
-                "zoom": zoom,
-                "width": current_width,
-                "height": current_height,
-                "scale_factor": 2**level,
-            }
-        )
+        overview_level: dict[str, Any] = {
+            "level": level,
+            "zoom": zoom,
+            "width": current_width,
+            "height": current_height,
+            "scale_factor": 2**level,
+        }
+        overview_levels.append(overview_level)  # type: ignore[arg-type]
 
         level += 1
         current_width = native_width // (2**level)
@@ -977,7 +1001,7 @@ def create_overview_dataset_all_vars(
     # Downsample all data variables
     overview_data_vars = {}
     for var in data_vars:
-        print(f"  Downsampling {var}...")
+        log.info(f"Downsampling variable {var}")
 
         source_data = ds[var].values
 
@@ -1058,8 +1082,8 @@ def write_dataset_band_by_band_with_validation(
     tuple[bool, xarray.Dataset]
         (True if all bands were written successfully, updated dataset)
     """
-    print(
-        f"Writing GeoZarr-spec compliant base resolution for {group_name} band by band with validation"
+    log.info(
+        f"Writing GeoZarr-spec compliant base resolution band by band with validation for group {group_name}",
     )
 
     # Get data variables
@@ -1073,6 +1097,27 @@ def write_dataset_band_by_band_with_validation(
 
     store_exists = existing_dataset is not None and len(existing_dataset.data_vars) > 0
 
+    store_storage_options = fs_utils.get_storage_options(output_path)
+    fs = fs_utils.get_filesystem(output_path, **(store_storage_options or {}))
+
+    def cleanup_prefix(prefix: str) -> None:
+        key = prefix.lstrip("/")
+        base_path = output_path.rstrip("/")
+        if fs_utils.is_s3_path(base_path):
+            target_path = fs_utils.normalize_path(f"{base_path}/{key}")
+        else:
+            target_path = os.path.join(base_path, key)
+        try:
+            fs.rm(target_path, recursive=True)
+        except FileNotFoundError:
+            pass
+        except Exception as cleanup_error:
+            log.info(
+                "    ⚠️ Failed to remove",
+                target_path=target_path,
+                error=str(cleanup_error),
+            )
+
     # Write data variables one by one with validation
     for var in data_vars:
         # Check if this variable already exists and is valid
@@ -1080,15 +1125,15 @@ def write_dataset_band_by_band_with_validation(
             if utils.validate_existing_band_data(existing_dataset, var, ds):
                 ds.drop_vars(str(var))
                 ds[var] = existing_dataset[var]  # type: ignore
-                print(f"  ✅ Band {var} already exists and is valid, skipping")
+                log.info(f"✅ Band {var} already exists and is valid, skipping.")
                 skipped_vars.append(var)
                 successful_vars.append(var)
                 continue
-            var_path = os.path.join(output_path, group_name.lstrip("/"), str(var))
-            if os.path.exists(var_path):
-                shutil.rmtree(var_path)
+            # Remove invalid existing variable using filesystem-agnostic method
+            log.info("    🧹 Removing invalid existing variable", var=var)
+            cleanup_prefix(f"{group_name.lstrip('/')}/{var}")
 
-        print(f"  Writing data variable {var}...")
+        log.info("  Writing data variable", var=var)
 
         # Create a single-variable dataset with its coordinates
         single_var_ds = ds[[var]]
@@ -1137,8 +1182,6 @@ def write_dataset_band_by_band_with_validation(
                 else:
                     single_var_ds[var] = single_var_ds[var].chunk()
 
-                # Get storage options and write variable
-                storage_options = fs_utils.get_storage_options(output_path)
                 single_var_ds.to_zarr(
                     output_path,
                     group=group_name,
@@ -1146,81 +1189,81 @@ def write_dataset_band_by_band_with_validation(
                     consolidated=False,
                     zarr_format=3,
                     encoding=var_encoding,
-                    storage_options=storage_options,
+                    storage_options=store_storage_options,
                 )
 
-                print(f"    ✅ Successfully wrote {var}")
+                log.info("    ✅ Successfully wrote", var=var)
                 successful_vars.append(var)
                 success = True
                 if existing_dataset is None:
                     group_path = fs_utils.normalize_path(
                         f"{output_path}/{group_name.lstrip('/')}"
                     )
-                    storage_options = fs_utils.get_storage_options(output_path)
                     existing_dataset = xr.open_dataset(
                         group_path,
                         mode="r",
                         engine="zarr",
                         decode_coords="all",
                         chunks="auto",
-                        storage_options=storage_options,
+                        storage_options=store_storage_options,
                     )
                 break
 
             except Exception as e:
                 # Delete the started data array to avoid conflict on next attempt
                 for written_var in var_encoding.keys():
-                    if os.path.exists(
-                        os.path.join(output_path, group_name.lstrip("/"), written_var)
-                    ):
-                        shutil.rmtree(
-                            os.path.join(
-                                output_path, group_name.lstrip("/"), written_var
-                            )
-                        )
+                    target_components = [group_name.lstrip("/"), str(written_var)]
+                    target_prefix = "/".join(
+                        component for component in target_components if component
+                    )
+                    cleanup_prefix(target_prefix)
                 if attempt < max_retries - 1:
-                    print(
-                        f"    ⚠️  Attempt {attempt + 1} failed for {var}: {e}, retrying in 2 seconds..."
+                    log.warning(
+                        "    ⚠️  Attempt failed, retrying in 2 seconds",
+                        attempt=attempt + 1,
+                        var=var,
+                        error=str(e),
                     )
                     time.sleep(2)
                 else:
-                    print(
-                        f"    ❌ Failed to write {var} after {max_retries} attempts: {e}"
+                    log.error(
+                        "    ❌ Failed to write variable after max retries",
+                        var=var,
+                        max_retries=max_retries,
+                        error=str(e),
                     )
                     failed_vars.append(var)
                     break
 
         if not success:
-            print(f"  Failed to write data variable {var}")
+            log.info("  Failed to write data variable", var=var)
 
     # Consolidate metadata
     group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
     zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
 
-    print(f"  ✅ Metadata consolidated for {len(successful_vars)} variables")
+    log.info(f"✅ Metadata consolidated for {len(successful_vars)} variables")
 
     # Report results
     if failed_vars:
-        print(
-            f"❌ Failed to write {len(failed_vars)} variables for {group_name}: {failed_vars}"
+        log.error(
+            f"❌ Failed to write {len(failed_vars)} variables in {group_name}: {failed_vars}",
         )
-        print(
+        log.info(
             f"✅ Successfully wrote {len(successful_vars) - len(skipped_vars)} new variables"
         )
-        print(
-            f"⏭️  Skipped {len(skipped_vars)} existing valid variables: {skipped_vars}"
+        log.info(
+            f"Skipped {len(skipped_vars)} existing valid variables: {skipped_vars}"
         )
         return False, ds
     else:
-        print(
-            f"✅ Successfully processed all {len(successful_vars)} variables for {group_name}"
+        log.info(
+            f"✅ Successfully processed {len(successful_vars)} variables in {group_name}",
         )
         if skipped_vars:
-            print(
-                f"   - Wrote {len(successful_vars) - len(skipped_vars)} new variables"
-            )
-            print(f"   - Skipped {len(skipped_vars)} existing valid variables")
+            log.info(f"Wrote {len(successful_vars) - len(skipped_vars)} new variables")
+            log.info(f"Skipped {len(skipped_vars)} existing valid variables")
         return True, ds
 
 
@@ -1512,29 +1555,43 @@ def _create_geozarr_encoding(
                     shard_y = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shard_x = _calculate_shard_dimension(data_shape[2], chunks[2])
                     shards = (shard_time, shard_y, shard_x)
-                    print(
-                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    log.info(
+                        f"Sharding config for variable {var}: ",
+                        data_shape=data_shape,
+                        chunks=chunks,
+                        shards=shards,
                     )
                 elif len(data_shape) == 2:
                     # For 2D data (y, x), ensure shard dimensions are divisible by chunks
                     shard_y = _calculate_shard_dimension(data_shape[0], chunks[0])
                     shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])
                     shards = (shard_y, shard_x)
-                    print(
-                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    log.info(
+                        "  🔧 Sharding config",
+                        var=var,
+                        data_shape=data_shape,
+                        chunks=chunks,
+                        shards=shards,
                     )
                 else:
                     # For 1D data, use the full dimension
                     shards = (data_shape[0],)
-                    print(
-                        f"  🔧 Sharding config for {var}: data_shape={data_shape}, chunks={chunks}, shards={shards}"
+                    log.info(
+                        "  🔧 Sharding config",
+                        var=var,
+                        data_shape=data_shape,
+                        chunks=chunks,
+                        shards=shards,
                     )
 
                 # Validate that shards are evenly divisible by chunks
                 for i, (shard_dim, chunk_dim) in enumerate(zip(shards, chunks)):
                     if shard_dim % chunk_dim != 0:
-                        print(
-                            f"  ⚠️  Warning: Shard dimension {shard_dim} not evenly divisible by chunk dimension {chunk_dim} at axis {i}"
+                        log.warning(
+                            "  ⚠️  Warning: Shard dimension not evenly divisible by chunk dimension",
+                            shard_dim=shard_dim,
+                            chunk_dim=chunk_dim,
+                            axis=i,
                         )
 
             encoding[var] = {
@@ -1564,7 +1621,7 @@ def _load_existing_dataset(path: str) -> xr.Dataset | None:
                 decode_coords="all",
             )
     except Exception as e:
-        print(f"Warning: Could not open existing dataset at {path}: {e}")
+        log.warning("Could not open existing dataset at path", path=path, error=str(e))
     return None
 
 
@@ -1670,7 +1727,10 @@ def _add_grid_mapping_variable(
             attrs=grid_mapping_attrs,
         )
     else:
-        print(f"  Creating new grid_mapping variable '{grid_mapping_var_name}'")
+        log.info(
+            "  Creating new grid_mapping variable",
+            grid_mapping_var_name=grid_mapping_var_name,
+        )
 
         grid_mapping_attrs = base_attrs.copy()
 
@@ -1692,7 +1752,7 @@ def _add_grid_mapping_variable(
         if not utils.is_grid_mapping_variable(overview_ds, var_name):
             if "grid_mapping" not in overview_ds[var_name].attrs:
                 overview_ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
-                print(f"  Added grid_mapping attribute to {var_name}")
+                log.info(f"Added grid_mapping attribute to {var_name}")
 
 
 def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:

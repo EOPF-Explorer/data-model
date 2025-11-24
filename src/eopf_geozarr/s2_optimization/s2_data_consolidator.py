@@ -2,10 +2,9 @@
 Data consolidation logic for reorganizing S2 structure.
 """
 
-from typing import Dict, Tuple
+from typing import Any
 
 import xarray as xr
-from typing import Dict, List, Tuple
 
 
 class S2DataConsolidator:
@@ -13,11 +12,11 @@ class S2DataConsolidator:
 
     def __init__(self, dt_input: xr.DataTree):
         self.dt_input = dt_input
-        self.measurements_data = {}
-        self.geometry_data = {}
-        self.meteorology_data = {}
+        self.measurements_data: dict[int, Any] = {}
+        self.geometry_data: dict[str, Any] = {}
+        self.meteorology_data: dict[str, Any] = {}
 
-    def consolidate_all_data(self) -> Tuple[Dict, Dict, Dict]:
+    def consolidate_all_data(self) -> tuple[dict, dict, dict]:
         """
         Consolidate all data into three main categories.
 
@@ -84,8 +83,8 @@ class S2DataConsolidator:
 
                 # Extract only native bands for this resolution
                 for band in ds.data_vars:
-                    self.measurements_data[res_num]['bands'][band] = ds[band]
-    
+                    self.measurements_data[res_num]["bands"][band] = ds[band]
+
     def _extract_quality_data(self) -> None:
         """Extract quality mask data."""
         quality_base = "/quality/mask"
@@ -96,10 +95,12 @@ class S2DataConsolidator:
 
             if group_path in self.dt_input.groups:
                 ds = self.dt_input[group_path].to_dataset()
-                
+
                 for band in ds.data_vars:
-                    self.measurements_data[res_num]['quality'][f'quality_{band}'] = ds[band]
-    
+                    self.measurements_data[res_num]["quality"][f"quality_{band}"] = ds[
+                        band
+                    ]
+
     def _extract_detector_footprints(self) -> None:
         """Extract detector footprint data."""
         footprint_base = "/conditions/mask/detector_footprint"
@@ -110,11 +111,13 @@ class S2DataConsolidator:
 
             if group_path in self.dt_input.groups:
                 ds = self.dt_input[group_path].to_dataset()
-                
+
                 for band in ds.data_vars:
-                    var_name = f'detector_footprint_{band}'
-                    self.measurements_data[res_num]['detector_footprints'][var_name] = ds[band]
-    
+                    var_name = f"detector_footprint_{band}"
+                    self.measurements_data[res_num]["detector_footprints"][var_name] = (
+                        ds[band]
+                    )
+
     def _extract_atmosphere_data(self) -> None:
         """Extract atmosphere quality data (aot, wvp) - native at 20m."""
         atm_base = "/quality/atmosphere"
@@ -179,7 +182,7 @@ class S2DataConsolidator:
                 self.meteorology_data[f"ecmwf_{var_name}"] = ds[var_name]
 
 
-def create_consolidated_dataset(data_dict: Dict, resolution: int) -> xr.Dataset:
+def create_consolidated_dataset(data_dict: dict, resolution: int) -> xr.Dataset:
     """
     Create a consolidated dataset from categorized data.
 

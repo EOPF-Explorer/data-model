@@ -87,6 +87,7 @@ Full support for AWS S3 and S3-compatible storage with automatic credential dete
 ## Quick Example
 
 ```python
+# test: skip
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 

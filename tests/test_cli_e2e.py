@@ -6,9 +6,7 @@ from the analysis notebook:
 docs/analysis/eopf-geozarr/EOPF_Sentinel2_ZarrV3_geozarr_compliant.ipynb
 """
 
-import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -18,16 +16,9 @@ import xarray as xr
 class TestCLIEndToEnd:
     """End-to-end CLI tests with real data."""
 
-    @pytest.fixture
-    def temp_output_dir(self):  # type: ignore[no-untyped-def]
-        """Create a temporary directory for test outputs."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
     @pytest.mark.slow
     @pytest.mark.network
-    def test_cli_convert_real_sentinel2_data(self, temp_output_dir: str) -> None:
+    def test_cli_convert_real_sentinel2_data(self, tmp_path: Path) -> None:
         """
         Test CLI conversion using real Sentinel-2 data from the notebook.
 
@@ -42,7 +33,7 @@ class TestCLIEndToEnd:
             "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/"
             "tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
         )
-        output_path = Path(temp_output_dir) / "s2b_geozarr_cli_test.zarr"
+        output_path = tmp_path / "s2b_geozarr_cli_test.zarr"
 
         # Groups to convert (from the notebook)
         groups = [
@@ -123,7 +114,7 @@ class TestCLIEndToEnd:
 
         # Verify info output contains expected information
         info_output = result_info.stdout
-        assert "Total groups:" in info_output, "Info should show total groups count"
+        assert "Total groups" in info_output, "Info should show total groups count"
         assert "Group structure:" in info_output, "Info should show group structure"
         assert "/measurements" in info_output, "Should find measurements group"
 
@@ -289,7 +280,7 @@ class TestCLIEndToEnd:
 
     @pytest.mark.slow
     @pytest.mark.network
-    def test_cli_convert_with_crs_groups(self, temp_output_dir: str) -> None:
+    def test_cli_convert_with_crs_groups(self, tmp_path: Path) -> None:
         """
         Test CLI conversion with --crs-groups option using real Sentinel-2 data.
 
@@ -301,7 +292,7 @@ class TestCLIEndToEnd:
             "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/"
             "tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
         )
-        output_path = Path(temp_output_dir) / "s2b_geozarr_crs_groups_test.zarr"
+        output_path = tmp_path / "s2b_geozarr_crs_groups_test.zarr"
 
         # Groups to convert
         groups = ["/measurements/reflectance/r10m"]
@@ -383,11 +374,11 @@ class TestCLIEndToEnd:
 
         print("✅ CLI convert with --crs-groups test completed successfully")
 
-    def test_cli_crs_groups_empty_list(self, temp_output_dir: str) -> None:
+    def test_cli_crs_groups_empty_list(self, tmp_path: str) -> None:
         """Test CLI with --crs-groups but no groups specified (empty list)."""
         # Create a minimal test dataset
-        test_input = Path(temp_output_dir) / "test_input.zarr"
-        test_output = Path(temp_output_dir) / "test_output.zarr"
+        test_input = Path(tmp_path) / "test_input.zarr"
+        test_output = Path(tmp_path) / "test_output.zarr"
 
         # Create a simple test dataset
         import numpy as np

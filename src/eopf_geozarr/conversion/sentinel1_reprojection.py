@@ -8,8 +8,11 @@ to geographic coordinates (lat/lon) using Ground Control Points (GCPs).
 import numpy as np
 import rasterio
 import rioxarray  # noqa: F401  # Import to enable .rio accessor
+import structlog
 import xarray as xr
 from rasterio.warp import Resampling, calculate_default_transform, reproject
+
+log = structlog.get_logger()
 
 
 def reproject_sentinel1_with_gcps(
@@ -41,7 +44,7 @@ def reproject_sentinel1_with_gcps(
     xr.Dataset
         Reprojected dataset with x/y coordinates in target CRS and proper nodata handling
     """
-    print(f"Reprojecting Sentinel-1 data to {target_crs} using GCPs...")
+    log.info("Reprojecting Sentinel-1 data using GCPs", target_crs=target_crs)
 
     # Set up GCPs from the GCP dataset
     gcps = _create_gcps_from_dataset(ds_gcp)
@@ -58,7 +61,7 @@ def reproject_sentinel1_with_gcps(
     if nodata_value is None:
         nodata_value = _determine_nodata_value(ds[first_var])
 
-    print(f"Using nodata value: {nodata_value}")
+    log.info("Using nodata value", nodata_value=nodata_value)
 
     # Calculate the target transform and dimensions
     transform, width, height = calculate_default_transform(
@@ -69,8 +72,8 @@ def reproject_sentinel1_with_gcps(
         gcps=gcps,
     )
 
-    print(f"Calculated target dimensions: {width} x {height}")
-    print(f"Transform: {transform}")
+    log.info("Calculated target dimensions", width=width, height=height)
+    log.info("Transform", transform=str(transform))
 
     # Create target coordinate arrays
     target_coords = _create_target_coordinates(transform, width, height, target_crs)
@@ -78,7 +81,7 @@ def reproject_sentinel1_with_gcps(
     # Reproject all data variables
     reprojected_data_vars = {}
     for var_name in data_vars:
-        print(f"  Reprojecting variable: {var_name}")
+        log.info("  Reprojecting variable", var_name=var_name)
         reprojected_var = _reproject_data_variable(
             ds[var_name],
             gcps,
@@ -99,7 +102,7 @@ def reproject_sentinel1_with_gcps(
     # Set CRS information
     reprojected_ds = reprojected_ds.rio.write_crs(target_crs)
 
-    print(f"✅ Successfully reprojected Sentinel-1 data to {target_crs}")
+    log.info("✅ Successfully reprojected Sentinel-1 data", target_crs=target_crs)
     return reprojected_ds
 
 
@@ -129,7 +132,7 @@ def _create_gcps_from_dataset(
         )
         gcps.append(gcp)
 
-    print(f"Created {len(gcps)} Ground Control Points")
+    log.info("Created Ground Control Points", count=len(gcps))
     return gcps
 
 

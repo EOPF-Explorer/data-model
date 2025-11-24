@@ -59,6 +59,7 @@ graph TB
 The main conversion engine orchestrates the transformation process:
 
 ```python
+# test: skip
 def create_geozarr_dataset(
     dt_input: xr.DataTree,
     groups: List[str],
@@ -102,8 +103,9 @@ Core processing algorithms:
 **Chunking:**
 
 ```python
+# test: skip
 def calculate_aligned_chunk_size(
-    dimension_size: int, 
+    dimension_size: int,
     target_chunk_size: int
 ) -> int
 ```
@@ -111,8 +113,9 @@ def calculate_aligned_chunk_size(
 **Downsampling:**
 
 ```python
+# test: skip
 def downsample_2d_array(
-    data: np.ndarray, 
+    data: np.ndarray,
     factor: int = 2
 ) -> np.ndarray
 ```
@@ -218,6 +221,7 @@ y_attrs = {
 Each dataset includes proper grid mapping information:
 
 ```python
+# test: skip
 grid_mapping_attrs = {
     'grid_mapping_name': 'transverse_mercator',  # or appropriate mapping
     'projected_crs_name': crs.to_string(),
@@ -232,6 +236,7 @@ grid_mapping_attrs = {
 GeoZarr-compliant multiscales structure:
 
 ```python
+# test: skip
 multiscales = [{
     'version': '0.4',
     'name': group_name,
@@ -289,6 +294,7 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 **Band-by-Band Processing:**
 
 ```python
+# test: skip
 def write_dataset_band_by_band_with_validation(
     ds: xr.Dataset,
     output_path: str,
@@ -317,6 +323,7 @@ def write_dataset_band_by_band_with_validation(
 The library provides a unified interface for different storage backends:
 
 ```python
+# test: skip
 def get_storage_options(path: str, **kwargs) -> Optional[Dict[str, Any]]:
     """Get storage options based on path type."""
     if is_s3_path(path):
@@ -336,6 +343,7 @@ def get_storage_options(path: str, **kwargs) -> Optional[Dict[str, Any]]:
 **Configuration:**
 
 ```python
+# test: skip
 s3_options = {
     'key': os.environ.get('AWS_ACCESS_KEY_ID'),
     'secret': os.environ.get('AWS_SECRET_ACCESS_KEY'),

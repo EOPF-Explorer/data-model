@@ -1,0 +1,76 @@
+{
+  "zarr_format": 3,
+  "node_type": "group",
+  "attributes": {
+    "zarr_conventions_version": "0.1.0",
+    "zarr_conventions": {
+      "d35379db-88df-4056-af3a-620245f8e347": {
+        "version": "0.1.0",
+        "schema": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1.0/schema.json",
+        "name": "multiscales",
+        "description": "Multiscale layout of zarr datasets",
+        "spec": "https://github.com/zarr-conventions/multiscales/blob/v0.1.0/README.md"
+      },
+      "f17cb550-5864-4468-aeb7-f3180cfb622f": {
+        "version": "0.1.0",
+        "schema": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v0.1.0/schema.json",
+        "name": "geo-proj",
+        "description": "Coordinate reference system information for geospatial data",
+        "spec": "https://github.com/zarr-experimental/geo-proj/blob/v0.1.0/README.md"
+      }
+    },
+    "multiscales": {
+      "layout": [
+        {
+          "group": "r10m",
+          "scale": [1.0, 1.0],
+          "factors": [1.0, 1.0],
+          "proj:transform": [10.0, 0.0, 500000.0, 0.0, -10.0, 5000000.0]
+        },
+        {
+          "group": "r20m",
+          "from_group": "r10m",
+          "scale": [2.0, 2.0],
+          "translation": [0.0, 0.0],
+          "factors": [2.0, 2.0],
+          "proj:transform": [20.0, 0.0, 500000.0, 0.0, -20.0, 5000000.0]
+        },
+        {
+          "group": "r60m",
+          "from_group": "r10m",
+          "scale": [6.0, 6.0],
+          "translation": [0.0, 0.0],
+          "factors": [6.0, 6.0],
+          "proj:transform": [60.0, 0.0, 500000.0, 0.0, -60.0, 5000000.0]
+        },
+        {
+          "group": "r120m",
+          "from_group": "r60m",
+          "scale": [2.0, 2.0],
+          "translation": [0.0, 0.0],
+          "factors": [12.0, 12.0],
+          "proj:transform": [120.0, 0.0, 500000.0, 0.0, -120.0, 5000000.0]
+        },
+        {
+          "group": "r360m",
+          "from_group": "r120m",
+          "scale": [3.0, 3.0],
+          "translation": [0.0, 0.0],
+          "factors": [36.0, 36.0],
+          "proj:transform": [360.0, 0.0, 500000.0, 0.0, -360.0, 5000000.0]
+        },
+        {
+          "group": "r720m",
+          "from_group": "r360m",
+          "scale": [2.0, 2.0],
+          "translation": [0.0, 0.0],
+          "factors": [72.0, 72.0],
+          "proj:transform": [720.0, 0.0, 500000.0, 0.0, -720.0, 5000000.0]
+        }
+      ]
+    },
+    "proj:code": "EPSG:32633",
+    "proj:spatial_dimensions": ["Y", "X"],
+    "proj:bbox": [500000.0, 4900000.0, 600000.0, 5000000.0]
+  }
+}

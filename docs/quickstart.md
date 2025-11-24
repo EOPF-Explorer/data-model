@@ -30,6 +30,7 @@ That's it! The converter will:
 For programmatic usage with custom parameters:
 
 ```python
+# test: skip
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 

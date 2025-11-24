@@ -9,6 +9,7 @@ Practical examples demonstrating common use cases for the EOPF GeoZarr library.
 Convert a local EOPF dataset to GeoZarr format:
 
 ```python
+# test: skip
 import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 
