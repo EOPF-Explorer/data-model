@@ -6,6 +6,7 @@ import importlib.util
 import time
 from typing import Any, Dict
 
+from pyproj import CRS
 import structlog
 import xarray as xr
 
@@ -37,13 +38,12 @@ class S2OptimizedConverter:
         # Initialize components - streaming is always enabled
         self.pyramid_creator = S2MultiscalePyramid(enable_sharding, spatial_chunk)
         self.validator = S2OptimizationValidator()
+        self.crs: CRS | None = None
 
     def convert_s2_optimized(
         self,
         dt_input: xr.DataTree,
         output_path: str,
-        create_geometry_group: bool = True,
-        create_meteorology_group: bool = True,
         validate_output: bool = True,
         verbose: bool = False,
     ) -> xr.DataTree:
@@ -75,14 +75,15 @@ class S2OptimizedConverter:
             raise ValueError("Input dataset is not a Sentinel-2 product")
 
         # Step 1: Process data while preserving original structure
-        log.info("Step 1: Processing data with original structure preserved...")
+        log.info("Step 1: Preparing data (getting CRS, etc.)...")
+        self._init_crs_for_groups(dt_input)
 
         # Step 2: Create multiscale pyramids for each group in the original structure
         log.info(
             "Step 2: Creating multiscale pyramids (preserving original hierarchy)..."
         )
         datasets = self.pyramid_creator.create_multiscale_from_datatree(
-            dt_input, output_path, verbose
+            dt_input, output_path, verbose, self.crs
         )
         log.info(f"  Created multiscale pyramids for {len(datasets)} groups")
 
@@ -109,6 +110,27 @@ class S2OptimizedConverter:
             self._print_optimization_summary(dt_input, result_dt, output_path)
 
         return result_dt
+    
+    def _init_crs_for_groups(self, dt: xr.DataTree) -> None:
+        epsg: int | None = None
+        
+        # For CPM >= 2.6.0, the EPSG code is stored in attributes
+        epsg_CPM_260 = dt.attrs.get("other_metadata", {}).get("horizontal_CRS_code", None)
+        if epsg_CPM_260 is not None:
+            epsg = int(epsg_CPM_260.split(":")[-1])
+        # For older CPM versions, look for proj:epsg attribute in data variables
+        else:
+            for group in dt.groups.values():
+                for var in group.to_dataset().data_vars.values():
+                    if "proj:epsg" in var.attrs:
+                        epsg = int(var.attrs["proj:epsg"])
+                        break
+                if epsg is not None:
+                    break
+        
+        self.crs = CRS.from_epsg(epsg) if epsg is not None else None
+        self.pyramid_creator.crs = self.crs
+        
 
     def _is_sentinel2_dataset(self, dt: xr.DataTree) -> bool:
         """Check if dataset is Sentinel-2."""
