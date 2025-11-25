@@ -116,6 +116,9 @@ def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> S3FsOptions:
         "client_kwargs": {
             "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
         },
+        "s3_additional_kwargs": {
+            "StorageClass": "EXPRESS_ONEZONE",
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -209,6 +212,9 @@ def write_s3_json_metadata(
         "client_kwargs": {
             "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
         },
+        "s3_additional_kwargs": {
+            "StorageClass": "EXPRESS_ONEZONE",
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -251,6 +257,9 @@ def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> dict[str, Any]:
         "client_kwargs": {
             "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
         },
+        "s3_additional_kwargs": {
+            "StorageClass": "EXPRESS_ONEZONE",
+        },
     }
 
     # Add custom endpoint support (e.g., for OVH Cloud)
@@ -292,6 +301,9 @@ def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool:
         "asynchronous": False,  # Force synchronous mode
         "client_kwargs": {
             "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        },
+        "s3_additional_kwargs": {
+            "StorageClass": "EXPRESS_ONEZONE",
         },
     }
 
@@ -379,6 +391,9 @@ def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, str | None
             "asynchronous": False,  # Force synchronous mode
             "client_kwargs": {
                 "region_name": os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            },
+            "s3_additional_kwargs": {
+                "StorageClass": "EXPRESS_ONEZONE",
             },
         }
 

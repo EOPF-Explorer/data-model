@@ -117,6 +117,7 @@ class S3FsOptions(TypedDict):
     client_kwargs: NotRequired[S3ClientOptions]
     endpoint_url: NotRequired[str]
     asynchronous: NotRequired[bool]
+    s3_additional_kwargs: NotRequired[dict[str, Any]]
 
 
 class S3Credentials(TypedDict):
