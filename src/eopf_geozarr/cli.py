@@ -1183,14 +1183,6 @@ def add_s2_optimization_commands(subparsers: Any) -> None:
         help="Compression level 1-9 (default: 3)",
     )
     s2_parser.add_argument(
-        "--skip-geometry", action="store_true", help="Skip creating geometry group"
-    )
-    s2_parser.add_argument(
-        "--skip-meteorology",
-        action="store_true",
-        help="Skip creating meteorology group",
-    )
-    s2_parser.add_argument(
         "--skip-validation", action="store_true", help="Skip output validation"
     )
     s2_parser.add_argument(
@@ -1229,8 +1221,6 @@ def convert_s2_optimized_command(args: Any) -> int:
             enable_sharding=args.enable_sharding,
             spatial_chunk=args.spatial_chunk,
             compression_level=args.compression_level,
-            create_geometry_group=not args.skip_geometry,
-            create_meteorology_group=not args.skip_meteorology,
             validate_output=not args.skip_validation,
             verbose=args.verbose,
         )

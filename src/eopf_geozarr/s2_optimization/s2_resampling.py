@@ -102,7 +102,6 @@ class S2ResamplingEngine:
         # Take the center pixel of each block as representative
         center_h = block_h // 2
         center_w = block_w // 2
-
         if data.ndim == 3:
             # Sample every block_h and block_w pixels, starting from center
             downsampled = data.values[:, center_h::block_h, center_w::block_w]

@@ -46,6 +46,7 @@ class S2MultiscalePyramid:
         self.enable_sharding = enable_sharding
         self.spatial_chunk = spatial_chunk
         self.resampler = S2ResamplingEngine()
+        self.crs: CRS | None = None
 
         # Define pyramid levels: resolution in meters
         self.pyramid_levels = {
@@ -58,7 +59,7 @@ class S2MultiscalePyramid:
         }
 
     def create_multiscale_from_datatree(
-        self, dt_input: xr.DataTree, output_path: str, verbose: bool = False
+        self, dt_input: xr.DataTree, output_path: str, verbose: bool = False, crs: CRS | None = None
     ) -> dict[str, dict]:
         """
         Create multiscale versions preserving original structure.
@@ -68,12 +69,10 @@ class S2MultiscalePyramid:
             dt_input: Input DataTree with original structure
             output_path: Base output path
             verbose: Enable verbose logging
-
         Returns:
             Dictionary of processed groups
         """
         processed_groups = {}
-
         # Step 1: Copy all original groups as-is
         for group_path in dt_input.groups:
             if group_path == ".":
@@ -90,11 +89,11 @@ class S2MultiscalePyramid:
             # Skip empty groups
             if not dataset.data_vars:
                 if verbose:
-                    log.info("  Skipping empty group: {}", group_path=group_path)
+                    log.info("  Skipping empty group", group_path=group_path)
                 continue
 
             if verbose:
-                log.info("  Copying original group: {}", group_path=group_path)
+                log.info("  Copying original group", group_path=group_path)
 
             output_group_path = f"{output_path}{group_path}"
 
@@ -124,7 +123,6 @@ class S2MultiscalePyramid:
             # Only process groups under /measurements/reflectance
             if not group_path.startswith(base_path):
                 continue
-
             group_name = group_path.split("/")[-1]
             if group_name in ["r10m", "r20m", "r60m"]:
                 resolution_groups[group_name] = processed_groups[group_path]
@@ -132,7 +130,6 @@ class S2MultiscalePyramid:
         # Find the coarsest resolution (r60m > r20m > r10m)
         source_dataset = None
         source_resolution = None
-
         for res in ["r60m", "r20m", "r10m"]:
             if res in resolution_groups:
                 source_dataset = resolution_groups[res]
@@ -160,7 +157,7 @@ class S2MultiscalePyramid:
             r120m_path = f"{base_path}/r120m"
             factor = 120 // source_resolution
             if verbose:
-                log.info("    Creating r120m with factor {}", factor=factor)
+                log.info("    Creating r120m with factor", factor=factor)
 
             r120m_dataset = self._create_downsampled_resolution_group(
                 source_dataset, factor=factor, verbose=verbose
@@ -169,7 +166,7 @@ class S2MultiscalePyramid:
             if r120m_dataset and len(r120m_dataset.data_vars) > 0:
                 output_path_120 = f"{output_path}{r120m_path}"
                 if verbose:
-                    log.info("    Writing r120m to {}", output_path_120=output_path_120)
+                    log.info("    Writing r120m", output_path_120=output_path_120)
                 encoding_120 = self._create_measurements_encoding(r120m_dataset)
                 ds_120 = self._stream_write_dataset(
                     r120m_dataset, output_path_120, encoding_120
@@ -191,7 +188,7 @@ class S2MultiscalePyramid:
                         output_path_360 = f"{output_path}{r360m_path}"
                         if verbose:
                             log.info(
-                                "    Writing r360m to {}",
+                                "    Writing r360m",
                                 output_path_360=output_path_360,
                             )
                         encoding_360 = self._create_measurements_encoding(r360m_dataset)
@@ -215,7 +212,7 @@ class S2MultiscalePyramid:
                                 output_path_720 = f"{output_path}{r720m_path}"
                                 if verbose:
                                     log.info(
-                                        "    Writing r720m to {}",
+                                        "    Writing r720m",
                                         output_path_720=output_path_720,
                                     )
                                 encoding_720 = self._create_measurements_encoding(
@@ -240,7 +237,7 @@ class S2MultiscalePyramid:
                             log.info("    r360m dataset is empty, skipping")
                 except Exception as e:
                     log.warning(
-                        "Could not create r360m for {}: {}", base_path=base_path, e=e
+                        "Could not create r360m", base_path=base_path, e=e
                     )
                 # Track r120m for multiscales if created
                 if verbose:
@@ -249,7 +246,7 @@ class S2MultiscalePyramid:
                 if verbose:
                     log.info("    r120m dataset is empty, skipping")
         except Exception as e:
-            log.warning("Could not create r120m for {}: {}", base_path=base_path, e=e)
+            log.warning("Could not create r120m", base_path=base_path, e=e)
 
         # Step 3: Add multiscales metadata to parent groups
         if verbose:
@@ -262,7 +259,7 @@ class S2MultiscalePyramid:
             processed_groups[base_path] = dt_multiscale
         except Exception as e:
             log.warning(
-                "Could not add multiscales metadata to {}: {}", base_path=base_path, e=e
+                "Could not add multiscales metadata to parent groups", base_path=base_path, e=e
             )
 
         return processed_groups
@@ -302,7 +299,6 @@ class S2MultiscalePyramid:
         """Create a downsampled version of a dataset by given factor."""
         if not source_dataset or len(source_dataset.data_vars) == 0:
             return xr.Dataset()
-
         # Get reference dimensions
         ref_var = next(iter(source_dataset.data_vars.values()))
         if ref_var.ndim < 2:
@@ -319,13 +315,11 @@ class S2MultiscalePyramid:
         downsampled_coords = self._create_downsampled_coordinates(
             source_dataset, target_height, target_width, factor
         )
-
         # Downsample all variables using existing lazy operations
         lazy_vars = {}
         for var_name, var_data in source_dataset.data_vars.items():
             if var_data.ndim < 2:
                 continue
-
             lazy_downsampled = self._create_lazy_downsample_operation_from_existing(
                 var_data, target_height, target_width
             )
@@ -403,15 +397,16 @@ class S2MultiscalePyramid:
             )
             return existing_ds
 
-        log.info("    Streaming computation and write to {}", dataset_path=dataset_path)
-        log.info("Variables", variables=list(dataset.data_vars.keys()))
+        log.info("    Streaming computation and write", dataset_path=dataset_path)
+        log.info("    Variables", variables=list(dataset.data_vars.keys()))
 
         # Rechunk dataset to align with encoding when sharding is enabled
         if self.enable_sharding:
             dataset = self._rechunk_dataset_for_encoding(dataset, encoding)
 
-        # Add the geo metadata before writing
-        self._write_geo_metadata(dataset)
+        # Add the geo metadata before writing for /measurements/ groups
+        if "/measurements/" in dataset_path:
+            self._write_geo_metadata(dataset)
 
         # Write with streaming computation and progress tracking
         # The to_zarr operation will trigger all lazy computations
@@ -430,14 +425,14 @@ class S2MultiscalePyramid:
             try:
                 distributed.progress(write_job, notebook=False)
             except Exception as e:
-                log.warning("Could not display progress bar: {}", e=e)
+                log.warning("Could not display progress bar", e=e)
                 write_job.compute()
         else:
             log.info("    Writing zarr file...")
             write_job.compute()
 
         log.info(
-            "    ✅ Streaming write complete for dataset {}", dataset_path=dataset_path
+            "    Streaming write complete for dataset", dataset_path=dataset_path
         )
         return dataset
 
@@ -740,7 +735,6 @@ class S2MultiscalePyramid:
             "resampling_method": "average",
             "tile_matrix_limits": tile_matrix_limits,
         }
-
         # Create parent group path
         parent_group_path = f"{output_path}{base_path}"
         dt_multiscale = xr.DataTree()
@@ -766,19 +760,13 @@ class S2MultiscalePyramid:
     ) -> None:
         """Write geographic metadata to the dataset."""
         # Implementation same as original
-        crs = None
-        for var in dataset.data_vars.values():
-            if hasattr(var, "rio") and var.rio.crs:
-                crs = var.rio.crs
-                break
-            elif "proj:epsg" in var.attrs:
-                epsg = var.attrs["proj:epsg"]
-                crs = CRS.from_epsg(epsg)
-                break
+        if self.crs is None:
+            log.warning("CRS is not set, skipping geo metadata writing")
+            return
 
-        if crs is not None:
+        if self.crs is not None:
             dataset.rio.write_crs(
-                crs, grid_mapping_name=grid_mapping_var_name, inplace=True
+                self.crs, grid_mapping_name=grid_mapping_var_name, inplace=True
             )
             dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
             dataset.attrs["grid_mapping"] = grid_mapping_var_name
