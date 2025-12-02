@@ -112,12 +112,19 @@ def calculate_aligned_chunk_size(
 
 **Downsampling:**
 
+The library uses xarray's built-in `.coarsen()` method for efficient downsampling operations, providing better integration with lazy evaluation and memory management.
+
+**Sentinel-2 Optimization:**
+
+The S2 optimization module uses a functional programming approach with stateless functions for improved testability and maintainability:
+
 ```python
 # test: skip
-def downsample_2d_array(
-    data: np.ndarray,
-    factor: int = 2
-) -> np.ndarray
+def convert_s2_optimized(
+    dt_input: xr.DataTree,
+    output_path: str,
+    **kwargs
+) -> xr.DataTree
 ```
 
 ### 4. Command Line Interface (`cli.py`)
@@ -422,7 +429,17 @@ Flexible configuration through:
 - Real dataset processing
 - Cloud environment testing
 
-### 3. Validation Tests
+### 3. Local Test Data
+
+The library uses an efficient testing approach with **lightweight JSON-based Zarr groups** that contain only the structure and metadata (no chunked array data). This provides:
+
+- **Faster Test Execution**: Tests run locally without downloading large datasets
+- **No Remote Dependencies**: Eliminates need for network access during testing
+- **Lightweight Fixtures**: JSON files define Zarr group structure using `pydantic-zarr`
+
+Test fixtures are created from JSON schemas stored in `tests/test_data_api/{s1_examples,s2_examples}/` directories, making the test suite both comprehensive and efficient.
+
+### 4. Validation Tests
 
 - GeoZarr specification compliance
 - Metadata accuracy verification

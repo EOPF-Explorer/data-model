@@ -226,9 +226,16 @@ In this case `lat` is both a coordinate variable and a data variable.
 
 ## Multiscale Dataset 
 
+This implementation supports **two multiscales metadata conventions**:
+
+1. **[Zarr Multiscales Convention](https://github.com/zarr-conventions/multiscales)**: An experimental convention for describing multi-resolution data with simple scale and translation metadata
+2. **GeoZarr 0.4 TileMatrixSet Specification**: The experimental GeoZarr specification using OGC TileMatrixSet definitions for geospatial data
+
+Both conventions can be generated simultaneously, providing flexibility for different use cases and ensuring compatibility with various tools and workflows.
+
 Downsampling is a process in which a collection of localized data points is resampled on a subset of its original sampling locations. 
 
-In the case of arrays, downsampling generally reduces an array's shape along at least one dimension. To downsample the 
+In the case of arrays, downsampling generally reduces an array's shape along at least one dimension. To downsample the
 contents of a Dataset `D` and generate a new Dataset `E`, all of the coordinate variable - data variable 
 relationships in `D` must be preserved in `E`. If `D/data` is a data variable with dimension names (`"a"` , `"b"`), then `D/a` and `D/b` are coordinate variables with shapes aligned to the dimensions of `D/data`. If we downsample `D/data` and assign the result to `E/data`, we must also generate (e.g., by more downsampling) coordinate variables `E/a` and `E/b` so that `E` can be a valid Dataset according to the relevant [Dataset members rule](#members).
 

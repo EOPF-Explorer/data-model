@@ -101,6 +101,39 @@ The converter supports multiscale datasets, creating overview levels with /2 dow
 
 The converter maintains the native coordinate reference system (CRS) of the dataset, avoiding reprojection to Web Mercator.
 
+## Sentinel-2 Optimized Conversion
+
+The Sentinel-2 optimized converter creates an efficient multiscale pyramid by **reusing the original multi-resolution data** (r10m, r20m, r60m) without duplication, and adding coarser overview levels (r120m, r360m, r720m) for efficient visualization at lower resolutions.
+
+### Key Capabilities
+
+- **Smart Resolution Consolidation**: Combines Sentinel-2's native multi-resolution structure (10m, 20m, 60m) into a unified multiscale pyramid
+- **Non-Duplicative Downsampling**: Reuses original resolution data instead of recreating it, adding only the coarser levels (120m, 360m, 720m)
+- **Variable-Aware Processing**: Applies appropriate resampling methods for different data types (reflectance, classification, quality masks, probabilities)
+- **Efficient Testing**: Improved test infrastructure for faster local development
+
+### Usage Example
+
+```python
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+import xarray as xr
+
+# Load Sentinel-2 DataTree
+dt_input = xr.open_datatree("path/to/s2/product.zarr", engine="zarr")
+
+# Convert to optimized multiscale structure
+dt_optimized = convert_s2_optimized(
+    dt_input=dt_input,
+    output_path="path/to/output/optimized.zarr",
+    enable_sharding=True,
+    spatial_chunk=256,
+    compression_level=3,
+    validate_output=True
+)
+```
+
+The result is a space-efficient multiscale pyramid: `/measurements/reflectance/{r10m, r20m, r60m, r120m, r360m, r720m}` where the native resolutions are preserved as-is and only the coarser levels are computed.
+
 ## Error Handling
 
 The converter includes robust error handling and retry logic for network operations, ensuring reliable processing even in challenging environments.
