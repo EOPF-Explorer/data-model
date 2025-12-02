@@ -76,19 +76,32 @@ for group_name in dt_geozarr.groups:
 
 ### Sentinel-2 Band Analysis
 
-Access and analyze specific bands from the converted dataset:
+> **Note on V0 vs V1:** This example shows both V0 (deprecated) and V1 (current) approaches. See [converter documentation](converter.md#v0-vs-v1-converter-key-differences) for structural differences.
+
+#### V1 Approach (Recommended - `convert_s2_optimized`)
+
+Access bands from the consolidated pyramid structure:
 
 ```python
 import xarray as xr
 import matplotlib.pyplot as plt
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
-# Open converted GeoZarr dataset
-dt = xr.open_datatree("s2_l2a_geozarr.zarr", engine="zarr")
+# Convert using V1 optimizer (recommended)
+dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr")
+dt = convert_s2_optimized(
+    dt_input=dt_input,
+    output_path="s2_l2a_v1.zarr",
+    spatial_chunk=256
+)
 
-# Access 10m resolution native data
-ds_10m = dt["/measurements/r10m/0"].ds
+# Access data from different resolution levels
+ds_10m = dt["/measurements/reflectance/r10m"].ds   # Native 10m
+ds_20m = dt["/measurements/reflectance/r20m"].ds   # Native 20m
+ds_60m = dt["/measurements/reflectance/r60m"].ds   # Native 60m
+ds_120m = dt["/measurements/reflectance/r120m"].ds # Computed 120m
 
-# Extract RGB bands for visualization
+# Extract RGB bands for visualization (10m resolution)
 red = ds_10m["b04"]    # Red band
 green = ds_10m["b03"]  # Green band  
 blue = ds_10m["b02"]   # Blue band
@@ -96,22 +109,47 @@ blue = ds_10m["b02"]   # Blue band
 # Create RGB composite
 rgb = xr.concat([red, green, blue], dim="band")
 
-# Plot the result
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+# Plot comparison of different resolutions
+fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
-# Native resolution
-rgb.plot.imshow(ax=ax1, robust=True)
-ax1.set_title("Native Resolution (10m)")
+# 10m resolution
+rgb.plot.imshow(ax=axes[0], robust=True)
+axes[0].set_title("10m Resolution (Native)")
 
-# Overview level 1
-ds_overview = dt["/measurements/r10m/1"].ds
-rgb_overview = xr.concat([ds_overview["b04"], ds_overview["b03"], ds_overview["b02"]], dim="band")
-rgb_overview.plot.imshow(ax=ax2, robust=True)
-ax2.set_title("Overview Level 1 (20m)")
+# 20m resolution (reused native data)
+rgb_20m = xr.concat([ds_20m["b04"], ds_20m["b03"], ds_20m["b02"]], dim="band")
+rgb_20m.plot.imshow(ax=axes[1], robust=True)
+axes[1].set_title("20m Resolution (Native)")
+
+# 60m resolution (reused native data)
+rgb_60m = xr.concat([ds_60m["b04"], ds_60m["b03"], ds_60m["b02"]], dim="band")
+rgb_60m.plot.imshow(ax=axes[2], robust=True)
+axes[2].set_title("60m Resolution (Native)")
 
 plt.tight_layout()
 plt.show()
 ```
+
+#### V0 Approach (Deprecated - `create_geozarr_dataset`)
+
+For reference, the V0 structure with nested pyramid levels:
+
+```python
+import xarray as xr
+import matplotlib.pyplot as plt
+
+# Open V0 converted GeoZarr dataset (deprecated structure)
+dt = xr.open_datatree("s2_l2a_v0.zarr", engine="zarr")
+
+# Access 10m resolution with nested pyramid levels
+ds_10m_native = dt["/measurements/r10m/0"].ds    # Level 0: native 10m
+ds_10m_level1 = dt["/measurements/r10m/1"].ds    # Level 1: downsampled to ~20m
+ds_10m_level2 = dt["/measurements/r10m/2"].ds    # Level 2: downsampled to ~40m
+
+# Note: This creates redundant data since r10m/1 ≈ r20m/0
+```
+
+> **Migration Note:** V0 is deprecated. Use V1 (`convert_s2_optimized`) for new projects.
 
 ## Cloud Storage Examples
 
