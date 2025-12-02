@@ -122,32 +122,48 @@ print(dt)
 # Check multiscales metadata
 print(dt.attrs.get('multiscales', 'No multiscales found'))
 
-# Examine a specific resolution level
-ds_native = dt["/measurements/r10m/0"].ds  # Native resolution
-ds_overview = dt["/measurements/r10m/1"].ds  # First overview
+# Examine resolution levels
+# Note: Structure depends on converter version (see converter.md for V0 vs V1 differences)
+# V0 (deprecated): /measurements/r10m/0, /measurements/r10m/1, etc.
+# V1 (current): /measurements/reflectance/r10m, /measurements/reflectance/r20m, etc.
 
-print(f"Native shape: {ds_native.dims}")
-print(f"Overview shape: {ds_overview.dims}")
+# Example for V0 structure:
+if "/measurements/r10m/0" in dt.groups:
+    ds_native = dt["/measurements/r10m/0"].ds
+    print(f"Native shape: {ds_native.dims}")
+
+# Example for V1 structure:
+if "/measurements/reflectance/r10m" in dt.groups:
+    ds_10m = dt["/measurements/reflectance/r10m"].ds
+    ds_20m = dt["/measurements/reflectance/r20m"].ds
+    print(f"10m resolution: {ds_10m.dims}")
+    print(f"20m resolution: {ds_20m.dims}")
 ```
 
 ## Common Patterns
 
 ### Sentinel-2 Data
 
-For Sentinel-2 L2A data with standard resolution groups:
+For Sentinel-2 L2A data, use the optimized V1 converter (recommended):
 
 ```python
-dt_geozarr = create_geozarr_dataset(
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+
+# Recommended: Use V1 optimized converter for Sentinel-2
+dt_optimized = convert_s2_optimized(
     dt_input=dt,
-    groups=[
-        "/measurements/r10m",  # 10m bands (B02, B03, B04, B08)
-        "/measurements/r20m",  # 20m bands (B05, B06, B07, B8A, B11, B12)
-        "/measurements/r60m"   # 60m bands (B01, B09, B10)
-    ],
-    output_path="s2_geozarr.zarr",
-    spatial_chunk=4096
+    output_path="s2_optimized.zarr",
+    spatial_chunk=256,
+    enable_sharding=True
 )
 ```
+
+The V1 converter automatically:
+- Reuses native resolutions (r10m, r20m, r60m) without duplication
+- Adds coarser levels (r120m, r360m, r720m) for efficient visualization
+- Applies variable-aware resampling for different data types
+
+> **Note:** For details on V0 vs V1 differences, see the [converter documentation](converter.md#v0-vs-v1-converter-key-differences).
 
 ### Large Datasets with Dask
 
