@@ -101,9 +101,67 @@ The converter supports multiscale datasets, creating overview levels with /2 dow
 
 The converter maintains the native coordinate reference system (CRS) of the dataset, avoiding reprojection to Web Mercator.
 
-## Sentinel-2 Optimized Conversion
+## Sentinel-2 Optimized Conversion (V1)
 
-The Sentinel-2 optimized converter creates an efficient multiscale pyramid by **reusing the original multi-resolution data** (r10m, r20m, r60m) without duplication, and adding coarser overview levels (r120m, r360m, r720m) for efficient visualization at lower resolutions.
+The Sentinel-2 optimized converter (`convert_s2_optimized`) represents the refined approach (V1) that creates an efficient multiscale pyramid by **reusing the original multi-resolution data** (r10m, r20m, r60m) without duplication, and adding coarser overview levels (r120m, r360m, r720m) for efficient visualization at lower resolutions.
+
+### V0 vs V1 Converter: Key Differences
+
+Understanding the structural differences between the old (V0) and new (V1) converter approaches:
+
+#### V0 Approach (Deprecated - `create_geozarr_dataset`)
+
+Creates **pyramids within each resolution group**:
+
+```
+output.zarr/
+└── measurements/
+    └── reflectance/
+        ├── r10m/
+        │   ├── 0/          # Native 10m data
+        │   ├── 1/          # Downsampled to 20m
+        │   ├── 2/          # Downsampled to 40m
+        │   ├── 3/          # Downsampled to 80m
+        │   ├── 4/          # Downsampled to 160m
+        │   └── 5/          # Downsampled to 320m
+        ├── r20m/
+        │   ├── 0/          # Native 20m data
+        │   ├── 1/          # Downsampled to 40m
+        │   ├── 2/          # Downsampled to 80m
+        │   ├── 3/          # Downsampled to 160m
+        │   └── 4/          # Downsampled to 320m
+        └── r60m/
+            ├── 0/          # Native 60m data
+            ├── 1/          # Downsampled to 120m
+            └── 2/          # Downsampled to 240m
+```
+
+**Issues with V0:**
+- Creates redundant data at overlapping resolutions (e.g., r10m/1 ≈ r20m/0)
+- Inefficient storage due to duplication
+- Complex hierarchy with nested levels within each resolution group
+
+#### V1 Approach (Current - `convert_s2_optimized`)
+
+Creates a **consolidated pyramid** by reusing native resolutions and adding coarser levels:
+
+```
+output.zarr/
+└── measurements/
+    └── reflectance/
+        ├── r10m/           # Native 10m data (reused as-is)
+        ├── r20m/           # Native 20m data (reused as-is)
+        ├── r60m/           # Native 60m data (reused as-is)
+        ├── r120m/          # Computed from r60m (2x downsampling)
+        ├── r360m/          # Computed from r120m (3x downsampling)
+        └── r720m/          # Computed from r360m (2x downsampling)
+```
+
+**Benefits of V1:**
+- No data duplication - native resolutions are reused directly
+- More efficient storage
+- Simpler, flatter hierarchy
+- Natural fit for Sentinel-2's multi-resolution data model
 
 ### Key Capabilities
 
@@ -111,6 +169,8 @@ The Sentinel-2 optimized converter creates an efficient multiscale pyramid by **
 - **Non-Duplicative Downsampling**: Reuses original resolution data instead of recreating it, adding only the coarser levels (120m, 360m, 720m)
 - **Variable-Aware Processing**: Applies appropriate resampling methods for different data types (reflectance, classification, quality masks, probabilities)
 - **Efficient Testing**: Improved test infrastructure for faster local development
+
+> **Note:** The V0 converter (`create_geozarr_dataset`) is deprecated and will be removed in future versions. All new projects should use the V1 converter (`convert_s2_optimized`).
 
 ### Usage Example
 
