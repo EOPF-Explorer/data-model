@@ -157,6 +157,18 @@ output.zarr/
         └── r720m/          # Computed from r360m (2x downsampling)
 ```
 
+**Why these specific resolution levels?**
+
+The resolution levels are chosen to balance data preservation with storage optimization:
+
+- **Native ESA resolutions (10m, 20m, 60m)**: These are the original resolutions delivered by ESA for Sentinel-2 data and are reused as-is to preserve the source data without any loss
+- **Computed overview levels (120m, 360m, 720m)**: These additional levels were specifically chosen because their downsampling factors allow the data to be chunked and sharded in complete pieces, ensuring:
+  - **120m** (2x from 60m): Standard doubling for the first computed overview
+  - **360m** (3x from 120m): Selected for optimal chunking alignment
+  - **720m** (2x from 360m): Final level for global-scale visualization
+
+This approach maintains the integrity of ESA's original multi-resolution data while adding computationally efficient overview levels for performance at coarser scales.
+
 **Benefits of V1:**
 - No data duplication - native resolutions are reused directly
 - More efficient storage

@@ -117,6 +117,56 @@ def create_multiscale_from_datatree(
 ) -> dict[str, dict]
 ```
 
+**Parameters:**
+
+- `dt_input` (xr.DataTree): Input DataTree containing native resolution groups (e.g., r10m, r20m, r60m)
+- `output_path` (str): Output path for the multiscale dataset
+- `enable_sharding` (bool): Enable Zarr v3 sharding for improved performance
+- `spatial_chunk` (int): Spatial chunk size for arrays
+- `crs` (CRS | None, optional): Coordinate reference system. If None, CRS is extracted from input
+
+**Returns:**
+
+- `dict[str, dict]`: Nested dictionary structure organizing the multiscale levels:
+  ```python
+  {
+      "measurements": {
+          "reflectance": {
+              "r10m": Dataset,   # Native 10m resolution
+              "r20m": Dataset,   # Native 20m resolution
+              "r60m": Dataset,   # Native 60m resolution
+              "r120m": Dataset,  # Computed 120m overview
+              "r360m": Dataset,  # Computed 360m overview
+              "r720m": Dataset   # Computed 720m overview
+          }
+      }
+  }
+  ```
+
+**Example:**
+
+```python
+# test: skip
+from eopf_geozarr.s2_optimization.s2_multiscale import create_multiscale_from_datatree
+from pyproj import CRS
+import xarray as xr
+
+# Load Sentinel-2 DataTree with native resolutions
+dt = xr.open_datatree("s2_input.zarr", engine="zarr")
+
+# Create multiscale pyramid
+multiscale_dict = create_multiscale_from_datatree(
+    dt_input=dt,
+    output_path="s2_multiscale.zarr",
+    enable_sharding=True,
+    spatial_chunk=256,
+    crs=CRS.from_epsg(32633)  # UTM Zone 33N
+)
+
+# Access specific resolution level
+r360m_reflectance = multiscale_dict["measurements"]["reflectance"]["r360m"]
+```
+
 **Note:** The S2 optimization uses xarray's built-in `.coarsen()` method for efficient downsampling operations, providing better integration with lazy evaluation and memory management.
 
 ## Conversion Functions
