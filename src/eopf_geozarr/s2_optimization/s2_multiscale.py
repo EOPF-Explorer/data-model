@@ -18,7 +18,7 @@ from eopf_geozarr.conversion.geozarr import (
     _create_tile_matrix_limits,
     create_native_crs_tile_matrix_set,
 )
-from eopf_geozarr.data_api.geozarr.multiscales import (
+from eopf_geozarr.data_api.geozarr.multiscales.zcm import (
     MULTISCALE_CONVENTION,
     ScaleLevelJSON,
 )
@@ -519,11 +519,13 @@ def add_multiscales_metadata_to_parent(
             scale_levels.append(
                 {
                     "asset": str(overview_level["level"]),
-                    "scale": (overview_level["scale_relative"],),
-                    "translation": (
-                        overview_level["translation_relative"],
-                        overview_level["translation_relative"],
-                    ),
+                    "transform": {
+                        "scale": (overview_level["scale_relative"],),
+                        "translation": (
+                            overview_level["translation_relative"],
+                            overview_level["translation_relative"],
+                        ),
+                    },
                 }
             )
         multiscales["zarr_conventions_version"] = "0.1.0"

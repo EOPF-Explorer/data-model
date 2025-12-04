@@ -5,7 +5,7 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import structlog
 import xarray as xr
@@ -15,6 +15,7 @@ from pyproj import CRS
 
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
+from eopf_geozarr.data_api.geozarr.v3 import MultiscaleGroup
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
@@ -151,9 +152,10 @@ def convert_s2(
     # Step 4: Validation
     if validate_output:
         log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
+        try:
+            validate_multiscale_group(zarr.open_group(output_path, mode="r"))
+        except ValueError as e:
+            log.warning("Validation failed", error=str(e))
 
     # Create result DataTree
     result_dt = create_result_datatree(output_path)
@@ -236,9 +238,10 @@ def convert_s2_optimized(
     # Step 4: Validation
     if validate_output:
         log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
+        try:
+            validate_multiscale_group(zarr.open_group(output_path, mode="r"))
+        except ValueError as e:
+            log.warning("Validation failed", error=str(e))
 
     # Create result DataTree
     result_dt = create_result_datatree(output_path)
@@ -362,17 +365,12 @@ def is_sentinel2_dataset(group: zarr.Group) -> bool:
     return isinstance(model, Sentinel2Root)
 
 
-def validate_optimized_dataset(dataset_path: str) -> dict[str, Any]:
+def validate_multiscale_group(group: zarr.Group) -> None:
     """
-    Validate an optimized Sentinel-2 dataset.
+    Validate that all the members of the measurements/reflectance group are
+    multiscale groups
 
     Args:
         dataset_path: Path to the optimized dataset
-
-    Returns:
-        Validation results dictionary
     """
-    results = {"is_valid": True, "issues": [], "warnings": [], "summary": {}}
-
-    # Placeholder for validation logic
-    return results
+    MultiscaleGroup.from_zarr(group["measurements/reflectance"])

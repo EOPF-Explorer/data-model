@@ -76,7 +76,7 @@ def test_multiscales_round_trip(example_group) -> None:
     """
     Ensure that we can round-trip multiscale metadata through the `Multiscales` model.
     """
-    from eopf_geozarr.data_api.geozarr.common import TMSMultiscales
+    from eopf_geozarr.data_api.geozarr.multiscales.tms import Multiscales
 
     source_untyped = GroupSpec_V3.from_zarr(example_group)
     flat = source_untyped.to_flat()

@@ -1,19 +1,21 @@
 """Common utilities for GeoZarr data API."""
 
+from __future__ import annotations
+
 import io
 import urllib
 import urllib.request
 from dataclasses import dataclass
-from typing import Annotated, Any, Mapping, Self, TypeGuard, TypeVar
+from typing import Annotated, Any, Mapping, NotRequired, Self, TypeGuard, TypeVar
 from urllib.error import URLError
 
 from cf_xarray.utils import parse_cf_standard_name_table
 from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.experimental.missing_sentinel import MISSING
-from typing_extensions import Final, Literal, Protocol, runtime_checkable
+from typing_extensions import Final, Literal, Protocol, TypedDict, runtime_checkable
 
+from eopf_geozarr.data_api.geozarr.multiscales import tms, zcm
 from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
-from eopf_geozarr.data_api.geozarr.types import ResamplingMethod
 
 
 @dataclass(frozen=True)
@@ -220,57 +222,6 @@ class DataArrayLike(Protocol):
     attributes: BaseDataArrayAttrs
 
 
-class TileMatrixLimit(BaseModel):
-    """"""
-
-    tileMatrix: str
-    minTileCol: int
-    minTileRow: int
-    maxTileCol: int
-    maxTileRow: int
-
-
-class TileMatrix(BaseModel):
-    id: str
-    scaleDenominator: float
-    cellSize: float
-    pointOfOrigin: tuple[float, float]
-    tileWidth: int
-    tileHeight: int
-    matrixWidth: int
-    matrixHeight: int
-
-
-class TileMatrixSet(BaseModel):
-    id: str
-    title: str | None = None
-    crs: str | None = None
-    supportedCRS: str | None = None
-    orderedAxes: tuple[str, str] | None = None
-    tileMatrices: tuple[TileMatrix, ...]
-
-
-class TMSMultiscales(BaseModel, extra="allow"):
-    """
-    Multiscale metadata for a GeoZarr dataset based on the OGC TileMatrixSet standard
-
-    Attributes
-    ----------
-    tile_matrix_set : str
-        The tile matrix set identifier for the multiscale dataset.
-    resampling_method : ResamplingMethod
-        The name of the resampling method for the multiscale dataset.
-    tile_matrix_set_limits : dict[str, TileMatrixSetLimits] | None, optional
-        The tile matrix set limits for the multiscale dataset.
-    """
-
-    tile_matrix_set: TileMatrixSet
-    resampling_method: ResamplingMethod
-    # TODO: ensure that the keys match tile_matrix_set.tileMatrices[$index].id
-    # TODO: ensure that the keys match the tileMatrix attribute
-    tile_matrix_limits: dict[str, TileMatrixLimit] | None = None
-
-
 class DatasetAttrs(BaseModel, extra="allow"):
     """
     Attributes for a GeoZarr dataset.
@@ -295,24 +246,99 @@ def check_grid_mapping(model: TDataSetLike) -> TDataSetLike:
     """
     if model.members is not None:
         for name, member in model.members.items():
-            if member.attributes.grid_mapping not in model.members:
+            if (
+                hasattr(member.attributes, "grid_mapping")
+                and isinstance(member.attributes.grid_mapping, str)
+                and member.attributes.grid_mapping not in model.members
+            ):
                 msg = f"Grid mapping variable '{member.attributes.grid_mapping}' declared by {name} was not found in dataset members"
                 raise ValueError(msg)
     return model
 
 
-class MultiscaleGroupAttrs(BaseModel, extra="allow"):
+class MultiscaleMeta(BaseModel):
+    """
+    Attributes for Multiscale GeoZarr dataset. Can be a mix of TMS multiscale
+    or ZCM multiscale metadata
+    """
+
+    layout: tuple[zcm.ScaleLevel, ...] | MISSING = MISSING
+    resampling_method: str | MISSING = MISSING
+    tile_matrix_set: tms.TileMatrixSet | MISSING = MISSING
+    tile_matrix_limits: dict[str, tms.TileMatrixLimit] | MISSING = MISSING
+
+    @model_validator(mode="after")
+    def valid_zcm(self) -> Self:
+        """
+        Ensure that the ZCM metadata, if present, is valid
+        """
+        if self.layout is not MISSING:
+            zcm.Multiscales(**self.model_dump())
+
+        return self
+
+    @model_validator(mode="after")
+    def valid_tms(self) -> Self:
+        """
+        Ensure that the TMS metadata, if present, is valid
+        """
+        if self.tile_matrix_set is not MISSING:
+            tms.Multiscales(**self.model_dump())
+
+        return self
+
+
+class MultiscaleGroupAttrs(BaseModel):
     """
     Attributes for Multiscale GeoZarr dataset.
 
-    A Multiscale dataset is a collection of Dataet
+    A Multiscale dataset is a collection of Dataset
 
     Attributes
     ----------
     multiscales: MultiscaleAttrs
     """
 
-    multiscales: TMSMultiscales
+    zarr_conventions_version: Literal["0.1.0"] | MISSING = MISSING
+    zarr_conventions: zcm.MultiscaleConventions | MISSING = MISSING
+    multiscales: MultiscaleMeta
+
+    _zcm_multiscales: zcm.Multiscales | None = None
+    _tms_multiscales: tms.Multiscales | None = None
+
+    @model_validator(mode="after")
+    def valid_zcm_and_tms(self) -> Self:
+        """
+        Ensure that the ZCM metadata, if present, is valid, and that TMS metadata, if present,
+        is valid, and that at least one of the two is present.
+        """
+        if self.zarr_conventions is not MISSING:
+            self._zcm_multiscales = zcm.Multiscales(**self.multiscales.model_dump())
+        if self.multiscales.tile_matrix_limits is not MISSING:
+            self._tms_multiscales = tms.Multiscales(
+                tile_matrix_limits=self.multiscales.tile_matrix_limits,
+                resampling_method=self.multiscales.resampling_method,  # type: ignore[arg-type]
+                tile_matrix_set=self.multiscales.tile_matrix_set,
+            )
+        if self._tms_multiscales is None and self._zcm_multiscales is None:
+            raise ValueError(
+                "Either ZCM multiscales or TMS multiscales must be present"
+            )
+        return self
+
+    @property
+    def multiscale_meta(self) -> MultiscaleMetaDict:
+        out: MultiscaleMetaDict = {}
+        if self._tms_multiscales is not None:
+            out["tms"] = self._tms_multiscales
+        if self._zcm_multiscales is not None:
+            out["zcm"] = self._zcm_multiscales
+        return out
+
+
+class MultiscaleMetaDict(TypedDict):
+    tms: NotRequired[tms.Multiscales]
+    zcm: NotRequired[zcm.Multiscales]
 
 
 def is_none(data: object) -> TypeGuard[None]:

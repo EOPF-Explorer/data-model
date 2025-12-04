@@ -3,7 +3,7 @@ import pytest
 from pydantic import ValidationError
 from pydantic_zarr.core import tuplify_json
 
-from eopf_geozarr.data_api.geozarr.multiscales import Multiscales, ScaleLevel
+from eopf_geozarr.data_api.geozarr.multiscales.zcm import Multiscales, ScaleLevel
 
 from .conftest import MULTISCALES_EXAMPLES
 

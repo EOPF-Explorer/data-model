@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import Self
 
 from pydantic import model_validator
 from pydantic_zarr.v3 import ArraySpec, GroupSpec
@@ -10,6 +10,7 @@ from pydantic_zarr.v3 import ArraySpec, GroupSpec
 from eopf_geozarr.data_api.geozarr.common import (
     BaseDataArrayAttrs,
     DatasetAttrs,
+    GridMappingAttrs,
     MultiscaleGroupAttrs,
     check_grid_mapping,
     check_valid_coordinates,
@@ -37,7 +38,21 @@ class DataArray(ArraySpec[BaseDataArrayAttrs]):
         return self.dimension_names
 
 
-class Dataset(GroupSpec[DatasetAttrs, GroupSpec[Any, Any] | DataArray]):
+class GridMappingVariable(ArraySpec[GridMappingAttrs]):
+    """
+    A Zarr array that represents a GeoZarr grid mapping variable.
+
+    The attributes of this array are defined in `GridMappingAttrs`.
+
+    References
+    ----------
+    https://cfconventions.org/Data/cf-conventions/cf-conventions-1.12/cf-conventions.html#grid-mappings-and-projections
+    """
+
+    ...
+
+
+class Dataset(GroupSpec[DatasetAttrs, DataArray | GridMappingVariable]):
     """
     A GeoZarr Dataset.
     """
@@ -58,11 +73,11 @@ class Dataset(GroupSpec[DatasetAttrs, GroupSpec[Any, Any] | DataArray]):
         return check_valid_coordinates(self)
 
     @model_validator(mode="after")
-    def validate_grid_mapping(self) -> Self:
+    def check_grid_mapping(self) -> Self:
         return check_grid_mapping(self)
 
 
-class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, DataArray | GroupSpec[Any, Any]]):
+class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, Dataset]):
     """
     A GeoZarr Multiscale Group.
     """
