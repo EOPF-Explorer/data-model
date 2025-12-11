@@ -84,6 +84,8 @@ Verify your GeoZarr dataset meets the specification:
 eopf-geozarr validate output.zarr
 ```
 
+Note: `eopf-geozarr convert-s2-optimized` validates its output by default and fails on validation errors. Use `--skip-validation` to opt out.
+
 Or in Python:
 
 ```python

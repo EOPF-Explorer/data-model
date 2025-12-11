@@ -5,7 +5,7 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import structlog
 import xarray as xr
@@ -21,6 +21,15 @@ from eopf_geozarr.data_api.s2 import Sentinel2Root
 from .s2_multiscale import create_multiscale_from_datatree
 
 log = structlog.get_logger()
+
+
+def _validate_or_raise(dataset_path: str) -> None:
+    """Validate an optimized dataset and raise on failure."""
+    is_valid, issues = validate_optimized_dataset(dataset_path)
+    if is_valid:
+        return
+    details = "; ".join(issues) if issues else "unknown validation error"
+    raise RuntimeError(f"Optimized dataset validation failed: {details}")
 
 
 def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
@@ -151,9 +160,7 @@ def convert_s2(
     # Step 4: Validation
     if validate_output:
         log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
+        _validate_or_raise(output_path)
 
     # Create result DataTree
     result_dt = create_result_datatree(output_path)
@@ -236,9 +243,7 @@ def convert_s2_optimized(
     # Step 4: Validation
     if validate_output:
         log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
+        _validate_or_raise(output_path)
 
     # Create result DataTree
     result_dt = create_result_datatree(output_path)
@@ -360,16 +365,30 @@ def is_sentinel2_dataset(group: zarr.Group) -> bool:
     return isinstance(model, Sentinel2Root)
 
 
-def validate_optimized_dataset(dataset_path: str) -> dict[str, Any]:
-    """
-    Validate an optimized Sentinel-2 dataset.
+def validate_optimized_dataset(dataset_path: str) -> tuple[bool, list[str]]:
+    """Validate optimized S2 output (cheap structural checks).
 
     Args:
-        dataset_path: Path to the optimized dataset
+        dataset_path: Output dataset path/URL.
 
     Returns:
-        Validation results dictionary
+        `(is_valid, issues)` where `issues` is a list of strings.
     """
-    return {"is_valid": True, "issues": [], "warnings": [], "summary": {}}
+    try:
+        dt = xr.open_datatree(
+            dataset_path,
+            engine="zarr",
+            chunks="auto",
+            storage_options=get_storage_options(dataset_path),
+        )
+    except Exception as e:
+        return False, [f"failed to open output dataset: {e}"]
 
-    # Placeholder for validation logic
+    groups = [g for g in getattr(dt, "groups", []) if g != "."]
+    issues: list[str] = []
+    if not groups:
+        issues.append("no groups found in output dataset")
+    if not any(g.startswith("/measurements/reflectance/") for g in groups):
+        issues.append("no resolution groups found under /measurements/reflectance")
+
+    return not issues, issues

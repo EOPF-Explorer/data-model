@@ -86,9 +86,7 @@ class TestCRSInitialization:
         # Create a DataTree with CPM 2.6.0+ style metadata (string format)
         dt = xr.DataTree()
         dt.attrs = {
-            "other_metadata": {
-                "horizontal_CRS_code": "EPSG:32632"  # String format
-            }
+            "other_metadata": {"horizontal_CRS_code": "EPSG:32632"}  # String format
         }
 
         crs = initialize_crs_from_dataset(dt)
@@ -101,9 +99,7 @@ class TestCRSInitialization:
         # Create a DataTree with invalid EPSG code
         dt = xr.DataTree()
         dt.attrs = {
-            "other_metadata": {
-                "horizontal_CRS_code": 999999  # Invalid EPSG code
-            }
+            "other_metadata": {"horizontal_CRS_code": 999999}  # Invalid EPSG code
         }
 
         # Should fall through to other methods or return None
@@ -281,6 +277,63 @@ class TestConvenienceFunction:
         call_kwargs = mock_multiscale.call_args.kwargs
         assert call_kwargs["enable_sharding"] is False
         assert call_kwargs["spatial_chunk"] == 512
+
+
+@pytest.mark.parametrize(
+    ("validate_output", "should_call_validate", "should_raise"),
+    [
+        (True, True, True),
+        (False, False, False),
+    ],
+)
+def test_validation_is_fatal_by_default_unless_skipped(
+    validate_output: bool,
+    should_call_validate: bool,
+    should_raise: bool,
+) -> None:
+    dt_input = xr.DataTree()
+
+    with (
+        patch(
+            "eopf_geozarr.s2_optimization.s2_converter.validate_optimized_dataset",
+            return_value=(False, ["bad output"]),
+        ) as mock_validate,
+        patch(
+            "eopf_geozarr.s2_optimization.s2_converter.get_zarr_group",
+            return_value=Mock(),
+        ),
+        patch(
+            "eopf_geozarr.s2_optimization.s2_converter.is_sentinel2_dataset",
+            return_value=True,
+        ),
+        patch(
+            "eopf_geozarr.s2_optimization.s2_converter.create_multiscale_from_datatree",
+            return_value={},
+        ),
+        patch("eopf_geozarr.s2_optimization.s2_converter.simple_root_consolidation"),
+        patch(
+            "eopf_geozarr.s2_optimization.s2_converter.create_result_datatree",
+            return_value=xr.DataTree(),
+        ),
+    ):
+
+        def call() -> None:
+            convert_s2_optimized(
+                dt_input,
+                output_path="/test/path",
+                enable_sharding=False,
+                spatial_chunk=256,
+                compression_level=3,
+                validate_output=validate_output,
+            )
+
+        if should_raise:
+            with pytest.raises(RuntimeError):
+                call()
+        else:
+            call()
+
+        assert mock_validate.called is should_call_validate
 
 
 if __name__ == "__main__":
