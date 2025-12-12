@@ -158,15 +158,21 @@ class TestS2MultiscaleIntegration:
 
         return dt
 
+    @patch("eopf_geozarr.s2_optimization.s2_multiscale.add_multiscales_metadata_to_parent")
     @patch("eopf_geozarr.s2_optimization.s2_multiscale.stream_write_dataset")
     def test_create_multiscale_from_datatree(
-        self, mock_write: Any, simple_datatree: xr.DataTree, tmp_path: Path
+        self,
+        mock_write: Any,
+        mock_add_multiscales: Any,
+        simple_datatree: xr.DataTree,
+        tmp_path: Path,
     ) -> None:
         """Test multiscale creation from DataTree."""
         output_path = str(tmp_path / "output.zarr")
 
         # Mock the write to avoid actual file I/O
         mock_write.return_value = xr.Dataset({"b02": xr.DataArray([1, 2, 3])})
+        mock_add_multiscales.return_value = xr.DataTree()
 
         # Capture log output using structlog's testing context manager
         with capture_logs() as cap_logs:
@@ -185,6 +191,29 @@ class TestS2MultiscaleIntegration:
         # Optionally verify log messages (cap_logs contains all logged events)
         # With verbose=False, there won't be many logs, but we can check the structure
         assert isinstance(cap_logs, list)
+
+    @patch("eopf_geozarr.s2_optimization.s2_multiscale.add_multiscales_metadata_to_parent")
+    @patch("eopf_geozarr.s2_optimization.s2_multiscale.stream_write_dataset")
+    def test_create_multiscale_from_datatree_raises_when_multiscales_metadata_missing(
+        self,
+        mock_write: Any,
+        mock_add_multiscales: Any,
+        simple_datatree: xr.DataTree,
+        tmp_path: Path,
+    ) -> None:
+        output_path = str(tmp_path / "output.zarr")
+
+        mock_write.return_value = xr.Dataset({"b02": xr.DataArray([1, 2, 3])})
+        mock_add_multiscales.return_value = None
+
+        result = create_multiscale_from_datatree(
+            simple_datatree,
+            output_path,
+            enable_sharding=True,
+            spatial_chunk=256,
+        )
+
+        assert "/measurements/reflectance" not in result
 
 
 if __name__ == "__main__":
