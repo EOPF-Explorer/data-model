@@ -172,6 +172,7 @@ module = ["zarr.*", "xarray.*", "rioxarray.*", "cf_xarray.*", "dask.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+filterwarnings = "error"
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]

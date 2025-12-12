@@ -13,7 +13,6 @@ import xarray as xr
 from dask import delayed
 from dask.array import from_delayed
 from pydantic.experimental.missing_sentinel import MISSING
-from pyproj import CRS
 
 from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.conversion.geozarr import (
@@ -35,6 +34,8 @@ from .s2_resampling import determine_variable_type, downsample_variable
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
+
+    from pyproj import CRS
 
     from eopf_geozarr.types import OverviewLevelJSON
 
@@ -168,7 +169,8 @@ def create_multiscale_from_datatree(
         factor = 120 // source_resolution
         log.info("Creating r120m with factor {}", factor=factor)
 
-        r120m_dataset = create_downsampled_resolution_group(source_dataset, factor=factor)
+        r120m_dataset = create_downsampled_resolution_group(source_dataset, factor=factor).compute()
+
         if r120m_dataset and len(r120m_dataset.data_vars) > 0:
             output_path_120 = f"{output_path}{r120m_path}"
             log.info("Writing r120m to {}", output_path_120=output_path_120)
@@ -188,7 +190,9 @@ def create_multiscale_from_datatree(
                 r360m_path = f"{base_path}/r360m"
                 log.info("Creating r360m with factor 3")
 
-                r360m_dataset = create_downsampled_resolution_group(r120m_dataset, factor=3)
+                r360m_dataset = create_downsampled_resolution_group(
+                    r120m_dataset, factor=3
+                ).compute()
 
                 if r360m_dataset and len(r360m_dataset.data_vars) > 0:
                     output_path_360 = f"{output_path}{r360m_path}"
@@ -211,7 +215,9 @@ def create_multiscale_from_datatree(
                         r720m_path = f"{base_path}/r720m"
                         log.info("    Creating r720m with factor 2")
 
-                        r720m_dataset = create_downsampled_resolution_group(r360m_dataset, factor=2)
+                        r720m_dataset = create_downsampled_resolution_group(
+                            r360m_dataset, factor=2
+                        ).compute()
 
                         if r720m_dataset and len(r720m_dataset.data_vars) > 0:
                             output_path_720 = f"{output_path}{r720m_path}"
@@ -745,6 +751,8 @@ def stream_write_dataset(
             engine="zarr",
             chunks={},
             decode_coords="all",
+            decode_timedelta=True,
+            consolidated=False,
         )
 
     log.info("Streaming computation and write to {}", dataset_path=dataset_path)
@@ -769,7 +777,6 @@ def stream_write_dataset(
         encoding=encoding,
         compute=False,  # Create job first for progress tracking
     )
-    write_job = write_job.persist()
 
     if DISTRIBUTED_AVAILABLE:
         try:
@@ -789,8 +796,9 @@ def stream_write_dataset(
 
 def write_geo_metadata(
     dataset: xr.Dataset,
+    crs: CRS,
+    *,
     grid_mapping_var_name: str = "spatial_ref",
-    crs: CRS | None = None,
 ) -> None:
     """
     Write geographic metadata to the dataset.
@@ -800,25 +808,11 @@ def write_geo_metadata(
         grid_mapping_var_name: Name for grid mapping variable
         crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
     """
-    # Use provided CRS or try to detect from dataset
-    if crs is None:
-        for var in dataset.data_vars.values():
-            if hasattr(var, "rio") and var.rio.crs:
-                crs = var.rio.crs
-                break
-            if "proj:epsg" in var.attrs:
-                epsg = var.attrs["proj:epsg"]
-                crs = CRS.from_epsg(epsg)
-                break
+    dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
+    dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
 
-    if crs is not None:
-        dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
-        dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
-        dataset.attrs["grid_mapping"] = grid_mapping_var_name
-
-        for var in dataset.data_vars.values():
-            var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
-            var.attrs["grid_mapping"] = grid_mapping_var_name
+    for var in dataset.data_vars.values():
+        var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
 
 
 def rechunk_dataset_for_encoding(

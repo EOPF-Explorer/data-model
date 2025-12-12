@@ -13,6 +13,10 @@ from typing import TYPE_CHECKING
 
 import structlog
 import xarray as xr
+from zarr.core.sync import sync
+from zarr.experimental.cache_store import CacheStore
+from zarr.storage import MemoryStore
+from zarr.storage._common import make_store
 
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
@@ -1155,6 +1159,9 @@ def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None
         choices=range(1, 10),
         help="Compression level 1-9 (default: 3)",
     )
+    s2_parser.add_argument(
+        "--omit-nodes", help="The names of groups or arrays to skip.", default="", type=str
+    )
     s2_parser.add_argument("--skip-validation", action="store_true", help="Skip output validation")
     s2_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     s2_parser.add_argument(
@@ -1176,12 +1183,16 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
         # Load input dataset
         log.info("Loading Sentinel-2 dataset from", input_path=args.input_path)
         storage_options = get_storage_options(str(args.input_path))
+        # store = args.input_path
+        store = CacheStore(sync(make_store(args.input_path, mode="r")), cache_store=MemoryStore())
         dt_input = xr.open_datatree(
-            str(args.input_path),
+            store,
             engine="zarr",
             chunks="auto",
             storage_options=storage_options,
         )
+
+        omit_nodes = set(args.omit_nodes.split())
 
         # Convert
         convert_s2_optimized(
@@ -1189,6 +1200,7 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
             output_path=args.output_path,
             enable_sharding=args.enable_sharding,
             spatial_chunk=args.spatial_chunk,
+            omit_nodes=omit_nodes,
             compression_level=args.compression_level,
             validate_output=not args.skip_validation,
         )

@@ -28,7 +28,7 @@ class MultiscaleMeta(BaseModel):
         Ensure that the ZCM metadata, if present, is valid
         """
         if self.layout is not MISSING:
-            zcm.Multiscales(**self.model_dump())
+            zcm.Multiscales(layout=self.layout, resampling_method=self.resampling_method)
 
         return self
 
@@ -38,7 +38,11 @@ class MultiscaleMeta(BaseModel):
         Ensure that the TMS metadata, if present, is valid
         """
         if self.tile_matrix_set is not MISSING:
-            tms.Multiscales(**self.model_dump())
+            tms.Multiscales(
+                tile_matrix_set=self.tile_matrix_set,
+                tile_matrix_limits=self.tile_matrix_limits,
+                resampling_method=self.resampling_method,  # type: ignore[arg-type]
+            )
 
         return self
 

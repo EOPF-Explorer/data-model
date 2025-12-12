@@ -5,6 +5,7 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any, TypedDict
 
 import structlog
@@ -12,18 +13,21 @@ import xarray as xr
 import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
+from zarr.core.sync import sync
+from zarr.storage._common import make_store
 
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
+from eopf_geozarr.zarrio import ChunkEncodingSpec, reencode_group
 
-from .s2_multiscale import create_multiscale_from_datatree
+from .s2_multiscale import create_multiscale_from_datatree, write_geo_metadata
 
 log = structlog.get_logger()
 
 
-def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
+def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS:
     """
     Initialize CRS from dataset by checking data variables.
 
@@ -92,11 +96,7 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
                     log.info("Initialized CRS from EPSG code", epsg=epsg)
                 except Exception:
                     pass
-                else:
-                    return crs
-
-    log.warning("Could not initialize CRS from dataset")
-    return None
+    raise ValueError("No CRS found.")
 
 
 def convert_s2(
@@ -173,6 +173,31 @@ class ConvertS2Params(TypedDict):
     max_retries: int
 
 
+def add_crs_and_grid_mapping(group: zarr.Group, crs: CRS) -> None:
+    """
+    Add crs and grid mapping elements to a dataset.
+    """
+    ds = xr.open_dataset(group.store, group=group.path, engine="zarr", consolidated=False)
+    write_geo_metadata(ds, crs=crs)
+
+    for var in ds.data_vars:
+        new_attrs = ds[var].attrs.copy()
+        new_attrs["coordinates"] = "spatial_ref"
+        group[var].attrs.update(new_attrs | {"grid_mapping": "spatial_ref"})
+
+    group.create_array(
+        "spatial_ref",
+        shape=ds["spatial_ref"].shape,
+        dtype=ds["spatial_ref"].dtype,
+        attributes=ds["spatial_ref"].attrs,
+        compressors=None,
+        filters=None,
+    )
+
+    # Set grid_mapping attribute on the group itself
+    group.attrs.update({"grid_mapping": "spatial_ref"})
+
+
 def convert_s2_optimized(
     dt_input: xr.DataTree,
     *,
@@ -181,6 +206,7 @@ def convert_s2_optimized(
     spatial_chunk: int,
     compression_level: int,
     validate_output: bool,
+    omit_nodes: set[str] | None = None,
     max_retries: int = 3,
 ) -> xr.DataTree:
     """
@@ -199,7 +225,13 @@ def convert_s2_optimized(
         Optimized DataTree
     """
 
+    if omit_nodes is None:
+        omit_nodes = set()
+
     start_time = time.time()
+    zg = get_zarr_group(dt_input)
+    s2root_model = Sentinel2Root.from_zarr(zg)
+    crs = s2root_model.crs
 
     log.info(
         "Starting S2 optimized conversion",
@@ -207,20 +239,57 @@ def convert_s2_optimized(
         output_path=output_path,
     )
     # Validate input is S2
-    if not is_sentinel2_dataset(get_zarr_group(dt_input)):
+    if not is_sentinel2_dataset(zg):
         raise ValueError("Input dataset is not a Sentinel-2 product")
 
-    # Initialize CRS from dataset
-    crs = initialize_crs_from_dataset(dt_input)
+    out_store = sync(make_store(output_path))
 
-    # Step 1: Process data while preserving original structure
-    log.info("Step 1: Processing data with original structure preserved")
+    log.info("Re-encoding source data to Zarr V3")
+
+    # Define a chunk reencoding function based on the requested chunking
+    def chunk_reencoder(array: zarr.Array[Any]) -> ChunkEncodingSpec:
+        group_name = str(Path(array.path).parent)
+        in_measurements_group = (
+            group_name.startswith("r")
+            and group_name.endswith("m")
+            and "/measurements/" in group_name
+        )
+        if in_measurements_group and array.ndim > 0:
+            if array.ndim == 1:
+                return {"write_chunks": (spatial_chunk,)}
+            if array.ndim == 2:
+                return {"write_chunks": (spatial_chunk, spatial_chunk)}
+            return {"write_chunks": (1,) * (array.ndim - 2) + (spatial_chunk, spatial_chunk)}
+        return {"write_chunks": array.chunks}
+
+    out_group = reencode_group(
+        zg,
+        out_store,
+        path="",
+        overwrite=True,
+        chunk_reencoder=chunk_reencoder,
+        omit_nodes=omit_nodes,
+    )
+
+    if "measurements" not in omit_nodes:
+        log.info("Adding CRS elements to datasets in measurements")
+        for _, subgroup in out_group["measurements"].groups():
+            for _, dataset in subgroup.groups():
+                add_crs_and_grid_mapping(dataset, crs=crs)
+
+    if "quality" not in omit_nodes:
+        log.info("Adding CRS elements to quality datasets")
+        for _, subgroup in out_group["quality"].groups():
+            for _, dataset in subgroup.groups():
+                add_crs_and_grid_mapping(dataset, crs=crs)
 
     # Step 2: Create multiscale pyramids for each group in the original structure
-    log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)")
-
+    log.info("Adding multiscale levels")
+    new_dt_input = xr.open_datatree(
+        out_store, engine="zarr", chunks="auto", decode_timedelta=True, consolidated=False
+    )
     datasets = create_multiscale_from_datatree(
-        dt_input,
+        new_dt_input,
         output_path,
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
@@ -341,6 +410,7 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
             engine="zarr",
             chunks="auto",
             storage_options=storage_options,
+            decode_timedelta=True,
         )
     except Exception as e:
         log.warning("Could not open result DataTree", error=str(e))

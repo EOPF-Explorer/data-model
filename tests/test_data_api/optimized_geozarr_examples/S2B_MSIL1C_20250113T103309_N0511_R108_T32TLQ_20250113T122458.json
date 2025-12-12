@@ -29,6 +29,16 @@
                     "endian": "little"
                   },
                   "name": "bytes"
+                },
+                {
+                  "configuration": {
+                    "blocksize": 0,
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": "bitshuffle",
+                    "typesize": 28
+                  },
+                  "name": "blosc"
                 }
               ],
               "data_type": {
@@ -70,6 +80,16 @@
                     "endian": "little"
                   },
                   "name": "bytes"
+                },
+                {
+                  "configuration": {
+                    "blocksize": 0,
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": "bitshuffle",
+                    "typesize": 12
+                  },
+                  "name": "blosc"
                 }
               ],
               "data_type": {
@@ -111,6 +131,16 @@
                     "endian": "little"
                   },
                   "name": "bytes"
+                },
+                {
+                  "configuration": {
+                    "blocksize": 0,
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": "bitshuffle",
+                    "typesize": 8
+                  },
+                  "name": "blosc"
                 }
               ],
               "data_type": "int64",
@@ -127,7 +157,6 @@
             },
             "mean_sun_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
                 "_eopf_attrs": {
                   "coordinates": [
                     "angle"
@@ -164,7 +193,7 @@
                     "blocksize": 0,
                     "clevel": 3,
                     "cname": "zstd",
-                    "shuffle": "shuffle",
+                    "shuffle": "bitshuffle",
                     "typesize": 8
                   },
                   "name": "blosc"
@@ -174,7 +203,7 @@
               "dimension_names": [
                 "angle"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 2
@@ -184,7 +213,6 @@
             },
             "mean_viewing_incidence_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
                 "_eopf_attrs": {
                   "coordinates": [
                     "angle",
@@ -224,7 +252,7 @@
                     "blocksize": 0,
                     "clevel": 3,
                     "cname": "zstd",
-                    "shuffle": "shuffle",
+                    "shuffle": "bitshuffle",
                     "typesize": 8
                   },
                   "name": "blosc"
@@ -235,7 +263,7 @@
                 "band",
                 "angle"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 13,
@@ -246,7 +274,6 @@
             },
             "sun_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
                 "_eopf_attrs": {
                   "coordinates": [
                     "angle",
@@ -288,7 +315,7 @@
                     "blocksize": 0,
                     "clevel": 3,
                     "cname": "zstd",
-                    "shuffle": "shuffle",
+                    "shuffle": "bitshuffle",
                     "typesize": 8
                   },
                   "name": "blosc"
@@ -300,7 +327,7 @@
                 "y",
                 "x"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 2,
@@ -312,7 +339,6 @@
             },
             "viewing_incidence_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
                 "_eopf_attrs": {
                   "coordinates": [
                     "angle",
@@ -360,7 +386,7 @@
                     "blocksize": 0,
                     "clevel": 3,
                     "cname": "zstd",
-                    "shuffle": "shuffle",
+                    "shuffle": "bitshuffle",
                     "typesize": 8
                   },
                   "name": "blosc"
@@ -374,7 +400,7 @@
                 "y",
                 "x"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 13,
@@ -408,6 +434,16 @@
                     "endian": "little"
                   },
                   "name": "bytes"
+                },
+                {
+                  "configuration": {
+                    "blocksize": 0,
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": "bitshuffle",
+                    "typesize": 8
+                  },
+                  "name": "blosc"
                 }
               ],
               "data_type": "int64",
@@ -444,6 +480,16 @@
                     "endian": "little"
                   },
                   "name": "bytes"
+                },
+                {
+                  "configuration": {
+                    "blocksize": 0,
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": "bitshuffle",
+                    "typesize": 8
+                  },
+                  "name": "blosc"
                 }
               ],
               "data_type": "int64",
@@ -533,7 +579,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -615,7 +661,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -697,7 +743,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -779,7 +825,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -821,6 +867,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -857,6 +913,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -940,7 +1006,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1022,7 +1088,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1104,7 +1170,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1186,7 +1252,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1268,7 +1334,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1350,7 +1416,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1392,6 +1458,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -1428,6 +1504,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -1511,7 +1597,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1593,7 +1679,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1675,7 +1761,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1717,6 +1803,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -1753,6 +1849,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -1863,7 +1969,7 @@
                             "blocksize": 0,
                             "clevel": 3,
                             "cname": "zstd",
-                            "shuffle": "shuffle",
+                            "shuffle": "bitshuffle",
                             "typesize": 1
                           },
                           "name": "blosc"
@@ -1905,6 +2011,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -1941,6 +2057,16 @@
                             "endian": "little"
                           },
                           "name": "bytes"
+                        },
+                        {
+                          "configuration": {
+                            "blocksize": 0,
+                            "clevel": 3,
+                            "cname": "zstd",
+                            "shuffle": "bitshuffle",
+                            "typesize": 8
+                          },
+                          "name": "blosc"
                         }
                       ],
                       "data_type": "int64",
@@ -2010,7 +2136,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2060,7 +2185,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2071,7 +2196,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2109,7 +2234,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2159,7 +2283,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2170,7 +2294,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2208,7 +2332,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2258,7 +2381,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2269,7 +2392,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2307,7 +2430,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2357,7 +2479,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2368,7 +2490,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2406,7 +2528,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2456,7 +2577,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2467,7 +2588,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2505,7 +2626,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2555,7 +2675,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2566,7 +2686,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2604,7 +2724,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "isobaricInhPa",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2654,7 +2773,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2665,7 +2784,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2676,7 +2795,6 @@
                 },
                 "isobaricInhPa": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "pressure",
                     "positive": "down",
                     "standard_name": "air_pressure",
@@ -2704,8 +2822,8 @@
                     }
                   ],
                   "data_type": "float64",
-                  "dimension_names": null,
-                  "fill_value": 0.0,
+                  "dimension_names": [],
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -2713,7 +2831,6 @@
                 },
                 "latitude": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "latitude",
                     "standard_name": "latitude",
                     "stored_direction": "decreasing",
@@ -2739,13 +2856,23 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "float64",
                   "dimension_names": [
                     "latitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -2755,7 +2882,6 @@
                 },
                 "longitude": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "longitude",
                     "standard_name": "longitude",
                     "units": "degrees_east"
@@ -2780,13 +2906,23 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "float64",
                   "dimension_names": [
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -2821,7 +2957,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -2857,7 +2993,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -2907,7 +3042,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -2918,7 +3053,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2956,7 +3091,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3006,7 +3140,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3017,7 +3151,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3028,10 +3162,9 @@
                 },
                 "step": {
                   "attributes": {
-                    "dtype": "timedelta64[ns]",
                     "long_name": "time since forecast_reference_time",
                     "standard_name": "forecast_period",
-                    "units": "days"
+                    "units": "minutes"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -3054,7 +3187,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -3090,7 +3223,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3140,7 +3272,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3151,7 +3283,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3162,7 +3294,6 @@
                 },
                 "surface": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "original GRIB coordinate for key: level(surface)",
                     "units": "1"
                   },
@@ -3187,8 +3318,8 @@
                     }
                   ],
                   "data_type": "float64",
-                  "dimension_names": null,
-                  "fill_value": 0.0,
+                  "dimension_names": [],
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3225,7 +3356,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -3263,7 +3394,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -3299,7 +3430,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m**2 s**-2",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3349,7 +3479,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3360,7 +3490,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3386,7 +3516,6 @@
               "members": {
                 "isobaricInhPa": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "pressure",
                     "positive": "down",
                     "standard_name": "air_pressure",
@@ -3414,8 +3543,8 @@
                     }
                   ],
                   "data_type": "float64",
-                  "dimension_names": null,
-                  "fill_value": 0.0,
+                  "dimension_names": [],
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3423,7 +3552,6 @@
                 },
                 "latitude": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "latitude",
                     "standard_name": "latitude",
                     "stored_direction": "decreasing",
@@ -3449,13 +3577,23 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "float64",
                   "dimension_names": [
                     "latitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -3465,7 +3603,6 @@
                 },
                 "longitude": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "longitude",
                     "standard_name": "longitude",
                     "units": "degrees_east"
@@ -3490,13 +3627,23 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "float64",
                   "dimension_names": [
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -3533,7 +3680,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "Pa",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3583,7 +3729,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3594,7 +3740,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3630,7 +3776,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -3666,7 +3812,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "isobaricInhPa",
                     "GRIB_units": "%",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3716,7 +3861,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3727,7 +3872,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3738,10 +3883,9 @@
                 },
                 "step": {
                   "attributes": {
-                    "dtype": "timedelta64[ns]",
                     "long_name": "time since forecast_reference_time",
                     "standard_name": "forecast_period",
-                    "units": "days"
+                    "units": "minutes"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -3764,7 +3908,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -3773,7 +3917,6 @@
                 },
                 "surface": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
                     "long_name": "original GRIB coordinate for key: level(surface)",
                     "units": "1"
                   },
@@ -3798,8 +3941,8 @@
                     }
                   ],
                   "data_type": "float64",
-                  "dimension_names": null,
-                  "fill_value": 0.0,
+                  "dimension_names": [],
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3834,7 +3977,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "kg m**-2",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3884,7 +4026,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3895,7 +4037,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3933,7 +4075,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "kg m**-2",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -3983,7 +4124,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -3994,7 +4135,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4034,7 +4175,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -4070,7 +4211,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m s**-1",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -4120,7 +4260,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -4131,7 +4271,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4169,7 +4309,6 @@
                     "GRIB_totalNumber": 0,
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m s**-1",
-                    "_FillValue": "AAAAAAAA+H8=",
                     "_eopf_attrs": {
                       "coordinates": [
                         "number",
@@ -4219,7 +4358,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 4
                       },
                       "name": "blosc"
@@ -4230,7 +4369,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4270,7 +4409,7 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
+                  "dimension_names": [],
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -4438,41 +4577,41 @@
                   {
                     "cellSize": 0.0,
                     "id": "r10m",
-                    "matrixHeight": 45,
-                    "matrixWidth": 45,
+                    "matrixHeight": 6,
+                    "matrixWidth": 6,
                     "pointOfOrigin": [
                       0.0,
                       0.0
                     ],
                     "scaleDenominator": 0.0,
-                    "tileHeight": 244,
-                    "tileWidth": 244
+                    "tileHeight": 1830,
+                    "tileWidth": 1830
                   },
                   {
                     "cellSize": 0.0,
                     "id": "r20m",
-                    "matrixHeight": 30,
-                    "matrixWidth": 30,
+                    "matrixHeight": 6,
+                    "matrixWidth": 6,
                     "pointOfOrigin": [
                       0.0,
                       0.0
                     ],
                     "scaleDenominator": 0.0,
-                    "tileHeight": 183,
-                    "tileWidth": 183
+                    "tileHeight": 915,
+                    "tileWidth": 915
                   },
                   {
                     "cellSize": 0.0,
                     "id": "r60m",
-                    "matrixHeight": 10,
-                    "matrixWidth": 10,
+                    "matrixHeight": 6,
+                    "matrixWidth": 6,
                     "pointOfOrigin": [
                       0.0,
                       0.0
                     ],
                     "scaleDenominator": 0.0,
-                    "tileHeight": 183,
-                    "tileWidth": 183
+                    "tileHeight": 305,
+                    "tileWidth": 305
                   },
                   {
                     "cellSize": 0.0,
@@ -4533,7 +4672,6 @@
               "members": {
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -4549,6 +4687,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -4584,8 +4723,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        244,
-                        244
+                        1830,
+                        1830
                       ]
                     },
                     "name": "regular"
@@ -4608,7 +4747,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -4630,7 +4769,6 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -4646,6 +4784,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -4681,8 +4820,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        244,
-                        244
+                        1830,
+                        1830
                       ]
                     },
                     "name": "regular"
@@ -4705,7 +4844,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -4727,7 +4866,6 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -4743,6 +4881,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -4778,8 +4917,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        244,
-                        244
+                        1830,
+                        1830
                       ]
                     },
                     "name": "regular"
@@ -4802,7 +4941,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -4824,7 +4963,6 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -4840,6 +4978,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -4875,8 +5014,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        244,
-                        244
+                        1830,
+                        1830
                       ]
                     },
                     "name": "regular"
@@ -4899,7 +5038,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -4957,13 +5096,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -4996,6 +5128,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -5032,6 +5174,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -5072,7 +5224,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
                       300000.0,
@@ -5162,7 +5313,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5190,7 +5341,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
                       300000.0,
@@ -5280,7 +5430,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5308,7 +5458,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
                       300000.0,
@@ -5398,7 +5547,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5485,7 +5634,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915
@@ -5523,7 +5672,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915
@@ -5540,7 +5689,6 @@
               "members": {
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -5556,6 +5704,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -5591,8 +5740,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -5615,7 +5764,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -5637,7 +5786,6 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -5653,6 +5801,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -5688,8 +5837,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -5712,7 +5861,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -5734,7 +5883,6 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -5750,6 +5898,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -5785,8 +5934,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -5809,7 +5958,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -5831,7 +5980,6 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -5847,6 +5995,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -5882,8 +6031,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -5906,7 +6055,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -5928,7 +6077,6 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -5944,6 +6092,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -5979,8 +6128,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -6003,7 +6152,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -6025,7 +6174,6 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -6041,6 +6189,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -6076,8 +6225,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        915,
+                        915
                       ]
                     },
                     "name": "regular"
@@ -6100,7 +6249,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -6158,13 +6307,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -6197,6 +6339,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -6233,6 +6385,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -6273,7 +6435,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
                       300000.0,
@@ -6363,7 +6524,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -6391,7 +6552,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
                       300000.0,
@@ -6481,7 +6641,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -6509,7 +6669,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
                       300000.0,
@@ -6599,7 +6758,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -6686,7 +6845,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305
@@ -6724,7 +6883,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305
@@ -6741,7 +6900,6 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -6757,6 +6915,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -6792,8 +6951,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        305,
+                        305
                       ]
                     },
                     "name": "regular"
@@ -6816,7 +6975,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -6838,7 +6997,6 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -6854,6 +7012,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -6889,8 +7048,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        305,
+                        305
                       ]
                     },
                     "name": "regular"
@@ -6913,7 +7072,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -6935,7 +7094,6 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_FillValue": 0,
                     "_eopf_attrs": {
                       "add_offset": -0.1,
                       "coordinates": [
@@ -6951,6 +7109,7 @@
                       "units": "digital_counts"
                     },
                     "add_offset": -0.1,
+                    "coordinates": "spatial_ref",
                     "dtype": "<u2",
                     "fill_value": 0,
                     "grid_mapping": "spatial_ref",
@@ -6986,8 +7145,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        183,
-                        183
+                        305,
+                        305
                       ]
                     },
                     "name": "regular"
@@ -7010,7 +7169,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 2
                       },
                       "name": "blosc"
@@ -7068,13 +7227,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -7107,6 +7259,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -7143,6 +7305,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -7183,7 +7355,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
                       300000.0,
@@ -7250,7 +7421,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -7278,7 +7449,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
                       300000.0,
@@ -7345,7 +7515,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -7373,7 +7543,6 @@
                     },
                     "dtype": "<u2",
                     "fill_value": 0,
-                    "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
                       300000.0,
@@ -7440,7 +7609,7 @@
                     "y",
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -7527,7 +7696,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152
@@ -7565,7 +7734,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152
@@ -7618,6 +7787,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -7670,13 +7849,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -7701,6 +7873,7 @@
                         "x"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "grid_mapping": "spatial_ref",
                     "long_name": "TCI: True Color Image",
                     "proj:bbox": [
@@ -7752,7 +7925,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -7796,6 +7969,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -7832,6 +8015,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -7894,6 +8087,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -7965,7 +8159,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8017,6 +8211,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8088,7 +8283,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8140,6 +8335,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8211,7 +8407,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8263,6 +8459,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8334,7 +8531,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8392,13 +8589,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -8431,6 +8621,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -8467,6 +8667,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -8522,6 +8732,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8593,7 +8804,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8645,6 +8856,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8716,7 +8928,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8768,6 +8980,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8839,7 +9052,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -8891,6 +9104,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -8962,7 +9176,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9014,6 +9228,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9085,7 +9300,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9137,6 +9352,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9208,7 +9424,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9266,13 +9482,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -9305,6 +9514,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -9341,6 +9560,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -9396,6 +9625,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9467,7 +9697,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9519,6 +9749,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9590,7 +9821,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9642,6 +9873,7 @@
                         "QT_SATURATED_PIXELS_L1A"
                       ]
                     },
+                    "coordinates": "spatial_ref",
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9713,7 +9945,7 @@
                         "blocksize": 0,
                         "clevel": 3,
                         "cname": "zstd",
-                        "shuffle": "shuffle",
+                        "shuffle": "bitshuffle",
                         "typesize": 1
                       },
                       "name": "blosc"
@@ -9771,13 +10003,6 @@
                         "endian": "little"
                       },
                       "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
                     }
                   ],
                   "data_type": "int64",
@@ -9810,6 +10035,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",
@@ -9846,6 +10081,16 @@
                         "endian": "little"
                       },
                       "name": "bytes"
+                    },
+                    {
+                      "configuration": {
+                        "blocksize": 0,
+                        "clevel": 3,
+                        "cname": "zstd",
+                        "shuffle": "bitshuffle",
+                        "typesize": 8
+                      },
+                      "name": "blosc"
                     }
                   ],
                   "data_type": "int64",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -19,6 +19,9 @@ from eopf_geozarr.data_api.geozarr.common import (
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V2
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V3
 
+if TYPE_CHECKING:
+    import zarr
+
 
 @pytest.mark.parametrize(
     "obj",
@@ -34,7 +37,10 @@ def test_datarraylike(obj: DataArray_V2 | DataArray_V3) -> None:
     assert isinstance(obj, DataArrayLike)
 
 
-@pytest.mark.parametrize("obj", [GroupSpec_V2(), GroupSpec_V3()])
+@pytest.mark.parametrize(
+    "obj",
+    [GroupSpec_V2(attributes={}, members={}), GroupSpec_V3(attributes={}, members={})],
+)
 def test_grouplike(obj: GroupSpec_V3[Any, Any] | GroupSpec_V2[Any, Any]) -> None:
     """
     Test that the GroupLike protocol works correctly
@@ -70,7 +76,8 @@ def test_check_standard_name_invalid() -> None:
         check_standard_name("invalid_standard_name")
 
 
-def test_multiscales_round_trip(example_group) -> None:
+@pytest.mark.filterwarnings("ignore:.*:zarr.errors.UnstableSpecificationWarning")
+def test_multiscales_round_trip(example_group: zarr.Group) -> None:
     """
     Ensure that we can round-trip multiscale metadata through the `Multiscales` model.
     """
