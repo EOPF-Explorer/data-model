@@ -13,6 +13,7 @@ import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
 
+from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
@@ -265,6 +266,11 @@ def simple_root_consolidation(output_path: str, datasets: dict[str, dict]) -> No
                 missing_groups.add(parent_path)
 
     for group_path in missing_groups:
+        # Avoid overwriting attributes on groups that already exist (e.g. multiscales attrs on
+        # /measurements/reflectance written earlier in the pipeline).
+        if fs_utils.path_exists(f"{output_path}{group_path}/zarr.json"):
+            continue
+
         dt_parent = xr.DataTree()
         dt_parent.to_zarr(
             output_path + group_path,
@@ -274,25 +280,16 @@ def simple_root_consolidation(output_path: str, datasets: dict[str, dict]) -> No
         )
 
     # Create root zarr group if it doesn't exist
-    log.info("Creating root zarr group")
-    dt_root = xr.DataTree()
-    dt_root.to_zarr(
-        output_path,
-        mode="a",
-        consolidated=False,
-        zarr_format=3,
-    )
-    dt_root = xr.DataTree()
-    for group_path in datasets:
-        dt_root[group_path] = xr.DataTree()
-
-    dt_root.to_zarr(
-        output_path,
-        mode="r+",
-        consolidated=False,
-        zarr_format=3,
-    )
-    log.info("Root zarr group created")
+    if not fs_utils.path_exists(f"{output_path}/zarr.json"):
+        log.info("Creating root zarr group")
+        dt_root = xr.DataTree()
+        dt_root.to_zarr(
+            output_path,
+            mode="a",
+            consolidated=False,
+            zarr_format=3,
+        )
+        log.info("Root zarr group created")
 
     # consolidate reflectance group metadata
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)

@@ -59,6 +59,37 @@ def get_grid_spacing(ds: xr.DataArray, coords: tuple[Hashable, ...]) -> tuple[fl
     return tuple(np.abs(ds.coords[coord][0].data - ds.coords[coord][1].data) for coord in coords)
 
 
+def _bounds_from_xy_coords(ds: xr.Dataset) -> tuple[float, float, float, float] | None:
+    """Estimate pixel-edge bounds from 1D `x`/`y` coordinate values.
+
+    This is a fallback used when `rioxarray` is unavailable or when the dataset does not have
+    enough spatial metadata for `.rio.bounds()` to work (e.g. some JSON-based fixtures).
+
+    Assumptions:
+    - `x` and `y` are 1D, regularly spaced coordinate arrays.
+    - The returned bounds are pixel-edge bounds (expanded by half a pixel).
+
+    Returns `(xmin, ymin, xmax, ymax)` or `None` when coordinates are missing/empty.
+    """
+    if "x" not in ds.coords or "y" not in ds.coords:
+        return None
+
+    x = np.asarray(ds.coords["x"].data)
+    y = np.asarray(ds.coords["y"].data)
+    if x.size == 0 or y.size == 0:
+        return None
+
+    xmin = float(np.nanmin(x))
+    xmax = float(np.nanmax(x))
+    ymin = float(np.nanmin(y))
+    ymax = float(np.nanmax(y))
+
+    dx = abs(float(x[1] - x[0])) if x.size >= 2 else 0.0
+    dy = abs(float(y[1] - y[0])) if y.size >= 2 else 0.0
+
+    return (xmin - dx / 2, ymin - dy / 2, xmax + dx / 2, ymax + dy / 2)
+
+
 def create_multiscale_from_datatree(
     dt_input: xr.DataTree,
     output_path: str,
@@ -262,8 +293,14 @@ def create_multiscale_from_datatree(
         base_path,
         resolution_groups,
         multiscales_flavor={"ogc_tms", "experimental_multiscales_convention"},
+        crs=crs,
     )
-    processed_groups[base_path] = dt_multiscale
+
+    if dt_multiscale is None:
+        log.info(
+            "Skipped writing multiscales metadata (insufficient inputs). Multiscales are stored as attrs on the parent group; processed_groups only tracks leaf datasets written (used later for consolidation).",
+            base_path=base_path,
+        )
 
     return processed_groups
 
@@ -391,8 +428,14 @@ def add_multiscales_metadata_to_parent(
     base_path: str,
     res_groups: Mapping[str, xr.Dataset],
     multiscales_flavor: set[MultiscalesFlavor] | None = None,
-) -> xr.DataTree:
-    """Add GeoZarr-compliant multiscales metadata to parent group."""
+    *,
+    crs: CRS | None = None,
+) -> xr.DataTree | None:
+    """Add GeoZarr-compliant multiscales metadata to the parent group.
+
+    Prefers rioxarray-derived CRS/bounds when available; falls back to the passed `crs` and
+    to bounds estimated from `x`/`y` coordinate arrays when `.rio.*` metadata is unavailable.
+    """
     # Sort by resolution (finest to coarsest)
     if multiscales_flavor is None:
         multiscales_flavor = {"ogc_tms", "experimental_multiscales_convention"}
@@ -418,18 +461,28 @@ def add_multiscales_metadata_to_parent(
     first_res = all_resolutions[0]
     first_dataset = res_groups[first_res]
 
-    # Get CRS and bounds
-    native_crs = first_dataset.rio.crs if hasattr(first_dataset, "rio") else None
+    native_crs = None
+    if hasattr(first_dataset, "rio"):
+        try:
+            native_crs = first_dataset.rio.crs
+        except Exception:
+            native_crs = None
+    if native_crs is None:
+        native_crs = crs
     if native_crs is None:
         log.info("No CRS found, skipping multiscales metadata", base_path=base_path)
         return None
 
-    native_bounds = first_dataset.rio.bounds() if hasattr(first_dataset, "rio") else None
+    native_bounds = None
+    if hasattr(first_dataset, "rio"):
+        try:
+            native_bounds = first_dataset.rio.bounds()
+        except Exception:
+            native_bounds = None
     if native_bounds is None:
-        log.info(
-            "No bounds found, skipping multiscales metadata",
-            base_path=base_path,
-        )
+        native_bounds = _bounds_from_xy_coords(first_dataset)
+    if native_bounds is None:
+        log.info("No bounds found, skipping multiscales metadata", base_path=base_path)
         return None
 
     # Create overview_levels structure with string-based level names
