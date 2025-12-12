@@ -15,7 +15,6 @@ from pyproj import CRS
 
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
-from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
 from .s2_multiscale import create_multiscale_from_datatree
@@ -355,14 +354,13 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
 def is_sentinel2_dataset(group: zarr.Group) -> bool:
     from eopf_geozarr.pyz.v2 import GroupSpec
 
-    adapter = TypeAdapter(Sentinel1Root | Sentinel2Root)  # type: ignore[var-annotated]
     try:
-        model = adapter.validate_python(GroupSpec.from_zarr(group).model_dump())
+        TypeAdapter(Sentinel2Root).validate_python(GroupSpec.from_zarr(group).model_dump())
     except ValueError as e:
         log.warning("Could not validate Sentinel-2 dataset", error=str(e))
         return False
 
-    return isinstance(model, Sentinel2Root)
+    return True
 
 
 def validate_optimized_dataset(dataset_path: str) -> tuple[bool, list[str]]:
