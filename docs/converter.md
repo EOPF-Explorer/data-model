@@ -105,6 +105,8 @@ The converter maintains the native coordinate reference system (CRS) of the data
 
 The Sentinel-2 optimized converter (`convert_s2_optimized`) represents the refined approach (V1) that creates an efficient multiscale pyramid by **reusing the original multi-resolution data** (r10m, r20m, r60m) without duplication, and adding coarser overview levels (r120m, r360m, r720m) for efficient visualization at lower resolutions.
 
+The `eopf-geozarr convert-s2-optimized` CLI validates the output by default and fails the command if validation fails. Use `--skip-validation` to opt out.
+
 ### V0 vs V1 Converter: Key Differences
 
 Understanding the structural differences between the old (V0) and new (V1) converter approaches:
