@@ -7,6 +7,7 @@ from pydantic.experimental.missing_sentinel import MISSING
 from typing_extensions import TypedDict
 
 from eopf_geozarr.data_api.geozarr.common import ZarrConventionMetadata  # noqa: TC001
+from eopf_geozarr.data_api.geozarr.types import ResamplingMethod  # noqa: TC001
 
 from . import tms, zcm
 
@@ -18,15 +19,13 @@ class MultiscaleMeta(BaseModel):
     """
 
     layout: tuple[zcm.ScaleLevel, ...] | MISSING = MISSING
-    resampling_method: str | MISSING = MISSING
+    resampling_method: ResamplingMethod | MISSING = MISSING
     tile_matrix_set: tms.TileMatrixSet | MISSING = MISSING
     tile_matrix_limits: dict[str, tms.TileMatrixLimit] | MISSING = MISSING
 
     @model_validator(mode="after")
     def valid_zcm(self) -> Self:
-        """
-        Ensure that the ZCM metadata, if present, is valid
-        """
+        """Validate zcm multiscales when present."""
         if self.layout is not MISSING:
             zcm.Multiscales(**self.model_dump())
 
@@ -34,12 +33,18 @@ class MultiscaleMeta(BaseModel):
 
     @model_validator(mode="after")
     def valid_tms(self) -> Self:
-        """
-        Ensure that the TMS metadata, if present, is valid
-        """
-        if self.tile_matrix_set is not MISSING:
-            tms.Multiscales(**self.model_dump())
-
+        """Validate tms multiscales when present."""
+        tms_set = self.tile_matrix_set
+        rm = self.resampling_method
+        if tms_set is not MISSING and rm is not MISSING:
+            tile_matrix_limits = (
+                None if self.tile_matrix_limits is MISSING else self.tile_matrix_limits
+            )
+            tms.Multiscales(
+                tile_matrix_set=tms_set,
+                resampling_method=rm,
+                tile_matrix_limits=tile_matrix_limits,
+            )
         return self
 
 
@@ -64,23 +69,30 @@ class MultiscaleGroupAttrs(BaseModel):
 
     @model_validator(mode="after")
     def valid_zcm_and_tms(self) -> Self:
-        """
-        Ensure that the ZCM metadata, if present, is valid, and that TMS metadata, if present,
-        is valid, and that at least one of the two is present.
-        """
-        if self.zarr_conventions is not MISSING:
+        """Validate at least one of zcm/tms multiscales."""
+        ms = self.multiscales
+
+        if self.zarr_conventions is not MISSING and ms.layout is not MISSING:
             self._zcm_multiscales = zcm.Multiscales(
-                layout=self.multiscales.layout,
-                resampling_method=self.multiscales.resampling_method,
+                layout=ms.layout,
+                resampling_method=ms.resampling_method,
             )
-        if self.multiscales.tile_matrix_limits is not MISSING:
+
+        tms_set = ms.tile_matrix_set
+        rm = ms.resampling_method
+        if tms_set is not MISSING and rm is not MISSING:
+            tile_matrix_limits = None if ms.tile_matrix_limits is MISSING else ms.tile_matrix_limits
             self._tms_multiscales = tms.Multiscales(
-                tile_matrix_limits=self.multiscales.tile_matrix_limits,
-                resampling_method=self.multiscales.resampling_method,  # type: ignore[arg-type]
-                tile_matrix_set=self.multiscales.tile_matrix_set,
+                tile_matrix_set=tms_set,
+                resampling_method=rm,
+                tile_matrix_limits=tile_matrix_limits,
             )
+
         if self._tms_multiscales is None and self._zcm_multiscales is None:
-            raise ValueError("Either ZCM multiscales or TMS multiscales must be present")
+            raise ValueError(
+                "Missing multiscales metadata: expected either zcm (zarr_conventions + multiscales.layout) "
+                "or tms (multiscales.tile_matrix_set + multiscales.resampling_method)."
+            )
         return self
 
     @property
