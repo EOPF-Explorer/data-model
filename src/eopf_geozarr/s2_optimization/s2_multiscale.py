@@ -5,7 +5,7 @@ Uses lazy evaluation to minimize memory usage during dataset preparation.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import structlog
@@ -436,7 +436,7 @@ def add_multiscales_metadata_to_parent(
                 native_bounds = (x_coords.min(), y_coords.min(), x_coords.max(), y_coords.max())
             except Exception:
                 pass
-    
+
     if native_bounds is None:
         log.info(
             "No bounds found, skipping multiscales metadata",
@@ -460,7 +460,7 @@ def add_multiscales_metadata_to_parent(
         height, width = first_var.shape[-2:]
 
         # Calculate spatial transform (affine transformation)
-        if hasattr(dataset, "rio") and hasattr(dataset.rio, 'transform'):
+        if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
             try:
                 # Try to get transform as property first
                 rio_transform = dataset.rio.transform
@@ -493,6 +493,10 @@ def add_multiscales_metadata_to_parent(
         relative_scale = res_meters / finest_res_meters
         relative_translation = (res_meters - finest_res_meters) / 2
 
+        # Get chunks in the correct format
+        var_chunks = dataset.data_vars[first_var.name].chunks
+        chunks = tuple(tuple(int(c) for c in chunk_dim) for chunk_dim in var_chunks) if var_chunks else None
+
         layout_entry = {
             "level": res_name,  # Use string-based level name
             "zoom": zoom,
@@ -501,11 +505,10 @@ def add_multiscales_metadata_to_parent(
             "translation_relative": relative_translation,
             "scale_absolute": res_meters,
             "scale_relative": relative_scale,
-            "spatial_transform": transform,  # Add spatial transform for later use
-            "chunks": dataset.data_vars[first_var.name].chunks,
+            "chunks": chunks,
         }
 
-        overview_levels.append(layout_entry)
+        overview_levels.append(cast(OverviewLevelJSON, layout_entry))
 
     if len(overview_levels) < 2:
         log.info("    Could not create overview levels for {}", base_path=base_path)
@@ -543,7 +546,7 @@ def add_multiscales_metadata_to_parent(
             scale_level = zcm.ScaleLevel(
                 asset=str(overview_level["level"]),  # Required: path to zarr group/array
             )
-            
+
             # Add derived_from and transform for non-base levels
             if i > 0:  # Not the first (base) resolution
                 scale_level.derived_from = str(all_resolutions[0])
@@ -551,12 +554,12 @@ def add_multiscales_metadata_to_parent(
                     scale=(overview_level["scale_relative"],) * 2,
                     translation=(overview_level["translation_relative"],) * 2,
                 )
-            
+
             layout.append(scale_level)
     # Create convention metadata for all three conventions
-    from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
     from eopf_geozarr.data_api.geozarr.geoproj import ProjConventionMetadata
-    
+    from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
+
     multiscale_attrs = MultiscaleGroupAttrs(
         zarr_conventions=(
             zcm.MultiscaleConventionMetadata(),
@@ -577,23 +580,23 @@ def add_multiscales_metadata_to_parent(
     dt_multiscale = xr.DataTree()
     for res in all_resolutions:
         dt_multiscale[res] = xr.DataTree()
-        
+
     # Add multiscale attributes
     dt_multiscale.attrs.update(multiscale_attrs.model_dump())
-    
+
     # Add spatial and proj attributes at group level following specifications
     if native_crs and native_bounds:
         # Add spatial convention attributes
         dt_multiscale.attrs["spatial:dimensions"] = ["y", "x"]  # Required field
         dt_multiscale.attrs["spatial:bbox"] = list(native_bounds)  # [xmin, ymin, xmax, ymax]
         dt_multiscale.attrs["spatial:registration"] = "pixel"  # Default registration type
-        
+
         # Add proj convention attributes
         if hasattr(native_crs, "to_epsg") and native_crs.to_epsg():
             dt_multiscale.attrs["proj:code"] = f"EPSG:{native_crs.to_epsg()}"
         elif hasattr(native_crs, "to_wkt"):
             dt_multiscale.attrs["proj:wkt2"] = native_crs.to_wkt()
-            
+
     dt_multiscale.to_zarr(
         parent_group_path,
         mode="a",

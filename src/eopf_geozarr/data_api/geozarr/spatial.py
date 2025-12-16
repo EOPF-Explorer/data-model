@@ -19,7 +19,9 @@ SPATIAL_UUID: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"] = (
 class SpatialConvention(TypedDict):
     uuid: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"]
     name: Literal["spatial:"]
-    schema_url: Literal["https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"]
+    schema_url: Literal[
+        "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
+    ]
     spec_url: Literal["https://github.com/zarr-conventions/spatial/blob/v1/README.md"]
     description: Literal["Spatial coordinate and transformation information"]
 
@@ -27,9 +29,9 @@ class SpatialConvention(TypedDict):
 class SpatialConventionMetadata(ZarrConventionMetadata):
     uuid: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"] = SPATIAL_UUID
     name: Literal["spatial:"] = "spatial:"
-    schema_url: Literal["https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"] = (
+    schema_url: Literal[
         "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
-    )
+    ] = "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
     spec_url: Literal["https://github.com/zarr-conventions/spatial/blob/v1/README.md"] = (
         "https://github.com/zarr-conventions/spatial/blob/v1/README.md"
     )
