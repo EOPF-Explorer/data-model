@@ -424,7 +424,19 @@ def add_multiscales_metadata_to_parent(
         log.info("No CRS found, skipping multiscales metadata", base_path=base_path)
         return None
 
-    native_bounds = first_dataset.rio.bounds() if hasattr(first_dataset, "rio") else None
+    native_bounds = None
+    if hasattr(first_dataset, "rio"):
+        try:
+            native_bounds = first_dataset.rio.bounds()
+        except (AttributeError, TypeError):
+            # Try alternative method or construct from coordinates
+            try:
+                x_coords = first_dataset.x.values
+                y_coords = first_dataset.y.values
+                native_bounds = (x_coords.min(), y_coords.min(), x_coords.max(), y_coords.max())
+            except Exception:
+                pass
+    
     if native_bounds is None:
         log.info(
             "No bounds found, skipping multiscales metadata",
@@ -448,8 +460,20 @@ def add_multiscales_metadata_to_parent(
         height, width = first_var.shape[-2:]
 
         # Calculate spatial transform (affine transformation)
-        if hasattr(dataset, "rio") and dataset.rio.transform:
-            transform = list(dataset.rio.transform)[:6]  # Get 6 coefficients
+        if hasattr(dataset, "rio") and hasattr(dataset.rio, 'transform'):
+            try:
+                # Try to get transform as property first
+                rio_transform = dataset.rio.transform
+                if callable(rio_transform):
+                    rio_transform = rio_transform()
+                transform = list(rio_transform)[:6]  # Get 6 coefficients
+            except (AttributeError, TypeError):
+                # Fallback: construct from grid spacing and bounds
+                pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
+                pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
+                x_min = float(dataset.x.min().values)
+                y_max = float(dataset.y.max().values)
+                transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
         else:
             # Fallback: construct from grid spacing and bounds
             pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
