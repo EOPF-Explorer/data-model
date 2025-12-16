@@ -432,7 +432,7 @@ def add_multiscales_metadata_to_parent(
         )
         return None
 
-    # Create overview_levels structure with string-based level names
+    # Create overview_levels structure following the multiscales v1.0 specification
     overview_levels: list[OverviewLevelJSON] = []
     for res_name in all_resolutions:
         # res_meters = res_order[res_name]
@@ -447,31 +447,41 @@ def add_multiscales_metadata_to_parent(
         first_var = next(iter(dataset.data_vars.values()))
         height, width = first_var.shape[-2:]
 
+        # Calculate spatial transform (affine transformation)
+        if hasattr(dataset, "rio") and dataset.rio.transform:
+            transform = list(dataset.rio.transform)[:6]  # Get 6 coefficients
+        else:
+            # Fallback: construct from grid spacing and bounds
+            pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
+            pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
+            x_min = float(dataset.x.min().values)
+            y_max = float(dataset.y.max().values)
+            transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
+
         # Calculate zoom level (higher resolution = higher zoom)
         tile_width = 256
         zoom_for_width = max(0, int(np.ceil(np.log2(width / tile_width))))
         zoom_for_height = max(0, int(np.ceil(np.log2(height / tile_width))))
         zoom = max(zoom_for_width, zoom_for_height)
 
-        # Calculate scale factor relative to finest resolution
+        # Calculate relative scale and translation vs first resolution
         finest_res_meters = res_order[all_resolutions[0]]
-        scale_factor = res_meters // finest_res_meters
+        relative_scale = res_meters / finest_res_meters
+        relative_translation = (res_meters - finest_res_meters) / 2
 
-        # calculate translation relative to finest resolution
-        trans_meters = (res_meters - finest_res_meters) / 2
+        layout_entry = {
+            "level": res_name,  # Use string-based level name
+            "zoom": zoom,
+            "width": width,
+            "height": height,
+            "translation_relative": relative_translation,
+            "scale_absolute": res_meters,
+            "scale_relative": relative_scale,
+            "spatial_transform": transform,  # Add spatial transform for later use
+            "chunks": dataset.data_vars[first_var.name].chunks,
+        }
 
-        overview_levels.append(
-            {
-                "level": res_name,  # Use string-based level name
-                "zoom": zoom,
-                "width": width,
-                "height": height,
-                "translation_relative": trans_meters,
-                "scale_absolute": res_meters,
-                "scale_relative": scale_factor,
-                "chunks": dataset.data_vars[first_var.name].chunks,
-            }
-        )
+        overview_levels.append(layout_entry)
 
     if len(overview_levels) < 2:
         log.info("    Could not create overview levels for {}", base_path=base_path)
@@ -505,20 +515,32 @@ def add_multiscales_metadata_to_parent(
         )
     if "experimental_multiscales_convention" in multiscales_flavor:
         layout = []
-        for overview_level in overview_levels:
-            layout.append(
-                zcm.ScaleLevel(
-                    asset=str(overview_level["level"]),
-                    derived_from=str(all_resolutions[0]),
-                    transform=zcm.Transform(
-                        scale=(overview_level["scale_relative"],) * 2,
-                        translation=(overview_level["translation_relative"],) * 2,
-                    ),
-                )
+        for i, overview_level in enumerate(overview_levels):
+            scale_level = zcm.ScaleLevel(
+                asset=str(overview_level["level"]),  # Required: path to zarr group/array
             )
+            
+            # Add derived_from and transform for non-base levels
+            if i > 0:  # Not the first (base) resolution
+                scale_level.derived_from = str(all_resolutions[0])
+                scale_level.transform = zcm.Transform(
+                    scale=(overview_level["scale_relative"],) * 2,
+                    translation=(overview_level["translation_relative"],) * 2,
+                )
+            
+            layout.append(scale_level)
+    # Create convention metadata for all three conventions
+    from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
+    from eopf_geozarr.data_api.geozarr.geoproj import ProjConventionMetadata
+    
     multiscale_attrs = MultiscaleGroupAttrs(
-        zarr_conventions=(zcm.MultiscaleConventionMetadata(),),
+        zarr_conventions=(
+            zcm.MultiscaleConventionMetadata(),
+            SpatialConventionMetadata(),
+            ProjConventionMetadata(),
+        ),
         multiscales=MultiscaleMeta(
+            version="1.0.0",  # Add required version field
             layout=layout,
             resampling_method="average",
             tile_matrix_set=tile_matrix_set,
@@ -531,7 +553,23 @@ def add_multiscales_metadata_to_parent(
     dt_multiscale = xr.DataTree()
     for res in all_resolutions:
         dt_multiscale[res] = xr.DataTree()
+        
+    # Add multiscale attributes
     dt_multiscale.attrs.update(multiscale_attrs.model_dump())
+    
+    # Add spatial and proj attributes at group level following specifications
+    if native_crs and native_bounds:
+        # Add spatial convention attributes
+        dt_multiscale.attrs["spatial:dimensions"] = ["y", "x"]  # Required field
+        dt_multiscale.attrs["spatial:bbox"] = list(native_bounds)  # [xmin, ymin, xmax, ymax]
+        dt_multiscale.attrs["spatial:registration"] = "pixel"  # Default registration type
+        
+        # Add proj convention attributes
+        if hasattr(native_crs, "to_epsg") and native_crs.to_epsg():
+            dt_multiscale.attrs["proj:code"] = f"EPSG:{native_crs.to_epsg()}"
+        elif hasattr(native_crs, "to_wkt"):
+            dt_multiscale.attrs["proj:wkt2"] = native_crs.to_wkt()
+            
     dt_multiscale.to_zarr(
         parent_group_path,
         mode="a",
