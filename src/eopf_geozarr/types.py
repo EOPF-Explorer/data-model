@@ -53,6 +53,8 @@ class OverviewLevelJSON(TypedDict):
     translation_relative: float
     scale_absolute: float
     scale_relative: int | float
+    spatial_transform: tuple[float, ...]
+    spatial_shape: tuple[int, ...]
     chunks: tuple[tuple[int, ...], ...] | None
 
 

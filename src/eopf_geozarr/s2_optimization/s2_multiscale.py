@@ -495,7 +495,11 @@ def add_multiscales_metadata_to_parent(
 
         # Get chunks in the correct format
         var_chunks = dataset.data_vars[first_var.name].chunks
-        chunks = tuple(tuple(int(c) for c in chunk_dim) for chunk_dim in var_chunks) if var_chunks else None
+        chunks = (
+            tuple(tuple(int(c) for c in chunk_dim) for chunk_dim in var_chunks)
+            if var_chunks
+            else None
+        )
 
         layout_entry = {
             "level": res_name,  # Use string-based level name
@@ -506,9 +510,12 @@ def add_multiscales_metadata_to_parent(
             "scale_absolute": res_meters,
             "scale_relative": relative_scale,
             "chunks": chunks,
+            # Store transform for later use in spatial convention
+            "spatial_transform": transform,
+            "spatial_shape": [height, width],
         }
 
-        overview_levels.append(cast(OverviewLevelJSON, layout_entry))
+        overview_levels.append(cast("OverviewLevelJSON", layout_entry))
 
     if len(overview_levels) < 2:
         log.info("    Could not create overview levels for {}", base_path=base_path)
@@ -543,17 +550,24 @@ def add_multiscales_metadata_to_parent(
     if "experimental_multiscales_convention" in multiscales_flavor:
         layout = []
         for i, overview_level in enumerate(overview_levels):
-            scale_level = zcm.ScaleLevel(
-                asset=str(overview_level["level"]),  # Required: path to zarr group/array
-            )
+            # Create scale level with required fields
+            asset = str(overview_level["level"])
 
-            # Add derived_from and transform for non-base levels
             if i > 0:  # Not the first (base) resolution
-                scale_level.derived_from = str(all_resolutions[0])
-                scale_level.transform = zcm.Transform(
+                derived_from = str(all_resolutions[0])
+                multiscale_transform = zcm.Transform(
                     scale=(overview_level["scale_relative"],) * 2,
                     translation=(overview_level["translation_relative"],) * 2,
                 )
+                scale_level = zcm.ScaleLevel(
+                    asset=asset, derived_from=derived_from, transform=multiscale_transform
+                )
+            else:
+                scale_level = zcm.ScaleLevel(asset=asset)
+
+            # Add spatial properties manually after creation (using extra fields)
+            setattr(scale_level, "spatial:shape", overview_level["spatial_shape"])
+            setattr(scale_level, "spatial:transform", overview_level["spatial_transform"])
 
             layout.append(scale_level)
     # Create convention metadata for all three conventions
