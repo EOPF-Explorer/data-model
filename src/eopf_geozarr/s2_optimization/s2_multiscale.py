@@ -599,26 +599,27 @@ def add_multiscales_metadata_to_parent(
             # Create scale level with required fields
             asset = str(overview_level["level"])
 
+            # Build complete dict for ScaleLevel initialization
+            scale_level_data: dict[str, Any] = {"asset": asset}
+
             if i > 0:  # Not the first (base) resolution
                 derived_from = derivation_chain.get(asset, str(all_resolutions[0]))
                 multiscale_transform = zcm.Transform(
                     scale=(overview_level["scale_relative"],) * 2,
                     translation=(overview_level["translation_relative"],) * 2,
                 )
-                scale_level = zcm.ScaleLevel(
-                    asset=asset, derived_from=derived_from, transform=multiscale_transform
-                )
-            else:
-                scale_level = zcm.ScaleLevel(asset=asset)
+                scale_level_data["derived_from"] = derived_from
+                scale_level_data["transform"] = multiscale_transform
 
-            # Add spatial properties manually after creation (using extra fields)
-            setattr(scale_level, "spatial:shape", overview_level["spatial_shape"])
+            # Add spatial properties
+            scale_level_data["spatial:shape"] = overview_level["spatial_shape"]
             if "spatial_transform" in overview_level:
                 spatial_transform = overview_level["spatial_transform"]
                 # Only add spatial_transform if we have valid transform data (not all zeros)
                 if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
-                    setattr(scale_level, "spatial:transform", spatial_transform)
+                    scale_level_data["spatial:transform"] = spatial_transform
 
+            scale_level = zcm.ScaleLevel(**scale_level_data)
             layout.append(scale_level)
     # Create convention metadata for all three conventions
     multiscale_attrs = MultiscaleGroupAttrs(
