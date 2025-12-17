@@ -495,11 +495,15 @@ def add_multiscales_metadata_to_parent(
 
         # Get chunks in the correct format
         var_chunks = dataset.data_vars[first_var.name].chunks
-        chunks = (
-            tuple(tuple(int(c) for c in chunk_dim) for chunk_dim in var_chunks)
-            if var_chunks
-            else None
-        )
+        if var_chunks is not None:
+            chunks = tuple(tuple(int(c) for c in chunk_dim) for chunk_dim in var_chunks)
+        else:
+            chunks = None
+            log.warning(
+                "Could not determine chunking information for overview level; 'chunks' will be set to None",
+                level=res_name,
+                variable=str(first_var.name),
+            )
 
         layout_entry = {
             "level": res_name,  # Use string-based level name
@@ -891,6 +895,8 @@ def write_geo_metadata(
                 break
 
     if crs is not None:
+        # Write CRS using rioxarray
+        # NOTE: for now rioxarray only supports writing grid mapping using CF conventions
         dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
         dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
         dataset.attrs["grid_mapping"] = grid_mapping_var_name
@@ -898,6 +904,61 @@ def write_geo_metadata(
         for var in dataset.data_vars.values():
             var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
             var.attrs["grid_mapping"] = grid_mapping_var_name
+
+        # Also add proj: and spatial: zarr conventions at dataset level
+        # TODO : Remove once rioxarray supports writing these conventions directly
+        # https://github.com/corteva/rioxarray/pull/883
+
+        # Add spatial convention attributes
+        dataset.attrs["spatial:dimensions"] = ["y", "x"]  # Required field
+        dataset.attrs["spatial:registration"] = "pixel"  # Default registration type
+
+        # Calculate and add spatial bbox if coordinates are available
+        try:
+            if "x" in dataset.coords and "y" in dataset.coords:
+                x_coords = dataset.coords["x"].values
+                y_coords = dataset.coords["y"].values
+                x_min, x_max = float(x_coords.min()), float(x_coords.max())
+                y_min, y_max = float(y_coords.min()), float(y_coords.max())
+                dataset.attrs["spatial:bbox"] = [x_min, y_min, x_max, y_max]
+
+                # Calculate spatial transform (affine transformation)
+                if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
+                    try:
+                        rio_transform = dataset.rio.transform
+                        if callable(rio_transform):
+                            rio_transform = rio_transform()
+                        dataset.attrs["spatial:transform"] = list(rio_transform)[:6]
+                    except (AttributeError, TypeError):
+                        # Fallback: construct from coordinate spacing
+                        pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
+                        pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
+                        dataset.attrs["spatial:transform"] = [
+                            pixel_size_x,
+                            0.0,
+                            x_min,
+                            0.0,
+                            -pixel_size_y,
+                            y_max,
+                        ]
+
+                # Add spatial shape if data variables exist
+                if dataset.data_vars:
+                    first_var = next(iter(dataset.data_vars.values()))
+                    if first_var.ndim >= 2:
+                        height, width = first_var.shape[-2:]
+                        dataset.attrs["spatial:shape"] = [height, width]
+        except Exception as e:
+            log.warning("Could not calculate spatial metadata: {}", e=e)
+
+        # Add proj convention attributes
+        try:
+            if hasattr(crs, "to_epsg") and crs.to_epsg():
+                dataset.attrs["proj:code"] = f"EPSG:{crs.to_epsg()}"
+            elif hasattr(crs, "to_wkt"):
+                dataset.attrs["proj:wkt2"] = crs.to_wkt()
+        except Exception as e:
+            log.warning("Could not add proj metadata: {}", e=e)
 
 
 def rechunk_dataset_for_encoding(
