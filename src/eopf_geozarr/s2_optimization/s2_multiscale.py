@@ -957,51 +957,45 @@ def write_geo_metadata(
         dataset.attrs["spatial:registration"] = "pixel"  # Default registration type
 
         # Calculate and add spatial bbox if coordinates are available
-        try:
-            if "x" in dataset.coords and "y" in dataset.coords:
-                x_coords = dataset.coords["x"].values
-                y_coords = dataset.coords["y"].values
-                x_min, x_max = float(x_coords.min()), float(x_coords.max())
-                y_min, y_max = float(y_coords.min()), float(y_coords.max())
-                dataset.attrs["spatial:bbox"] = [x_min, y_min, x_max, y_max]
+        if "x" in dataset.coords and "y" in dataset.coords:
+            x_coords = dataset.coords["x"].values
+            y_coords = dataset.coords["y"].values
+            x_min, x_max = float(x_coords.min()), float(x_coords.max())
+            y_min, y_max = float(y_coords.min()), float(y_coords.max())
+            dataset.attrs["spatial:bbox"] = [x_min, y_min, x_max, y_max]
 
-                # Calculate spatial transform (affine transformation)
-                if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
-                    try:
-                        rio_transform = dataset.rio.transform
-                        if callable(rio_transform):
-                            rio_transform = rio_transform()
-                        dataset.attrs["spatial:transform"] = list(rio_transform)[:6]
-                    except (AttributeError, TypeError):
-                        # Fallback: construct from coordinate spacing
-                        pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
-                        pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
-                        dataset.attrs["spatial:transform"] = [
-                            pixel_size_x,
-                            0.0,
-                            x_min,
-                            0.0,
-                            -pixel_size_y,
-                            y_max,
-                        ]
+            # Calculate spatial transform (affine transformation)
+            if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
+                try:
+                    rio_transform = dataset.rio.transform
+                    if callable(rio_transform):
+                        rio_transform = rio_transform()
+                    dataset.attrs["spatial:transform"] = list(rio_transform)[:6]
+                except (AttributeError, TypeError):
+                    # Fallback: construct from coordinate spacing
+                    pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
+                    pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
+                    dataset.attrs["spatial:transform"] = [
+                        pixel_size_x,
+                        0.0,
+                        x_min,
+                        0.0,
+                        -pixel_size_y,
+                        y_max,
+                    ]
 
-                # Add spatial shape if data variables exist
-                if dataset.data_vars:
-                    first_var = next(iter(dataset.data_vars.values()))
-                    if first_var.ndim >= 2:
-                        height, width = first_var.shape[-2:]
-                        dataset.attrs["spatial:shape"] = [height, width]
-        except Exception as e:
-            log.warning("Could not calculate spatial metadata: {}", e=e)
+            # Add spatial shape if data variables exist
+            if dataset.data_vars:
+                first_var = next(iter(dataset.data_vars.values()))
+                if first_var.ndim >= 2:
+                    height, width = first_var.shape[-2:]
+                    dataset.attrs["spatial:shape"] = [height, width]
 
         # Add proj convention attributes
-        try:
-            if hasattr(crs, "to_epsg") and crs.to_epsg():
-                dataset.attrs["proj:code"] = f"EPSG:{crs.to_epsg()}"
-            elif hasattr(crs, "to_wkt"):
-                dataset.attrs["proj:wkt2"] = crs.to_wkt()
-        except Exception as e:
-            log.warning("Could not add proj metadata: {}", e=e)
+        if hasattr(crs, "to_epsg") and crs.to_epsg():
+            dataset.attrs["proj:code"] = f"EPSG:{crs.to_epsg()}"
+        elif hasattr(crs, "to_wkt"):
+            dataset.attrs["proj:wkt2"] = crs.to_wkt()
 
 
 def rechunk_dataset_for_encoding(
