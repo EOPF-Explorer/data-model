@@ -192,20 +192,12 @@ class TestSpatial:
         with pytest.raises(ValidationError):
             Spatial(**{"spatial:dimensions": None})
 
-    def test_empty_dimensions_allowed(self) -> None:
-        """Test that empty dimensions are currently allowed (future: may want validation)."""
-        # Currently empty lists are allowed
-        spatial = Spatial(**{"spatial:dimensions": []})
-        assert spatial.dimensions == []
+    def test_empty_dimensions_not_allowed(self) -> None:
+        """Test that empty dimensions raise ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            Spatial(**{"spatial:dimensions": []})
 
-        # Future consideration: might want to validate for non-empty lists
-        # with pytest.raises(ValidationError):
-        #     Spatial(**{"spatial:dimensions": []})
-
-    def test_affine_transform_validation(self) -> None:
-        """Test that affine transforms should have 6 elements (when implemented)."""
-        # Note: The current implementation doesn't validate transform length
-        # This test demonstrates expected behavior for future validation
+        assert "spatial:dimensions must contain at least one dimension" in str(exc_info.value)
         data = {
             "spatial:dimensions": ["y", "x"],
             "spatial:transform_type": "affine",
