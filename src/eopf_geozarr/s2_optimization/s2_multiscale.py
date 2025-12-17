@@ -5,7 +5,7 @@ Uses lazy evaluation to minimize memory usage during dataset preparation.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import structlog
@@ -469,7 +469,7 @@ def add_multiscales_metadata_to_parent(
                 rio_transform = dataset.rio.transform
                 if callable(rio_transform):
                     rio_transform = rio_transform()
-                transform = list(rio_transform)[:6]  # Get 6 coefficients
+                transform = tuple(rio_transform)[:6]  # Get 6 coefficients
                 log.info("Got transform from rio accessor", transform=transform, level=res_name)
             except (AttributeError, TypeError) as e:
                 log.warning(
@@ -488,7 +488,7 @@ def add_multiscales_metadata_to_parent(
                     pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
                     x_min = float(x_coords.min())
                     y_max = float(y_coords.max())
-                    transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
+                    transform = (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
                     log.info(
                         "Calculated transform from coordinates",
                         transform=transform,
@@ -533,7 +533,7 @@ def add_multiscales_metadata_to_parent(
                 variable=str(first_var.name),
             )
 
-        layout_entry = {
+        layout_entry: OverviewLevelJSON = {
             "level": res_name,  # Use string-based level name
             "zoom": zoom,
             "width": width,
@@ -541,15 +541,16 @@ def add_multiscales_metadata_to_parent(
             "translation_relative": relative_translation,
             "scale_absolute": res_meters,
             "scale_relative": relative_scale,
+            "spatial_transform": None,
             "chunks": chunks,
-            "spatial_shape": [height, width],
+            "spatial_shape": (height, width),
         }
 
         # Only add spatial_transform if we have valid transform data
         if transform is not None and not all(t == 0 for t in transform):
             layout_entry["spatial_transform"] = transform
 
-        overview_levels.append(cast("OverviewLevelJSON", layout_entry))
+        overview_levels.append(layout_entry)
 
     if len(overview_levels) < 2:
         log.info("    Could not create overview levels for {}", base_path=base_path)
