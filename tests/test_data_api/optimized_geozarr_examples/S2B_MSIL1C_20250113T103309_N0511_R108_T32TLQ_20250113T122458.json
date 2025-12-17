@@ -4341,7 +4341,7 @@
                 },
                 {
                   "asset": "r120m",
-                  "derived_from": "r10m",
+                  "derived_from": "r60m",
                   "spatial:shape": [
                     915,
                     915
@@ -4359,7 +4359,7 @@
                 },
                 {
                   "asset": "r360m",
-                  "derived_from": "r10m",
+                  "derived_from": "r120m",
                   "spatial:shape": [
                     305,
                     305
@@ -4377,7 +4377,7 @@
                 },
                 {
                   "asset": "r720m",
-                  "derived_from": "r10m",
+                  "derived_from": "r360m",
                   "spatial:shape": [
                     152,
                     152

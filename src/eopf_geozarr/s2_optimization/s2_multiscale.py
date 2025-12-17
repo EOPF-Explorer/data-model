@@ -588,12 +588,23 @@ def add_multiscales_metadata_to_parent(
         )
     if "experimental_multiscales_convention" in multiscales_flavor:
         layout = []
+
+        # Define the correct derivation chain
+        derivation_chain = {
+            "r10m": None,  # base resolution
+            "r20m": "r10m",
+            "r60m": "r10m",
+            "r120m": "r60m",
+            "r360m": "r120m",
+            "r720m": "r360m",
+        }
+
         for i, overview_level in enumerate(overview_levels):
             # Create scale level with required fields
             asset = str(overview_level["level"])
 
             if i > 0:  # Not the first (base) resolution
-                derived_from = str(all_resolutions[0])
+                derived_from = derivation_chain.get(asset, str(all_resolutions[0]))
                 multiscale_transform = zcm.Transform(
                     scale=(overview_level["scale_relative"],) * 2,
                     translation=(overview_level["translation_relative"],) * 2,

@@ -2,18 +2,16 @@
     "zarr_format": 3,
     "node_type": "array",
     "attributes": {
-        "zarr_conventions_version": "0.1.0",
-        "zarr_conventions": {
-            "f17cb550-5864-4468-aeb7-f3180cfb622f": {
-                "version": "0.1.0",
-                "schema": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v0.1.0/schema.json",
-                "name": "geo-proj",
-                "description": "Coordinate reference system information for geospatial data",
-                "spec": "https://github.com/zarr-experimental/geo-proj/blob/v0.1.0/README.md"
+        "zarr_conventions": [
+            {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "name": "proj:",
+                "schema_url": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json",
+                "spec_url": "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md",
+                "description": "Coordinate reference system information for geospatial data"
             }
-        },
+        ],
         "proj:code": "EPSG:3857",
-        "proj:spatial_dimensions": ["Y", "X"],
         "proj:bbox": [
             -20037508.342789244,
             -20037508.342789244,
