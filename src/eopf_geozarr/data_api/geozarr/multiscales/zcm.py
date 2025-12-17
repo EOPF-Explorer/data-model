@@ -96,7 +96,6 @@ class ScaleLevelJSON(TypedDict):
 
 
 class Multiscales(BaseModel):
-    version: str | MISSING = MISSING
     layout: tuple[ScaleLevel, ...]
     resampling_method: str | MISSING = MISSING
 

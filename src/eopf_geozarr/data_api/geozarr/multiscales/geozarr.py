@@ -17,7 +17,6 @@ class MultiscaleMeta(BaseModel):
     or ZCM multiscale metadata
     """
 
-    version: str | MISSING = MISSING
     layout: tuple[zcm.ScaleLevel, ...] | MISSING = MISSING
     resampling_method: str | MISSING = MISSING
     tile_matrix_set: tms.TileMatrixSet | MISSING = MISSING

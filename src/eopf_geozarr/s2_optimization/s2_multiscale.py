@@ -629,7 +629,6 @@ def add_multiscales_metadata_to_parent(
             ProjConventionMetadata(),
         ),
         multiscales=MultiscaleMeta(
-            version="1.0.0",  # Add required version field
             layout=layout,
             resampling_method="average",
             tile_matrix_set=tile_matrix_set,
