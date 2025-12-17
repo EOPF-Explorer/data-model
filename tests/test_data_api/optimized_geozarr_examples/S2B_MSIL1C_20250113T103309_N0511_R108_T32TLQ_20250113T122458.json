@@ -4528,8 +4528,7 @@
                   }
                 ],
                 "title": "Native CRS Tile Matrix Set (EPSG:32632)"
-              },
-              "version": "1.0.0"
+              }
             },
             "proj:code": "EPSG:32632",
             "spatial:bbox": [
