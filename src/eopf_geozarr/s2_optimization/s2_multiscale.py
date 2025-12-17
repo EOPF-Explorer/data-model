@@ -449,8 +449,8 @@ def add_multiscales_metadata_to_parent(
     # Create overview_levels structure following the multiscales v1.0 specification
     overview_levels: list[OverviewLevelJSON] = []
     for res_name in all_resolutions:
-        # res_meters = res_order[res_name]
-        res_meters = float(get_grid_spacing(res_groups[res_name], ("y",))[0])
+        # Use resolution order for consistent scale calculations
+        res_meters = res_order[res_name]
 
         dataset = res_groups[res_name]
 
@@ -462,6 +462,7 @@ def add_multiscales_metadata_to_parent(
         height, width = first_var.shape[-2:]
 
         # Calculate spatial transform (affine transformation)
+        transform = None
         if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
             try:
                 # Try to get transform as property first
@@ -469,20 +470,50 @@ def add_multiscales_metadata_to_parent(
                 if callable(rio_transform):
                     rio_transform = rio_transform()
                 transform = list(rio_transform)[:6]  # Get 6 coefficients
-            except (AttributeError, TypeError):
-                # Fallback: construct from grid spacing and bounds
-                pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
-                pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
-                x_min = float(dataset.x.min().values)
-                y_max = float(dataset.y.max().values)
-                transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
-        else:
+                log.info("Got transform from rio accessor", transform=transform, level=res_name)
+            except (AttributeError, TypeError) as e:
+                log.warning(
+                    "Could not get transform from rio accessor", error=str(e), level=res_name
+                )
+
+        if transform is None or all(t == 0 for t in transform):
             # Fallback: construct from grid spacing and bounds
-            pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
-            pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
-            x_min = float(dataset.x.min().values)
-            y_max = float(dataset.y.max().values)
-            transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
+            try:
+                if "x" in dataset.coords and "y" in dataset.coords:
+                    # Use coordinate arrays to calculate spacing
+                    x_coords = dataset.coords["x"].values
+                    y_coords = dataset.coords["y"].values
+
+                    if len(x_coords) > 1 and len(y_coords) > 1:
+                        pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
+                        pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+                        x_min = float(x_coords.min())
+                        y_max = float(y_coords.max())
+                        transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
+                        log.info(
+                            "Calculated transform from coordinates",
+                            transform=transform,
+                            pixel_size_x=pixel_size_x,
+                            pixel_size_y=pixel_size_y,
+                            level=res_name,
+                        )
+                    else:
+                        log.warning(
+                            "Insufficient coordinate points for transform calculation",
+                            x_len=len(x_coords),
+                            y_len=len(y_coords),
+                            level=res_name,
+                        )
+                else:
+                    log.warning(
+                        "Missing x/y coordinates for transform calculation",
+                        coords=list(dataset.coords.keys()),
+                        level=res_name,
+                    )
+            except Exception as e:
+                log.warning(
+                    "Error calculating transform from coordinates", error=str(e), level=res_name
+                )
 
         # Calculate zoom level (higher resolution = higher zoom)
         tile_width = 256
@@ -516,10 +547,12 @@ def add_multiscales_metadata_to_parent(
             "scale_absolute": res_meters,
             "scale_relative": relative_scale,
             "chunks": chunks,
-            # Store transform for later use in spatial convention
-            "spatial_transform": transform,
             "spatial_shape": [height, width],
         }
+
+        # Only add spatial_transform if we have valid transform data
+        if transform is not None and not all(t == 0 for t in transform):
+            layout_entry["spatial_transform"] = transform
 
         overview_levels.append(cast("OverviewLevelJSON", layout_entry))
 
@@ -573,7 +606,8 @@ def add_multiscales_metadata_to_parent(
 
             # Add spatial properties manually after creation (using extra fields)
             setattr(scale_level, "spatial:shape", overview_level["spatial_shape"])
-            setattr(scale_level, "spatial:transform", overview_level["spatial_transform"])
+            if "spatial_transform" in overview_level:
+                setattr(scale_level, "spatial:transform", overview_level["spatial_transform"])
 
             layout.append(scale_level)
     # Create convention metadata for all three conventions
