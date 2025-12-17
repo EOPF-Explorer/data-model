@@ -478,41 +478,36 @@ def add_multiscales_metadata_to_parent(
 
         if transform is None or all(t == 0 for t in transform):
             # Fallback: construct from grid spacing and bounds
-            try:
-                if "x" in dataset.coords and "y" in dataset.coords:
-                    # Use coordinate arrays to calculate spacing
-                    x_coords = dataset.coords["x"].values
-                    y_coords = dataset.coords["y"].values
+            if "x" in dataset.coords and "y" in dataset.coords:
+                # Use coordinate arrays to calculate spacing
+                x_coords = dataset.coords["x"].values
+                y_coords = dataset.coords["y"].values
 
-                    if len(x_coords) > 1 and len(y_coords) > 1:
-                        pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
-                        pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
-                        x_min = float(x_coords.min())
-                        y_max = float(y_coords.max())
-                        transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
-                        log.info(
-                            "Calculated transform from coordinates",
-                            transform=transform,
-                            pixel_size_x=pixel_size_x,
-                            pixel_size_y=pixel_size_y,
-                            level=res_name,
-                        )
-                    else:
-                        log.warning(
-                            "Insufficient coordinate points for transform calculation",
-                            x_len=len(x_coords),
-                            y_len=len(y_coords),
-                            level=res_name,
-                        )
-                else:
-                    log.warning(
-                        "Missing x/y coordinates for transform calculation",
-                        coords=list(dataset.coords.keys()),
+                if len(x_coords) > 1 and len(y_coords) > 1:
+                    pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
+                    pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+                    x_min = float(x_coords.min())
+                    y_max = float(y_coords.max())
+                    transform = [pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max]
+                    log.info(
+                        "Calculated transform from coordinates",
+                        transform=transform,
+                        pixel_size_x=pixel_size_x,
+                        pixel_size_y=pixel_size_y,
                         level=res_name,
                     )
-            except Exception as e:
+                else:
+                    log.warning(
+                        "Insufficient coordinate points for transform calculation",
+                        x_len=len(x_coords),
+                        y_len=len(y_coords),
+                        level=res_name,
+                    )
+            else:
                 log.warning(
-                    "Error calculating transform from coordinates", error=str(e), level=res_name
+                    "Missing x/y coordinates for transform calculation",
+                    coords=list(dataset.coords.keys()),
+                    level=res_name,
                 )
 
         # Calculate zoom level (higher resolution = higher zoom)
