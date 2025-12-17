@@ -613,7 +613,10 @@ def add_multiscales_metadata_to_parent(
             # Add spatial properties manually after creation (using extra fields)
             setattr(scale_level, "spatial:shape", overview_level["spatial_shape"])
             if "spatial_transform" in overview_level:
-                setattr(scale_level, "spatial:transform", overview_level["spatial_transform"])
+                spatial_transform = overview_level["spatial_transform"]
+                # Only add spatial_transform if we have valid transform data (not all zeros)
+                if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+                    setattr(scale_level, "spatial:transform", spatial_transform)
 
             layout.append(scale_level)
     # Create convention metadata for all three conventions
@@ -960,17 +963,18 @@ def write_geo_metadata(
             dataset.attrs["spatial:bbox"] = [x_min, y_min, x_max, y_max]
 
             # Calculate spatial transform (affine transformation)
+            spatial_transform = None
             if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
                 try:
                     rio_transform = dataset.rio.transform
                     if callable(rio_transform):
                         rio_transform = rio_transform()
-                    dataset.attrs["spatial:transform"] = list(rio_transform)[:6]
+                    spatial_transform = list(rio_transform)[:6]
                 except (AttributeError, TypeError):
                     # Fallback: construct from coordinate spacing
                     pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
                     pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
-                    dataset.attrs["spatial:transform"] = [
+                    spatial_transform = [
                         pixel_size_x,
                         0.0,
                         x_min,
@@ -978,6 +982,10 @@ def write_geo_metadata(
                         -pixel_size_y,
                         y_max,
                     ]
+
+            # Only add spatial:transform if we have valid transform data (not all zeros)
+            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+                dataset.attrs["spatial:transform"] = spatial_transform
 
             # Add spatial shape if data variables exist
             if dataset.data_vars:
