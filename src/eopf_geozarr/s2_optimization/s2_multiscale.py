@@ -20,11 +20,13 @@ from eopf_geozarr.conversion.geozarr import (
     _create_tile_matrix_limits,
     create_native_crs_tile_matrix_set,
 )
+from eopf_geozarr.data_api.geozarr.geoproj import ProjConventionMetadata
 from eopf_geozarr.data_api.geozarr.multiscales import tms, zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleGroupAttrs,
     MultiscaleMeta,
 )
+from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
 from eopf_geozarr.data_api.geozarr.types import (
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
@@ -575,9 +577,6 @@ def add_multiscales_metadata_to_parent(
 
             layout.append(scale_level)
     # Create convention metadata for all three conventions
-    from eopf_geozarr.data_api.geozarr.geoproj import ProjConventionMetadata
-    from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
-
     multiscale_attrs = MultiscaleGroupAttrs(
         zarr_conventions=(
             zcm.MultiscaleConventionMetadata(),
