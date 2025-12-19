@@ -2,21 +2,22 @@
 Tests for S2 multiscale pyramid creation with xy-aligned sharding.
 """
 
-from pathlib import Path
-from typing import Any
-from unittest.mock import patch
+from typing import TypedDict
 
 import numpy as np
 import pytest
 import xarray as xr
+import zarr
+from pydantic_zarr.experimental.v3 import ArraySpec, GroupSpec
 from structlog.testing import capture_logs
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
+    auto_chunks,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
     create_measurements_encoding,
-    create_multiscale_from_datatree,
+    create_multiscale_levels,
 )
 
 
@@ -26,30 +27,47 @@ def sample_dataset() -> xr.Dataset:
     x = np.linspace(0, 1000, 100)
     y = np.linspace(0, 1000, 100)
     time = np.array(["2023-01-01", "2023-01-02"], dtype="datetime64[ns]")
+    data_var_names = ["b02", "b05", "scl"]
+    data_vars: dict[str, xr.DataArray] = {}
+    for name in data_var_names:
+        # Create sample variables with different dimensions
+        data_vars[name] = xr.DataArray(
+            np.random.randint(0, 4000, (2, 100, 100)),
+            dims=["time", "y", "x"],
+            coords={"time": time, "y": y, "x": x},
+            name=name,
+        )
+    return xr.Dataset(data_vars=data_vars)
 
-    # Create sample variables with different dimensions
+
+@pytest.fixture
+def simple_datatree() -> zarr.Group:
+    """Create a simple DataTree for integration testing, and save it to an in-memory zarr group"""
+    store = {}
+    group = zarr.create_group(store)
+    # Create sample data
+    x = np.linspace(0, 1000, 100)
+    y = np.linspace(0, 1000, 100)
+    time = np.array(["2023-01-01"], dtype="datetime64[ns]")
+
+    # Create sample band
     b02 = xr.DataArray(
-        np.random.randint(0, 4000, (2, 100, 100)),
+        np.random.randint(0, 4000, (1, 100, 100)),
         dims=["time", "y", "x"],
         coords={"time": time, "y": y, "x": x},
         name="b02",
+        attrs={"long_name": "Blue band", "units": "digital_number"},
     )
 
-    b05 = xr.DataArray(
-        np.random.randint(0, 4000, (2, 100, 100)),
-        dims=["time", "y", "x"],
-        coords={"time": time, "y": y, "x": x},
-        name="b05",
-    )
+    # Create dataset
+    ds = xr.Dataset({"b02": b02})
 
-    scl = xr.DataArray(
-        np.random.randint(0, 11, (2, 100, 100)),
-        dims=["time", "y", "x"],
-        coords={"time": time, "y": y, "x": x},
-        name="scl",
-    )
+    # Create DataTree
+    dt = xr.DataTree(name="root")
+    dt["/measurements/reflectance/r10m"] = xr.DataTree(ds)
+    dt.to_zarr(group.store, compute=True, mode="w", consolidated=False)
 
-    return xr.Dataset({"b02": b02, "b05": b05, "scl": scl})
+    return group
 
 
 class TestS2MultiscaleFunctions:
@@ -148,63 +166,62 @@ class TestS2MultiscaleFunctions:
         assert 1000 % chunk_size == 0
 
 
-class TestS2MultiscaleIntegration:
-    """Integration tests for S2 multiscale functions."""
+@pytest.mark.parametrize("ndim", [0, 1, 2, 3, 4])
+@pytest.mark.parametrize("target_chunk_size", [10, 12])
+def test_auto_chunks(ndim: int, target_chunk_size: int) -> None:
+    shape = (11,) * ndim
+    chunks = auto_chunks(shape, target_chunk_size)
 
-    @pytest.fixture
-    def simple_datatree(self) -> xr.DataTree:
-        """Create a simple DataTree for integration testing."""
-        # Create sample data
-        x = np.linspace(0, 1000, 100)
-        y = np.linspace(0, 1000, 100)
-        time = np.array(["2023-01-01"], dtype="datetime64[ns]")
-
-        # Create sample band
-        b02 = xr.DataArray(
-            np.random.randint(0, 4000, (1, 100, 100)),
-            dims=["time", "y", "x"],
-            coords={"time": time, "y": y, "x": x},
-            name="b02",
-            attrs={"long_name": "Blue band", "units": "digital_number"},
+    if ndim == 0:
+        assert chunks == ()
+    if ndim == 1:
+        assert chunks == (min(shape[0], target_chunk_size),)
+    if ndim >= 2:
+        assert chunks == ((1,) * (ndim - 2)) + (
+            calculate_aligned_chunk_size(shape[-2], target_chunk_size),
+            calculate_aligned_chunk_size(shape[-1], target_chunk_size),
         )
 
-        # Create dataset
-        ds = xr.Dataset({"b02": b02})
 
-        # Create DataTree
-        dt = xr.DataTree(name="root")
-        dt["/measurements/reflectance/r10m"] = xr.DataTree(ds)
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+def test_create_multiscale_from_datatree(simple_datatree: zarr.Group) -> None:
+    """Test multiscale creation from DataTree."""
 
-        return dt
+    class DatasetMembers(TypedDict):
+        x: ArraySpec
+        y: ArraySpec
+        time: ArraySpec
+        b02: ArraySpec
 
-    @patch("eopf_geozarr.s2_optimization.s2_multiscale.stream_write_dataset")
-    def test_create_multiscale_from_datatree(
-        self, mock_write: Any, simple_datatree: xr.DataTree, tmp_path: Path
-    ) -> None:
-        """Test multiscale creation from DataTree."""
-        output_path = str(tmp_path / "output.zarr")
+    class DatasetGroup(GroupSpec):
+        members: DatasetMembers
 
-        # Mock the write to avoid actual file I/O
-        mock_write.return_value = xr.Dataset({"b02": xr.DataArray([1, 2, 3])})
+    class ExpectedMembers(TypedDict):
+        r10m: DatasetGroup
+        r20m: DatasetGroup
+        r60m: DatasetGroup
+        r120m: DatasetGroup
+        r360m: DatasetGroup
+        r720m: DatasetGroup
 
-        # Capture log output using structlog's testing context manager
-        with capture_logs() as cap_logs:
-            result = create_multiscale_from_datatree(
-                simple_datatree,
-                output_path,
-                enable_sharding=True,
-                spatial_chunk=256,
-            )
+    class ExpectedGroup(GroupSpec):
+        members: ExpectedMembers
 
-        # Should process groups
-        assert isinstance(result, dict)
-        # At minimum, should write the original group
-        assert mock_write.call_count >= 1
+    # Capture log output using structlog's testing context manager
+    with capture_logs():
+        create_multiscale_levels(simple_datatree, path="measurements/reflectance")
 
-        # Optionally verify log messages (cap_logs contains all logged events)
-        # With verbose=False, there won't be many logs, but we can check the structure
-        assert isinstance(cap_logs, list)
+    ExpectedGroup.from_zarr(simple_datatree["measurements/reflectance"])
 
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+def test_create_multiscale_skips_existing_arrays(simple_datatree: zarr.Group) -> None:
+    """Test that the multiscale creation routine does not overwrite an existing low res array"""
+    # insert a new group containing an empty version of the existing datasets
+    simple_datatree.create_group("measurements/reflectance/r20m")
+    simple_datatree.create_array(
+        "measurements/reflectance/r20m/b02", shape=(1,), dtype="uint8", dimension_names=("x",)
+    )
+
+    create_multiscale_levels(simple_datatree, path="measurements/reflectance")
+    assert simple_datatree["measurements/reflectance/r20m/b02"].shape == (1,)

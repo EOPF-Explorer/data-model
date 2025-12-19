@@ -10,15 +10,15 @@ import json
 import subprocess
 from pathlib import Path
 
+import jsondiff
 import pytest
 import xarray as xr
 import zarr
 from pydantic_zarr.core import tuplify_json
-from pydantic_zarr.v3 import GroupSpec
-
-from tests.test_data_api.conftest import view_json_diff
+from pydantic_zarr.experimental.v3 import GroupSpec
 
 
+@pytest.mark.filterwarnings("ignore:.*:zarr.errors.UnstableSpecificationWarning")
 def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
     """
     Test the convert-s2-optimized CLI command on a local copy of sentinel data
@@ -53,9 +53,9 @@ def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
 
     # Uncomment this section to write out the expected structure from the observed structure
     # This is useful when the expected structure needs to be updated
-    # expected_structure_path.write_text(
-    #    json.dumps(observed_structure_json, indent=2, sort_keys=True)
-    # )
+    expected_structure_path.write_text(
+        json.dumps(observed_structure_json, indent=2, sort_keys=True)
+    )
 
     expected_structure_json = tuplify_json(json.loads(expected_structure_path.read_text()))
     expected_structure = GroupSpec(**expected_structure_json)
@@ -66,10 +66,23 @@ def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
 
     # Check that all of the keys are the same
     assert o_keys == e_keys
+
     # Check that all values are the same
-    assert [k for k in o_keys if expected_structure_flat[k] != observed_structure_flat[k]] == []
+    differences: dict[str, dict[str, object]] = {}
+    for k in o_keys:
+        expected_val = expected_structure_flat[k]
+        observed_val = observed_structure_flat[k]
+
+        expected_val_json = tuplify_json(expected_val.model_dump())
+        observed_val_json = tuplify_json(observed_val.model_dump())
+
+        if expected_val_json != observed_val_json:
+            differences[k] = jsondiff.diff(expected_val_json, observed_val_json)
+
+    assert differences == {}
 
 
+@pytest.mark.filterwarnings("ignore:.*:zarr.errors.UnstableSpecificationWarning")
 def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path) -> None:
     """
     Test CLI conversion using a Sentinel-2 hierarchy saved locally.
@@ -78,7 +91,12 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
     output_path = tmp_path / "s2b_geozarr_cli_test.zarr"
 
     # Detect product level (L1C vs L2A) by checking which quicklook group exists
-    dt_source = xr.open_datatree(s2_group_example, engine="zarr")
+    dt_source = xr.open_datatree(
+        s2_group_example,
+        engine="zarr",
+        consolidated=False,
+        decode_timedelta=True,
+    )
     has_l2a_quicklook = "/quality/l2a_quicklook" in dt_source.groups
     has_l1c_quicklook = "/quality/l1c_quicklook" in dt_source.groups
 
@@ -171,9 +189,29 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
     observed_structure_json = tuplify_json(
         GroupSpec.from_zarr(zarr.open_group(output_path)).model_dump()
     )
-    assert expected_structure_json == observed_structure_json, view_json_diff(
-        expected_structure_json, observed_structure_json
-    )
+    observed_structure = GroupSpec(**observed_structure_json)
+    observed_structure_flat = observed_structure.to_flat()
+    expected_structure = GroupSpec(**expected_structure_json)
+    expected_structure_flat = expected_structure.to_flat()
+
+    o_keys = set(observed_structure_flat.keys())
+    e_keys = set(expected_structure_flat.keys())
+
+    # Check that all of the keys are the same
+    assert o_keys == e_keys
+
+    differences: dict[str, dict[str, object]] = {}
+    for k in o_keys:
+        expected_val = expected_structure_flat[k]
+        observed_val = observed_structure_flat[k]
+
+        expected_val_json = tuplify_json(expected_val.model_dump())
+        observed_val_json = tuplify_json(observed_val.model_dump())
+
+        if expected_val_json != observed_val_json:
+            differences[k] = jsondiff.diff(expected_val_json, observed_val_json)
+
+    assert differences == {}
 
 
 def test_cli_help_commands() -> None:
@@ -302,6 +340,7 @@ def test_cli_convert_with_crs_groups(s2_group_example, tmp_path: Path) -> None:
     assert (output_path / "zarr.json").exists(), "Main zarr.json not found"
 
 
+@pytest.mark.filterwarnings("ignore:.*:zarr.errors.ZarrUserWarning")
 def test_cli_crs_groups_empty_list(tmp_path: str) -> None:
     """Test CLI with --crs-groups but no groups specified (empty list)."""
     # Create a minimal test dataset

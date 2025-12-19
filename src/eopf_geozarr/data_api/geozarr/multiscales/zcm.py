@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Final, Literal, NotRequired
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_serializer
 from pydantic.experimental.missing_sentinel import MISSING
 from typing_extensions import TypedDict
 
@@ -72,6 +72,15 @@ class ZarrConventionAttrs(BaseModel):
 class Transform(BaseModel):
     scale: tuple[float, ...] | MISSING = MISSING
     translation: tuple[float, ...] | MISSING = MISSING
+
+    @model_serializer
+    def serialize_model(self) -> dict[str, tuple[float, ...]]:
+        result: dict[str, tuple[float, ...]] = {}
+        if self.scale is not MISSING:
+            result["scale"] = self.scale
+        if self.translation is not MISSING:
+            result["translation"] = self.translation
+        return result
 
 
 class TransformJSON(TypedDict):
