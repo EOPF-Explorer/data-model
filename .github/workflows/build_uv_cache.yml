@@ -33,7 +33,7 @@ jobs:
           echo "Cache populated successfully"
 
       - name: Save uv caches
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/.cache/uv
