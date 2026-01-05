@@ -913,15 +913,8 @@ def stream_write_dataset(
                 except Exception as progress_error:
                     log.warning("Could not display progress bar: {}", e=progress_error)
 
-                # Get result and check for errors
+                # Get result and raise if computation failed
                 future.result()
-
-                # Check final status
-                if future.status != "finished":
-                    raise RuntimeError(
-                        f"Write job failed: Future status is '{future.status}', not 'finished'"
-                    )
-
             except ValueError:
                 # No current client, fall back to regular distributed.progress
                 log.info("No distributed client available, using regular progress")
