@@ -5,17 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Distributed job monitoring with proper Future status tracking when distributed client is available (#103)
+- Post-write verification to catch silent write failures and invalid output datasets
+
+### Changed
+
+- Improved `stream_write_dataset` to use `client.compute()` for better status monitoring when distributed client is active
+- Enhanced error reporting with specific failure context and dataset path information
+- Added fallback mechanisms for distributed features when client is unavailable
+
+### Fixed
+
+- Fixed issue where CLI would not exit with error code when write operations failed silently
+
 ## [0.6.0] - 2025-12-18
 
 ### Added
+
 - Spatial Zarr Convention models and metadata support (#100)
 
 ### Changed
+
 - Updated multiscales metadata handling for improved compatibility
 - Set up VCS versioning based on git tags for automatic version management
 - Improved linting configuration by dropping isort and black in favor of stronger linting
 
 ### Fixed
+
 - Prevented crash in quality-mask downsampling for Sentinel-2 processing
 - Fixed S3 path test issues
 - Improved runtime imports for better performance
@@ -23,36 +43,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-11-04
 
 ### Added
+
 - `eopf_geozarr.s2_optimization` module with streaming multiscale generation, CLI commands, and validation for Sentinel-2 L2A.
 - End-to-end sharding support spanning CLI flags, conversion helpers, Dask execution, and encoding metadata.
 - Geo Projection attribute extension documentation plus schema to lock GeoZarr metadata expectations.
 
 ### Changed
+
 - Tightened spatial chunk and shard defaults to cut write overhead on large scenes.
 - Relocated the entire test suite under `src/eopf_geozarr/tests` and broadened type coverage for tooling.
 - Smoothed multiscale metadata handling during streaming writes to keep Sentinel datasets consistent.
 
 ### Fixed
+
 - Preserved coordinate dtypes in overview levels and stopped auxiliary coordinate write failures.
 - Prevented streaming metadata consolidation from overwriting existing groups between runs.
 
 ## [0.2.0] - 2025-09-22
 
 ### Added
+
 - Sentinel-1 GRD integration tests and CLI wiring to enforce GeoZarr compliance end to end.
 - Reprojection utilities with GCP selection and grid-mapping output for Sentinel-1 converts.
 
 ### Changed
+
 - Extended `create_geozarr_dataset` to understand VV/VH polarization groups and build GCP-backed overviews.
 - Tuned chunk-size calculation and encoding helpers so shard dimensions and auxiliaries align.
 
 ### Fixed
+
 - Stopped auxiliary coordinate writes from failing in overviews when chunked.
 - Silenced noisy CLI warnings and aligned launch configs with the packaged tests.
 
 ## [0.1.0] - 2025-01-25
 
 ### Added
+
 - Initial release of EOPF GeoZarr library
 - Core conversion functionality from EOPF datasets to GeoZarr-spec 0.4 compliant format
 - Command-line interface with `convert`, `info`, and `validate` commands
@@ -75,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PyPI package configuration with proper dependencies
 
 ### Features
+
 - **Conversion Module**: Core tools for EOPF to GeoZarr transformation
   - `create_geozarr_dataset`: Main conversion function
   - `setup_datatree_metadata_geozarr_spec_compliant`: Metadata setup for GeoZarr compliance
@@ -85,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Utility Functions**: Helper functions for data processing and validation
 
 ### Technical Details
+
 - Built on xarray, zarr, and rioxarray
 - Supports Python 3.11+
 - Follows CF conventions for geospatial metadata
@@ -93,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Band-by-band processing for memory efficiency
 
 ### Dependencies
+
 - xarray >= 2025.7.1
 - zarr >= 3.0.10
 - rioxarray >= 0.13.0
@@ -103,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - aiohttp >= 3.8.1
 
 ### Development
+
 - Pre-commit hooks for code quality
 - Black, isort, flake8, and mypy for code formatting and linting
 - Pytest for testing with coverage reporting
