@@ -915,7 +915,6 @@ def stream_write_dataset(
 
                 # Get result and raise if computation failed
                 future.result()
-
             except ValueError:
                 # No current client, fall back to regular distributed.progress
                 log.info("No distributed client available, using regular progress")
