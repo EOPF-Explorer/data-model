@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-01-05
+
 ### Added
 
 - Distributed job monitoring with proper Future status tracking when distributed client is available (#103)
