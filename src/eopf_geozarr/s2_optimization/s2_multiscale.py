@@ -901,9 +901,35 @@ def stream_write_dataset(
         try:
             import distributed
 
-            distributed.progress(write_job, notebook=False)
+            # Try to get current client for better status monitoring
+            try:
+                client = distributed.Client.current()
+                # Use client.compute to get a proper Future with status
+                future = client.compute(write_job)
+                log.info("Using distributed client for write job monitoring")
+
+                try:
+                    distributed.progress(future, notebook=False)
+                except Exception as progress_error:
+                    log.warning("Could not display progress bar: {}", e=progress_error)
+
+                # Get result and check for errors
+                future.result()
+
+                # Check final status
+                if future.status != "finished":
+                    raise RuntimeError(
+                        f"Write job failed: Future status is '{future.status}', not 'finished'"
+                    )
+
+            except ValueError:
+                # No current client, fall back to regular distributed.progress
+                log.info("No distributed client available, using regular progress")
+                distributed.progress(write_job, notebook=False)
+                write_job.compute()
+
         except Exception as e:
-            log.warning("Could not display progress bar: {}", e=e)
+            log.warning("Could not use distributed features: {}", e=e)
             write_job.compute()
     else:
         log.info("Writing zarr file...")
