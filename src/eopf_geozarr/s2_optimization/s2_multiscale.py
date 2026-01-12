@@ -42,6 +42,112 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
+
+def detect_scale_offset_attributes(var_data: xr.DataArray) -> dict[str, Any] | None:
+    """Detect scale_factor and add_offset from variable attributes or encoding.
+
+    Args:
+        var_data: xarray DataArray to check for scale/offset attributes
+
+    Returns:
+        Dictionary with scale_factor, add_offset, and dtype if found, None otherwise
+    """
+    scale = None
+    offset = None
+    dtype = None
+
+    # Check direct attributes
+    scale = var_data.attrs.get("scale_factor")
+    offset = var_data.attrs.get("add_offset")
+    dtype = var_data.attrs.get("dtype")
+
+    # Check _eopf_attrs if present
+    if "_eopf_attrs" in var_data.attrs:
+        eopf_attrs = var_data.attrs["_eopf_attrs"]
+        scale = scale or eopf_attrs.get("scale_factor")
+        offset = offset or eopf_attrs.get("add_offset")
+        dtype = dtype or eopf_attrs.get("dtype")
+
+    # Check encoding
+    scale = scale or var_data.encoding.get("scale_factor")
+    offset = offset or var_data.encoding.get("add_offset")
+
+    if scale is not None or offset is not None:
+        # Determine original dtype
+        if dtype is None:
+            dtype = str(var_data.dtype)
+
+        return {"scale_factor": scale or 1.0, "add_offset": offset or 0.0, "dtype": dtype}
+    return None
+
+
+def create_fixed_scale_offset_filter(scale_attrs: dict[str, Any]) -> object:
+    """Create FixedScaleOffset filter for zarr v3.
+
+    Args:
+        scale_attrs: Dictionary with scale_factor, add_offset, and dtype
+
+    Returns:
+        numcodecs.zarr3.FixedScaleOffset filter instance
+    """
+    try:
+        import numcodecs.zarr3
+    except ImportError as e:
+        log.warning(
+            "numcodecs.zarr3 not available, cannot create FixedScaleOffset filter: {}", str(e)
+        )
+        return None
+
+    # Map v2 parameters to v3 FixedScaleOffset
+    # scale in v3 is the inverse of scale_factor in v2
+    scale_factor = scale_attrs["scale_factor"]
+    add_offset = scale_attrs["add_offset"]
+    storage_dtype = scale_attrs["dtype"]  # This is the storage dtype (uint16)
+
+    # For Sentinel-2 data:
+    # - Input values are float64 (actual reflectance values)
+    # - Storage is uint16 (scaled/compressed values)
+    # - FixedScaleOffset converts float64 -> uint16
+
+    # Clean storage dtype string
+    if isinstance(storage_dtype, str):
+        if storage_dtype.startswith(("<", ">")):
+            # Remove endianness prefix for zarr codec
+            storage_dtype_clean = storage_dtype[1:] if len(storage_dtype) > 1 else storage_dtype
+        else:
+            storage_dtype_clean = storage_dtype
+    else:
+        storage_dtype_clean = str(storage_dtype)
+
+    # Map numpy dtype codes to proper zarr codec types
+    dtype_mapping = {
+        "u2": "uint16",
+        "u1": "uint8",
+        "i2": "int16",
+        "i1": "int8",
+        "f4": "float32",
+        "f8": "float64",
+    }
+
+    storage_type = dtype_mapping.get(storage_dtype_clean, storage_dtype_clean)
+
+    log.info(
+        "Creating FixedScaleOffset filter for Sentinel-2 data",
+        scale_factor=scale_factor,
+        add_offset=add_offset,
+        input_dtype="float64",
+        storage_dtype=storage_type,
+    )
+
+    # For Sentinel-2: input is float64, output storage is uint16
+    return numcodecs.zarr3.FixedScaleOffset(
+        offset=add_offset,
+        scale=1.0 / scale_factor if scale_factor != 0 else 1.0,
+        dtype="float64",  # Input type: actual reflectance values
+        astype=storage_type,  # Storage type: compressed uint16
+    )
+
+
 MultiscalesFlavor = Literal["ogc_tms", "experimental_multiscales_convention"]
 
 pyramid_levels = {
@@ -174,7 +280,7 @@ def create_multiscale_from_datatree(
         if r120m_dataset and len(r120m_dataset.data_vars) > 0:
             output_path_120 = f"{output_path}{r120m_path}"
             log.info("Writing r120m to {}", output_path_120=output_path_120)
-            encoding_120 = create_measurements_encoding(r120m_dataset, spatial_chunk=spatial_chunk)
+            encoding_120 = create_measurements_encoding(source_dataset, spatial_chunk=spatial_chunk)
             ds_120 = stream_write_dataset(
                 r120m_dataset,
                 output_path_120,
@@ -196,7 +302,7 @@ def create_multiscale_from_datatree(
                     output_path_360 = f"{output_path}{r360m_path}"
                     log.info("Writing r360m to {}", output_path_360=output_path_360)
                     encoding_360 = create_measurements_encoding(
-                        r360m_dataset, spatial_chunk=spatial_chunk
+                        r120m_dataset, spatial_chunk=spatial_chunk
                     )
                     ds_360 = stream_write_dataset(
                         r360m_dataset,
@@ -223,7 +329,7 @@ def create_multiscale_from_datatree(
                                 output_path_720=output_path_720,
                             )
                             encoding_720 = create_measurements_encoding(
-                                r720m_dataset,
+                                r360m_dataset,
                                 spatial_chunk=spatial_chunk,
                                 enable_sharding=enable_sharding,
                             )
@@ -301,13 +407,32 @@ def create_measurements_encoding(
         else:
             chunks = (min(spatial_chunk, var_data.shape[0]),)
 
-        # Configure encoding - use proper compressor following geozarr.py pattern
-        from zarr.codecs import BloscCodec
+        # Check for scale/offset attributes and create FixedScaleOffset filter if present
+        scale_attrs = detect_scale_offset_attributes(var_data)
+        if scale_attrs:
+            fixed_scale_filter = create_fixed_scale_offset_filter(scale_attrs)
+            if fixed_scale_filter:
+                var_encoding["filters"] = [fixed_scale_filter]  # type: ignore[typeddict-item]
+                log.info(
+                    "Using FixedScaleOffset filter for variable {}",
+                    var_name=var_name,
+                    scale_factor=scale_attrs["scale_factor"],
+                    add_offset=scale_attrs["add_offset"],
+                )
+            else:
+                # Fallback to regular compression if FixedScaleOffset creation fails
+                from zarr.codecs import BloscCodec
 
-        compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+                compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+                var_encoding["compressors"] = (compressor,)
+        else:
+            # Configure encoding - use proper compressor following geozarr.py pattern
+            from zarr.codecs import BloscCodec
+
+            compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
+            var_encoding["compressors"] = (compressor,)
 
         var_encoding["chunks"] = chunks
-        var_encoding["compressors"] = (compressor,)
 
         # Add advanced sharding if enabled - shards match x/y dimensions exactly
         if enable_sharding and var_data.ndim >= 2:
@@ -316,8 +441,13 @@ def create_measurements_encoding(
         else:
             var_encoding["shards"] = None
 
-        # Forward-propagate the existing encoding
-        for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks"}:
+        # Forward-propagate the existing encoding, excluding scale/offset if we created a filter
+        excluded_keys = {"compressors", "shards", "chunks"}
+        if scale_attrs:
+            # Don't propagate scale_factor/add_offset as they're handled by FixedScaleOffset filter
+            excluded_keys.update({"scale_factor", "add_offset"})
+
+        for key in XARRAY_ENCODING_KEYS - excluded_keys:
             if key in var_data.encoding:
                 var_encoding[key] = var_data.encoding[key]  # type: ignore[literal-required]
         if len(set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS) > 0:
