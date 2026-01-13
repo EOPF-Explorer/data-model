@@ -208,6 +208,7 @@ def test_invalid_gcp_group_raises_error(temp_output_dir, sample_sentinel1_datatr
         )
 
 
+@pytest.mark.filterwarnings("ignore::rasterio.errors.NotGeoreferencedWarning")
 @pytest.mark.parametrize(
     "polarization_group",
     [

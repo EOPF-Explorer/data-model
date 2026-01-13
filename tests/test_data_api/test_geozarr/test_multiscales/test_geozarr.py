@@ -18,7 +18,6 @@ def test_multiscale_group_attrs(multiscale_flavor: set[Literal["zcm", "tms"]]) -
     zcm_meta: dict[str, object] = {}
     tms_meta: dict[str, object] = {}
     zarr_conventions_meta: MISSING | tuple[Any, ...] = MISSING
-
     if "zcm" in multiscale_flavor:
         layout = (
             zcm.ScaleLevel(

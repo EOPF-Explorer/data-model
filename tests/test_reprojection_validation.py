@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
 from eopf_geozarr.conversion import create_geozarr_dataset
@@ -140,6 +141,7 @@ class MockSentinel1L1GRDBuilder:
         return dt
 
 
+@pytest.mark.filterwarnings("ignore::rasterio.errors.NotGeoreferencedWarning")
 def test_titiler_compatibility(tmp_path: Path) -> None:
     """Test that reprojected Sentinel-1 data is compatible with titiler-eopf operations."""
     print("🧪 Testing titiler-eopf compatibility with reprojected Sentinel-1 data...")

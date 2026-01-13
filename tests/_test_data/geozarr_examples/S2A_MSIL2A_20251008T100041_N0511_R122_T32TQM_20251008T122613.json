@@ -135,7 +135,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -192,7 +192,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -249,7 +249,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -399,7 +399,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -456,7 +456,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -513,7 +513,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -570,7 +570,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -627,7 +627,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -684,7 +684,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -741,7 +741,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -841,7 +841,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -907,7 +907,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -964,7 +964,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1021,7 +1021,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1171,7 +1171,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1228,7 +1228,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1285,7 +1285,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1342,7 +1342,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1399,7 +1399,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1456,7 +1456,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1513,7 +1513,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1613,7 +1613,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1726,7 +1726,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1830,7 +1830,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -1934,7 +1934,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2131,7 +2131,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2235,7 +2235,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2339,7 +2339,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2443,7 +2443,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2547,7 +2547,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2651,7 +2651,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2755,7 +2755,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -2902,7 +2902,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3206,7 +3206,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3263,7 +3263,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3320,7 +3320,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3377,7 +3377,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3579,7 +3579,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3636,7 +3636,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3693,7 +3693,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3750,7 +3750,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -3952,7 +3952,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4009,7 +4009,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4066,7 +4066,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4123,7 +4123,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4325,7 +4325,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4382,7 +4382,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4439,7 +4439,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4496,7 +4496,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4745,7 +4745,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4849,7 +4849,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -4953,7 +4953,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5057,7 +5057,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5259,7 +5259,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5316,7 +5316,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5373,7 +5373,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5430,7 +5430,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5664,7 +5664,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5721,7 +5721,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5871,7 +5871,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5928,7 +5928,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -5985,7 +5985,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6042,7 +6042,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6099,7 +6099,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6156,7 +6156,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6213,7 +6213,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6313,7 +6313,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6379,7 +6379,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6436,7 +6436,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6586,7 +6586,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6643,7 +6643,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6700,7 +6700,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6757,7 +6757,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6814,7 +6814,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6871,7 +6871,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -6928,7 +6928,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7028,7 +7028,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7094,7 +7094,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7151,7 +7151,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7301,7 +7301,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7358,7 +7358,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7415,7 +7415,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7472,7 +7472,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7529,7 +7529,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7586,7 +7586,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7643,7 +7643,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7743,7 +7743,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7856,7 +7856,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -7960,7 +7960,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8157,7 +8157,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8261,7 +8261,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8365,7 +8365,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8469,7 +8469,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8573,7 +8573,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8677,7 +8677,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8781,7 +8781,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8928,7 +8928,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -8994,7 +8994,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9051,7 +9051,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9201,7 +9201,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9258,7 +9258,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9315,7 +9315,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9372,7 +9372,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9429,7 +9429,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9486,7 +9486,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9543,7 +9543,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -9643,7 +9643,7 @@
                           "separator": "/"
                         }
                       },
-                      "fill_value": 0.0,
+                      "fill_value": "NaN",
                       "codecs": [
                         {
                           "name": "bytes",
@@ -14447,7 +14447,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -14487,7 +14487,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -14612,7 +14612,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -14714,7 +14714,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -14816,7 +14816,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -14918,7 +14918,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15020,7 +15020,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15070,7 +15070,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15159,7 +15159,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15261,7 +15261,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15418,7 +15418,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15509,7 +15509,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15611,7 +15611,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15713,7 +15713,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15815,7 +15815,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15877,7 +15877,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -15986,7 +15986,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16025,7 +16025,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16114,7 +16114,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16216,7 +16216,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16353,7 +16353,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16490,7 +16490,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16542,7 +16542,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16633,7 +16633,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16735,7 +16735,7 @@
                       "separator": "/"
                     }
                   },
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "codecs": [
                     {
                       "name": "bytes",
@@ -16847,7 +16847,7 @@
                   "separator": "/"
                 }
               },
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "codecs": [
                 {
                   "name": "bytes",
@@ -16923,7 +16923,7 @@
                   "separator": "/"
                 }
               },
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "codecs": [
                 {
                   "name": "bytes",
@@ -16986,7 +16986,7 @@
                   "separator": "/"
                 }
               },
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "codecs": [
                 {
                   "name": "bytes",
@@ -17131,7 +17131,7 @@
                   "separator": "/"
                 }
               },
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "codecs": [
                 {
                   "name": "bytes",

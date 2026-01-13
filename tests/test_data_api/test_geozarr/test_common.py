@@ -40,7 +40,10 @@ def test_datarraylike(obj: DataArray_V2 | DataArray_V3) -> None:
     assert isinstance(obj, DataArrayLike)
 
 
-@pytest.mark.parametrize("obj", [GroupSpec_V2(), GroupSpec_V3()])
+@pytest.mark.parametrize(
+    "obj",
+    [GroupSpec_V2(attributes={}, members={}), GroupSpec_V3(attributes={}, members={})],
+)
 def test_grouplike(obj: GroupSpec_V3[Any, Any] | GroupSpec_V2[Any, Any]) -> None:
     """
     Test that the GroupLike protocol works correctly

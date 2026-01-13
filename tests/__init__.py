@@ -165,7 +165,7 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
         assert "y" in ds.dims, f"Missing 'y' dimension in {level_path}"
 
         # Store shape for progression verification
-        level_shapes[level_num] = (ds.dims["y"], ds.dims["x"])
+        level_shapes[level_num] = (ds.sizes["y"], ds.sizes["x"])
         print(f"    Level {level_num}: {level_shapes[level_num]} pixels")
 
         ds.close()

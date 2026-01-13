@@ -34,7 +34,7 @@ class XarrayDataArrayEncoding(TypedDict):
     """
 
     chunks: NotRequired[tuple[int, ...]]
-    preferred_chunks: NotRequired[tuple[int, ...]]
+    preferred_chunks: NotRequired[dict[str, int]]
     compressors: NotRequired[tuple[object, ...] | None]
     filters: NotRequired[tuple[object, ...]]
     shards: NotRequired[tuple[int, ...] | None]

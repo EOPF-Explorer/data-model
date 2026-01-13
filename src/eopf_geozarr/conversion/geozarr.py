@@ -1189,6 +1189,7 @@ def write_dataset_band_by_band_with_validation(
                         engine="zarr",
                         decode_coords="all",
                         chunks="auto",
+                        consolidated=False,
                         storage_options=store_storage_options,
                     )
                 break

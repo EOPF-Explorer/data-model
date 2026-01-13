@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
+from pyproj import CRS
 from typing_extensions import TypedDict
 
 from eopf_geozarr.data_api.geozarr.common import (
@@ -24,182 +25,21 @@ from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 # ============================================================================
 
 
-class BandMetadata(BaseModel):
-    """Metadata for a single Sentinel-2 spectral band.
+class OtherMetadataDict(TypedDict, total=False):
+    """Sentinel-2 other_metadata attributes container.
 
-    Contains physical and spectral characterization of a band.
+    This is intentionally flexible to accommodate variations across different
+    Sentinel-2 product types (L1C, L2A) and processing versions.
+
+    Only horizontal_CRS_code is required as it's the load-bearing element
+    needed by the API to extract CRS information.
     """
 
-    bandwidth: Annotated[float | str, Field(description="Bandwidth in nm")]
-    central_wavelength: Annotated[float, Field(description="Central wavelength in nm")]
-    onboard_compression_rate: Annotated[str | float, Field(description="Compression rate")]
-    onboard_integration_time: Annotated[str | float, Field(description="Integration time")]
-    physical_gain: Annotated[str | float, Field(description="Physical gain factor")]
-    spectral_response_step: Annotated[str, Field(description="Spectral response step")]
-    spectral_response_values: Annotated[str, Field(description="Spectral response curve values")]
-    units: Annotated[str, Field(description="Unit of measurement")]
-    wavelength_max: Annotated[float, Field(description="Maximum wavelength in nm")]
-    wavelength_min: Annotated[float, Field(description="Minimum wavelength in nm")]
+    # Required field - needed for CRS extraction
+    horizontal_CRS_code: str
 
-
-class BandDescription(BaseModel):
-    """Collection of band metadata for all Sentinel-2 bands.
-
-    Maps Sentinel-2 band identifiers to their spectral and technical metadata.
-    All standard bands should be present in Sentinel-2 L1C and L2A products.
-
-    Preserves both numeric (01, 02, ..., 8A) and named (b01, b02, ..., b8a) band keys
-    from the original JSON structure for round-trip compatibility.
-    """
-
-    # Numeric band keys (JSON format)
-    band_01: Annotated[BandMetadata, Field(alias="01")]
-    band_02: Annotated[BandMetadata, Field(alias="02")]
-    band_03: Annotated[BandMetadata, Field(alias="03")]
-    band_04: Annotated[BandMetadata, Field(alias="04")]
-    band_05: Annotated[BandMetadata, Field(alias="05")]
-    band_06: Annotated[BandMetadata, Field(alias="06")]
-    band_07: Annotated[BandMetadata, Field(alias="07")]
-    band_08: Annotated[BandMetadata, Field(alias="08")]
-    band_09: Annotated[BandMetadata, Field(alias="09")]
-    band_10: Annotated[BandMetadata, Field(alias="10")]
-    band_11: Annotated[BandMetadata, Field(alias="11")]
-    band_12: Annotated[BandMetadata, Field(alias="12")]
-    band_8a: Annotated[BandMetadata, Field(alias="8A")]
-
-    # Named band keys (human-readable format)
-    band_b01: Annotated[BandMetadata, Field(alias="b01")]
-    band_b02: Annotated[BandMetadata, Field(alias="b02")]
-    band_b03: Annotated[BandMetadata, Field(alias="b03")]
-    band_b04: Annotated[BandMetadata, Field(alias="b04")]
-    band_b05: Annotated[BandMetadata, Field(alias="b05")]
-    band_b06: Annotated[BandMetadata, Field(alias="b06")]
-    band_b07: Annotated[BandMetadata, Field(alias="b07")]
-    band_b08: Annotated[BandMetadata, Field(alias="b08")]
-    band_b09: Annotated[BandMetadata, Field(alias="b09")]
-    band_b10: Annotated[BandMetadata, Field(alias="b10")]
-    band_b11: Annotated[BandMetadata, Field(alias="b11")]
-    band_b12: Annotated[BandMetadata, Field(alias="b12")]
-    band_b8a: Annotated[BandMetadata, Field(alias="b8a")]
-
-    model_config = {"populate_by_name": True}
-
-
-class OtherMetadata(BaseModel):
-    """Sentinel-2 product metadata container.
-
-    Stores various metadata about the product including:
-    - Quality information (L0/L2A, processing details)
-    - Band descriptions (spectral characteristics)
-    - Atmospheric corrections (AOT, water vapor)
-    - Geolocation and timing information
-    """
-
-    # Core metadata fields
-    AOT_retrieval_model: Annotated[
-        str, Field(description="Aerosol Optical Thickness retrieval model")
-    ]
-    L0_ancillary_data_quality: Annotated[
-        str, Field(description="L0 ancillary data quality indicator")
-    ]
-    L0_ephemeris_data_quality: Annotated[str, Field(description="L0 ephemeris data quality")]
-    NUC_table_ID: Annotated[int | str, Field(description="Non-Uniformity Correction table ID")]
-    SWIR_rearrangement_flag: Annotated[
-        str | None, Field(description="SWIR band rearrangement flag")
-    ]
-    UTM_zone_identification: Annotated[str, Field(description="UTM zone identifier")]
-    absolute_location_assessment_from_AOCS: Annotated[str, Field(description="Location assessment")]
-
-    # Band information
-    band_description: Annotated[
-        BandDescription, Field(description="Spectral band metadata for all bands")
-    ]
-
-    # Accuracy declarations
-    declared_accuracy_of_AOT_model: Annotated[float | None, Field(description="AOT model accuracy")]
-    declared_accuracy_of_radiative_transfer_model: Annotated[
-        float | None, Field(description="Radiative transfer accuracy")
-    ]
-    declared_accuracy_of_water_vapour_model: Annotated[
-        float | None, Field(description="Water vapor model accuracy")
-    ]
-
-    # Correction flags
-    electronic_crosstalk_correction_flag: Annotated[
-        str | bool, Field(description="Electronic crosstalk correction")
-    ]
-    optical_crosstalk_correction_flag: Annotated[
-        str | bool, Field(description="Optical crosstalk correction")
-    ]
-    onboard_compression_flag: Annotated[
-        str | bool, Field(description="Onboard compression applied")
-    ]
-    onboard_equalization_flag: Annotated[
-        str | bool, Field(description="Onboard equalization applied")
-    ]
-
-    # Product and geometry information
-    eopf_category: Annotated[str, Field(description="EOPF product category")]
-    geometric_refinement: Annotated[
-        dict[str, Any] | str | None,
-        Field(description="Geometric refinement information"),
-    ]
-    history: Annotated[list[dict[str, Any]] | str | None, Field(description="Processing history")]
-    horizontal_CRS_code: Annotated[str, Field(description="Coordinate Reference System code")]
-    horizontal_CRS_name: Annotated[str, Field(description="CRS name")]
-    mean_sensing_time: Annotated[str | None, Field(description="Mean acquisition time")]
-
-    # Sun/sensor geometry
-    mean_sun_azimuth_angle_in_deg_for_all_bands_all_detectors: Annotated[
-        float, Field(description="Mean sun azimuth in degrees")
-    ]
-    mean_sun_zenith_angle_in_deg_for_all_bands_all_detectors: Annotated[
-        float, Field(description="Mean sun zenith in degrees")
-    ]
-
-    # Atmospheric parameters
-    mean_value_of_aerosol_optical_thickness: Annotated[
-        float | None, Field(description="Mean AOT value")
-    ]
-    mean_value_of_total_water_vapour_content: Annotated[
-        float | None, Field(description="Mean water vapor content")
-    ]
-
-    # Meteo information (flexible structure)
-    meteo: Annotated[dict[str, Any] | None, Field(description="Meteorological parameters")]
-
-    # Quality assessments
-    multispectral_registration_assessment: Annotated[
-        str | None, Field(description="Registration quality")
-    ]
-    product_quality_status: Annotated[str, Field(description="Product quality status")]
-    planimetric_stability_assessment_from_AOCS: Annotated[
-        str | None, Field(description="Planimetric stability")
-    ]
-
-    # Data degradation
-    percentage_of_degraded_MSI_data: Annotated[
-        float | None, Field(description="Percentage of degraded data")
-    ]
-
-    # Ozone information
-    ozone_source: Annotated[str | None, Field(description="Ozone data source")]
-    ozone_value: Annotated[float | str | None, Field(description="Ozone value")]
-
-    # Reference band
-    spectral_band_of_reference: Annotated[str, Field(description="Reference spectral band")]
-
-    # Radiometric correction
-    reflectance_correction_factor_from_the_Sun_Earth_distance_variation_computed_using_the_acquisition_date: Annotated[
-        float | None,
-        Field(
-            default=None,
-            alias="reflectance_correction_factor_from_the_Sun-Earth_distance_variation_computed_using_the_acquisition_date",
-            description="Reflectance correction factor for Sun-Earth distance variation",
-        ),
-    ]
-
-    model_config = {"populate_by_name": True}
+    # All other fields are optional and unvalidated
+    # Different S2 products have different metadata structures
 
 
 class Sentinel2ArrayAttributes(BaseModel):
@@ -442,7 +282,7 @@ class Sentinel2DataArrayAttrs(BaseDataArrayAttrs):
 class Sentinel2RootAttrs(BaseModel):
     """Root-level attributes for Sentinel-2 DataTree."""
 
-    other_metadata: dict[str, object]  # no validation
+    other_metadata: OtherMetadataDict
     stac_discovery: dict[str, object]  # no validation
 
 
@@ -690,3 +530,11 @@ class Sentinel2Root(GroupSpec[Sentinel2RootAttrs, Sentinel2RootMembers]):  # typ
     def conditions(self) -> Sentinel2ConditionsGroup:
         """Get conditions group."""
         return self.members["conditions"]
+
+    @property
+    def crs(self) -> CRS:
+        """Get the coordinate reference system (CRS) for this product"""
+        crs_code = self.attributes.other_metadata["horizontal_CRS_code"]
+        # Handle both "EPSG:32635" and "32635" formats
+        crs_code = crs_code.removeprefix("EPSG:")  # Remove "EPSG:" prefix
+        return CRS.from_epsg(int(crs_code))

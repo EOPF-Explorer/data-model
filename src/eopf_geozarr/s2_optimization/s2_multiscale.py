@@ -14,7 +14,7 @@ import xarray as xr
 from dask import delayed
 from dask.array import from_delayed
 from pydantic.experimental.missing_sentinel import MISSING
-from pyproj import CRS
+from zarr.codecs import BloscCodec
 
 from eopf_geozarr.conversion.geozarr import (
     _create_tile_matrix_limits,
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
 
     import zarr
+    from pyproj import CRS
 
     from eopf_geozarr.types import OverviewLevelJSON
 
@@ -64,153 +65,130 @@ def get_grid_spacing(ds: xr.DataArray, coords: tuple[Hashable, ...]) -> tuple[fl
     return tuple(np.abs(ds.coords[coord][0].data - ds.coords[coord][1].data) for coord in coords)
 
 
-def create_multiscale_from_datatree(
-    dt_input: xr.DataTree,
-    *,
-    output_group: zarr.Group,
-    enable_sharding: bool,
-    spatial_chunk: int,
-    crs: CRS | None = None,
-    keep_scale_offset: bool,
-) -> dict[str, dict]:
+def create_multiscale_levels(group: zarr.Group, path: str) -> None:
     """
-    Create multiscale versions preserving original structure.
-    Keeps all original groups, adds r120m, r360m, r720m downsampled versions.
-
-    Args:
-        dt_input: Input DataTree with original structure
-        output_path: Base output path
-        enable_sharding: Enable Zarr v3 sharding
-        spatial_chunk: Spatial chunk size
-        crs: Coordinate Reference System for datasets
-
-    Returns:
-        Dictionary of processed groups
+    Add additional multiscale levels to an existing Zarr group
     """
-    processed_groups = {}
-    # The scale levels in the output data. 10, 20, 60 already exist in the source data.
+    ds_levels = (2, 6, 12, 36, 72)
+    # Construct the full path to the group containing resolution levels
+    full_path = f"{group.path}/{path}" if group.path else path
 
-    # Step 1: Copy all original groups as-is
-    for group_path in dt_input.groups:
-        if group_path == ".":
-            continue
+    for cur_factor, next_factor in pairwise((1, *ds_levels)):
+        cur_group_name = f"r{10 * cur_factor}m"
+        next_group_name = f"r{10 * next_factor}m"
+        # Open the current resolution level as a dataset
+        cur_group_path = f"{full_path}/{cur_group_name}"
+        cur_ds = xr.open_dataset(group.store, group=cur_group_path, engine="zarr")
 
-        group_node = dt_input[group_path]
+        scale = next_factor // cur_factor
+        to_downsample: dict[str, xr.DataArray] = {}
+        to_copy: dict[str, xr.DataArray] = {}
 
-        # Skip parent groups that have children (only process leaf groups)
-        if hasattr(group_node, "children") and len(group_node.children) > 0:
-            continue
+        # Iterate over all variables (data_vars and coords)
+        for var_name in list(cur_ds.data_vars) + list(cur_ds.coords):
+            # Convert to string for type safety
+            var_name_str = str(var_name)
+            var = cur_ds[var_name]
+            next_level_path = f"{path}/{next_group_name}"
 
-        dataset = group_node.to_dataset()
+            # Skip if already exists in next level
+            if f"{next_level_path}/{var_name_str}" in group:
+                continue
 
-        # Skip empty groups
-        if not dataset.data_vars:
-            log.info("Skipping empty group: {}", group_path=group_path)
-            continue
+            # Decide whether to downsample or copy
+            # Spatial data variables (2D+) should be downsampled
+            if var_name in cur_ds.data_vars and var.ndim >= 2:
+                to_downsample[var_name_str] = var
+            # Everything else (coordinates, 0D/1D variables like spatial_ref) should be copied
+            else:
+                to_copy[var_name_str] = var
 
-        log.info("Copying original group: {}", group_path=group_path)
+        log.info("downsampling %s into %s", tuple(sorted(to_downsample.keys())), next_group_name)
+        if to_copy:
+            log.info("copying %s into %s", tuple(sorted(to_copy.keys())), next_group_name)
 
-        # Determine if this is a measurement-related resolution group
-        group_name = group_path.split("/")[-1]
-        is_measurement_group = (
-            group_name.startswith("r")
-            and group_name.endswith("m")
-            and "/measurements/" in group_path
-        )
-
-        if is_measurement_group:
-            # Measurement groups: apply custom encoding
-            encoding = create_measurements_encoding(
-                dataset,
-                spatial_chunk=spatial_chunk,
-                enable_sharding=enable_sharding,
-                keep_scale_offset=keep_scale_offset,
+        # Only process if there's something to downsample or copy
+        if to_downsample or to_copy:
+            # Create downsampled dataset with data variables to downsample
+            downsampled_ds = create_downsampled_resolution_group(
+                xr.Dataset(data_vars=to_downsample), factor=scale
             )
-            # convert float64 arrays to float32
-            for data_var in dataset.data_vars:
-                if dataset[data_var].dtype in (np.dtype("<f8"), np.dtype(">f8")):
-                    dataset[data_var] = dataset[data_var].astype("float32")
-        else:
-            # Non-measurement groups: preserve original encoding
-            encoding = create_original_encoding(dataset)
 
-        ds_out = stream_write_dataset(
-            dataset,
-            path=group_path,
-            group=output_group,
-            encoding=encoding,
-            enable_sharding=enable_sharding,
-            crs=crs,
+            # Add variables to copy (like spatial_ref)
+            for var_name, var in to_copy.items():
+                if var_name not in downsampled_ds.coords:
+                    downsampled_ds = downsampled_ds.assign_coords({var_name: var})
+            next_group_path = f"{full_path}/{next_group_name}"
+            downsampled_ds.to_zarr(
+                group.store, group=next_group_path, consolidated=False, mode="a", compute=True
+            )
+
+
+def update_encoding(
+    array: xr.DataArray, encoding: XarrayDataArrayEncoding
+) -> XarrayDataArrayEncoding:
+    """
+    Update an xarray encoding of a variable against a dataarray. Used when ensuring that a downsampled
+    dataarray has an encoding consistent with both the source array and also its newly reduced shape.
+    Shape-related quantities like chunks and shards need to be adjusted to match the shape of the array.
+    All other elements of the encoding are preserved
+    """
+    new_encoding: XarrayDataArrayEncoding = {**encoding}
+    if "chunks" in new_encoding:
+        new_encoding["chunks"] = tuple(
+            min(s, c) for s, c in zip(array.shape, new_encoding["chunks"], strict=True)
         )
-        processed_groups[group_path] = ds_out
-    # Step 2: Create downsampled resolution groups ONLY for measurements
-    # Find all resolution-based groups under /measurements/ and organize by base path
-    resolution_groups: dict[str, xr.Dataset] = {}
-    base_path = "/measurements/reflectance"
-    for group_path in processed_groups:
-        # Only process groups under /measurements/reflectance
-        if not group_path.startswith(base_path):
-            continue
+        if new_encoding.get("shards") is not None:
+            # new shards are the largest multiple of the new chunks that fits inside the new shape
+            new_shards = tuple(
+                (shape // chunk) * chunk
+                for chunk, shape in zip(new_encoding["chunks"], array.shape, strict=True)
+            )
+            # calculate the number of inner chunks within the shard
+            num_subchunks = np.prod(
+                tuple(
+                    shard // chunk
+                    for shard, chunk in zip(new_shards, new_encoding["chunks"], strict=True)
+                )
+            )
+            # If we would generate shards with a single chunk, there is no longer value in sharding, and we should
+            # use regular chunking
+            if num_subchunks == 1:
+                new_encoding["shards"] = None
+            else:
+                new_encoding["shards"] = new_shards
+    if "preferred_chunks" in new_encoding:
+        new_encoding["preferred_chunks"] = {
+            k: min(array.shape[array.dims.index(k)], v)
+            for k, v in new_encoding["preferred_chunks"].items()
+        }
+    return new_encoding
 
-        group_name = group_path.split("/")[-1]
-        if group_name in ["r10m", "r20m", "r60m"]:
-            resolution_groups[group_name] = processed_groups[group_path]
 
-    scale_levels = tuple(pyramid_levels.values())
+def auto_chunks(shape: tuple[int, ...], target_chunk_size: int) -> tuple[int, ...]:
+    """
+    Compute a chunk size from a shape and a target chunk size. This logic is application-specific.
+    For 0D data, the empty tuple is returned.
+    For 1D data, the minimum of the length of the data and the target chunk size is returned.
+    For 2D, 3D, etc, a chunk edge length is computed based on each of the last two dimensions, and
+    all other dimensions have chunks set to 1.
+    """
+    ndim = len(shape)
 
-    # iterate over source, dest pairs: (60, 120), (120, 360), ...
-    for source_level, dest_level in pairwise(scale_levels[2:]):
-        dest_level_name = f"r{dest_level}m"
-        dest_level_path = f"{base_path}/{dest_level_name}"
+    if ndim == 0:
+        return ()
 
-        source_ds = resolution_groups[f"r{source_level}m"]
+    if ndim == 1:
+        return (min(target_chunk_size, shape[0]),)
 
-        downsample_factor = dest_level // source_level
-        log.info("Creating level with resolution", level=dest_level_name, resolution=dest_level)
+    height, width = shape[-2:]
 
-        # Create downsampled dataset
-        downsampled_dataset = create_downsampled_resolution_group(
-            source_ds, factor=downsample_factor
-        )
-
-        log.info("Writing level to path", level=dest_level_name, output_path=dest_level_path)
-
-        # Create encoding
-        encoding = create_measurements_encoding(
-            downsampled_dataset,
-            spatial_chunk=spatial_chunk,
-            enable_sharding=enable_sharding,
-            keep_scale_offset=keep_scale_offset,
-        )
-
-        # Write dataset
-        ds_out = stream_write_dataset(
-            downsampled_dataset,
-            path=dest_level_path,
-            group=output_group,
-            encoding=encoding,
-            enable_sharding=enable_sharding,
-            crs=crs,
-        )
-
-        # Store results
-        processed_groups[dest_level_path] = ds_out
-        resolution_groups[dest_level_name] = ds_out
-
-    # Step 3: Add multiscales metadata to parent groups
-    log.info("Adding multiscales metadata to parent groups")
-
-    # Get the parent group (it was created when writing the resolution groups)
-    parent_group = output_group[base_path]
-
-    dt_multiscale = add_multiscales_metadata_to_parent(
-        parent_group,
-        resolution_groups,
-        multiscales_flavor={"ogc_tms", "experimental_multiscales_convention"},
+    spatial_chunk_aligned = min(
+        target_chunk_size,
+        calculate_aligned_chunk_size(width, target_chunk_size),
+        calculate_aligned_chunk_size(height, target_chunk_size),
     )
-    processed_groups[base_path] = dt_multiscale
-
-    return processed_groups
+    return ((1,) * (ndim - 2)) + (spatial_chunk_aligned, spatial_chunk_aligned)
 
 
 def create_measurements_encoding(
@@ -341,11 +319,10 @@ def calculate_simple_shard_dimensions(
     return tuple(shard_dims)
 
 
-def add_multiscales_metadata_to_parent(
-    group: zarr.Group,
-    res_groups: Mapping[str, xr.Dataset],
+def create_multiscales_metadata(
+    out_group: zarr.Group,
     multiscales_flavor: set[MultiscalesFlavor] | None = None,
-) -> xr.DataTree:
+) -> None:
     """Add GeoZarr-compliant multiscales metadata to parent group."""
     # Sort by resolution (finest to coarsest)
     if multiscales_flavor is None:
@@ -358,44 +335,30 @@ def add_multiscales_metadata_to_parent(
         "r360m": 360,
         "r720m": 720,
     }
-
-    all_resolutions = sorted(set(res_groups.keys()), key=lambda x: res_order.get(x, 999))
-
-    if len(all_resolutions) < 2:
-        log.info(
-            "Skipping {} - only one resolution available",
-            base_path=group.path,
-        )
-        return None
-
-    # Get CRS and bounds from first available dataset (load from output path)
-    first_res = all_resolutions[0]
-    first_dataset = res_groups[first_res]
+    res_groups = tuple(out_group[k] for k in res_order)
+    first_dataset = xr.open_zarr(out_group.store, group=next(iter(res_groups)).path)
 
     # Get CRS and bounds
     native_crs = first_dataset.rio.crs if hasattr(first_dataset, "rio") else None
     if native_crs is None:
-        log.info("No CRS found, skipping multiscales metadata", base_path=group.path)
-        return None
+        raise ValueError("Cannot determine native CRS for multiscales metadata")
 
-    native_bounds = None
     try:
         native_bounds = first_dataset.rio.bounds()
     except (AttributeError, TypeError):
+        # Try alternative method or construct from coordinates
         x_coords = first_dataset.x.values
         y_coords = first_dataset.y.values
         native_bounds = (x_coords.min(), y_coords.min(), x_coords.max(), y_coords.max())
 
     # Create overview_levels structure following the multiscales v1.0 specification
     overview_levels: list[OverviewLevelJSON] = []
-    for res_name in all_resolutions:
+    for res_group in res_groups:
+        res_name = res_group.basename
         # Use resolution order for consistent scale calculations
         res_meters = res_order[res_name]
 
-        dataset = res_groups[res_name]
-
-        if dataset is None:
-            continue
+        dataset = xr.open_zarr(res_group.store, group=res_group.path)
 
         # Get first data variable to extract dimensions
         first_var = next(iter(dataset.data_vars.values()))
@@ -457,7 +420,7 @@ def add_multiscales_metadata_to_parent(
         zoom = max(zoom_for_width, zoom_for_height)
 
         # Calculate relative scale and translation vs first resolution
-        finest_res_meters = res_order[all_resolutions[0]]
+        finest_res_meters = res_order[res_groups[0].basename]
         relative_scale = res_meters / finest_res_meters
         relative_translation = (res_meters - finest_res_meters) / 2
 
@@ -491,10 +454,6 @@ def add_multiscales_metadata_to_parent(
             layout_entry["spatial_transform"] = transform
 
         overview_levels.append(layout_entry)
-
-    if len(overview_levels) < 2:
-        log.info("    Could not create overview levels for {}", base_path=group.path)
-        return None
 
     multiscales: dict[str, Any] = {"multiscales": {}}
     layout: list[zcm.ScaleLevel] | MISSING = MISSING
@@ -543,7 +502,7 @@ def add_multiscales_metadata_to_parent(
             scale_level_data: dict[str, Any] = {"asset": asset}
 
             if i > 0:  # Not the first (base) resolution
-                derived_from = derivation_chain.get(asset, str(all_resolutions[0]))
+                derived_from = derivation_chain.get(asset, str(res_groups[0].basename))
                 multiscale_transform = zcm.Transform(
                     scale=(overview_level["scale_relative"],) * 2,
                     translation=(overview_level["translation_relative"],) * 2,
@@ -561,6 +520,7 @@ def add_multiscales_metadata_to_parent(
 
             scale_level = zcm.ScaleLevel(**scale_level_data)
             layout.append(scale_level)
+
     # Create convention metadata for all three conventions
     multiscale_attrs = MultiscaleGroupAttrs(
         zarr_conventions=(
@@ -576,33 +536,28 @@ def add_multiscales_metadata_to_parent(
         ),
     )
 
-    # Write multiscale attributes directly to the parent group
-    attrs_to_write = multiscale_attrs.model_dump()
-
+    # Add multiscale attributes
+    out_group.attrs.update(multiscale_attrs.model_dump())
     # Add spatial and proj attributes at group level following specifications
     if native_crs and native_bounds:
         # Add spatial convention attributes
-        attrs_to_write["spatial:dimensions"] = ["y", "x"]  # Required field
-        attrs_to_write["spatial:bbox"] = list(native_bounds)  # [xmin, ymin, xmax, ymax]
-        attrs_to_write["spatial:registration"] = "pixel"  # Default registration type
+        spatial_attrs: dict[str, object] = {
+            "spatial:dimensions": ("y", "x"),
+            "spatial:bbox": tuple(native_bounds),
+            "spatial:registration": "pixel",
+        }
 
         # Add proj convention attributes
         if hasattr(native_crs, "to_epsg") and native_crs.to_epsg():
-            attrs_to_write["proj:code"] = f"EPSG:{native_crs.to_epsg()}"
+            spatial_attrs["proj:code"] = f"EPSG:{native_crs.to_epsg()}"
         elif hasattr(native_crs, "to_wkt"):
-            attrs_to_write["proj:wkt2"] = native_crs.to_wkt()
+            spatial_attrs["proj:wkt2"] = native_crs.to_wkt()
 
-    # Write attributes directly to the zarr group
-    group.attrs.update(attrs_to_write)
-
-    log.info("Added %s multiscale levels to %s", len(overview_levels), group.path)
-
-    return None  # No DataTree to return since we wrote directly to the group
+        out_group.attrs.update(spatial_attrs)
 
 
 def create_original_encoding(dataset: xr.Dataset) -> dict[str, XarrayDataArrayEncoding]:
     """Write a group preserving its original chunking and encoding."""
-    from zarr.codecs import BloscCodec
 
     # Simple encoding that preserves original structure
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
@@ -632,47 +587,38 @@ def create_original_encoding(dataset: xr.Dataset) -> dict[str, XarrayDataArrayEn
 
 def create_downsampled_resolution_group(source_dataset: xr.Dataset, factor: int) -> xr.Dataset:
     """Create a downsampled version of a dataset by given factor."""
-    if not source_dataset or len(source_dataset.data_vars) == 0:
-        return xr.Dataset()
 
-    # Get reference dimensions
-    ref_var = next(iter(source_dataset.data_vars.values()))
-    if ref_var.ndim < 2:
-        return xr.Dataset()
+    # Downsample all variables
+    lazy_vars: dict[str, xr.DataArray] = {}
+    for data_var_name, data_var in source_dataset.data_vars.items():
+        if data_var.ndim >= 2:
+            var_typ = determine_variable_type(data_var_name, data_var)
+            if var_typ == "quality_mask":
+                lazy_downsampled = data_var.coarsen(
+                    {"x": factor, "y": factor}, boundary="trim"
+                ).max()
+            elif var_typ == "reflectance":
+                lazy_downsampled = data_var.coarsen(
+                    {"x": factor, "y": factor}, boundary="trim"
+                ).mean()
+            elif var_typ == "classification":
+                lazy_downsampled = data_var.coarsen(
+                    {"x": factor, "y": factor}, boundary="trim"
+                ).reduce(subsample_2)
+            elif var_typ == "probability":
+                lazy_downsampled = data_var.coarsen(
+                    {"x": factor, "y": factor}, boundary="trim"
+                ).mean()
+            else:
+                raise ValueError(f"Unknown variable type {var_typ}")
 
-    current_height, current_width = ref_var.shape[-2:]
-    target_height = current_height // factor
-    target_width = current_width // factor
-
-    if target_height < 1 or target_width < 1:
-        return xr.Dataset()
-
-    # Downsample all variables using existing lazy operations
-    lazy_vars = {}
-    for var_name, var_data in source_dataset.data_vars.items():
-        if var_data.ndim < 2:
-            continue
-        var_typ = determine_variable_type(var_name, var_data)
-        if var_typ == "quality_mask":
-            lazy_downsampled = var_data.coarsen({"x": factor, "y": factor}, boundary="trim").max()
-        elif var_typ == "reflectance":
-            lazy_downsampled = var_data.coarsen({"x": factor, "y": factor}, boundary="trim").mean()
-        elif var_typ == "classification":
-            lazy_downsampled = var_data.coarsen({"x": factor, "y": factor}, boundary="trim").reduce(
-                subsample_2
-            )
-        elif var_typ == "probability":
-            lazy_downsampled = var_data.coarsen({"x": factor, "y": factor}, boundary="trim").mean()
-        else:
-            raise ValueError(f"Unknown variable type {var_typ}")
-
-        # preserve encoding
-        lazy_downsampled.encoding = var_data.encoding
-        # Ensure that dtype is preserved
-        lazy_vars[var_name] = lazy_downsampled.astype(var_data.dtype)
-
-    if not lazy_vars:
-        return xr.Dataset()
+            lazy_downsampled = lazy_downsampled.astype(data_var.dtype)
+            lazy_downsampled.encoding = update_encoding(lazy_downsampled, data_var.encoding)
+            for coord_name, coord in lazy_downsampled.coords.items():
+                lazy_downsampled.coords[coord_name].encoding = update_encoding(
+                    coord, data_var.coords[coord_name].encoding
+                )
+            lazy_vars[data_var_name] = lazy_downsampled
 
     # Create dataset with lazy variables and coordinates
     return xr.Dataset(lazy_vars, attrs=source_dataset.attrs)
@@ -798,7 +744,11 @@ def stream_write_dataset(
             dataset_path=path,
         )
         return xr.open_dataset(
-            group.store, engine="zarr", chunks={}, decode_coords="all", group=path
+            dataset_path,
+            engine="zarr",
+            chunks={},
+            decode_coords="all",
+            consolidated=False,
         )
 
     log.info("Streaming computation and write to {}", dataset_path=path)
@@ -824,7 +774,6 @@ def stream_write_dataset(
         group=path,
         compute=False,  # Create job first for progress tracking
     )
-    write_job = write_job.persist()
 
     if DISTRIBUTED_AVAILABLE:
         try:
@@ -863,8 +812,9 @@ def stream_write_dataset(
 
 def write_geo_metadata(
     dataset: xr.Dataset,
+    crs: CRS,
+    *,
     grid_mapping_var_name: str = "spatial_ref",
-    crs: CRS | None = None,
 ) -> None:
     """
     Write geographic metadata to the dataset.
@@ -874,16 +824,8 @@ def write_geo_metadata(
         grid_mapping_var_name: Name for grid mapping variable
         crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
     """
-    # Use provided CRS or try to detect from dataset
-    if crs is None:
-        for var in dataset.data_vars.values():
-            if hasattr(var, "rio") and var.rio.crs:
-                crs = var.rio.crs
-                break
-            if "proj:epsg" in var.attrs:
-                epsg = var.attrs["proj:epsg"]
-                crs = CRS.from_epsg(epsg)
-                break
+    dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
+    dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
 
     if crs is not None:
         # Write CRS using rioxarray
