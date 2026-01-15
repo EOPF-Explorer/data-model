@@ -173,7 +173,9 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     """
     geozarr_groups: dict[str, xr.Dataset] = {}
     grid_mapping_var_name = "spatial_ref"
-    epsg_CPM_260 = dt.attrs.get("other_metadata", {}).get("horizontal_CRS_code", None)
+    epsg_CPM_260 = dt.attrs.get("other_metadata", {}).get(
+        "horizontal_CRS_code", dt.attrs.get("other_metadata", {}).get("horizontal_crs_code", None)
+    )
     if epsg_CPM_260 is not None:
         epsg_CPM_260 = epsg_CPM_260.split(":")[-1]
 
