@@ -378,13 +378,21 @@ def add_multiscales_metadata_to_parent(
         log.info("No CRS found, skipping multiscales metadata", base_path=group.path)
         return None
 
-    native_bounds = None
-    try:
-        native_bounds = first_dataset.rio.bounds()
-    except (AttributeError, TypeError):
-        x_coords = first_dataset.x.values
-        y_coords = first_dataset.y.values
-        native_bounds = (x_coords.min(), y_coords.min(), x_coords.max(), y_coords.max())
+    # Calculate bounds directly from coordinates for consistency with the data arrays
+    if "x" not in first_dataset.coords or "y" not in first_dataset.coords:
+        log.error(
+            "Missing x/y coordinates in dataset, cannot determine bounds", base_path=group.path
+        )
+        return None
+
+    x_coords = first_dataset.x.values
+    y_coords = first_dataset.y.values
+    native_bounds = (
+        float(x_coords.min()),
+        float(y_coords.min()),
+        float(x_coords.max()),
+        float(y_coords.max()),
+    )
 
     # Create overview_levels structure following the multiscales v1.0 specification
     overview_levels: list[OverviewLevelJSON] = []
