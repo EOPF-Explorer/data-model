@@ -424,8 +424,10 @@ def add_multiscales_metadata_to_parent(
                 y_coords = dataset.coords["y"].values
 
                 if len(x_coords) > 1 and len(y_coords) > 1:
+                    # Calculate pixel size from actual coordinate spacing
                     pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
                     pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+
                     x_min = float(x_coords.min())
                     y_max = float(y_coords.max())
                     transform = (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
@@ -456,10 +458,60 @@ def add_multiscales_metadata_to_parent(
         zoom_for_height = max(0, int(np.ceil(np.log2(height / tile_width))))
         zoom = max(zoom_for_width, zoom_for_height)
 
-        # Calculate relative scale and translation vs first resolution
+        # Calculate relative scale and translation vs parent resolution
         finest_res_meters = res_order[all_resolutions[0]]
-        relative_scale = res_meters / finest_res_meters
-        relative_translation = (res_meters - finest_res_meters) / 2
+
+        # Fix for issue #114: Translation values should be 0
+        relative_translation = 0.0
+
+        # Calculate proper relative scale based on actual parent-child dimension ratios
+        if res_name == all_resolutions[0]:  # Base resolution
+            relative_scale = 1.0
+        else:
+            # Define derivation chain to find parent resolution
+            derivation_chain = {
+                "r10m": None,
+                "r20m": "r10m",
+                "r60m": "r10m",
+                "r120m": "r60m",
+                "r360m": "r120m",
+                "r720m": "r360m",
+            }
+
+            parent_res = derivation_chain.get(res_name)
+            if parent_res and parent_res in res_groups:
+                # Get actual dimensions of parent and child
+                parent_dataset = res_groups[parent_res]
+                parent_var = next(iter(parent_dataset.data_vars.values()))
+                parent_height, parent_width = parent_var.shape[-2:]
+
+                # Current (child) dimensions
+                child_height, child_width = height, width
+
+                # Calculate actual scale ratio based on dimensions
+                # Use the larger of the two ratios to be conservative
+                scale_x = parent_width / child_width if child_width > 0 else 1.0
+                scale_y = parent_height / child_height if child_height > 0 else 1.0
+                relative_scale = max(scale_x, scale_y)
+
+                log.info(
+                    "Calculated dynamic scale ratio",
+                    level=res_name,
+                    parent=parent_res,
+                    parent_dims=(parent_height, parent_width),
+                    child_dims=(child_height, child_width),
+                    scale_x=scale_x,
+                    scale_y=scale_y,
+                    relative_scale=relative_scale,
+                )
+            else:
+                # Fallback to absolute resolution ratio
+                relative_scale = res_meters / finest_res_meters
+                log.warning(
+                    "Using fallback scale calculation",
+                    level=res_name,
+                    relative_scale=relative_scale,
+                )
 
         # Get chunks in the correct format
         var_chunks = dataset.data_vars[first_var.name].chunks
