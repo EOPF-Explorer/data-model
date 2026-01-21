@@ -52,7 +52,7 @@ def replace_json_invalid_floats(obj: object) -> object:
 
 class NanCompatibleJSONEncoder(json.JSONEncoder):
     """
-    Custom JSON encoder that converts NaN values to the string "NaN"
+    Custom JSON encoder that converts NaN, Inf, -Inf values to JSON-safe equivalents
     to ensure valid JSON output.
     """
 

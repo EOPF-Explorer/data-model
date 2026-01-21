@@ -2,7 +2,9 @@
 
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pytest
+import xarray as xr
 
 from eopf_geozarr.conversion.fs_utils import (
     get_s3_credentials_info,
@@ -14,6 +16,7 @@ from eopf_geozarr.conversion.fs_utils import (
     path_exists,
     read_json_metadata,
     replace_json_invalid_floats,
+    sanitize_dataset_attributes,
     validate_s3_access,
     write_json_metadata,
 )
@@ -210,10 +213,64 @@ def test_replace_json_invalid_floats() -> None:
     }
     expected: dict[str, object] = {
         "nan": "NaN",
-        "nested_nan": {"nan": "NaN", "inf": "Infinity", "-inf": "-Infinity"},
-        "nan_in_list": ["NaN", "Infinity", "-Infinity"],
+        "nested": {"nan": "NaN", "inf": "Infinity", "-inf": "-Infinity"},
+        "in_list": ["NaN", "Infinity", "-Infinity"],
         "inf": "Infinity",
         "-inf": "-Infinity",
     }
     observed = replace_json_invalid_floats(data)
     assert observed == expected
+
+
+def test_sanitize_dataset_attributes() -> None:
+    """
+    Check that sanitize_dataset_attributes removes invalid floats from the attributes of an
+    xarray Dataset, as well as the attributes of the data variables and the coordinate variables.
+    """
+
+    # Create a dataset with NaN and Infinity values in various attribute locations
+    ds = xr.Dataset(
+        data_vars={
+            "temperature": (
+                ["x", "y"],
+                np.array([[1.0, 2.0], [3.0, 4.0]]),
+                {"fill_value": float("nan"), "valid_max": float("inf")},
+            ),
+            "pressure": (
+                ["x", "y"],
+                np.array([[10.0, 20.0], [30.0, 40.0]]),
+                {"fill_value": float("nan"), "valid_min": float("-inf")},
+            ),
+        },
+        coords={
+            "x": (["x"], [0, 1], {"missing_value": float("nan")}),
+            "y": (["y"], [0, 1], {"scale_factor": 1.0}),
+        },
+        attrs={
+            "global_nan": float("nan"),
+            "global_inf": float("inf"),
+            "nested": {"inner_nan": float("nan")},
+        },
+    )
+
+    # Sanitize the dataset
+    result = sanitize_dataset_attributes(ds)
+
+    # Check dataset-level attributes
+    assert result.attrs["global_nan"] == "NaN"
+    assert result.attrs["global_inf"] == "Infinity"
+    assert result.attrs["nested"]["inner_nan"] == "NaN"
+
+    # Check data variable attributes
+    assert result["temperature"].attrs["fill_value"] == "NaN"
+    assert result["temperature"].attrs["valid_max"] == "Infinity"
+    assert result["pressure"].attrs["fill_value"] == "NaN"
+    assert result["pressure"].attrs["valid_min"] == "-Infinity"
+
+    # Check coordinate attributes
+    assert result.coords["x"].attrs["missing_value"] == "NaN"
+    assert result.coords["y"].attrs["scale_factor"] == 1.0  # Normal float unchanged
+
+    # Verify the original dataset was not modified
+    assert ds.attrs["global_nan"] != ds.attrs["global_nan"]  # NaN != NaN
+    assert ds["temperature"].attrs["fill_value"] != ds["temperature"].attrs["fill_value"]
