@@ -214,3 +214,4 @@ uv.lock
 
 # VCS versioning
 src/eopf_geozarr/_version.py
+analysis/.edh_token

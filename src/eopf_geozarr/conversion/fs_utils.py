@@ -1,17 +1,117 @@
 """S3 utilities for GeoZarr conversion."""
 
 import json
+import math
 import os
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+import numpy as np
 import s3fs
 import zarr
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
 from eopf_geozarr.types import S3Credentials, S3FsOptions
+
+if TYPE_CHECKING:
+    import xarray as xr
+
+
+class NanCompatibleJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder that converts NaN values to the string "NaN"
+    to ensure valid JSON output.
+    """
+
+    def encode(self, obj: Any) -> str:
+        """
+        Encode object to JSON string, converting NaN values to "NaN".
+        """
+
+        def _convert_nan(o: Any) -> Any:
+            if (isinstance(o, float) and (math.isnan(o) or np.isnan(o))) or (
+                isinstance(o, (np.floating, np.number)) and np.isnan(o)
+            ):
+                return "NaN"
+            if isinstance(o, dict):
+                return {k: _convert_nan(v) for k, v in o.items()}
+            if isinstance(o, list):
+                return [_convert_nan(item) for item in o]
+            if isinstance(o, tuple):
+                return tuple(_convert_nan(item) for item in o)
+            return o
+
+        converted_obj = _convert_nan(obj)
+        return super().encode(converted_obj)
+
+
+def sanitize_nan_in_attributes(obj: Any) -> Any:
+    """
+    Recursively sanitize NaN values in dataset/dataarray attributes,
+    converting them to JSON-compliant string "NaN".
+
+    Parameters
+    ----------
+    obj : Any
+        Object to sanitize (typically dataset or dataarray attributes dict)
+
+    Returns
+    -------
+    Any
+        Object with NaN values converted to "NaN" strings
+    """
+
+    def _convert_nan(o: Any) -> Any:
+        if (isinstance(o, float) and (math.isnan(o) or np.isnan(o))) or (
+            isinstance(o, (np.floating, np.number)) and np.isnan(o)
+        ):
+            return "NaN"
+        if isinstance(o, dict):
+            return {k: _convert_nan(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [_convert_nan(item) for item in o]
+        if isinstance(o, tuple):
+            return tuple(_convert_nan(item) for item in o)
+        return o
+
+    return _convert_nan(obj)
+
+
+def sanitize_dataset_attributes(ds: "xr.Dataset") -> "xr.Dataset":
+    """
+    Sanitize all NaN values in a dataset's attributes, variable attributes,
+    and coordinate attributes, converting them to "NaN" strings.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to sanitize
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with sanitized attributes
+    """
+
+    # Create a copy to avoid modifying the original
+    ds_clean = ds.copy()
+
+    # Sanitize dataset attributes
+    ds_clean.attrs = sanitize_nan_in_attributes(ds_clean.attrs)
+
+    # Sanitize variable attributes
+    for var_name in ds_clean.data_vars:
+        var = ds_clean[var_name]
+        var.attrs = sanitize_nan_in_attributes(var.attrs)
+
+    # Sanitize coordinate attributes
+    for coord_name in ds_clean.coords:
+        coord = ds_clean[coord_name]
+        coord.attrs = sanitize_nan_in_attributes(coord.attrs)
+
+    return ds_clean
 
 
 def normalize_s3_path(s3_path: str) -> str:
@@ -210,7 +310,7 @@ def write_s3_json_metadata(s3_path: str, metadata: Mapping[str, Any], **s3_kwarg
     fs = s3fs.S3FileSystem(**s3_config)
 
     # Write JSON content
-    json_content = json.dumps(metadata, indent=2)
+    json_content = json.dumps(metadata, indent=2, cls=NanCompatibleJSONEncoder)
     with fs.open(s3_path, "w") as f:
         f.write(json_content)
 
@@ -426,7 +526,7 @@ def write_json_metadata(path: str, metadata: dict[str, Any], **kwargs: Any) -> N
             fs.makedirs(parent_dir, exist_ok=True)
 
     # Write JSON content using fsspec
-    json_content = json.dumps(metadata, indent=2)
+    json_content = json.dumps(metadata, indent=2, cls=NanCompatibleJSONEncoder)
     with fs.open(path, "w") as f:
         f.write(json_content)
 
