@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.8.0 (2026-01-21)
+
+## What's Changed
+* Add zarr convention declarations to geo and spatial metadata by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/113
+* fix: sentinel-2 multiscales translation, scale values, and spatial bbox consistency by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/117
+* Fix JSON compliance for NaN values in zarr attributes by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/118
+* feat: configure release automation by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/119
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.7.1...v0.8.0
+
 ## [Unreleased]
 
 ## [0.7.0] - 2026-01-13
