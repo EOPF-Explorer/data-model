@@ -950,6 +950,13 @@ def write_geo_metadata(
         elif hasattr(crs, "to_wkt"):
             dataset.attrs["proj:wkt2"] = crs.to_wkt()
 
+        # Add zarr convention declarations
+        conventions = [
+            SpatialConventionMetadata().model_dump(),
+            ProjConventionMetadata().model_dump(),
+        ]
+        dataset.attrs["zarr_conventions"] = conventions
+
 
 def rechunk_dataset_for_encoding(
     dataset: xr.Dataset, encoding: dict[str, XarrayDataArrayEncoding]

@@ -708,7 +708,7 @@ wheels = [
 
 [[package]]
 name = "eopf-geozarr"
-version = "0.6.1.dev0+ga5b682f41.d20260105"
+version = "0.6.2.dev6+g32a425c98.d20260112"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

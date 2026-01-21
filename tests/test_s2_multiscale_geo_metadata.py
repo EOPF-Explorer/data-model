@@ -12,6 +12,8 @@ import pytest
 import xarray as xr
 import zarr
 
+from eopf_geozarr.data_api.geozarr.geoproj import ProjConventionMetadata
+from eopf_geozarr.data_api.geozarr.spatial import SpatialConventionMetadata
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     create_measurements_encoding,
     stream_write_dataset,
@@ -319,3 +321,80 @@ class TestWriteGeoMetadataEdgeCases:
         # Verify dataset attributes are preserved
         for key, value in original_attrs.items():
             assert sample_dataset_with_crs.attrs[key] == value
+
+    def test_write_geo_metadata_adds_zarr_conventions(
+        self, sample_dataset_with_crs: xr.Dataset
+    ) -> None:
+        """Test that zarr_conventions are properly added to dataset attributes."""
+
+        # Verify zarr_conventions is not initially present
+        assert "zarr_conventions" not in sample_dataset_with_crs.attrs
+
+        # Call the method
+        write_geo_metadata(sample_dataset_with_crs)
+
+        # Verify zarr_conventions was added
+        assert "zarr_conventions" in sample_dataset_with_crs.attrs
+        zarr_conventions = sample_dataset_with_crs.attrs["zarr_conventions"]
+
+        # Verify it's a list with 2 conventions
+        assert isinstance(zarr_conventions, list)
+        assert len(zarr_conventions) == 2
+
+        # Verify the conventions contain the expected metadata
+        spatial_convention = None
+        proj_convention = None
+
+        for convention in zarr_conventions:
+            if convention.get("name") == "spatial:":
+                spatial_convention = convention
+            elif convention.get("name") == "proj:":
+                proj_convention = convention
+
+        # Verify spatial convention
+        assert spatial_convention is not None
+        expected_spatial = SpatialConventionMetadata().model_dump()
+        assert spatial_convention == expected_spatial
+
+        # Verify proj convention
+        assert proj_convention is not None
+        expected_proj = ProjConventionMetadata().model_dump()
+        assert proj_convention == expected_proj
+
+    def test_write_geo_metadata_adds_spatial_and_proj_attributes(
+        self, sample_dataset_with_crs: xr.Dataset
+    ) -> None:
+        """Test that spatial and proj attributes are added along with conventions."""
+
+        # Call the method
+        write_geo_metadata(sample_dataset_with_crs)
+
+        # Verify spatial attributes
+        assert "spatial:dimensions" in sample_dataset_with_crs.attrs
+        assert sample_dataset_with_crs.attrs["spatial:dimensions"] == ["y", "x"]
+        assert "spatial:registration" in sample_dataset_with_crs.attrs
+        assert sample_dataset_with_crs.attrs["spatial:registration"] == "pixel"
+        assert "spatial:bbox" in sample_dataset_with_crs.attrs
+        assert "spatial:shape" in sample_dataset_with_crs.attrs
+
+        # Verify proj attributes (should have either proj:code or proj:wkt2)
+        has_proj_code = "proj:code" in sample_dataset_with_crs.attrs
+        has_proj_wkt2 = "proj:wkt2" in sample_dataset_with_crs.attrs
+        assert has_proj_code or has_proj_wkt2, "Should have either proj:code or proj:wkt2"
+
+        # Verify zarr_conventions includes both spatial and proj
+        zarr_conventions = sample_dataset_with_crs.attrs["zarr_conventions"]
+        convention_names = [conv.get("name") for conv in zarr_conventions]
+        assert "spatial:" in convention_names
+        assert "proj:" in convention_names
+
+    def test_write_geo_metadata_no_crs_no_conventions(
+        self, sample_dataset_no_crs: xr.Dataset
+    ) -> None:
+        """Test that zarr_conventions are not added when no CRS is available."""
+
+        # Call the method with no CRS
+        write_geo_metadata(sample_dataset_no_crs)
+
+        # Verify zarr_conventions was not added since no CRS was available
+        assert "zarr_conventions" not in sample_dataset_no_crs.attrs
