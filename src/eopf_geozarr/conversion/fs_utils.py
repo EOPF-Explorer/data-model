@@ -3,7 +3,7 @@
 import json
 import os
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import s3fs
@@ -12,6 +12,92 @@ from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
 from eopf_geozarr.types import S3Credentials, S3FsOptions
+
+if TYPE_CHECKING:
+    import xarray as xr
+
+
+def replace_json_invalid_floats(obj: object) -> object:
+    """
+    Recursively replace NaN and Infinity float values in a JSON-like object
+    with their string representations, to make them JSON-compliant.
+
+    Parameters
+    ----------
+    obj : object
+        The JSON-like object to process
+
+    Returns
+    -------
+    object
+        The processed object with NaN and Infinity replaced
+    """
+    if isinstance(obj, float):
+        if obj != obj:  # NaN check
+            return "NaN"
+        if obj == float("inf"):
+            return "Infinity"
+        if obj == float("-inf"):
+            return "-Infinity"
+        return obj
+    if isinstance(obj, dict):
+        return {k: replace_json_invalid_floats(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [replace_json_invalid_floats(item) for item in obj]
+    if isinstance(obj, tuple):
+        return tuple(replace_json_invalid_floats(item) for item in obj)
+
+    return obj
+
+
+class NanCompatibleJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder that converts NaN, Inf, -Inf values to JSON-safe equivalents
+    to ensure valid JSON output.
+    """
+
+    def encode(self, obj: Any) -> str:
+        """
+        Encode object to JSON string, converting NaN values to "NaN".
+        """
+
+        converted_obj = replace_json_invalid_floats(obj)
+        return super().encode(converted_obj)
+
+
+def sanitize_dataset_attributes(ds: "xr.Dataset") -> "xr.Dataset":
+    """
+    Sanitize all NaN values in a dataset's attributes, variable attributes,
+    and coordinate attributes, converting them to "NaN" strings.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to sanitize
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with sanitized attributes
+    """
+
+    # Create a copy to avoid modifying the original
+    ds_clean = ds.copy()
+
+    # Sanitize dataset attributes
+    ds_clean.attrs = replace_json_invalid_floats(ds_clean.attrs)
+
+    # Sanitize variable attributes
+    for var_name in ds_clean.data_vars:
+        var = ds_clean[var_name]
+        var.attrs = replace_json_invalid_floats(var.attrs)
+
+    # Sanitize coordinate attributes
+    for coord_name in ds_clean.coords:
+        coord = ds_clean[coord_name]
+        coord.attrs = replace_json_invalid_floats(coord.attrs)
+
+    return ds_clean
 
 
 def normalize_s3_path(s3_path: str) -> str:
@@ -210,7 +296,7 @@ def write_s3_json_metadata(s3_path: str, metadata: Mapping[str, Any], **s3_kwarg
     fs = s3fs.S3FileSystem(**s3_config)
 
     # Write JSON content
-    json_content = json.dumps(metadata, indent=2)
+    json_content = json.dumps(metadata, indent=2, cls=NanCompatibleJSONEncoder)
     with fs.open(s3_path, "w") as f:
         f.write(json_content)
 
@@ -426,7 +512,7 @@ def write_json_metadata(path: str, metadata: dict[str, Any], **kwargs: Any) -> N
             fs.makedirs(parent_dir, exist_ok=True)
 
     # Write JSON content using fsspec
-    json_content = json.dumps(metadata, indent=2)
+    json_content = json.dumps(metadata, indent=2, cls=NanCompatibleJSONEncoder)
     with fs.open(path, "w") as f:
         f.write(json_content)
 

@@ -16,6 +16,7 @@ from dask.array import from_delayed
 from pydantic.experimental.missing_sentinel import MISSING
 from pyproj import CRS
 
+from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
 from eopf_geozarr.conversion.geozarr import (
     _create_tile_matrix_limits,
     create_native_crs_tile_matrix_set,
@@ -872,6 +873,9 @@ def stream_write_dataset(
     # - /quality/ groups
     if "/measurements/" in path or "/quality/" in path:
         write_geo_metadata(dataset, crs=crs)
+
+    # Sanitize NaN values in dataset attributes before writing
+    dataset = sanitize_dataset_attributes(dataset)
 
     # Write with streaming computation and progress tracking
     # The to_zarr operation will trigger all lazy computations
