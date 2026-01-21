@@ -1,13 +1,11 @@
 """S3 utilities for GeoZarr conversion."""
 
 import json
-import math
 import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-import numpy as np
 import s3fs
 import zarr
 from fsspec.implementations.local import LocalFileSystem
@@ -17,6 +15,39 @@ from eopf_geozarr.types import S3Credentials, S3FsOptions
 
 if TYPE_CHECKING:
     import xarray as xr
+
+
+def replace_json_invalid_floats(obj: object) -> object:
+    """
+    Recursively replace NaN and Infinity float values in a JSON-like object
+    with their string representations, to make them JSON-compliant.
+
+    Parameters
+    ----------
+    obj : object
+        The JSON-like object to process
+
+    Returns
+    -------
+    object
+        The processed object with NaN and Infinity replaced
+    """
+    if isinstance(obj, float):
+        if obj != obj:  # NaN check
+            return "NaN"
+        if obj == float("inf"):
+            return "Infinity"
+        if obj == float("-inf"):
+            return "-Infinity"
+        return obj
+    if isinstance(obj, dict):
+        return {k: replace_json_invalid_floats(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [replace_json_invalid_floats(item) for item in obj]
+    if isinstance(obj, tuple):
+        return tuple(replace_json_invalid_floats(item) for item in obj)
+
+    return obj
 
 
 class NanCompatibleJSONEncoder(json.JSONEncoder):
@@ -30,53 +61,8 @@ class NanCompatibleJSONEncoder(json.JSONEncoder):
         Encode object to JSON string, converting NaN values to "NaN".
         """
 
-        def _convert_nan(o: Any) -> Any:
-            if (isinstance(o, float) and (math.isnan(o) or np.isnan(o))) or (
-                isinstance(o, (np.floating, np.number)) and np.isnan(o)
-            ):
-                return "NaN"
-            if isinstance(o, dict):
-                return {k: _convert_nan(v) for k, v in o.items()}
-            if isinstance(o, list):
-                return [_convert_nan(item) for item in o]
-            if isinstance(o, tuple):
-                return tuple(_convert_nan(item) for item in o)
-            return o
-
-        converted_obj = _convert_nan(obj)
+        converted_obj = replace_json_invalid_floats(obj)
         return super().encode(converted_obj)
-
-
-def sanitize_nan_in_attributes(obj: Any) -> Any:
-    """
-    Recursively sanitize NaN values in dataset/dataarray attributes,
-    converting them to JSON-compliant string "NaN".
-
-    Parameters
-    ----------
-    obj : Any
-        Object to sanitize (typically dataset or dataarray attributes dict)
-
-    Returns
-    -------
-    Any
-        Object with NaN values converted to "NaN" strings
-    """
-
-    def _convert_nan(o: Any) -> Any:
-        if (isinstance(o, float) and (math.isnan(o) or np.isnan(o))) or (
-            isinstance(o, (np.floating, np.number)) and np.isnan(o)
-        ):
-            return "NaN"
-        if isinstance(o, dict):
-            return {k: _convert_nan(v) for k, v in o.items()}
-        if isinstance(o, list):
-            return [_convert_nan(item) for item in o]
-        if isinstance(o, tuple):
-            return tuple(_convert_nan(item) for item in o)
-        return o
-
-    return _convert_nan(obj)
 
 
 def sanitize_dataset_attributes(ds: "xr.Dataset") -> "xr.Dataset":
@@ -99,17 +85,17 @@ def sanitize_dataset_attributes(ds: "xr.Dataset") -> "xr.Dataset":
     ds_clean = ds.copy()
 
     # Sanitize dataset attributes
-    ds_clean.attrs = sanitize_nan_in_attributes(ds_clean.attrs)
+    ds_clean.attrs = replace_json_invalid_floats(ds_clean.attrs)
 
     # Sanitize variable attributes
     for var_name in ds_clean.data_vars:
         var = ds_clean[var_name]
-        var.attrs = sanitize_nan_in_attributes(var.attrs)
+        var.attrs = replace_json_invalid_floats(var.attrs)
 
     # Sanitize coordinate attributes
     for coord_name in ds_clean.coords:
         coord = ds_clean[coord_name]
-        coord.attrs = sanitize_nan_in_attributes(coord.attrs)
+        coord.attrs = replace_json_invalid_floats(coord.attrs)
 
     return ds_clean
 

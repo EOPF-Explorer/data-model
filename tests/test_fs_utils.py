@@ -13,6 +13,7 @@ from eopf_geozarr.conversion.fs_utils import (
     parse_s3_path,
     path_exists,
     read_json_metadata,
+    replace_json_invalid_floats,
     validate_s3_access,
     write_json_metadata,
 )
@@ -193,3 +194,26 @@ def test_read_json_metadata(mock_get_filesystem) -> None:
 
     mock_fs.open.assert_called_once_with("s3://bucket/metadata.json", "r")
     assert result == {"key": "value", "number": 42}
+
+
+def test_replace_json_invalid_floats() -> None:
+    data: dict[str, object] = {
+        "nan": float("nan"),
+        "inf": float("inf"),
+        "-inf": float("-inf"),
+        "nested": {
+            "nan": float("nan"),
+            "inf": float("inf"),
+            "-inf": float("-inf"),
+        },
+        "in_list": [float("nan"), float("inf"), float("-inf")],
+    }
+    expected: dict[str, object] = {
+        "nan": "NaN",
+        "nested_nan": {"nan": "NaN", "inf": "Infinity", "-inf": "-Infinity"},
+        "nan_in_list": ["NaN", "Infinity", "-Infinity"],
+        "inf": "Infinity",
+        "-inf": "-Infinity",
+    }
+    observed = replace_json_invalid_floats(data)
+    assert observed == expected
