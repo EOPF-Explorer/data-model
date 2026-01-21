@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "setuptools-scm>=8.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "eopf-geozarr"
-dynamic = ["version"]
+version = "0.7.1"
 description = "GeoZarr compliant data model for EOPF datasets"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -51,7 +51,6 @@ dev = [
     "pre-commit>=3.0.0",
     "bandit[toml]>=1.7.0",
     "safety>=2.0.0",
-    "setuptools-scm>=9.2.2",
 ]
 test = [
     "jsondiff>=2.2.1",
@@ -78,8 +77,9 @@ Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
 [project.scripts]
 eopf-geozarr = "eopf_geozarr.cli:main"
 
-[tool.setuptools_scm]
-version_file = "src/eopf_geozarr/_version.py"
+# Note: setuptools_scm configuration disabled in favor of release-please managed versioning
+# [tool.setuptools_scm]
+# version_file = "src/eopf_geozarr/_version.py"
 
 [tool.setuptools.packages.find]
 where = ["src"]
