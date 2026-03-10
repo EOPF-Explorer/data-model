@@ -4,39 +4,24 @@ Models for the Proj Zarr Convention (v1.0)
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, Field, model_validator
-from typing_extensions import TypedDict
+from zarr_cm import geo_proj
 
 from eopf_geozarr.data_api.geozarr.common import ZarrConventionMetadata, is_none
 from eopf_geozarr.data_api.geozarr.projjson import ProjJSON  # noqa: TC001
 
-PROJ_UUID: Literal["f17cb550-5864-4468-aeb7-f3180cfb622f"] = "f17cb550-5864-4468-aeb7-f3180cfb622f"
+PROJ_UUID = geo_proj.UUID
 
-
-class ProjConvention(TypedDict):
-    uuid: Literal["f17cb550-5864-4468-aeb7-f3180cfb622f"]
-    name: Literal["proj:"]
-    schema_url: Literal[
-        "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json"
-    ]
-    spec_url: Literal["https://github.com/zarr-experimental/geo-proj/blob/v1/README.md"]
-    description: Literal["Coordinate reference system information for geospatial data"]
+# Re-export the zarr-cm TypedDict for the convention metadata object
+ProjConvention = geo_proj.GeoProjAttrs
 
 
 class ProjConventionMetadata(ZarrConventionMetadata):
-    uuid: Literal["f17cb550-5864-4468-aeb7-f3180cfb622f"] = PROJ_UUID
-    name: Literal["proj:"] = "proj:"
-    schema_url: Literal[
-        "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json"
-    ] = "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json"
-    spec_url: Literal["https://github.com/zarr-experimental/geo-proj/blob/v1/README.md"] = (
-        "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md"
-    )
-    description: Literal["Coordinate reference system information for geospatial data"] = (
-        "Coordinate reference system information for geospatial data"
-    )
+    uuid: str = geo_proj.CMO["uuid"]
+    name: str = geo_proj.CMO["name"]
+    schema_url: str = geo_proj.CMO["schema_url"]
+    spec_url: str = geo_proj.CMO["spec_url"]
+    description: str = geo_proj.CMO["description"]
 
 
 class Proj(BaseModel):

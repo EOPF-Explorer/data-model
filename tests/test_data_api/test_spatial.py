@@ -22,7 +22,7 @@ class TestSpatialConventionMetadata:
             == "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
         )
         assert metadata.spec_url == "https://github.com/zarr-conventions/spatial/blob/v1/README.md"
-        assert metadata.description == "Spatial coordinate and transformation information"
+        assert metadata.description == "Spatial coordinate information"
 
     def test_serialization(self) -> None:
         """Test that metadata can be serialized correctly."""
@@ -34,7 +34,7 @@ class TestSpatialConventionMetadata:
             "name": "spatial:",
             "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
             "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
-            "description": "Spatial coordinate and transformation information",
+            "description": "Spatial coordinate information",
         }
 
         assert result == expected

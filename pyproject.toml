@@ -36,6 +36,7 @@ dependencies = [
     "rioxarray>=0.13.0",
     "cf-xarray>=0.8.0",
     "typing-extensions>=4.15.0",
+    "zarr-cm>=0.2.0",
     "aiohttp>=3.8.1",
     "s3fs>=2024.6.0",
     "boto3>=1.34.0",

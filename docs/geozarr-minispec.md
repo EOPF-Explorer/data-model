@@ -165,7 +165,7 @@ This example shows a geospatial Dataset with two spatial data variables. The `za
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
                     "name": "spatial:",
-                    "description": "Spatial coordinate and transformation information"
+                    "description": "Spatial coordinate information"
                 }
             ],
             "proj:code": "EPSG:32633",
@@ -329,7 +329,7 @@ A minimal 2-level geospatial pyramid — well-suited for web mapping or non-EO d
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
                     "name": "spatial:",
-                    "description": "Spatial coordinate and transformation information"
+                    "description": "Spatial coordinate information"
                 }
             ],
             "multiscales": {
@@ -388,7 +388,7 @@ A complete Sentinel-2 L2A scene with 6 resolution levels (variable downsampling 
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
                     "name": "spatial:",
-                    "description": "Spatial coordinate and transformation information"
+                    "description": "Spatial coordinate information"
                 }
             ],
             "multiscales": {

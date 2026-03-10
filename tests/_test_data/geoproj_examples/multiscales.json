@@ -15,7 +15,7 @@
         "name": "spatial:",
         "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
         "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
-        "description": "Spatial coordinate and transformation information"
+        "description": "Spatial coordinate information"
       },
       {
         "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",

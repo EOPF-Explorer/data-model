@@ -12,7 +12,6 @@ from typing import (
     Any,
     Final,
     Literal,
-    NotRequired,
     Self,
     TypeGuard,
     TypeVar,
@@ -22,7 +21,8 @@ from urllib.error import URLError
 from cf_xarray.utils import parse_cf_standard_name_table
 from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.experimental.missing_sentinel import MISSING
-from typing_extensions import Protocol, TypedDict, runtime_checkable
+from typing_extensions import Protocol, runtime_checkable
+from zarr_cm import ConventionMetadataObject
 
 from eopf_geozarr.data_api.geozarr.projjson import ProjJSON  # noqa: TC001
 
@@ -55,12 +55,8 @@ class ZarrConventionMetadata(BaseModel):
         return self
 
 
-class ZarrConventionMetadataJSON(TypedDict):
-    uuid: NotRequired[str]
-    schema_url: NotRequired[str]
-    name: NotRequired[str]
-    description: NotRequired[str]
-    spec_url: NotRequired[str]
+# Re-export from zarr_cm for backwards compatibility
+ZarrConventionMetadataJSON = ConventionMetadataObject
 
 
 class ProjAttrs(BaseModel, extra="allow"):

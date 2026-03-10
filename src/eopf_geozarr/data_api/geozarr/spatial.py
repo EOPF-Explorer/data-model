@@ -4,40 +4,23 @@ Models for the Spatial Zarr Convention
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, Field, model_validator
-from typing_extensions import TypedDict
+from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.data_api.geozarr.common import ZarrConventionMetadata, is_none
 
-SPATIAL_UUID: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"] = (
-    "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
-)
+SPATIAL_UUID = spatial_cm.UUID
 
-
-class SpatialConvention(TypedDict):
-    uuid: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"]
-    name: Literal["spatial:"]
-    schema_url: Literal[
-        "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
-    ]
-    spec_url: Literal["https://github.com/zarr-conventions/spatial/blob/v1/README.md"]
-    description: Literal["Spatial coordinate and transformation information"]
+# Re-export the zarr-cm TypedDict for the convention metadata object
+SpatialConvention = spatial_cm.SpatialAttrs
 
 
 class SpatialConventionMetadata(ZarrConventionMetadata):
-    uuid: Literal["689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"] = SPATIAL_UUID
-    name: Literal["spatial:"] = "spatial:"
-    schema_url: Literal[
-        "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
-    ] = "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json"
-    spec_url: Literal["https://github.com/zarr-conventions/spatial/blob/v1/README.md"] = (
-        "https://github.com/zarr-conventions/spatial/blob/v1/README.md"
-    )
-    description: Literal["Spatial coordinate and transformation information"] = (
-        "Spatial coordinate and transformation information"
-    )
+    uuid: str = spatial_cm.CMO["uuid"]
+    name: str = spatial_cm.CMO["name"]
+    schema_url: str = spatial_cm.CMO["schema_url"]
+    spec_url: str = spatial_cm.CMO["spec_url"]
+    description: str = spatial_cm.CMO["description"]
 
 
 class Spatial(BaseModel):

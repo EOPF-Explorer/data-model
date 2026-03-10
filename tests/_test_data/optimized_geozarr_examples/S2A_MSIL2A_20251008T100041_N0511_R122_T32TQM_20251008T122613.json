@@ -4951,7 +4951,7 @@
                 "uuid": "d35379db-88df-4056-af3a-620245f8e347"
               },
               {
-                "description": "Spatial coordinate and transformation information",
+                "description": "Spatial coordinate information",
                 "name": "spatial:",
                 "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                 "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -4988,7 +4988,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -5644,7 +5644,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -7151,7 +7151,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -8539,7 +8539,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -10046,7 +10046,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -11556,7 +11556,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -13077,7 +13077,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -13413,7 +13413,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -13749,7 +13749,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -14092,7 +14092,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -14382,7 +14382,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -14672,7 +14672,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -14969,7 +14969,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -15637,7 +15637,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -16555,7 +16555,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
@@ -17105,7 +17105,7 @@
                 ],
                 "zarr_conventions": [
                   {
-                    "description": "Spatial coordinate and transformation information",
+                    "description": "Spatial coordinate information",
                     "name": "spatial:",
                     "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
                     "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
