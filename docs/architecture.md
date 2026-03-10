@@ -200,6 +200,118 @@ output.zarr/
 └── .zmetadata                # Consolidated metadata
 ```
 
+## STAC Integration and Zarr URL Resolution
+
+### The Store Root vs. Hierarchy Path Problem
+
+Zarr is defined as a **key/value store protocol**, not a file format. A Zarr hierarchy lives inside a *store*, and nodes (groups, arrays) are identified by *hierarchy paths* that map to storage keys. For example, a group at hierarchy path `my/group` means the key `my/group/zarr.json` exists in the store.
+
+When a URL such as `https://example.stac/path/something.zarr/my/group` is encountered, two conceptually distinct pieces have been concatenated:
+
+| Concept | Example value |
+|---|---|
+| **Store root** | `https://example.stac/path/something.zarr` |
+| **Hierarchy path** | `my/group` |
+
+Reverse-engineering this split from the flattened URL is inherently fragile: the `.zarr` suffix is **only advisory** (per the [Zarr v3 specification](https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html)) and could legally appear in folder or group names. As confirmed by Zarr specification contributors, "the existence of a group or array at some path `p` is defined by `p/zarr.json` resolving to a group / array metadata document" — there is no requirement that the store root carry any particular suffix.
+
+### Canonical Resolution Algorithm for Implementors
+
+The following algorithm resolves a Zarr group or array URL unambiguously:
+
+```
+1. CHECK for a STAC `rel: store` link in the STAC Item or Collection.
+   → If present:  store_root  = store link href
+                  group_path  = asset href, stripped of the store_root prefix
+   → This is the ONLY fully unambiguous resolution path. Always prefer it.
+
+2. FALLBACK (no store link — fragile, best-effort only):
+   → Find the last path segment that ends with `.zarr`.
+     store_root = everything up to and including that segment
+     group_path = remaining path segments
+   → Document clearly that this heuristic may fail if `.zarr` appears
+     in group or array names.
+
+3. VERIFY programmatically (optional but recommended):
+   → Append `/zarr.json` to the candidate store_root.
+     If the response is valid Zarr group metadata: confirmed.
+     Otherwise: try removing the last path segment and retry.
+   → Note: this requires an additional HTTP request and should only be
+     used when a store link is absent and the heuristic is uncertain.
+```
+
+!!! warning "Why fragment notation (`#`) does not work here"
+    A URL fragment like `something.zarr#/my/group` would require the client to first fetch `something.zarr` as a resource. Since a Zarr store root is not a directly fetchable HTTP resource (only `something.zarr/zarr.json` is), the fragment model does not fit HTTP semantics for Zarr hierarchies. The explicit `rel: store` link is the correct mechanism.
+
+### STAC `rel: store` Link
+
+The [STAC Zarr Best Practices](https://github.com/radiantearth/stac-best-practices/blob/main/best-practices-zarr.md#store-link-relationship) define a `"store"` relationship for exactly this purpose. All EOPF-produced STAC Items and Collections **MUST** include this link:
+
+```json
+"links": [
+  {
+    "rel": "store",
+    "href": "s3://bucket/S2A_MSIL2A_20251008T100041.zarr",
+    "type": "application/vnd.zarr; version=3",
+    "title": "Zarr Store"
+  }
+]
+```
+
+With this link present, a client parses a group asset href like `s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance/r10m` by simply stripping the store root prefix, yielding hierarchy path `measurements/reflectance/r10m` — no heuristics needed.
+
+!!! important "Best-practices assumption"
+    The STAC Zarr Best Practices assume that **all assets in a STAC object are contained within the same Zarr store**. If assets span multiple stores, each store must have its own `rel: store` link and the relationship between an asset and its store link must be made explicit (e.g., via a shared `store_id` convention or separate STAC Items).
+
+### URL Naming Constraint
+
+To minimise ambiguity for clients that must fall back to the heuristic path above, the following constraint applies to all EOPF Zarr products:
+
+- The `.zarr` suffix **SHOULD** appear **at most once** in the full URL — only at the store root.
+- Group names, array names, and any intermediate path segments **MUST NOT** end with `.zarr`.
+
+Example:
+
+```
+✅  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance/r10m
+❌  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements.zarr/reflectance
+```
+
+### EOPF Product URL Anatomy
+
+For a Sentinel-2 L2A EOPF product the URL breakdown looks like:
+
+```
+Store root:  s3://bucket/S2A_MSIL2A_20251008T100041.zarr
+             │
+             └── measurements/
+                 └── reflectance/        ← group path in STAC asset href
+                     ├── r10m/
+                     │   ├── b02         ← array accessed via band `name` field
+                     │   ├── b03
+                     │   └── b04
+                     ├── r20m/
+                     └── r60m/
+```
+
+The band `name` field in the STAC `bands` array is designed so that `asset_href + "/" + band_name` constructs the correct full Zarr array URL:
+
+```python
+import zarr
+
+asset_href = "s3://bucket/S2A_MSIL2A.zarr/measurements/reflectance/r10m"
+band_name   = "b04"
+red_band    = zarr.open_array(asset_href + "/" + band_name, mode="r")
+```
+
+### Related Specifications
+
+- **[Zarr v3 specification](https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html)** — defines the abstract store interface, hierarchy paths, and `zarr.json` metadata documents
+- **[STAC Zarr Best Practices](https://github.com/radiantearth/stac-best-practices/blob/main/best-practices-zarr.md)** — defines the `rel: store` link, asset media types, and band representation patterns
+- **[Zarr STAC Extension](https://github.com/stac-extensions/zarr)** — adds `zarr:node_type`, `zarr:zarr_format`, and `zarr:consolidated` fields to STAC assets
+
+---
+
 ## Metadata Architecture
 
 ### 1. CF Conventions Compliance
