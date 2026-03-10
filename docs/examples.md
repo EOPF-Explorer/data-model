@@ -2,8 +2,8 @@
 
 Practical examples demonstrating common use cases for the EOPF GeoZarr library.
 
-!!! tip "Understanding Zarr asset URLs"
-    An asset href like `s3://bucket/data.zarr/measurements/reflectance/r10m` is the concatenation of a **store root** (`s3://bucket/data.zarr`) and a **hierarchy path** (`measurements/reflectance/r10m`). Clients MUST use the `rel: store` link in the STAC object to split these unambiguously. See the [STAC Integration and Zarr URL Resolution](architecture.md#stac-integration-and-zarr-url-resolution) section of the Architecture docs for the full resolution algorithm and naming constraints.
+!!! tip "Opening Zarr assets — no URL parsing required"
+    Every STAC asset href pointing to a Zarr group (e.g. `s3://bucket/data.zarr/measurements/reflectance/r10m`) **is itself a valid Zarr store** and can be opened directly by any Zarr-compatible client. No reverse-parsing or store-root extraction is needed. See [STAC Integration and Zarr URL Resolution](architecture.md#stac-integration-and-zarr-url-resolution) in the Architecture docs for the full model, the role of the `rel: store` link, and consolidated metadata requirements.
 
 ## Basic Examples
 
