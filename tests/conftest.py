@@ -21,9 +21,7 @@ zcm_multiscales_example_paths = tuple(
 optimized_geozarr_example_paths = tuple(
     pathlib.Path("tests/_test_data/optimized_geozarr_examples").glob("*.json")
 )
-s1_rtc_example_json_paths = tuple(
-    pathlib.Path("tests/_test_data/s1_rtc_examples").glob("*.json")
-)
+s1_rtc_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_rtc_examples").glob("*.json"))
 
 
 def read_json(path: pathlib.Path) -> dict[str, object]:
