@@ -46,7 +46,7 @@ def test_s1_rtc_r10m_has_data_arrays(s1_rtc_json_example: dict[str, object]) -> 
 
 
 def test_s1_rtc_overview_levels(s1_rtc_json_example: dict[str, object]) -> None:
-    """Test that overview levels r20m–r720m exist and have vv/vh/border_mask."""
+    """Test that overview levels r20m-r720m exist and have vv/vh/border_mask."""
     model = S1RtcRoot(**s1_rtc_json_example)
     orbit = model.descending
     for level in ("r20m", "r60m", "r120m", "r360m", "r720m"):
@@ -123,7 +123,7 @@ def test_s1_rtc_rejects_conditions_without_gamma_area(
     cond_members = data["members"]["descending"]["members"]["conditions"]["members"]
     # Replace all keys with non-gamma_area names
     data["members"]["descending"]["members"]["conditions"]["members"] = {
-        "some_other": list(cond_members.values())[0]
+        "some_other": next(iter(cond_members.values()))
     }
     with pytest.raises(Exception, match="gamma_area"):
         S1RtcRoot(**data)
