@@ -1,5 +1,5 @@
 """
-Pydantic-zarr integrated models for Sentinel-1 GRD γ0T RTC GeoZarr stores.
+Pydantic-zarr integrated models for Sentinel-1 GRD gamma0T RTC GeoZarr stores.
 
 Uses the pyz.v3 GroupSpec/ArraySpec with TypedDict members to enforce strict
 structure validation — same pattern as s2.py (which uses pyz.v2 for Zarr V2).
@@ -35,7 +35,9 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import TypedDict
-from zarr_cm import geo_proj, multiscales as multiscales_cm, spatial as spatial_cm
+from zarr_cm import geo_proj
+from zarr_cm import multiscales as multiscales_cm
+from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.data_api.geozarr.common import DatasetAttrs
 from eopf_geozarr.pyz.v3 import ArraySpec, GroupSpec
@@ -59,7 +61,7 @@ Polarisation = Literal["vv", "vh"]
 # ============================================================================
 
 
-class S1RtcOrbitGroupAttrs(BaseModel, extra="allow"):
+class S1RtcOrbitGroupAttrs(BaseModel):
     """Attributes for an orbit-direction group (ascending or descending).
 
     Carries the three GeoZarr conventions plus proj:/spatial:/multiscales metadata.
@@ -71,7 +73,7 @@ class S1RtcOrbitGroupAttrs(BaseModel, extra="allow"):
     spatial_dimensions: list[str] = Field(alias="spatial:dimensions")
     spatial_bbox: list[float] = Field(alias="spatial:bbox")
 
-    model_config = {"populate_by_name": True, "serialize_by_alias": True}
+    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
 
     @model_validator(mode="after")
     def validate_zarr_conventions(self) -> Self:
@@ -108,13 +110,13 @@ class S1RtcOrbitGroupAttrs(BaseModel, extra="allow"):
         return self
 
 
-class S1RtcResolutionAttrs(BaseModel, extra="allow"):
-    """Attributes for a resolution-level group (r10m, r20m, …)."""
+class S1RtcResolutionAttrs(BaseModel):
+    """Attributes for a resolution-level group (r10m, r20m, ...)."""
 
     spatial_shape: list[int] = Field(alias="spatial:shape")
     spatial_transform: list[float] = Field(alias="spatial:transform")
 
-    model_config = {"populate_by_name": True, "serialize_by_alias": True}
+    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
 
     @model_validator(mode="after")
     def validate_shape(self) -> Self:
@@ -131,14 +133,14 @@ class S1RtcResolutionAttrs(BaseModel, extra="allow"):
         return self
 
 
-class S1RtcConditionsAttrs(BaseModel, extra="allow"):
+class S1RtcConditionsAttrs(BaseModel):
     """Attributes for the conditions group."""
 
     proj_code: str = Field(alias="proj:code")
     spatial_dimensions: list[str] = Field(alias="spatial:dimensions")
     spatial_transform: list[float] = Field(alias="spatial:transform")
 
-    model_config = {"populate_by_name": True, "serialize_by_alias": True}
+    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
 
 
 # ============================================================================
@@ -207,21 +209,17 @@ class S1RtcNativeResolutionDataset(
 class S1RtcOverviewResolutionDataset(
     GroupSpec[S1RtcResolutionAttrs, S1RtcOverviewResolutionMembers]  # type: ignore[type-var]
 ):
-    """An overview resolution dataset (r20m–r720m): data variables only."""
+    """An overview resolution dataset (r20m-r720m): data variables only."""
 
 
-class S1RtcConditionsGroup(
-    GroupSpec[S1RtcConditionsAttrs, dict[str, ArraySpec[Any]]]  # type: ignore[type-var]
-):
+class S1RtcConditionsGroup(GroupSpec[S1RtcConditionsAttrs, dict[str, ArraySpec[Any]]]):
     """Time-invariant condition arrays, keyed by name (e.g. gamma_area_008)."""
 
     @model_validator(mode="after")
     def validate_has_gamma_area(self) -> Self:
         """At least one gamma_area_* array should be present."""
         if not any(k.startswith("gamma_area_") for k in self.members):
-            raise ValueError(
-                "Conditions group must contain at least one 'gamma_area_*' array"
-            )
+            raise ValueError("Conditions group must contain at least one 'gamma_area_*' array")
         return self
 
 
