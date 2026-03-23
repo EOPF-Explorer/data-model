@@ -318,7 +318,7 @@ Each final product should contain these GeoTIFF tags:
 
 | Tag | Example value |
 |---|---|
-| `CALIBRATION` | `gamma_naught_rtc` |
+| `CALIBRATION` | `GammaNaughtRTC` |
 | `IMAGE_TYPE` | `BACKSCATTERING` |
 | `FLYING_UNIT_CODE` | `s1a` |
 | `POLARIZATION` | `vv` or `vh` |

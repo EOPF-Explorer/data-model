@@ -98,9 +98,9 @@ s1-grd-rtc-32TQM.zarr/
 │   │
 │   └── conditions/                     # Time-invariant, NOT in multiscales layout
 │       ├── zarr.json                   # proj:code, spatial:dimensions, spatial:transform
-│       ├── lia/                        # (Y, X) float32 — sin(LIA)
-│       ├── incidence_angle/           # (Y, X) float32
-│       └── gamma_area/               # (Y, X) float32
+│       ├── gamma_area_{orbit}/        # (Y, X) float32 — one per relative orbit number
+│       ├── lia_{orbit}/               # (Y, X) float32 — sin(LIA) [if available]
+│       └── incidence_angle_{orbit}/   # (Y, X) float32 [if available]
 │
 └── descending/
     └── (same structure)
@@ -112,7 +112,7 @@ s1-grd-rtc-32TQM.zarr/
 
 **Coordinate variables** (`time`, `absolute_orbit`, `relative_orbit`, `platform`) live inside the native resolution dataset (`r10m/`) because they follow the Dataset rule: for each dimension name in a data variable, there must be a matching 1D coordinate variable. Overview levels share the same time dimension but don't need separate coordinate copies (they reference the same time axis).
 
-**Conditions** sit outside the multiscales layout as a separate group. They are (Y, X) only — no time dimension — and are per orbit, not per acquisition. They carry their own `proj:` and `spatial:` conventions.
+**Conditions** sit outside the multiscales layout as a separate group. They are (Y, X) only — no time dimension — and are per orbit, not per acquisition. They carry their own `proj:` and `spatial:` conventions. Each array is named with the relative orbit number suffix (e.g. `gamma_area_008`). Only `gamma_area` is confirmed as a direct S1Tiling output; `lia` and `incidence_angle` may require additional S1Tiling configuration or post-processing to produce as separate files.
 
 **border_mask** is included as a variable alongside vv/vh in each resolution level. It shares the (time, Y, X) shape and gets downsampled with the overviews (using `nearest` resampling for masks, not `average`).
 
@@ -194,6 +194,11 @@ s1-grd-rtc-32TQM.zarr/
 
 ### Array metadata example (r10m/vv/zarr.json)
 
+This is the actual on-disk format produced by zarr-python 3.1.1. Sharding is
+represented as a codec wrapping the inner codecs. The `chunk_grid` holds the
+**shard shape** (one shard = one timestep of the full spatial extent). The
+**inner chunk shape** (`[1, 366, 366]`) lives inside the sharding codec config.
+
 ```json
 {
     "zarr_format": 3,
@@ -202,30 +207,47 @@ s1-grd-rtc-32TQM.zarr/
     "data_type": "float32",
     "chunk_grid": {
         "name": "regular",
-        "configuration": {"chunk_shape": [1, 512, 512]}
+        "configuration": {"chunk_shape": [1, 10980, 10980]}
     },
     "chunk_key_encoding": {
         "name": "default",
         "configuration": {"separator": "/"}
     },
     "codecs": [
-        {"name": "bytes", "configuration": {"endian": "little"}},
-        {"name": "blosc", "configuration": {"cname": "zstd", "clevel": 5}}
-    ],
-    "dimension_names": ["time", "Y", "X"],
-    "fill_value": "NaN",
-    "storage_transformers": [
         {
             "name": "sharding_indexed",
             "configuration": {
-                "chunk_shape": [1, 10980, 10980]
+                "chunk_shape": [1, 366, 366],
+                "codecs": [
+                    {"name": "bytes", "configuration": {"endian": "little"}},
+                    {"name": "blosc", "configuration": {"cname": "zstd", "clevel": 5}}
+                ],
+                "index_codecs": [
+                    {"name": "bytes", "configuration": {"endian": "little"}},
+                    {"name": "crc32c"}
+                ],
+                "index_location": "end"
             }
         }
-    ]
+    ],
+    "dimension_names": ["time", "Y", "X"],
+    "fill_value": "NaN"
 }
 ```
 
-Note: `shape[0]` starts at 0 and grows with each append. `dimension_names` is Zarr V3 native — no `_ARRAY_DIMENSIONS` attribute needed.
+**Python API** (zarr-python 3.1.1):
+```python
+group.create_array(
+    "vv", shape=(0, 10980, 10980), dtype="float32",
+    chunks=(1, 366, 366),          # inner chunk shape
+    shards=(1, 10980, 10980),      # shard shape
+    compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
+    fill_value=float("nan"),
+    dimension_names=["time", "Y", "X"],
+)
+```
+
+Note: `shape[0]` starts at 0 and grows with each append. `dimension_names` is Zarr V3 native — no `_ARRAY_DIMENSIONS` attribute needed. Inner chunk size 366 = `best_chunk_size(10980)` = largest divisor of 10980 ≤ 512.
 
 ---
 
@@ -259,10 +281,10 @@ class S1GrdMeasurementsDataset(BaseModel):
     platform: Optional[ArraySpec] = None     # (time,) str
 
 class S1GrdConditionsDataset(BaseModel):
-    """Time-invariant conditions per orbit."""
-    lia: ArraySpec             # (Y, X) float32
-    incidence_angle: ArraySpec # (Y, X) float32
-    gamma_area: ArraySpec      # (Y, X) float32
+    """Time-invariant conditions per orbit. Arrays named with orbit suffix (e.g. gamma_area_008)."""
+    gamma_area: Dict[str, ArraySpec]                    # gamma_area_{orbit}: (Y, X) float32 — always present
+    lia: Optional[Dict[str, ArraySpec]] = None          # lia_{orbit}: (Y, X) float32 — if available
+    incidence_angle: Optional[Dict[str, ArraySpec]] = None  # incidence_angle_{orbit}: (Y, X) float32 — if available
 
 class S1GrdOrbitGroup(BaseModel):
     """One orbit direction — carries multiscales, proj:, spatial: conventions."""
@@ -413,7 +435,7 @@ Each store = one STAC item per tile. Temporal extent derived from sorted `time` 
 - [x] Test S1Tiling end-to-end: SAFE → GeoTIFF → read with Rasterio, inspect tags
 - [x] Prototype GeoTIFF → Zarr conversion for one acquisition (proof of concept)
 - [x] **Real-data validation**: Convert 3 real S1Tiling γ0T RTC acquisitions to GeoZarr V3 store
-- [ ] Use the feedback from prototyping (previous points) to refine the data model and implementation plan before starting full development
+- [x] Use the feedback from prototyping (previous points) to refine the data model and implementation plan before starting full development
 
 **Phase 0 prototype**: `analysis/s1_grd_rtc_prototype.py` — runnable end-to-end proof of concept.
 See [Phase 0 Findings](#phase-0-findings) below for detailed results.
@@ -478,7 +500,7 @@ Phase 0 prototyping was completed on 2026-03-22. The prototype (`analysis/s1_grd
 | Assumption | Result | Notes |
 |------------|--------|-------|
 | zarr-python 3.1.1 `resize()` on sharded arrays | **WORKS** | `shape[0]` starts at 0, `resize()` grows time axis, data integrity preserved |
-| Zarr V3 `create_array` API | **API differs from plan** | Uses `shards=` and `compressors=` params, NOT `codecs=` or `storage_transformers`. See zarr-python 3.x API |
+| Zarr V3 `create_array` API | **WORKS — plan updated** | Uses `shards=` and `compressors=` params, NOT `codecs=` or `storage_transformers`. Section 2 example now reflects actual on-disk format |
 | Rasterio metadata extraction | **WORKS** | `src.transform` returns Affine ordering natively — no GDAL conversion needed when reading with rasterio |
 | GeoTIFF custom tags | **WORKS** | `dst.update_tags()` / `src.tags()` round-trips `ACQUISITION_DATETIME`, `ORBIT_NUMBER`, etc. |
 | xarray reads Zarr V3 store | **WORKS** | `xr.open_zarr(path, zarr_format=3, consolidated=False)` reads all arrays correctly |
@@ -487,7 +509,7 @@ Phase 0 prototyping was completed on 2026-03-22. The prototype (`analysis/s1_grd
 
 ### Key API Corrections vs. Design Document
 
-**1. Array metadata format (Section 2):** The `zarr.json` example in the design uses `storage_transformers` with `sharding_indexed`. In zarr-python 3.1.1, sharding is configured via the `shards=` parameter on `create_array()`, which produces a `ShardingCodec` wrapping inner codecs. The on-disk format is correct; the API surface differs.
+**1. Array metadata format (Section 2):** The `zarr.json` example in Section 2 has been updated to show the actual on-disk format from zarr-python 3.1.1. Sharding is represented as a codec (not `storage_transformers`), with the shard shape in `chunk_grid` and inner chunk shape inside the `sharding_indexed` codec config. The Python API uses `shards=` and `compressors=` params on `create_array()`.
 
 ```python
 # Correct API (zarr-python 3.1.1):
@@ -583,7 +605,42 @@ S1Tiling γ0T RTC ran to completion on 3 S1A GRD products (orbits 008, 037, 110)
 | Border mask fill_value | 0 | **0** (confirmed — matches S1Tiling convention) |
 | Datetime parsing | ISO 8601 assumed | Must handle `YYYY:MM:DD` S1Tiling format |
 | Calibration tag value | `gamma_naught_rtc` | Actual: `GammaNaughtRTC` (mixed case) |
-| Conditions per orbit | gamma_area only | Confirmed: `gamma_area_{orbit_num}` naming pattern |
+| Conditions per orbit | Single `gamma_area/` array | Per-orbit naming: `gamma_area_{orbit_num}` (e.g. `gamma_area_008`) |
+| Conditions scope | LIA + incidence_angle + gamma_area | Only `gamma_area` confirmed as S1Tiling output; LIA/incidence_angle aspirational |
+| Array metadata format | `storage_transformers` with `sharding_indexed` | Sharding is a codec in the `codecs` array; `chunk_grid` holds shard shape |
+
+### Operational Findings (S1Tiling Pipeline)
+
+These findings are specific to running S1Tiling 1.4.0 via Docker and are
+relevant for the Argo workflow (Step 1) rather than the data-model code
+(Step 2), but are documented here for completeness.
+
+**EODAG 4.0.0 breaking changes:** S1Tiling 1.4.0 ships EODAG 4.0.0, which has
+five breaking changes that prevent `cop_dataspace` from working correctly. A
+monkey-patch script (`analysis/s1tiling_eodag4_patch.py`) fixes all five:
+
+1. `productType` kwarg renamed to `collection` — having both causes silent fallback to peps
+2. Product properties use STAC names (`sat:orbit_state`) instead of legacy (`orbitDirection`)
+3. `cop_dataspace` OData v4 API rejects `polarizationChannels` and `sensorMode`
+4. Orbit direction must be UPPERCASE (`"DESCENDING"` not `"descending"`)
+5. `relativeOrbitNumber` search param silently returns 0 results
+
+An upstream issue has been prepared: `issues/s1tiling-eodag-collection-bug.md`.
+
+**DEM tile extent:** The Gamma Area computation requires SRTM DEM tiles covering
+the full S1 swath geometry, which extends far beyond the target MGRS tile. For
+31TCH (42–43°N, 0–2°E), 20 SRTM tiles were needed (41°N–44°N, 3°W–5°E) instead
+of the expected 4–6. This is because multiple overlapping descending orbits have
+wide swaths. The DEM tile list for each MGRS tile must be pre-computed or
+discovered during a dry-run.
+
+**S1Tiling output filename format:** The GAMMA_AREA filename includes the flying
+unit code and orbit direction (`GAMMA_AREA_s1a_31TCH_DES_008.tif`), which differs
+from the simpler pattern in the S1Tiling docs (`GAMMA_AREA_{tile}_{orbit}.tif`).
+The ingestion code must handle the actual naming pattern.
+
+See `analysis/s1tiling_docker_instructions.md` for complete Docker setup and
+troubleshooting guide.
 
 ## Additional instructions
 - Keep a devlog of implementation progress, challenges, and decisions in the GitHub issue linked to this design document.
