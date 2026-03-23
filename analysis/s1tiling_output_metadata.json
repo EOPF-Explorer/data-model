@@ -1,0 +1,998 @@
+[
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_008_20250210t060920_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vh_DES_008_20250210t060920_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "008",
+      "acquisition_stamp": "20250210t060920"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:31:27",
+      "ACQUISITION_DATETIME": "2025:02:10T06:09:20Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_008.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250210T060920_20250210T060945_057830_0721D8_1F28",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057830",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-10T06:50:29.028854Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "008",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26497",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_008_20250210t060920_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vh_DES_008_20250210t060920_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "008",
+      "acquisition_stamp": "20250210t060920"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:31:37",
+      "ACQUISITION_DATETIME": "2025:02:10T06:09:20Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_008.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250210T060920_20250210T060945_057830_0721D8_1F28",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057830",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-10T06:50:29.028854Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "008",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26497",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_037_20250212t055301_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vh_DES_037_20250212t055301_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "037",
+      "acquisition_stamp": "20250212t055301"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:34:20",
+      "ACQUISITION_DATETIME": "2025:02:12T05:53:01Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_037.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250212T055301_20250212T055326_057859_0722FE_13B0",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057859",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-12T06:24:23.751945Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "037",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26399",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_037_20250212t055301_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vh_DES_037_20250212t055301_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "037",
+      "acquisition_stamp": "20250212t055301"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:34:30",
+      "ACQUISITION_DATETIME": "2025:02:12T05:53:01Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_037.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250212T055301_20250212T055326_057859_0722FE_13B0",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057859",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-12T06:24:23.751945Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "037",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26399",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_110_20250205t060110_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vh_DES_110_20250205t060110_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "110",
+      "acquisition_stamp": "20250205t060110"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:38:03",
+      "ACQUISITION_DATETIME": "2025:02:05T06:01:10Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_110.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250205T060110_20250205T060135_057757_071EE7_D5AA",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057757",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-05T06:39:31.395792Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "110",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26416",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vh_DES_110_20250205t060110_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vh_DES_110_20250205t060110_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vh",
+      "orbit_direction": "DES",
+      "orbit": "110",
+      "acquisition_stamp": "20250205t060110"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:38:14",
+      "ACQUISITION_DATETIME": "2025:02:05T06:01:10Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_110.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250205T060110_20250205T060135_057757_071EE7_D5AA",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057757",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vh",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-05T06:39:31.395792Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "110",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26416",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_008_20250210t060920_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vv_DES_008_20250210t060920_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "008",
+      "acquisition_stamp": "20250210t060920"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:31:25",
+      "ACQUISITION_DATETIME": "2025:02:10T06:09:20Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_008.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250210T060920_20250210T060945_057830_0721D8_1F28",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057830",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-10T06:50:29.028854Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "008",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26497",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_008_20250210t060920_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vv_DES_008_20250210t060920_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "008",
+      "acquisition_stamp": "20250210t060920"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:31:29",
+      "ACQUISITION_DATETIME": "2025:02:10T06:09:20Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_008.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250210T060920_20250210T060945_057830_0721D8_1F28",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057830",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-10T06:50:29.028854Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "008",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26497",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_037_20250212t055301_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vv_DES_037_20250212t055301_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "037",
+      "acquisition_stamp": "20250212t055301"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:34:19",
+      "ACQUISITION_DATETIME": "2025:02:12T05:53:01Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_037.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250212T055301_20250212T055326_057859_0722FE_13B0",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057859",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-12T06:24:23.751945Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "037",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26399",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_037_20250212t055301_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vv_DES_037_20250212t055301_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "037",
+      "acquisition_stamp": "20250212t055301"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:34:22",
+      "ACQUISITION_DATETIME": "2025:02:12T05:53:01Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_037.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250212T055301_20250212T055326_057859_0722FE_13B0",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057859",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-12T06:24:23.751945Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "037",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26399",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_110_20250205t060110_GammaNaughtRTC.tif",
+    "filename": "s1a_31TCH_vv_DES_110_20250205t060110_GammaNaughtRTC.tif",
+    "file_type": "gamma_naught_rtc",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "110",
+      "acquisition_stamp": "20250205t060110"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "float32",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Gamma0 RTC Calibrated Sentinel-1A IW GRD",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:38:01",
+      "ACQUISITION_DATETIME": "2025:02:05T06:01:10Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_110.tif",
+      "IMAGE_TYPE": "GRD",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250205T060110_20250205T060135_057757_071EE7_D5AA",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057757",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-05T06:39:31.395792Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "110",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26416",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  },
+  {
+    "file": "/home/emathot/Downloads/s1tiling_test/data_out/31TCH/s1a_31TCH_vv_DES_110_20250205t060110_GammaNaughtRTC_BorderMask.tif",
+    "filename": "s1a_31TCH_vv_DES_110_20250205t060110_GammaNaughtRTC_BorderMask.tif",
+    "file_type": "border_mask",
+    "filename_metadata": {
+      "flying_unit_code": "s1a",
+      "tile_name": "31TCH",
+      "polarisation": "vv",
+      "orbit_direction": "DES",
+      "orbit": "110",
+      "acquisition_stamp": "20250205t060110"
+    },
+    "rasterio_profile": {
+      "driver": "GTiff",
+      "dtype": "uint8",
+      "width": 10980,
+      "height": 10980,
+      "count": 1,
+      "crs": "EPSG:32631",
+      "nodata": 0.0
+    },
+    "transform": {
+      "affine": [
+        10.0,
+        0.0,
+        299999.9999974121,
+        0.0,
+        -10.0,
+        4799999.99999915
+      ],
+      "pixel_size_x": 10.0,
+      "pixel_size_y": 10.0
+    },
+    "bounds": {
+      "left": 299999.9999974121,
+      "bottom": 4690199.99999915,
+      "right": 409799.9999974121,
+      "top": 4799999.99999915
+    },
+    "tags": {
+      "TIFFTAG_IMAGEDESCRIPTION": "Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile",
+      "TIFFTAG_SOFTWARE": "S1 Tiling v1.4.0",
+      "TIFFTAG_DATETIME": "2026:03:23 06:38:06",
+      "ACQUISITION_DATETIME": "2025:02:05T06:01:10Z",
+      "CALIBRATION": "GammaNaughtRTC",
+      "DataType": "3",
+      "DEM_INFO": "SRTM 30m",
+      "FACILITY_IDENTIFIER": "ESA Sentinel-1 IPF 003.90",
+      "FLYING_UNIT_CODE": "s1a",
+      "GAMMA_AREA_FILE": "GAMMA_AREA_31TCH_110.tif",
+      "IMAGE_TYPE": "MASK",
+      "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20250205T060110_20250205T060135_057757_071EE7_D5AA",
+      "LOWER_SIGNAL_VALUE": "1e-07",
+      "METADATATYPE": "OTB",
+      "NoData": "0",
+      "NOISE_REMOVED": "True",
+      "ORBIT_DIRECTION": "DES",
+      "ORBIT_NUMBER": "057757",
+      "ORTHORECTIFICATION_INTERPOLATOR": "bco",
+      "ORTHORECTIFIED": "true",
+      "OTB_VERSION": "9.1.1",
+      "phase0_test": "s1-grd-rtc-validation",
+      "POLARIZATION": "vv",
+      "producer": "eopf-geozarr-phase0",
+      "ProductionDate": "2025-02-05T06:39:31.395792Z",
+      "ProductType": "GRD",
+      "RELATIVE_ORBIT_NUMBER": "110",
+      "S2_TILE_CORRESPONDING_CODE": "31TCH",
+      "SPATIAL_RESOLUTION": "10.0",
+      "TileHintX": "26416",
+      "TileHintY": "1",
+      "AREA_OR_POINT": "Area"
+    },
+    "band_descriptions": [
+      null
+    ],
+    "band_tags": {
+      "band_1": {
+        "NoData": "0",
+        "BandName": "\u03b3\u00b0RTC"
+      }
+    }
+  }
+]
