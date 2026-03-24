@@ -5,7 +5,7 @@ from typing import NotRequired, Self
 from pydantic import BaseModel, model_validator
 from pydantic.experimental.missing_sentinel import MISSING
 from typing_extensions import TypedDict
-from zarr_cm import ConventionMetadataObject  # noqa: TC002
+from zarr_cm import ConventionMetadataObject
 
 from . import tms, zcm
 
