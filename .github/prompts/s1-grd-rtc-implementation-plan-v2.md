@@ -52,6 +52,8 @@ Key principles from the mini-spec:
 - **`dimension_names`** in Zarr V3 array metadata (not `_ARRAY_DIMENSIONS` attribute)
 - **`spatial:transform`** in Rasterio/Affine ordering `[a, b, c, d, e, f]` (NOT GDAL ordering)
 - **Multiscales** use `layout` array with `asset`, `derived_from`, `transform.scale`
+- **1D coordinate arrays** (`x`, `y`) must exist at every resolution level for GeoZarr reader compatibility (e.g. titiler-eopf)
+- **Consolidated metadata** at root and orbit direction group levels for performant reads
 
 ---
 
@@ -66,19 +68,21 @@ s1-grd-rtc-32TQM.zarr/
 ├── ascending/
 │   ├── zarr.json                       # Group: zarr_conventions [multiscales, proj:, spatial:]
 │   │                                   #   proj:code: "EPSG:32633"
-│   │                                   #   spatial:dimensions: ["Y", "X"]
+│   │                                   #   spatial:dimensions: ["y", "x"]
 │   │                                   #   spatial:bbox: [xmin, ymin, xmax, ymax]
 │   │                                   #   multiscales: { layout: [...] }
 │   │
 │   ├── r10m/                           # Native resolution dataset (asset: "r10m")
 │   │   ├── zarr.json                   # Group: spatial:shape, spatial:transform
-│   │   ├── vv/                         # (time, Y, X) float32
-│   │   │   ├── zarr.json              # dimension_names: ["time", "Y", "X"]
+│   │   ├── vv/                         # (time, y, x) float32
+│   │   │   ├── zarr.json              # dimension_names: ["time", "y", "x"]
 │   │   │   └── c/{t}/0/0             # One shard per timestep
-│   │   ├── vh/                         # (time, Y, X) float32
+│   │   ├── vh/                         # (time, y, x) float32
 │   │   │   └── c/{t}/0/0
-│   │   ├── border_mask/               # (time, Y, X) uint8
+│   │   ├── border_mask/               # (time, y, x) uint8
 │   │   │   └── c/{t}/0/0
+│   │   ├── x/                          # (x,) float64 — projection x coordinates
+│   │   ├── y/                          # (y,) float64 — projection y coordinates
 │   │   ├── time/                       # (time,) datetime64[ns]
 │   │   ├── absolute_orbit/            # (time,) int32
 │   │   ├── relative_orbit/            # (time,) int32
@@ -89,7 +93,9 @@ s1-grd-rtc-32TQM.zarr/
 │   │   │                               # spatial:transform: [20.0, 0.0, ...]
 │   │   ├── vv/
 │   │   ├── vh/
-│   │   └── border_mask/
+│   │   ├── border_mask/
+│   │   ├── x/                          # (x,) float64 — projection x at this resolution
+│   │   └── y/                          # (y,) float64 — projection y at this resolution
 │   │
 │   ├── r60m/                           # Overview level 2 (3x from r20m)
 │   ├── r120m/                          # Overview level 3 (2x from r60m)
@@ -111,6 +117,10 @@ s1-grd-rtc-32TQM.zarr/
 **Multiscale levels are named by resolution** (`r10m`, `r20m`, `r60m`, ...) to match the S2 convention used in the existing codebase. Each level is a Dataset containing the same set of variables.
 
 **Coordinate variables** (`time`, `absolute_orbit`, `relative_orbit`, `platform`) live inside the native resolution dataset (`r10m/`) because they follow the Dataset rule: for each dimension name in a data variable, there must be a matching 1D coordinate variable. Overview levels share the same time dimension but don't need separate coordinate copies (they reference the same time axis).
+
+**1D spatial coordinate arrays** (`x`, `y`) are required at **every resolution level** (r10m through r720m). They are computed from the level's `spatial:transform` using `np.linspace` and carry CF-standard attributes (`units: "m"`, `standard_name: "projection_x_coordinate"` / `"projection_y_coordinate"`). Without these arrays, GeoZarr readers like titiler-eopf cannot resolve spatial coordinates from the data.
+
+**Consolidated metadata** is written at the root and orbit direction group levels after all ingestions are complete. This embeds the full hierarchy metadata in the group-level `zarr.json`, enabling single-request metadata reads. Important: consolidation must happen **after** all resize/append operations — consolidating mid-ingestion caches stale array shapes and breaks subsequent writes.
 
 **Conditions** sit outside the multiscales layout as a separate group. They are (Y, X) only — no time dimension — and are per orbit, not per acquisition. They carry their own `proj:` and `spatial:` conventions. Each array is named with the relative orbit number suffix (e.g. `gamma_area_008`). Only `gamma_area` is confirmed as a direct S1Tiling output; `lia` and `incidence_angle` may require additional S1Tiling configuration or post-processing to produce as separate files.
 
@@ -187,7 +197,7 @@ s1-grd-rtc-32TQM.zarr/
         "resampling_method": "average"
     },
     "proj:code": "EPSG:32633",
-    "spatial:dimensions": ["Y", "X"],
+    "spatial:dimensions": ["y", "x"],
     "spatial:bbox": [500000.0, 4890200.0, 609800.0, 5000000.0]
 }
 ```
@@ -230,7 +240,7 @@ represented as a codec wrapping the inner codecs. The `chunk_grid` holds the
             }
         }
     ],
-    "dimension_names": ["time", "Y", "X"],
+    "dimension_names": ["time", "y", "x"],
     "fill_value": "NaN"
 }
 ```
@@ -243,7 +253,7 @@ group.create_array(
     shards=(1, 10980, 10980),      # shard shape
     compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
     fill_value=float("nan"),
-    dimension_names=["time", "Y", "X"],
+    dimension_names=["time", "y", "x"],
 )
 ```
 
@@ -290,7 +300,7 @@ class S1GrdOrbitGroup(BaseModel):
     """One orbit direction — carries multiscales, proj:, spatial: conventions."""
     multiscales: MultiscalesMetadata
     proj_code: str                    # e.g., "EPSG:32633"
-    spatial_dimensions: List[str]     # ["Y", "X"]
+    spatial_dimensions: List[str]     # ["y", "x"]
     spatial_bbox: List[float]
     conditions: S1GrdConditionsDataset
 
@@ -345,8 +355,9 @@ def ingest_s1tiling_conditions(
 1. Write root `zarr.json` (minimal, no conventions at root)
 2. Write `ascending/zarr.json` with full `zarr_conventions` array, `multiscales` layout, `proj:code`, `spatial:dimensions`, `spatial:bbox`
 3. Write `ascending/r10m/zarr.json` with `spatial:shape` and `spatial:transform`
-4. Create arrays: `vv/zarr.json`, `vh/zarr.json`, `border_mask/zarr.json` with `dimension_names: ["time", "Y", "X"]`
+4. Create arrays: `vv/zarr.json`, `vh/zarr.json`, `border_mask/zarr.json` with `dimension_names: ["time", "y", "x"]`
 5. Create coordinate arrays: `time/zarr.json` with `dimension_names: ["time"]`, etc.
+5b. Create 1D spatial coordinate arrays (`x`, `y`) at every resolution level
 6. Write first data shard: `vv/c/0/0/0`
 7. Generate overviews for this timestep → write to r20m, r60m, ..., r720m
 
@@ -356,6 +367,12 @@ def ingest_s1tiling_conditions(
 3. Write new shard: `vv/c/{new_index}/0/0`
 4. Append coordinate values
 5. Generate overviews for new timestep at all levels
+
+**Consolidation** (after all ingestions for a batch):
+1. `zarr.consolidate_metadata(store_path, path=orbit_direction, zarr_format=3)` — orbit level
+2. `zarr.consolidate_metadata(store_path, zarr_format=3)` — root level
+
+Note: Do NOT consolidate between individual ingestions — consolidated metadata caches array shapes and breaks subsequent resize+write operations.
 
 **CRITICAL — spatial:transform ordering**: S1Tiling GeoTIFFs use GDAL GeoTransform ordering `[c, a, b, f, d, e]`. The mini-spec requires Rasterio/Affine ordering `[a, b, c, d, e, f]`. The converter MUST apply the mapping: `spatial_transform = [GT(1), GT(2), GT(0), GT(4), GT(5), GT(3)]`.
 
@@ -436,6 +453,9 @@ Each store = one STAC item per tile. Temporal extent derived from sorted `time` 
 - [x] Prototype GeoTIFF → Zarr conversion for one acquisition (proof of concept)
 - [x] **Real-data validation**: Convert 3 real S1Tiling γ0T RTC acquisitions to GeoZarr V3 store
 - [x] Use the feedback from prototyping (previous points) to refine the data model and implementation plan before starting full development
+- [x] **Post-validation fix**: Add 1D spatial coordinate arrays (`x`, `y`) at every resolution level
+- [x] **Post-validation fix**: Use lowercase dimension names (`y`, `x`) throughout
+- [x] **Post-validation fix**: Add consolidated metadata at root and orbit group levels
 
 **Phase 0 prototype**: `analysis/s1_grd_rtc_prototype.py` — runnable end-to-end proof of concept.
 See [Phase 0 Findings](#phase-0-findings) below for detailed results.
@@ -523,7 +543,7 @@ group.create_array(
     shards=(1, 10980, 10980),      # shard shape
     compressors=zarr.codecs.BloscCodec(cname='zstd', clevel=5),
     fill_value=float('nan'),
-    dimension_names=['time', 'Y', 'X'],
+    dimension_names=['time', 'y', 'x'],
 )
 ```
 
@@ -646,6 +666,21 @@ The ingestion code must handle the actual naming pattern.
 See `analysis/s1tiling_docker_instructions.md` for complete Docker setup and
 troubleshooting guide.
 
+### Post-Validation Fixes (2026-03-25)
+
+After testing the Phase 0 output store with titiler-eopf (GeoZarr reader), three issues were discovered and fixed:
+
+**1. Missing 1D spatial coordinate arrays (`x`, `y`):**
+The prototype created data arrays with `dimension_names: ["time", "y", "x"]` but never created actual 1D coordinate arrays for the spatial dimensions. GeoZarr readers require these to resolve pixel coordinates. Fix: added `np.linspace`-based coordinate array creation at every resolution level, using pixel size and origin from `spatial:transform`. Each array carries CF-standard attributes (`units: "m"`, `standard_name: "projection_x_coordinate"` / `"projection_y_coordinate"`, `_ARRAY_DIMENSIONS: ["x"]` / `["y"]`).
+
+**2. Lowercase dimension names (`y`, `x` not `Y`, `X`):**
+The original design used uppercase `Y`, `X` dimension names. titiler-eopf expects lowercase `y`, `x` (matching CF/GeoZarr convention). All `dimension_names`, `spatial:dimensions`, and coordinate array names were updated to lowercase throughout the prototype, test store, models, and fixtures.
+
+**3. Consolidated metadata:**
+Without consolidated metadata, readers must make separate HTTP requests for every group and array `zarr.json`. Fix: added `consolidate_store()` function calling `zarr.consolidate_metadata()` at both the orbit direction and root group levels. **Critical constraint**: consolidation must happen *after* all ingestions complete — consolidating mid-flow caches stale array shapes in `zarr.json`, causing `BoundsCheckError` on subsequent `resize()` + write operations.
+
+**zarr-python 3.1.1 API note:** `create_array(data=...)` cannot be combined with `dtype=` — providing both raises `ValueError`. When passing `data=`, omit `dtype=` (it is inferred).
+
 ---
 
 ## 10. Phase 1 Findings
@@ -707,7 +742,7 @@ All Phase 1 code passes pre-commit hooks (ruff check, ruff format, mypy). Notabl
 | `test_s1_rtc_rejects_no_orbit` | Rejects empty root (no ascending/descending) |
 | `test_s1_rtc_rejects_missing_r10m` | Rejects orbit group without r10m |
 | `test_s1_rtc_rejects_missing_convention_uuid` | Rejects missing zarr_conventions UUID |
-| `test_s1_rtc_rejects_bad_spatial_dimensions` | Rejects spatial:dimensions != ["Y", "X"] |
+| `test_s1_rtc_rejects_bad_spatial_dimensions` | Rejects spatial:dimensions != ["y", "x"] |
 | `test_s1_rtc_rejects_conditions_without_gamma_area` | Rejects conditions group without gamma_area_* keys |
 
 ### Open Questions for Phase 1 Review (PR #138)

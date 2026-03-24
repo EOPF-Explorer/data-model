@@ -192,7 +192,7 @@ def create_s1_store(
                 "resampling_method": "average",
             },
             "proj:code": meta["crs"],
-            "spatial:dimensions": ["Y", "X"],
+            "spatial:dimensions": ["y", "x"],
             "spatial:bbox": meta["bounds"],
         }
     )
@@ -228,8 +228,55 @@ def create_s1_store(
                 shards=shard_shape,
                 compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
                 fill_value=fill,
-                dimension_names=["time", "Y", "X"],
+                dimension_names=["time", "y", "x"],
             )
+
+        # 1D spatial coordinate arrays (x and y)
+        # Compute from the level's spatial:transform [a, b, c, d, e, f]
+        lvl_transform = level_entry["spatial:transform"]
+        pixel_w = lvl_transform[0]  # a: pixel width
+        x_origin = lvl_transform[2]  # c: x origin (left edge)
+        pixel_h = lvl_transform[4]  # e: pixel height (negative)
+        y_origin = lvl_transform[5]  # f: y origin (top edge)
+
+        x_coords = np.linspace(
+            x_origin, x_origin + level_w * pixel_w, level_w, endpoint=False, dtype="float64"
+        )
+        y_coords = np.linspace(
+            y_origin, y_origin + level_h * pixel_h, level_h, endpoint=False, dtype="float64"
+        )
+
+        x_arr = level_group.create_array(
+            "x",
+            data=x_coords,
+            chunks=(level_w,),
+            fill_value=float("nan"),
+            dimension_names=["x"],
+        )
+        x_arr.attrs.update(
+            {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": ["x"],
+            }
+        )
+
+        y_arr = level_group.create_array(
+            "y",
+            data=y_coords,
+            chunks=(level_h,),
+            fill_value=float("nan"),
+            dimension_names=["y"],
+        )
+        y_arr.attrs.update(
+            {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": ["y"],
+            }
+        )
 
     # Coordinate variables at native resolution only
     r10m = orbit_group["r10m"]
@@ -354,6 +401,15 @@ def ingest_acquisition(
     return current_size
 
 
+def consolidate_store(
+    store_path: str | Path,
+    orbit_direction: str,
+) -> None:
+    """Consolidate metadata at orbit direction and root levels."""
+    zarr.consolidate_metadata(str(store_path), path=orbit_direction, zarr_format=3)
+    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+
+
 # =============================================================================
 # Validation
 # =============================================================================
@@ -364,11 +420,21 @@ def validate_store(store_path: str | Path) -> None:
     root = zarr.open_group(str(store_path), mode="r", zarr_format=3)
     errors: list[str] = []
 
+    # Check root-level consolidated metadata
+    root_meta = root.metadata
+    if root_meta.consolidated_metadata is None:
+        errors.append("root: missing consolidated_metadata")
+
     for orbit_dir in ["ascending", "descending"]:
         if orbit_dir not in root:
             continue
         orbit = root[orbit_dir]
         attrs = dict(orbit.attrs)
+
+        # Check orbit-level consolidated metadata
+        orbit_meta = orbit.metadata
+        if orbit_meta.consolidated_metadata is None:
+            errors.append(f"{orbit_dir}: missing consolidated_metadata")
 
         # Check zarr_conventions
         if "zarr_conventions" not in attrs:
@@ -399,7 +465,7 @@ def validate_store(store_path: str | Path) -> None:
             if "spatial:transform" not in entry:
                 errors.append(f"{orbit_dir}/{asset}: missing spatial:transform in layout")
 
-        # Check array dimension_names
+        # Check array dimension_names and coordinate arrays
         for level_name in orbit.keys():
             level = orbit[level_name]
             if not isinstance(level, zarr.Group):
@@ -408,10 +474,23 @@ def validate_store(store_path: str | Path) -> None:
                 if arr_name in level:
                     arr = level[arr_name]
                     dim_names = arr.metadata.dimension_names
-                    if dim_names != ("time", "Y", "X"):
+                    if dim_names != ("time", "y", "x"):
                         errors.append(
                             f"{orbit_dir}/{level_name}/{arr_name}: "
-                            f"expected dimension_names ('time', 'Y', 'X'), got {dim_names}"
+                            f"expected dimension_names ('time', 'y', 'x'), got {dim_names}"
+                        )
+            # Check x and y coordinate arrays exist
+            for coord_name in ["x", "y"]:
+                if coord_name not in level:
+                    errors.append(
+                        f"{orbit_dir}/{level_name}: missing {coord_name} coordinate array"
+                    )
+                else:
+                    coord_arr = level[coord_name]
+                    if len(coord_arr.shape) != 1:
+                        errors.append(
+                            f"{orbit_dir}/{level_name}/{coord_name}: "
+                            f"expected 1D, got shape {coord_arr.shape}"
                         )
 
     if errors:
@@ -494,6 +573,10 @@ def main() -> None:
             meta2,
         )
         print(f"[3/6] Ingested acquisition 2 at time_index={idx2}")
+
+        # --- Consolidate metadata ---
+        consolidate_store(store_path, "ascending")
+        print("[3.5/6] Consolidated metadata at orbit and root levels")
 
         # --- Validate store ---
         print("[4/6] Validating store structure...")
