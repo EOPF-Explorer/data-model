@@ -15,16 +15,16 @@ Store hierarchy::
     ├── ascending/
     │   ├── zarr.json          # zarr_conventions, multiscales, proj:, spatial:
     │   ├── r10m/              # native resolution dataset
-    │   │   ├── vv/            # (time, y, x) float32
-    │   │   ├── vh/            # (time, y, x) float32
-    │   │   ├── border_mask/   # (time, y, x) uint8
+    │   │   ├── vv/            # (time, Y, X) float32
+    │   │   ├── vh/            # (time, Y, X) float32
+    │   │   ├── border_mask/   # (time, Y, X) uint8
     │   │   ├── time/          # (time,) int64 datetime
     │   │   ├── absolute_orbit/
     │   │   ├── relative_orbit/
     │   │   └── platform/
     │   ├── r20m/ … r720m/     # overview levels (vv, vh, border_mask only)
     │   └── conditions/
-    │       └── gamma_area_{orbit}/  # (y, x) float32
+    │       └── gamma_area_{orbit}/  # (Y, X) float32
     └── descending/
         └── (same structure)
 """
@@ -40,6 +40,7 @@ from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.data_api.geozarr.common import DatasetAttrs
+from eopf_geozarr.data_api.geozarr.multiscales.zcm import Multiscales
 from eopf_geozarr.pyz.v3 import ArraySpec, GroupSpec
 
 # ============================================================================
@@ -59,33 +60,6 @@ Polarisation = Literal["vv", "vh"]
 # ============================================================================
 # Attributes models
 # ============================================================================
-
-
-class MultiscalesTransform(BaseModel):
-    """Scale/translation transform between resolution levels."""
-
-    scale: tuple[float, ...] | None = None
-    translation: tuple[float, ...] | None = None
-
-
-class MultiscalesScaleLevel(BaseModel):
-    """A single resolution level in the multiscales layout."""
-
-    asset: str
-    derived_from: str | None = None
-    transform: MultiscalesTransform | None = None
-    resampling_method: str | None = None
-
-    model_config = {"extra": "allow"}
-
-
-class Multiscales(BaseModel):
-    """Typed multiscales metadata (layout + optional resampling_method)."""
-
-    layout: tuple[MultiscalesScaleLevel, ...]
-    resampling_method: str | None = None
-
-    model_config = {"extra": "allow"}
 
 
 class S1RtcOrbitGroupAttrs(BaseModel):
@@ -167,7 +141,7 @@ class S1RtcConditionsAttrs(BaseModel):
 class S1RtcNativeResolutionMembers(TypedDict, closed=True, total=False):  # type: ignore[call-arg]
     """Members for the native resolution dataset (r10m).
 
-    Data variables (time, y, x) plus 1-D coordinate variables (time,).
+    Data variables (time, Y, X) plus 1-D coordinate variables (time,).
     All fields optional since not all arrays are present during incremental construction.
     """
 
@@ -301,9 +275,9 @@ class S1RtcRoot(GroupSpec[DatasetAttrs, S1RtcRootMembers]):  # type: ignore[type
         ├── ascending/
         │   ├── zarr.json          # zarr_conventions, multiscales, proj:, spatial:
         │   ├── r10m/
-        │   │   ├── vv/            # (time, y, x) float32
-        │   │   ├── vh/            # (time, y, x) float32
-        │   │   ├── border_mask/   # (time, y, x) uint8
+        │   │   ├── vv/            # (time, Y, X) float32
+        │   │   ├── vh/            # (time, Y, X) float32
+        │   │   ├── border_mask/   # (time, Y, X) uint8
         │   │   ├── time/          # (time,) int64
         │   │   ├── absolute_orbit/
         │   │   ├── relative_orbit/

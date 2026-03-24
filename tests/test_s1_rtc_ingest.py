@@ -16,7 +16,6 @@ from eopf_geozarr.conversion.s1_ingest import (
     OVERVIEW_CHAIN,
     S1TilingMetadata,
     _normalise_s1tiling_datetime,
-    compute_multiscales_layout,
     consolidate_s1_store,
     create_s1_store,
     discover_s1tiling_acquisitions,
@@ -89,7 +88,7 @@ def _create_synthetic_geotiff(
 # =============================================================================
 
 
-@pytest.fixture()
+@pytest.fixture
 def s1_geotiff_dir(tmp_path: Path) -> Path:
     """Create a directory with synthetic S1Tiling GeoTIFFs for 2 acquisitions."""
     rng = np.random.default_rng(42)
@@ -112,13 +111,13 @@ def s1_geotiff_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture()
+@pytest.fixture
 def s1_store_path(tmp_path: Path) -> Path:
     """Return a clean path for Zarr store output."""
     return tmp_path / "s1-grd-rtc-test.zarr"
 
 
-@pytest.fixture()
+@pytest.fixture
 def single_vv_geotiff(tmp_path: Path) -> Path:
     """Create a single VV GeoTIFF with metadata tags."""
     rng = np.random.default_rng(42)
@@ -169,9 +168,7 @@ class TestNormaliseDatetime:
 
 class TestParseFilename:
     def test_vv_file(self) -> None:
-        result = parse_s1tiling_filename(
-            "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
-        )
+        result = parse_s1tiling_filename("s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif")
         assert result is not None
         assert result["platform"] == "s1a"
         assert result["tile"] == "32TQM"
@@ -198,7 +195,7 @@ class TestParseFilename:
 # =============================================================================
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_metadata(single_vv_geotiff: Path) -> S1TilingMetadata:
     """Extract metadata from the single VV fixture."""
     return extract_geotiff_metadata(single_vv_geotiff)
@@ -224,9 +221,7 @@ class TestCreateStore:
         assert attrs["spatial:dimensions"] == ["y", "x"]
         assert len(attrs["spatial:bbox"]) == 4
 
-    def test_array_metadata(
-        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
-    ) -> None:
+    def test_array_metadata(self, s1_store_path: Path, sample_metadata: S1TilingMetadata) -> None:
         root = create_s1_store(s1_store_path, "ascending", sample_metadata)
         r10m = root["ascending"]["r10m"]
         for arr_name in ["vv", "vh", "border_mask"]:
@@ -245,9 +240,7 @@ class TestCreateStore:
             assert coord_name in r10m, f"Missing coord {coord_name}"
             assert r10m[coord_name].shape == (0,)
 
-    def test_overview_shapes(
-        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
-    ) -> None:
+    def test_overview_shapes(self, s1_store_path: Path, sample_metadata: S1TilingMetadata) -> None:
         root = create_s1_store(s1_store_path, "ascending", sample_metadata)
         orbit = root["ascending"]
         # Verify shape chain follows ceiling division
@@ -298,18 +291,14 @@ class TestIngestAcquisition:
         mask = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
         return vv, vh, mask
 
-    def test_first_acquisition(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_first_acquisition(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         idx = ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
         assert idx == 0
         root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
         assert root["ascending"]["r10m"]["vv"].shape[0] == 1
 
-    def test_second_acquisition_appends(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_second_acquisition_appends(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv1, vh1, mask1 = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         vv2, vh2, mask2 = self._get_acq_paths(s1_geotiff_dir, "20230127t061235")
         ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")
@@ -318,9 +307,7 @@ class TestIngestAcquisition:
         root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
         assert root["ascending"]["r10m"]["vv"].shape[0] == 2
 
-    def test_preserves_data_integrity(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_preserves_data_integrity(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
 
@@ -337,9 +324,7 @@ class TestIngestAcquisition:
         actual_mask = root["ascending"]["r10m"]["border_mask"][0, :, :]
         np.testing.assert_array_equal(actual_mask, expected_mask)
 
-    def test_coordinate_values(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_coordinate_values(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
 
@@ -354,9 +339,7 @@ class TestIngestAcquisition:
         dt = np.datetime64(time_val, "ns")
         assert str(dt).startswith("2023-01-15")
 
-    def test_overview_consistency(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_overview_consistency(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
 
@@ -383,9 +366,7 @@ class TestIngestAcquisition:
         wrong_crs_dir = tmp_path / "wrong_crs"
         wrong_crs_dir.mkdir()
         for name, d in [("vv.tif", data), ("vh.tif", data), ("mask.tif", data)]:
-            _create_synthetic_geotiff(
-                wrong_crs_dir / name, d, crs="EPSG:32632", tags=ACQ1_TAGS
-            )
+            _create_synthetic_geotiff(wrong_crs_dir / name, d, crs="EPSG:32632", tags=ACQ1_TAGS)
 
         with pytest.raises(ValueError, match="CRS mismatch"):
             ingest_s1tiling_acquisition(
@@ -424,9 +405,7 @@ class TestIngestAcquisition:
                 "ascending",
             )
 
-    def test_xarray_roundtrip(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_xarray_roundtrip(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv1, vh1, mask1 = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         vv2, vh2, mask2 = self._get_acq_paths(s1_geotiff_dir, "20230127t061235")
         ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")
@@ -448,9 +427,7 @@ class TestIngestAcquisition:
 
 
 class TestConsolidation:
-    def test_consolidate_s1_store(
-        self, s1_geotiff_dir: Path, s1_store_path: Path
-    ) -> None:
+    def test_consolidate_s1_store(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
         ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
         consolidate_s1_store(s1_store_path, "ascending")

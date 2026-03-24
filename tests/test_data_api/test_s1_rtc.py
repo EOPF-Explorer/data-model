@@ -76,9 +76,8 @@ def test_s1_rtc_orbit_attrs(s1_rtc_json_example: dict[str, object]) -> None:
     assert attrs.proj_code.startswith("EPSG:")
     assert attrs.spatial_dimensions == ["y", "x"]
     assert len(attrs.spatial_bbox) == 4
-    layout = attrs.multiscales["layout"]
-    assert len(layout) == 6
-    assert layout[0]["asset"] == "r10m"
+    assert len(attrs.multiscales.layout) == 6
+    assert attrs.multiscales.layout[0].asset == "r10m"
 
 
 def test_s1_rtc_rejects_no_orbit(s1_rtc_json_example: dict[str, object]) -> None:
