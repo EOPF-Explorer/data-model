@@ -441,11 +441,15 @@ Each store = one STAC item per tile. Temporal extent derived from sorted `time` 
 See [Phase 0 Findings](#phase-0-findings) below for detailed results.
 
 ### Phase 1 — Models (extends existing sentinel2 pattern)
-- [ ] Inspect existing `models/sentinel2.py` for base classes
-- [ ] Implement `models/sentinel1.py` with S1-specific structure
-- [ ] Implement zarr_conventions validation (correct UUIDs, required properties)
-- [ ] Wire up `sentinel1.md` docs page (currently 404)
-- [ ] Unit tests for model validation
+- [x] Inspect existing `data_api/s2.py` for base classes (`pyz.v2` GroupSpec/ArraySpec, TypedDict members)
+- [x] Implement `data_api/s1_rtc.py` with S1 RTC-specific structure (aligned with S2 pattern, using `pyz.v3`)
+- [x] Implement zarr_conventions validation (multiscales, geo_proj, spatial UUIDs via `zarr_cm`)
+- [ ] Wire up `sentinel1.md` docs page (currently 404) — deferred, not blocking
+- [x] Unit tests for model validation (11 tests: round-trip, structure, 5 negative cases)
+
+**Phase 1 code**: `src/eopf_geozarr/data_api/s1_rtc.py` — 316 lines.
+**Phase 1 PR**: https://github.com/EOPF-Explorer/data-model/pull/138 (draft, for review by pydantic-zarr schema maintainers).
+See [Phase 1 Findings](#phase-1-findings) below for detailed results.
 
 ### Phase 2 — GeoTIFF ingestion
 - [ ] Metadata extraction from S1Tiling GeoTIFF tags (rasterio)
@@ -642,7 +646,78 @@ The ingestion code must handle the actual naming pattern.
 See `analysis/s1tiling_docker_instructions.md` for complete Docker setup and
 troubleshooting guide.
 
+---
+
+## 10. Phase 1 Findings
+
+Phase 1 was completed on 2026-03-23. The Pydantic-zarr V3 models for S1 GRD RTC GeoZarr stores are implemented in `src/eopf_geozarr/data_api/s1_rtc.py` and validated with 11 tests.
+
+### Pattern Alignment with S2
+
+The S1 RTC model follows the exact same structural pattern as the S2 model (`data_api/s2.py`), with one key difference: S2 uses `pyz.v2` (Zarr V2 products), while S1 RTC uses `pyz.v3` (Zarr V3 products with sharding).
+
+| Pattern Element | S2 (`s2.py`) | S1 RTC (`s1_rtc.py`) |
+|----------------|-------------|---------------------|
+| GroupSpec/ArraySpec wrapper | `pyz.v2` | `pyz.v3` |
+| TypedDict members | `closed=True, total=False` | Same |
+| Attrs models | `BaseModel` with `populate_by_name` | Same, plus `extra="allow"` and `serialize_by_alias` |
+| Convention validation | zarr_cm UUIDs | Same (multiscales, geo_proj, spatial) |
+| Hierarchy depth | Root → Tile → Resolution → Arrays | Root → OrbitDirection → Resolution → Arrays |
+
+### Model Hierarchy
+
+```
+S1RtcRoot
+├── ascending: S1RtcOrbitGroup (optional)
+│   ├── attrs: S1RtcOrbitGroupAttrs (zarr_conventions, multiscales, proj:code, spatial:dimensions, spatial:bbox)
+│   ├── r10m: S1RtcNativeResolutionDataset (vv, vh, border_mask, time, absolute_orbit, relative_orbit, platform)
+│   ├── r20m..r720m: S1RtcOverviewResolutionDataset (vv, vh, border_mask only)
+│   └── conditions: S1RtcConditionsGroup (gamma_area_{orbit} arrays)
+└── descending: S1RtcOrbitGroup (optional)
+    └── (same structure)
+```
+
+### Design Decisions
+
+1. **`extra="allow"` on attrs models**: S1 RTC attrs models use `extra="allow"` (moved into `model_config` per mypy requirement) because the orbit group JSON may carry additional metadata not yet modelled (e.g. future extensions). S2 does not use `extra="allow"`.
+
+2. **Conditions group uses `dict[str, ArraySpec]`** instead of a closed TypedDict because condition array names are dynamic (per-orbit: `gamma_area_008`, `gamma_area_037`, etc.). A `model_validator` enforces that at least one `gamma_area_*` key exists.
+
+3. **Both `ascending` and `descending` are optional** in the root TypedDict (`total=False`), but a `model_validator` on `S1RtcRoot` ensures at least one is present. This matches real-world usage where a tile may only have ascending or descending orbits.
+
+4. **Resolution levels `r10m` is required**, all others (`r20m`–`r720m`) are optional. This allows progressive population: ingest first, generate overviews later.
+
+### Pre-commit Compliance
+
+All Phase 1 code passes pre-commit hooks (ruff check, ruff format, mypy). Notable fixes applied:
+- **RUF002**: Replaced ambiguous Unicode characters (Greek gamma, en-dash) with ASCII equivalents
+- **mypy `misc`**: Moved `extra="allow"` from class kwargs into `model_config` dict to avoid "config in two places" error
+- **mypy `unused-ignore`**: Removed unnecessary `# type: ignore[type-var]` on `S1RtcConditionsGroup` (only needed on TypedDict-based members, not `dict`)
+
+### Test Coverage
+
+| Test | What it validates |
+|------|------------------|
+| `test_s1_rtc_roundtrip` | JSON → model → JSON round-trip fidelity |
+| `test_s1_rtc_descending_present` | Fixture has descending orbit group |
+| `test_s1_rtc_r10m_has_data_arrays` | r10m contains vv, vh, border_mask, time, platform, orbits |
+| `test_s1_rtc_overview_levels` | r20m-r720m exist with vv/vh/border_mask |
+| `test_s1_rtc_conditions` | Conditions group has gamma_area_* arrays |
+| `test_s1_rtc_orbit_attrs` | zarr_conventions UUIDs, proj:code, spatial:dimensions validated |
+| `test_s1_rtc_rejects_no_orbit` | Rejects empty root (no ascending/descending) |
+| `test_s1_rtc_rejects_missing_r10m` | Rejects orbit group without r10m |
+| `test_s1_rtc_rejects_missing_convention_uuid` | Rejects missing zarr_conventions UUID |
+| `test_s1_rtc_rejects_bad_spatial_dimensions` | Rejects spatial:dimensions != ["Y", "X"] |
+| `test_s1_rtc_rejects_conditions_without_gamma_area` | Rejects conditions group without gamma_area_* keys |
+
+### Open Questions for Phase 1 Review (PR #138)
+
+1. Should `S1RtcOrbitGroupAttrs` inherit from a shared base with S2's resolution attrs, or keep them independent?
+2. Is `extra="allow"` the right choice for attrs models, or should we lock them down and enumerate all known fields?
+3. The `multiscales` field is validated structurally (must have `layout` array with `asset` keys) but not via the `zarr_cm.multiscales` Pydantic model. Should it use the typed model instead of `dict[str, Any]`?
+4. Should the `S1RtcConditionsGroup` enforce a specific naming pattern (regex on keys) beyond the `gamma_area_` prefix check?
+
 ## Additional instructions
-- Keep a devlog of implementation progress, challenges, and decisions in the GitHub issue linked to this design document.
+- Keep a devlog of implementation progress, challenges, and decisions in the GitHub issue linked to this design document: https://github.com/EOPF-Explorer/data-model/issues/139
 - Regularly update this design document with any refinements or changes to the plan as development progresses
 - Make sure to be able to resume work after interruptions without losing context by keeping detailed notes and documentation in the issue and this design document.
