@@ -15,16 +15,16 @@ Store hierarchy::
     ├── ascending/
     │   ├── zarr.json          # zarr_conventions, multiscales, proj:, spatial:
     │   ├── r10m/              # native resolution dataset
-    │   │   ├── vv/            # (time, Y, X) float32
-    │   │   ├── vh/            # (time, Y, X) float32
-    │   │   ├── border_mask/   # (time, Y, X) uint8
+    │   │   ├── vv/            # (time, y, x) float32
+    │   │   ├── vh/            # (time, y, x) float32
+    │   │   ├── border_mask/   # (time, y, x) uint8
     │   │   ├── time/          # (time,) int64 datetime
     │   │   ├── absolute_orbit/
     │   │   ├── relative_orbit/
     │   │   └── platform/
     │   ├── r20m/ … r720m/     # overview levels (vv, vh, border_mask only)
     │   └── conditions/
-    │       └── gamma_area_{orbit}/  # (Y, X) float32
+    │       └── gamma_area_{orbit}/  # (y, x) float32
     └── descending/
         └── (same structure)
 """
@@ -61,6 +61,33 @@ Polarisation = Literal["vv", "vh"]
 # ============================================================================
 
 
+class MultiscalesTransform(BaseModel):
+    """Scale/translation transform between resolution levels."""
+
+    scale: tuple[float, ...] | None = None
+    translation: tuple[float, ...] | None = None
+
+
+class MultiscalesScaleLevel(BaseModel):
+    """A single resolution level in the multiscales layout."""
+
+    asset: str
+    derived_from: str | None = None
+    transform: MultiscalesTransform | None = None
+    resampling_method: str | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class Multiscales(BaseModel):
+    """Typed multiscales metadata (layout + optional resampling_method)."""
+
+    layout: tuple[MultiscalesScaleLevel, ...]
+    resampling_method: str | None = None
+
+    model_config = {"extra": "allow"}
+
+
 class S1RtcOrbitGroupAttrs(BaseModel):
     """Attributes for an orbit-direction group (ascending or descending).
 
@@ -68,7 +95,7 @@ class S1RtcOrbitGroupAttrs(BaseModel):
     """
 
     zarr_conventions: list[dict[str, Any]]
-    multiscales: dict[str, Any]  # validated structurally below
+    multiscales: Multiscales
     proj_code: str = Field(alias="proj:code")
     spatial_dimensions: list[str] = Field(alias="spatial:dimensions")
     spatial_bbox: list[float] = Field(alias="spatial:bbox")
@@ -85,21 +112,10 @@ class S1RtcOrbitGroupAttrs(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_multiscales_layout(self) -> Self:
-        """Ensure multiscales has a layout array with at least one entry."""
-        layout = self.multiscales.get("layout")
-        if not layout or not isinstance(layout, (list, tuple)):
-            raise ValueError("multiscales must contain a non-empty 'layout' array")
-        for entry in layout:
-            if "asset" not in entry:
-                raise ValueError("Each multiscales layout entry must have an 'asset' key")
-        return self
-
-    @model_validator(mode="after")
     def validate_spatial_dimensions(self) -> Self:
-        if self.spatial_dimensions != ["Y", "X"]:
+        if self.spatial_dimensions != ["y", "x"]:
             raise ValueError(
-                f"spatial:dimensions must be ['Y', 'X'], got {self.spatial_dimensions}"
+                f"spatial:dimensions must be ['y', 'x'], got {self.spatial_dimensions}"
             )
         return self
 
@@ -151,7 +167,7 @@ class S1RtcConditionsAttrs(BaseModel):
 class S1RtcNativeResolutionMembers(TypedDict, closed=True, total=False):  # type: ignore[call-arg]
     """Members for the native resolution dataset (r10m).
 
-    Data variables (time, Y, X) plus 1-D coordinate variables (time,).
+    Data variables (time, y, x) plus 1-D coordinate variables (time,).
     All fields optional since not all arrays are present during incremental construction.
     """
 
@@ -285,9 +301,9 @@ class S1RtcRoot(GroupSpec[DatasetAttrs, S1RtcRootMembers]):  # type: ignore[type
         ├── ascending/
         │   ├── zarr.json          # zarr_conventions, multiscales, proj:, spatial:
         │   ├── r10m/
-        │   │   ├── vv/            # (time, Y, X) float32
-        │   │   ├── vh/            # (time, Y, X) float32
-        │   │   ├── border_mask/   # (time, Y, X) uint8
+        │   │   ├── vv/            # (time, y, x) float32
+        │   │   ├── vh/            # (time, y, x) float32
+        │   │   ├── border_mask/   # (time, y, x) uint8
         │   │   ├── time/          # (time,) int64
         │   │   ├── absolute_orbit/
         │   │   ├── relative_orbit/
