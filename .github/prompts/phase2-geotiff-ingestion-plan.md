@@ -12,9 +12,9 @@ Phase 2 covers **data ingestion only** (not conditions, overviews, CLI, or S3) �
 
 | Asset | Path | Relevance |
 |-------|------|-----------|
-| Phase 0 synthetic prototype | `analysis/s1_grd_rtc_prototype.py` | 600 lines. Creates store, appends 2 acquisitions with overviews, validates. All synthetic 256×256 data. |
+| Phase 0 synthetic prototype | `analysis/s1_grd_rtc_prototype.py` | ~900 lines. Creates store, appends 2 acquisitions with overviews, validates, consolidates metadata. Creates 1D spatial coordinate arrays (`x`, `y`) at every resolution level. All synthetic 256×256 data. |
 | Phase 0 real-data script | `analysis/s1_real_geotiff_to_zarr.py` | 700 lines. Handles real S1Tiling filenames, datetime normalisation (`2025:02:10T06:09:20Z`), gamma_area conditions, validation report. Validated on 3 real 10980×10980 acquisitions. |
-| Phase 1 data model | `src/eopf_geozarr/data_api/s1_rtc.py` | 316 lines. Pydantic-zarr V3 models: `S1RtcRoot`, `S1RtcOrbitGroup`, `S1RtcNativeResolutionDataset`, etc. Strict validation via `@model_validator`. |
+| Phase 1 data model | `src/eopf_geozarr/data_api/s1_rtc.py` | ~350 lines. Pydantic-zarr V3 models: `S1RtcRoot`, `S1RtcOrbitGroup`, `S1RtcNativeResolutionDataset`, etc. Strict validation via `@model_validator`. Now uses typed `Multiscales`/`MultiscalesScaleLevel` Pydantic models instead of `dict[str, Any]`. Validates `spatial:dimensions == ["y", "x"]` (lowercase). |
 | Phase 1 test fixture | `tests/_test_data/s1_rtc_examples/s1-grd-rtc-31TCH.json` | Full JSON metadata for a 3-acquisition store with conditions. |
 | Existing utilities | `src/eopf_geozarr/conversion/utils.py` | `calculate_aligned_chunk_size()`, `downsample_2d_array()` — **reuse directly** |
 | Existing FS abstraction | `src/eopf_geozarr/conversion/fs_utils.py` | S3/local filesystem helpers — **reuse for S3 path support in Phase 4** |
@@ -30,6 +30,10 @@ Phase 2 covers **data ingestion only** (not conditions, overviews, CLI, or S3) �
 - S1Tiling datetime format `"2025:02:10T06:09:20Z"` needs normalisation (colons in date part)
 - border_mask is per-polarisation; prototype uses VV mask as primary
 - Overview ceiling division: `ceil(10980/2) = 5490`, `ceil(5490/3) = 1830`, etc.
+- **Lowercase dimension names**: `["y", "x"]` throughout (not `["Y", "X"]`) — required by titiler-eopf
+- **1D spatial coordinate arrays** (`x`, `y`) must exist at every resolution level — required by GeoZarr readers
+- **Consolidated metadata** at orbit and root levels after all ingestions — single-request metadata reads
+- **`create_array(data=...)` cannot be combined with `dtype=`** — zarr-python 3.1.1 raises ValueError
 
 ---
 
@@ -49,10 +53,13 @@ s1_ingest.py
 │   └── parse_s1tiling_filename()
 ├── Store creation
 │   ├── compute_multiscales_layout()
+│   ├── _create_spatial_coordinate_arrays()
 │   └── create_s1_store()
 ├── Acquisition ingestion
 │   ├── ingest_s1tiling_acquisition()    ← PUBLIC API
 │   └── _normalise_s1tiling_datetime()
+├── Consolidation
+│   └── consolidate_s1_store()           ← PUBLIC API
 ├── File discovery
 │   └── discover_s1tiling_acquisitions() ← PUBLIC API
 └── (future hooks for conditions and overview levels)
@@ -143,7 +150,7 @@ s1_ingest.py
   - `zarr_conventions`: ZARR_CONVENTIONS list
   - `multiscales`: `{"layout": [...], "resampling_method": "average"}`
   - `proj:code`: from metadata CRS
-  - `spatial:dimensions`: `["Y", "X"]`
+  - `spatial:dimensions`: `["y", "x"]` (**lowercase** — required by titiler-eopf)
   - `spatial:bbox`: from metadata bounds
 - For each level in layout:
   - Create level group with `spatial:shape` and `spatial:transform` attributes
@@ -154,7 +161,15 @@ s1_ingest.py
     - `chunks`: `(1, best_chunk(level_h), best_chunk(level_w))` using `calculate_aligned_chunk_size()`
     - `shards`: `(1, level_h, level_w)` — one shard per timestep
     - `compressors`: `BloscCodec(cname="zstd", clevel=5)`
-    - `dimension_names`: `["time", "Y", "X"]`
+    - `dimension_names`: `["time", "y", "x"]` (**lowercase**)
+  - Create **1D spatial coordinate arrays** (`x`, `y`) at this level:
+    - Compute from the level's `spatial:transform` `[a, b, c, d, e, f]`:
+      - `x_coords = np.linspace(x_origin, x_origin + level_w * pixel_w, level_w, endpoint=False)`
+      - `y_coords = np.linspace(y_origin, y_origin + level_h * pixel_h, level_h, endpoint=False)`
+    - Create with `data=` param (not `shape=` + write), omit `dtype=` (inferred from data)
+    - `dimension_names`: `["x"]` and `["y"]` respectively
+    - Attributes: `units: "m"`, `long_name`, `standard_name: "projection_x_coordinate"` / `"projection_y_coordinate"`, `_ARRAY_DIMENSIONS: ["x"]` / `["y"]`
+    - **API note**: `create_array(data=...)` cannot specify `dtype=` — it is inferred
 - Create coordinate variables at r10m only:
   - `time`: int64, shape (0,), chunks (512,), dim_names ["time"]
   - `absolute_orbit`: int32, same
@@ -164,7 +179,9 @@ s1_ingest.py
 
 **Open question for implementer**: The prototype uses `mode="w"` which overwrites. Production code should check if store already exists and raise an error (or use `mode="w-"`). The caller (`ingest_s1tiling_acquisition`) handles the create-or-append branching.
 
-**Source to lift from**: `s1_real_geotiff_to_zarr.py` lines 239–309 (`create_s1_store`). Change `min(512, dim)` to `calculate_aligned_chunk_size(dim, 512)`.
+**Phase 1 model discrepancy**: The `S1RtcOverviewResolutionMembers` TypedDict currently only declares `vv`, `vh`, `border_mask` — it does NOT include `x` and `y`. The 1D coordinate arrays are still created at every level (required by GeoZarr readers), but are not validated by the Phase 1 model. This should be fixed in a follow-up PR to Phase 1 (add `x: ArraySpec[Any]` and `y: ArraySpec[Any]` to `S1RtcOverviewResolutionMembers`, and similarly to `S1RtcNativeResolutionMembers`).
+
+**Source to lift from**: `s1_grd_rtc_prototype.py` lines 218–270 (coordinate array creation at every level). Change `min(512, dim)` to `calculate_aligned_chunk_size(dim, 512)` for chunk sizing.
 
 ---
 
@@ -291,10 +308,11 @@ This is mainly useful for the CLI batch ingest (Phase 4) but is simple to implem
 
 **Tests**:
 - `test_create_s1_store_structure()`: Creates store, verifies group hierarchy (root → ascending → r10m…r720m)
-- `test_create_s1_store_conventions()`: Verifies `zarr_conventions`, `proj:code`, `spatial:dimensions`, `spatial:bbox` on orbit group
-- `test_create_s1_store_array_metadata()`: Verifies `dimension_names`, dtype, fill_value, shape=(0,H,W) for data arrays
+- `test_create_s1_store_conventions()`: Verifies `zarr_conventions`, `proj:code`, `spatial:dimensions == ["y", "x"]`, `spatial:bbox` on orbit group
+- `test_create_s1_store_array_metadata()`: Verifies `dimension_names == ["time", "y", "x"]`, dtype, fill_value, shape=(0,H,W) for data arrays
 - `test_create_s1_store_coordinate_arrays()`: Verifies time, absolute_orbit, relative_orbit, platform at r10m only
 - `test_create_s1_store_overview_shapes()`: Verifies consistent shape chain (ceiling division)
+- `test_create_s1_store_spatial_coordinate_arrays()`: Verifies `x` and `y` 1D arrays exist at EVERY resolution level, with correct shape, attributes (`units`, `standard_name`, `_ARRAY_DIMENSIONS`), and values derived from spatial:transform
 
 ---
 
@@ -309,6 +327,14 @@ This is mainly useful for the CLI batch ingest (Phase 4) but is simple to implem
 - `test_ingest_rejects_mismatched_crs()`: Second acquisition with different CRS → ValueError
 - `test_ingest_rejects_mismatched_shape()`: Second acquisition with different shape → ValueError
 - `test_ingest_xarray_roundtrip()`: After 2 ingestions, `xr.open_zarr(r10m_path)` succeeds, `ds.sortby("time")` works
+
+---
+
+### Step 12b: Test — consolidation
+
+**Tests**:
+- `test_consolidate_s1_store()`: After ingestion + `consolidate_s1_store()`, orbit group and root have `consolidated_metadata` present
+- `test_consolidate_after_all_ingestions()`: Verify that consolidation after 2 ingestions records the correct array shapes (not stale from mid-ingestion)
 
 ---
 
@@ -335,6 +361,7 @@ These are explicitly deferred:
 | STAC item creation/update | Phase 5 | Needs STAC collection definition first |
 | Validation via Phase 1 Pydantic models | Phase 3+ | Optional; store structure is validated by tests |
 | border_mask combining (VV ∪ VH) | Future | Prototype uses VV-only; acceptable for now |
+| Phase 1 model update for x/y members | Phase 2 Follow-up | Add `x`, `y` to `S1RtcOverviewResolutionMembers` and `S1RtcNativeResolutionMembers` TypedDicts |
 
 ---
 
@@ -354,6 +381,10 @@ s1_ingest.py imports:
   ├── zarr.codecs (BloscCodec)
   ├── zarr_cm (geo_proj, multiscales, spatial)  # UUIDs and schema URLs
   └── eopf_geozarr.conversion.utils (calculate_aligned_chunk_size)
+
+test_s1_rtc_ingest.py imports:
+  ├── xarray as xr  # for roundtrip tests
+  └── (all of the above transitively via the module under test)
 ```
 
 No new external dependencies. All imports already in the project.
@@ -367,14 +398,16 @@ No new external dependencies. All imports already in the project.
 | Constants + S1TilingMetadata | ~50 | Low |
 | extract_geotiff_metadata + helpers | ~70 | Low |
 | compute_multiscales_layout | ~50 | Low (direct lift) |
-| create_s1_store | ~80 | Medium |
+| _create_spatial_coordinate_arrays | ~40 | Low (direct lift from prototype) |
+| create_s1_store | ~100 | Medium (now includes x/y coord creation) |
 | ingest_s1tiling_acquisition | ~120 | Medium-High |
+| consolidate_s1_store | ~15 | Low |
 | discover_s1tiling_acquisitions | ~50 | Low |
 | _downsample_2d (private helper) | ~30 | Low (direct lift) |
-| **Total s1_ingest.py** | **~450** | |
+| **Total s1_ingest.py** | **~525** | |
 | Test fixtures | ~80 | Low |
-| Test cases (12 tests) | ~250 | Medium |
-| **Total test_s1_rtc_ingest.py** | **~330** | |
+| Test cases (15 tests) | ~300 | Medium |
+| **Total test_s1_rtc_ingest.py** | **~380** | |
 
 ---
 
@@ -393,3 +426,46 @@ The steps above are ordered for incremental, testable progress. A reasonable exe
 9. **Step 7**: Wire up exports
 
 Each step can be committed independently. The agent should run `pytest tests/test_s1_rtc_ingest.py -v` after each test step to verify green.
+---
+
+## Appendix A: Post-Phase-2 Model Fix
+
+The Phase 1 `S1RtcOverviewResolutionMembers` and `S1RtcNativeResolutionMembers` TypedDicts do not declare `x` and `y` members, yet the store structure requires 1D spatial coordinate arrays at every level. After Phase 2 is complete and tested, submit a follow-up PR to `s1_rtc.py` adding:
+
+```python
+class S1RtcNativeResolutionMembers(TypedDict, closed=True, total=False):
+    # existing: vv, vh, border_mask, time, absolute_orbit, relative_orbit, platform
+    x: ArraySpec[Any]  # (x,) float64
+    y: ArraySpec[Any]  # (y,) float64
+
+class S1RtcOverviewResolutionMembers(TypedDict, closed=True, total=False):
+    # existing: vv, vh, border_mask
+    x: ArraySpec[Any]  # (x,) float64
+    y: ArraySpec[Any]  # (y,) float64
+```
+
+Update the test fixture JSON (`s1-grd-rtc-31TCH.json`) and tests to include `x`/`y` in the members.
+
+---
+
+## Appendix B: Consolidation Step
+
+Consolidation is NOT called inside `ingest_s1tiling_acquisition()` — it must be called **after all ingestions for a batch** via the separate `consolidate_s1_store()` function. This is because consolidated metadata caches array shapes; consolidating mid-flow causes `BoundsCheckError` on subsequent `resize()` calls.
+
+```python
+def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
+    """Consolidate metadata at orbit direction and root levels.
+    
+    Must be called AFTER all ingestions complete.
+    """
+    zarr.consolidate_metadata(str(store_path), path=orbit_direction, zarr_format=3)
+    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+```
+
+---
+
+## Appendix C: Dimension Name Convention
+
+All dimension names and `spatial:dimensions` MUST use **lowercase** `["y", "x"]` and `["time", "y", "x"]`, not uppercase. This was discovered during post-validation testing with titiler-eopf and is now the canonical convention across the prototype, Phase 1 models, and implementation plan.
+
+**Note**: The `s1_real_geotiff_to_zarr.py` analysis script still has some uppercase `["Y", "X"]` references (in `create_s1_store` and `ingest_gamma_area`). These are inconsistencies in the analysis script only; the production code must use lowercase.
