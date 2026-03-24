@@ -23,7 +23,9 @@ import rasterio
 import structlog
 import zarr
 import zarr.codecs
-from zarr_cm import geo_proj, multiscales as multiscales_cm, spatial as spatial_cm
+from zarr_cm import geo_proj
+from zarr_cm import multiscales as multiscales_cm
+from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
@@ -552,9 +554,7 @@ def ingest_s1tiling_acquisition(
             orbit_group = root[orbit_direction]
             store_crs = dict(orbit_group.attrs).get("proj:code")
             if store_crs != meta.crs:
-                raise ValueError(
-                    f"CRS mismatch: store has {store_crs}, GeoTIFF has {meta.crs}"
-                )
+                raise ValueError(f"CRS mismatch: store has {store_crs}, GeoTIFF has {meta.crs}")
             store_layout = dict(orbit_group.attrs).get("multiscales", {}).get("layout", [])
             if store_layout:
                 native_entry = store_layout[0]
