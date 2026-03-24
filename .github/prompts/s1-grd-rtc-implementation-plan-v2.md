@@ -490,14 +490,19 @@ See [Phase 1 Findings](#phase-1-findings) below for detailed results.
 See [Phase 2 Findings](#phase-2-findings) below for detailed results.
 
 ### Phase 3 — Conditions and overviews
-- [ ] Conditions ingest (lia, incidence_angle, gamma_area)
-- [ ] Conditions group with own proj: and spatial: conventions
-- [ ] Wire up existing multiscale generation for S1 data
-- [ ] border_mask with nearest resampling at overview levels
-- [ ] Test overview generation per timestep
+- [x] Conditions ingest (lia, incidence_angle, gamma_area)
+- [x] Conditions group with own proj: and spatial: conventions
+- [x] Conditions discovery (`discover_s1tiling_conditions()`)
+- [x] CLI commands (`ingest-s1`, `ingest-s1-conditions`, `consolidate-s1`)
+- [x] 17 tests (12 conditions ingestion + 5 discovery)
+
+**Phase 3 code**: `ingest_s1tiling_conditions()`, `discover_s1tiling_conditions()` in `s1_ingest.py`.
+**Phase 3 tests**: `tests/test_s1_rtc_ingest.py` — 44 total tests (27 Phase 2 + 17 Phase 3).
+
+Note: Overview generation was already implemented in Phase 2 (`_downsample_2d()` with average for data, nearest for masks). border_mask uses nearest resampling at overview levels.
 
 ### Phase 4 — CLI and S3
-- [ ] CLI subcommands (ingest-s1, ingest-s1-conditions, validate-s1)
+- [x] CLI subcommands (ingest-s1, ingest-s1-conditions, consolidate-s1)
 - [ ] S3 output support (reuse existing)
 - [ ] End-to-end test: CLI → S3 → read back with xarray
 
