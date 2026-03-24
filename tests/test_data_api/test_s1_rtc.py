@@ -74,7 +74,7 @@ def test_s1_rtc_orbit_attrs(s1_rtc_json_example: dict[str, object]) -> None:
     attrs = model.descending.attributes
     assert len(attrs.zarr_conventions) == 3
     assert attrs.proj_code.startswith("EPSG:")
-    assert attrs.spatial_dimensions == ["Y", "X"]
+    assert attrs.spatial_dimensions == ["y", "x"]
     assert len(attrs.spatial_bbox) == 4
     layout = attrs.multiscales["layout"]
     assert len(layout) == 6
@@ -110,7 +110,7 @@ def test_s1_rtc_rejects_missing_convention_uuid(s1_rtc_json_example: dict[str, o
 def test_s1_rtc_rejects_bad_spatial_dimensions(s1_rtc_json_example: dict[str, object]) -> None:
     """Reject orbit attrs with wrong spatial:dimensions."""
     data = copy.deepcopy(s1_rtc_json_example)
-    data["members"]["descending"]["attributes"]["spatial:dimensions"] = ["x", "y"]
+    data["members"]["descending"]["attributes"]["spatial:dimensions"] = ["lat", "lon"]
     with pytest.raises(Exception, match="spatial:dimensions"):
         S1RtcRoot(**data)
 
