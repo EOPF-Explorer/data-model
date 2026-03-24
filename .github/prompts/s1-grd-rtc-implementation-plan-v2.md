@@ -472,13 +472,22 @@ See [Phase 0 Findings](#phase-0-findings) below for detailed results.
 See [Phase 1 Findings](#phase-1-findings) below for detailed results.
 
 ### Phase 2 — GeoTIFF ingestion
-- [ ] Metadata extraction from S1Tiling GeoTIFF tags (rasterio)
-- [ ] Store creation with full zarr_conventions metadata
-- [ ] Single-acquisition ingest (create path)
-- [ ] Append path (resize + new shard)
-- [ ] Coordinate variable append (time, absolute_orbit, relative_orbit, platform)
-- [ ] GDAL → Rasterio/Affine transform conversion
-- [ ] Integration tests with synthetic GeoTIFFs
+- [x] Metadata extraction from S1Tiling GeoTIFF tags (rasterio)
+- [x] Store creation with full zarr_conventions metadata
+- [x] Single-acquisition ingest (create path)
+- [x] Append path (resize + new shard)
+- [x] Coordinate variable append (time, absolute_orbit, relative_orbit, platform)
+- [x] Rasterio/Affine transform — direct from `src.transform` (no GDAL conversion needed)
+- [x] Overview generation at all resolution levels (average for data, nearest for masks)
+- [x] File discovery and grouping (`discover_s1tiling_acquisitions()`)
+- [x] Consolidation function (`consolidate_s1_store()`)
+- [x] CRS and shape consistency validation on append
+- [x] Integration tests with synthetic GeoTIFFs (27 tests)
+
+**Phase 2 code**: `src/eopf_geozarr/conversion/s1_ingest.py` — ~500 lines.
+**Phase 2 tests**: `tests/test_s1_rtc_ingest.py` — 27 tests (metadata extraction, store creation, ingestion, consolidation, file discovery).
+**Phase 2 PR**: https://github.com/EOPF-Explorer/data-model/pull/TBD (for review).
+See [Phase 2 Findings](#phase-2-findings) below for detailed results.
 
 ### Phase 3 — Conditions and overviews
 - [ ] Conditions ingest (lia, incidence_angle, gamma_area)
@@ -751,6 +760,57 @@ All Phase 1 code passes pre-commit hooks (ruff check, ruff format, mypy). Notabl
 2. Is `extra="allow"` the right choice for attrs models, or should we lock them down and enumerate all known fields?
 3. The `multiscales` field is validated structurally (must have `layout` array with `asset` keys) but not via the `zarr_cm.multiscales` Pydantic model. Should it use the typed model instead of `dict[str, Any]`?
 4. Should the `S1RtcConditionsGroup` enforce a specific naming pattern (regex on keys) beyond the `gamma_area_` prefix check?
+
+---
+
+## 11. Phase 2 Findings
+
+Phase 2 was completed on 2026-03-24. The GeoTIFF ingestion pipeline is implemented in `src/eopf_geozarr/conversion/s1_ingest.py` and validated with 27 tests in `tests/test_s1_rtc_ingest.py`.
+
+### Delivered Components
+
+| Component | Lines | Description |
+|-----------|-------|-------------|
+| `S1TilingMetadata` dataclass | ~15 | Frozen dataclass for metadata transfer (not Pydantic — simple data only) |
+| `extract_geotiff_metadata()` | ~40 | Rasterio-based extraction with tag validation and datetime normalisation |
+| `parse_s1tiling_filename()` | ~15 | Regex-based filename parsing (returns `None` for non-matching) |
+| `compute_multiscales_layout()` | ~40 | Pure function building layout for all 6 resolution levels |
+| `create_s1_store()` | ~80 | Full store creation with conventions, spatial coords, coordinate vars |
+| `ingest_s1tiling_acquisition()` | ~120 | Main API: create-or-open, read, overview, write, append coords |
+| `consolidate_s1_store()` | ~10 | Post-batch consolidation at orbit + root levels |
+| `discover_s1tiling_acquisitions()` | ~40 | File discovery with grouping and completeness warnings |
+| `_downsample_2d()` | ~20 | Private helper: factor-based downsampling with edge padding |
+| `_create_spatial_coordinate_arrays()` | ~35 | 1D x/y arrays from spatial:transform at every level |
+
+### Design Decisions
+
+1. **Convention UUIDs from `zarr_cm`**: Instead of hardcoding UUID strings, imports `CMO` dicts directly from `zarr_cm.multiscales`, `zarr_cm.geo_proj`, `zarr_cm.spatial`. Uses `ZARR_CONVENTIONS = [multiscales_cm.CMO, geo_proj.CMO, spatial_cm.CMO]`.
+
+2. **Private `_downsample_2d()` instead of reusing `downsample_2d_array()` from `utils.py`**: The existing utility takes `target_height`/`target_width` and does floor division for block sizes; the S1 pipeline needs factor-based downsampling with ceiling division and edge padding for non-divisible sizes. A purpose-built private helper is simpler than adapting the existing function.
+
+3. **`mode="w-"` for store creation**: Uses exclusive creation mode to prevent accidental overwrites. The caller handles create-or-open branching.
+
+4. **Consistency validation on append**: When appending to an existing store, validates CRS and native shape match. Mismatches raise `ValueError` at the system boundary (external GeoTIFF input).
+
+5. **Phase 1 model discrepancy noted**: `S1RtcNativeResolutionMembers` and `S1RtcOverviewResolutionMembers` TypedDicts do not declare `x` and `y` members. The store structure requires 1D spatial coordinate arrays at every level. This should be fixed in a follow-up PR to Phase 1.
+
+### Test Coverage (27 tests)
+
+| Test Class | Tests | What it validates |
+|-----------|-------|------------------|
+| `TestExtractGeotiffMetadata` | 3 | Field extraction, datetime normalisation, missing tag rejection |
+| `TestNormaliseDatetime` | 2 | S1Tiling colon-date format, already-normalised passthrough |
+| `TestParseFilename` | 3 | VV file, mask file, non-matching returns None |
+| `TestCreateStore` | 6 | Structure, conventions, array metadata, coord vars, overview shapes, spatial coords |
+| `TestIngestAcquisition` | 8 | Create, append, data integrity, coord values, overview consistency, CRS/shape mismatch rejection, xarray roundtrip |
+| `TestConsolidation` | 2 | Post-ingestion consolidation, correct array shapes after 2 ingestions |
+| `TestDiscoverAcquisitions` | 3 | Correct grouping, incomplete acquisition warning, non-matching file skipping |
+
+### Known Warnings (Expected)
+
+- `UnstableSpecificationWarning` for `FixedLengthUTF32` on `platform` coordinate — known from Phase 0, accepted
+- `UserWarning` about consolidated metadata not being part of Zarr V3 spec — expected, consolidation still works
+- xarray `RuntimeWarning` about non-consolidated reads — only in tests that skip consolidation
 
 ## Additional instructions
 - Keep a devlog of implementation progress, challenges, and decisions in the GitHub issue linked to this design document: https://github.com/EOPF-Explorer/data-model/issues/139
