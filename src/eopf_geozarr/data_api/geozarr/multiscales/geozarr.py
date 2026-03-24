@@ -8,7 +8,7 @@ from typing_extensions import TypedDict
 
 # Runtime import (not TYPE_CHECKING): pydantic resolves this annotation when
 # building MultiscaleGroupAttrs, so the name must exist at runtime.
-from zarr_cm import ConventionMetadataObject  # noqa: TC002
+from zarr_cm import ConventionMetadataObject
 
 from . import tms, zcm
 
