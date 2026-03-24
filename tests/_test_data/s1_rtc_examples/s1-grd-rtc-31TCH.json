@@ -186,8 +186,8 @@
         },
         "proj:code": "EPSG:32631",
         "spatial:dimensions": [
-          "Y",
-          "X"
+          "y",
+          "x"
         ],
         "spatial:bbox": [
           500000.0,
@@ -283,8 +283,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -356,8 +356,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -429,8 +429,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "time": {
@@ -665,8 +665,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -738,8 +738,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -811,8 +811,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
@@ -903,8 +903,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -976,8 +976,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -1049,8 +1049,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
@@ -1141,8 +1141,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -1214,8 +1214,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -1287,8 +1287,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
@@ -1379,8 +1379,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -1452,8 +1452,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -1525,8 +1525,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
@@ -1617,8 +1617,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "vh": {
@@ -1690,8 +1690,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "border_mask": {
@@ -1763,8 +1763,8 @@
               "storage_transformers": [],
               "dimension_names": [
                 "time",
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
@@ -1774,8 +1774,8 @@
           "attributes": {
             "proj:code": "EPSG:32631",
             "spatial:dimensions": [
-              "Y",
-              "X"
+              "y",
+              "x"
             ],
             "spatial:transform": [
               10.0,
@@ -1829,8 +1829,8 @@
               ],
               "storage_transformers": [],
               "dimension_names": [
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "gamma_area_037": {
@@ -1875,8 +1875,8 @@
               ],
               "storage_transformers": [],
               "dimension_names": [
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             },
             "gamma_area_110": {
@@ -1921,8 +1921,8 @@
               ],
               "storage_transformers": [],
               "dimension_names": [
-                "Y",
-                "X"
+                "y",
+                "x"
               ]
             }
           }
