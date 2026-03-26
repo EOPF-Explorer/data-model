@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from eopf_geozarr.data_api.geozarr.types import ResamplingMethod  # noqa: TC001
+from eopf_geozarr.data_api.geozarr.types import ResamplingMethod
 
 
 class TileMatrix(BaseModel):
