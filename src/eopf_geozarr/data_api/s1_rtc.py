@@ -31,7 +31,7 @@ Store hierarchy::
 
 from __future__ import annotations
 
-from typing import Any, Literal, Self
+from typing import Any, Literal, NotRequired, Self
 
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import TypedDict
@@ -71,8 +71,8 @@ class S1RtcOrbitGroupAttrs(BaseModel):
     zarr_conventions: list[dict[str, Any]]
     multiscales: Multiscales
     proj_code: str = Field(alias="proj:code")
-    spatial_dimensions: list[str] = Field(alias="spatial:dimensions")
-    spatial_bbox: list[float] = Field(alias="spatial:bbox")
+    spatial_dimensions: tuple[Literal["y"], Literal["x"]] = Field(alias="spatial:dimensions")
+    spatial_bbox: tuple[float, float, float, float] = Field(alias="spatial:bbox")
 
     model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
 
@@ -85,50 +85,26 @@ class S1RtcOrbitGroupAttrs(BaseModel):
             raise ValueError(f"Missing required zarr_conventions UUIDs: {missing}")
         return self
 
-    @model_validator(mode="after")
-    def validate_spatial_dimensions(self) -> Self:
-        if self.spatial_dimensions != ["y", "x"]:
-            raise ValueError(
-                f"spatial:dimensions must be ['y', 'x'], got {self.spatial_dimensions}"
-            )
-        return self
-
-    @model_validator(mode="after")
-    def validate_spatial_bbox(self) -> Self:
-        if len(self.spatial_bbox) != 4:
-            raise ValueError(f"spatial:bbox must have 4 elements, got {len(self.spatial_bbox)}")
-        return self
-
 
 class S1RtcResolutionAttrs(BaseModel):
     """Attributes for a resolution-level group (r10m, r20m, ...)."""
 
-    spatial_shape: list[int] = Field(alias="spatial:shape")
-    spatial_transform: list[float] = Field(alias="spatial:transform")
+    spatial_shape: tuple[int, int] = Field(alias="spatial:shape")
+    spatial_transform: tuple[float, float, float, float, float, float] = Field(
+        alias="spatial:transform"
+    )
 
     model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
-
-    @model_validator(mode="after")
-    def validate_shape(self) -> Self:
-        if len(self.spatial_shape) != 2:
-            raise ValueError(f"spatial:shape must have 2 elements, got {len(self.spatial_shape)}")
-        return self
-
-    @model_validator(mode="after")
-    def validate_transform(self) -> Self:
-        if len(self.spatial_transform) != 6:
-            raise ValueError(
-                f"spatial:transform must have 6 elements, got {len(self.spatial_transform)}"
-            )
-        return self
 
 
 class S1RtcConditionsAttrs(BaseModel):
     """Attributes for the conditions group."""
 
     proj_code: str = Field(alias="proj:code")
-    spatial_dimensions: list[str] = Field(alias="spatial:dimensions")
-    spatial_transform: list[float] = Field(alias="spatial:transform")
+    spatial_dimensions: tuple[Literal["y"], Literal["x"]] = Field(alias="spatial:dimensions")
+    spatial_transform: tuple[float, float, float, float, float, float] = Field(
+        alias="spatial:transform"
+    )
 
     model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
 
@@ -213,32 +189,25 @@ class S1RtcConditionsGroup(GroupSpec[S1RtcConditionsAttrs, dict[str, ArraySpec[A
         return self
 
 
-class S1RtcOrbitGroupMembers(TypedDict, closed=True, total=False):  # type: ignore[call-arg]
+class S1RtcOrbitGroupMembers(TypedDict, closed=True):  # type: ignore[call-arg]
     """Members for an orbit-direction group.
 
-    Contains resolution-level datasets and conditions.
-    All optional to support incremental store construction.
+    r10m is always required; overview levels and conditions are optional.
     """
 
     r10m: S1RtcNativeResolutionDataset
-    r20m: S1RtcOverviewResolutionDataset
-    r60m: S1RtcOverviewResolutionDataset
-    r120m: S1RtcOverviewResolutionDataset
-    r360m: S1RtcOverviewResolutionDataset
-    r720m: S1RtcOverviewResolutionDataset
-    conditions: S1RtcConditionsGroup
+    r20m: NotRequired[S1RtcOverviewResolutionDataset]
+    r60m: NotRequired[S1RtcOverviewResolutionDataset]
+    r120m: NotRequired[S1RtcOverviewResolutionDataset]
+    r360m: NotRequired[S1RtcOverviewResolutionDataset]
+    r720m: NotRequired[S1RtcOverviewResolutionDataset]
+    conditions: NotRequired[S1RtcConditionsGroup]
 
 
 class S1RtcOrbitGroup(
     GroupSpec[S1RtcOrbitGroupAttrs, S1RtcOrbitGroupMembers]  # type: ignore[type-var]
 ):
     """One orbit direction (ascending or descending) with multiscale layout."""
-
-    @model_validator(mode="after")
-    def validate_r10m_present(self) -> Self:
-        if "r10m" not in self.members:
-            raise ValueError("Orbit group must contain 'r10m' native resolution dataset")
-        return self
 
     @property
     def r10m(self) -> S1RtcNativeResolutionDataset:
@@ -251,6 +220,18 @@ class S1RtcOrbitGroup(
     def get_resolution(self, level: ResolutionLevel) -> GroupSpec[Any, Any] | None:
         """Retrieve a resolution dataset by level name."""
         return self.members.get(level)
+
+    def resolution_levels(self) -> list[ResolutionLevel]:
+        """List available resolution levels in this orbit group."""
+        all_levels: tuple[ResolutionLevel, ...] = (
+            "r10m",
+            "r20m",
+            "r60m",
+            "r120m",
+            "r360m",
+            "r720m",
+        )
+        return [lvl for lvl in all_levels if lvl in self.members]
 
 
 # ============================================================================
