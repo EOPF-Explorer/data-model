@@ -37,7 +37,7 @@ Conventions are composable: a single Zarr group can declare and use all three si
 ### Array and Group attributes
 
 This document only defines rules for a finite subset of the keys in Zarr array
-and group attributes. Unless otherwise stated, any external keys in Zarr array and group attributes are consistent with this specification. This means this specification composes with the presence of, e.g., [CF metadata](https://cfconventions.org/), at different levels of the Zarr hierarchy. CF metadata is no longer required by this specification but remains fully compatible and may be included alongside the Zarr conventions described here.
+and group attributes. Unless otherwise stated, any external keys in Zarr array and group attributes are consistent with this specification. CF metadata (e.g. `standard_name`, coordinate variable attributes) is outside the scope of this specification; its presence in a Zarr store alongside these conventions is neither required nor precluded.
 
 Convention properties are placed at the root `attributes` level of the Zarr node, following the [Zarr Conventions Specification](https://github.com/zarr-conventions/zarr-conventions-spec).
 
@@ -82,8 +82,7 @@ DataArrays must have at least 1 dimension — scalar arrays are not allowed. The
         "chunk_key_encoding": {"name": "default", "configuration": {"separator" : "/"}},
         "chunk_grid": {"name": "regular", "configuration": {"chunk_shape": [10,11,12]}},
         "codecs": [{"name": "bytes"}],
-        "dimension_names": ["lat", "lon", "time"],
-        "storage_transformers": []
+        "dimension_names": ["lat", "lon", "time"]
         }
 }
 ```
@@ -95,7 +94,7 @@ as well as arbitrary sub-groups.
 
 ### Attributes
 
-There are no required attributes for Datasets. To qualify as a GeoZarr Dataset, the group must carry geospatial metadata via the `proj:` and `spatial:` conventions declared in its `zarr_conventions` attribute.
+To qualify as a GeoZarr Dataset, the group must carry geospatial metadata via the `proj:` and `spatial:` conventions declared in its `zarr_conventions` attribute.
 
 #### Geospatial Metadata
 
@@ -125,17 +124,16 @@ Geospatial reference information is encoded through two complementary convention
 > The `spatial:transform` uses **Rasterio/Affine coefficient ordering** `[a, b, c, d, e, f]`, which differs from GDAL's `GetGeoTransform` ordering `[c, a, b, f, d, e]`. Converting from GDAL: `spatial_transform = [GT(1), GT(2), GT(0), GT(4), GT(5), GT(3)]`.
 
 > [!Note]
-> CF metadata (`standard_name`, `grid_mapping` variables, coordinate variable attributes) is no longer required by this specification but remains compatible and may be included alongside the Zarr conventions. See [CF conventions](https://cfconventions.org) for reference.
+> CF metadata (`standard_name`, coordinate variable attributes, etc.) is outside the scope of this specification. Its presence in a Zarr store alongside these conventions is neither required nor precluded.
 
 ### Members
 
 If any member of a GeoZarr Dataset is an array, then it must comply with the [DataArray](#dataarray) definition.
 
 If the Dataset contains a DataArray `D`, then for each dimension name `N` in the list of `D`'s named dimensions, 
-the Dataset must contain a one-dimensional DataArray named `N` with a shape that matches the the length 
-of `D` along the axis named by `N`. In this case, `D` is called a "data variable", and the each 
-of `D` along the axis named by `N`. In this case, `D` is called a "data variable", and each 
-DataArray matching a dimension names of `D` is called a "coordinate variable". 
+the Dataset must contain a one-dimensional DataArray named `N` with a shape that matches the length
+of `D` along the axis named by `N`. In this case, `D` is called a "data variable", and each
+DataArray matching a dimension name of `D` is called a "coordinate variable".
 
 > [!Note]
 > These two definitions are not mutually exclusive, as a 1-dimensional DataArray named `D` with
