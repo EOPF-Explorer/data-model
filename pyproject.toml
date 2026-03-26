@@ -150,6 +150,9 @@ ignore = [
     "TRY003",  # Long exception messages outside class - common pattern
 ]
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
