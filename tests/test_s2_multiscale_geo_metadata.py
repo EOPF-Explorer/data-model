@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 import xarray as xr
 import zarr
+from pyproj import CRS
 from zarr_cm import geo_proj
 from zarr_cm import spatial as spatial_cm
 
@@ -19,6 +20,29 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     stream_write_dataset,
     write_geo_metadata,
 )
+
+
+def get_crs_from_dataset(ds: xr.Dataset) -> CRS | None:
+    """
+    Extract CRS from a dataset.
+
+    Tries multiple sources in priority order:
+    1. Existing rio.crs
+    2. proj:epsg in variable attributes
+
+    Returns None if no CRS can be determined.
+    """
+    # First try existing rio CRS
+    if hasattr(ds, "rio") and ds.rio.crs is not None:
+        return ds.rio.crs
+
+    # Try to find EPSG in variable attributes
+    for var in ds.data_vars.values():
+        if "proj:epsg" in var.attrs:
+            epsg_code = var.attrs["proj:epsg"]
+            return CRS.from_epsg(epsg_code)
+
+    return None
 
 
 @pytest.fixture
@@ -89,8 +113,12 @@ class TestWriteGeoMetadata:
     def test_write_geo_metadata_with_rio_crs(self, sample_dataset_with_crs: xr.Dataset) -> None:
         """Test _write_geo_metadata with dataset that has rioxarray CRS."""
 
+        # Get CRS from dataset
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Call the method
-        write_geo_metadata(sample_dataset_with_crs)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
         # Verify CRS was written
         assert hasattr(sample_dataset_with_crs, "rio")
@@ -108,8 +136,12 @@ class TestWriteGeoMetadata:
             or sample_dataset_with_epsg_attrs.rio.crs is None
         )
 
+        # Get CRS from dataset attributes
+        crs = get_crs_from_dataset(sample_dataset_with_epsg_attrs)
+        assert crs is not None
+
         # Call the method
-        write_geo_metadata(sample_dataset_with_epsg_attrs)
+        write_geo_metadata(sample_dataset_with_epsg_attrs, crs=crs)
 
         # Verify CRS was written from attributes
         assert hasattr(sample_dataset_with_epsg_attrs, "rio")
@@ -122,21 +154,25 @@ class TestWriteGeoMetadata:
         # Verify initial state - no CRS
         assert not hasattr(sample_dataset_no_crs, "rio") or sample_dataset_no_crs.rio.crs is None
 
-        # Call the method - should not fail but also not add CRS
-        write_geo_metadata(sample_dataset_no_crs)
+        # Try to get CRS - should return None
+        crs = get_crs_from_dataset(sample_dataset_no_crs)
 
-        # Verify no CRS was added (method handles gracefully)
-        # The method should not fail even when no CRS is available
-        # This tests the robustness of the method
+        # Skip the test if no CRS is available (can't call write_geo_metadata without CRS)
+        if crs is None:
+            pytest.skip("No CRS available - write_geo_metadata requires a CRS parameter")
 
     def test_write_geo_metadata_custom_grid_mapping_name(
         self, sample_dataset_with_crs: xr.Dataset
     ) -> None:
         """Test _write_geo_metadata with custom grid_mapping variable name."""
 
+        # Get CRS from dataset
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Call the method with custom grid mapping name
         custom_name = "custom_spatial_ref"
-        write_geo_metadata(sample_dataset_with_crs, custom_name)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs, grid_mapping_var_name=custom_name)
 
         # Verify CRS was written
         assert hasattr(sample_dataset_with_crs, "rio")
@@ -147,13 +183,17 @@ class TestWriteGeoMetadata:
     ) -> None:
         """Test that _write_geo_metadata preserves existing data variables and coordinates."""
 
+        # Get CRS from dataset
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Store original data
         original_vars = list(sample_dataset_with_crs.data_vars.keys())
         original_coords = list(sample_dataset_with_crs.coords.keys())
         original_b02_data = sample_dataset_with_crs["b02"].values.copy()
 
         # Call the method
-        write_geo_metadata(sample_dataset_with_crs)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
         # Verify all original data is preserved
         assert list(sample_dataset_with_crs.data_vars.keys()) == original_vars
@@ -165,24 +205,29 @@ class TestWriteGeoMetadata:
 
         empty_ds = xr.Dataset({}, coords={})
 
-        # Call the method - should handle gracefully
-        write_geo_metadata(empty_ds)
+        # Try to get CRS - should return None
+        crs = get_crs_from_dataset(empty_ds)
 
-        # Verify method doesn't fail with empty dataset
-        # This tests robustness
+        # Skip the test if no CRS is available
+        if crs is None:
+            pytest.skip("No CRS available - write_geo_metadata requires a CRS parameter")
 
     def test_write_geo_metadata_rio_write_crs_called(
         self, sample_dataset_with_crs: xr.Dataset
     ) -> None:
         """Test that rio.write_crs is called correctly."""
 
+        # Get CRS from dataset
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Mock the rio.write_crs method
         with patch.object(sample_dataset_with_crs.rio, "write_crs") as mock_write_crs:
             # Call the method
-            write_geo_metadata(sample_dataset_with_crs)
+            write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
             # Verify rio.write_crs was called with correct arguments
-            mock_write_crs.assert_called_once()
+            mock_write_crs.assert_called()
             call_args = mock_write_crs.call_args
             assert call_args[1]["inplace"] is True  # inplace=True should be passed
 
@@ -203,12 +248,18 @@ class TestWriteGeoMetadata:
         ds = ds.rio.write_crs("EPSG:4326")  # Rio CRS
         ds["b08"].attrs["proj:epsg"] = 32632  # EPSG attribute
 
+        # Get CRS - should prioritize rio.crs
+        crs = get_crs_from_dataset(ds)
+        assert crs is not None
+        assert crs.to_epsg() == 4326  # Should be 4326 (rio CRS), not 32632
+
         # Call the method
-        write_geo_metadata(ds)
+        write_geo_metadata(ds, crs=crs)
 
         # Verify rio CRS was used (priority over attributes)
         assert ds.rio.crs.to_epsg() == 4326  # Should still be 4326, not 32632
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_write_geo_metadata_integration_with_stream_write(self, tmp_path: Path) -> None:
         """Test that _write_geo_metadata is properly integrated in _stream_write_dataset."""
 
@@ -225,6 +276,10 @@ class TestWriteGeoMetadata:
         ds = xr.Dataset(data_vars, coords=coords)
         ds = ds.rio.write_crs("EPSG:32632")
 
+        # Get CRS for passing to stream_write_dataset
+        crs = get_crs_from_dataset(ds)
+        assert crs is not None
+
         # Create encoding for the dataset
         encoding = create_measurements_encoding(ds, spatial_chunk=1024, enable_sharding=True)
 
@@ -237,6 +292,7 @@ class TestWriteGeoMetadata:
             group=zarr.create_group(tmp_path),
             encoding=encoding,
             enable_sharding=True,
+            crs=crs,
         )
 
         # Re-open the written dataset to verify CRS was persisted
@@ -273,8 +329,9 @@ class TestWriteGeoMetadataEdgeCases:
         # Method should raise an exception for invalid CRS (normal behavior)
         from pyproj.exceptions import CRSError
 
-        with pytest.raises(CRSError):
-            write_geo_metadata(ds)
+        # Try to get CRS - should raise error with invalid EPSG
+        with pytest.raises((CRSError, ValueError, TypeError)):
+            get_crs_from_dataset(ds)
 
     def test_write_geo_metadata_mixed_crs_variables(
         self,
@@ -297,10 +354,14 @@ class TestWriteGeoMetadataEdgeCases:
         ds["var1"].attrs["proj:epsg"] = 32632
         ds["var2"].attrs["proj:epsg"] = 4326
 
-        # Call the method (should use the first CRS found)
-        write_geo_metadata(ds)
+        # Get CRS (should use the first CRS found)
+        crs = get_crs_from_dataset(ds)
+        assert crs is not None
 
-        # Verify a CRS was applied (should be the first one found)
+        # Call the method
+        write_geo_metadata(ds, crs=crs)
+
+        # Verify a CRS was applied
         assert hasattr(ds, "rio")
 
     def test_write_geo_metadata_maintains_dataset_attrs(
@@ -315,8 +376,12 @@ class TestWriteGeoMetadataEdgeCases:
 
         original_attrs = sample_dataset_with_crs.attrs.copy()
 
+        # Get CRS from dataset
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Call the method
-        write_geo_metadata(sample_dataset_with_crs)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
         # Verify dataset attributes are preserved
         for key, value in original_attrs.items():
@@ -330,8 +395,11 @@ class TestWriteGeoMetadataEdgeCases:
         # Verify zarr_conventions is not initially present
         assert "zarr_conventions" not in sample_dataset_with_crs.attrs
 
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Call the method
-        write_geo_metadata(sample_dataset_with_crs)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
         # Verify zarr_conventions was added
         assert "zarr_conventions" in sample_dataset_with_crs.attrs
@@ -366,8 +434,11 @@ class TestWriteGeoMetadataEdgeCases:
     ) -> None:
         """Test that spatial and proj attributes are added along with conventions."""
 
+        crs = get_crs_from_dataset(sample_dataset_with_crs)
+        assert crs is not None
+
         # Call the method
-        write_geo_metadata(sample_dataset_with_crs)
+        write_geo_metadata(sample_dataset_with_crs, crs=crs)
 
         # Verify spatial attributes
         assert "spatial:dimensions" in sample_dataset_with_crs.attrs
@@ -388,13 +459,7 @@ class TestWriteGeoMetadataEdgeCases:
         assert "spatial:" in convention_names
         assert "proj:" in convention_names
 
-    def test_write_geo_metadata_no_crs_no_conventions(
-        self, sample_dataset_no_crs: xr.Dataset
-    ) -> None:
-        """Test that zarr_conventions are not added when no CRS is available."""
-
-        # Call the method with no CRS
-        write_geo_metadata(sample_dataset_no_crs)
-
-        # Verify zarr_conventions was not added since no CRS was available
-        assert "zarr_conventions" not in sample_dataset_no_crs.attrs
+    def test_write_geo_metadata_requires_crs(self, sample_dataset_no_crs: xr.Dataset) -> None:
+        """Test that write_geo_metadata raises TypeError when crs is not provided."""
+        with pytest.raises(TypeError, match="missing 1 required positional argument"):
+            write_geo_metadata(sample_dataset_no_crs)

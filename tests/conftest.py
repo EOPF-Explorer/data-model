@@ -87,7 +87,9 @@ def s2_geozarr_group_example(request: pytest.FixtureRequest) -> zarr.Group:
     """
     source_path: pathlib.Path = request.param
     store = {}
-    return GroupSpecV3(**read_json(source_path)).to_zarr(store, path="")
+    # Need to ignore warnings about fixed-length string dtypes
+    with pytest.warns(zarr.errors.UnstableSpecificationWarning):
+        return GroupSpecV3(**read_json(source_path)).to_zarr(store, path="")
 
 
 @pytest.fixture(params=optimized_geozarr_example_paths, ids=get_stem)

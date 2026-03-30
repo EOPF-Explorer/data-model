@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -11,6 +12,11 @@ from eopf_geozarr.data_api.geozarr.v3 import (
     MultiscaleGroup,
     check_valid_coordinates,
 )
+
+
+class GroupWithDataArrays(GroupSpec):
+    attributes: Any = {}  # noqa: RUF012
+    members: Mapping[str, DataArray]
 
 
 class TestCheckValidCoordinates:
@@ -29,7 +35,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
+        group = GroupWithDataArrays(members={"base": base_array, **coords_arrays})
         assert check_valid_coordinates(group) == group
 
     @staticmethod
@@ -51,12 +57,13 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s + 1), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
+        group = GroupWithDataArrays(members={"base": base_array, **coords_arrays})
         msg = "Dimension .* for array 'base' has a shape mismatch:"
         with pytest.raises(ValueError, match=msg):
             check_valid_coordinates(group)
 
 
+@pytest.mark.filterwarnings("ignore:.*:zarr.errors.UnstableSpecificationWarning")
 def test_dataarray_round_trip(s2_geozarr_group_example: Any) -> None:
     """
     Ensure that we can round-trip dataarray attributes through the `Multiscales` model.

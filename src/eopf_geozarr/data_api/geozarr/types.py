@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Final, Literal, NotRequired
+
+from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -16,7 +18,7 @@ class TileMatrixLimitJSON(TypedDict):
     maxTileRow: int
 
 
-CF_SCALE_OFFSET_KEYS: Final[set[str]] = {"scale_factor", "add_offset", "dtype"}
+CF_SCALE_OFFSET_KEYS: Final[set[str]] = {"scale_factor", "add_offset"}
 
 XARRAY_ENCODING_KEYS: Final[set[str]] = {
     "chunks",
@@ -26,7 +28,23 @@ XARRAY_ENCODING_KEYS: Final[set[str]] = {
     "shards",
     "_FillValue",
     "fill_value",
+    "dtype",
 } | CF_SCALE_OFFSET_KEYS
+
+
+class CFScaleOffset(TypedDict):
+    """
+    Metadata defining scale/offset encoding for array values. Defined by the CF
+    conventions and found in EOPF Sentinel products in Zarr array attributes.
+    """
+
+    scale_factor: float
+    add_offset: float
+    dtype: str
+
+
+class EmptyDict(TypedDict, closed=True):  # type: ignore[call-arg]
+    """A dict with no keys."""
 
 
 class XarrayDataArrayEncoding(TypedDict):
@@ -35,7 +53,7 @@ class XarrayDataArrayEncoding(TypedDict):
     """
 
     chunks: NotRequired[tuple[int, ...]]
-    preferred_chunks: NotRequired[tuple[int, ...]]
+    preferred_chunks: NotRequired[dict[str, int]]
     compressors: NotRequired[tuple[object, ...] | None]
     filters: NotRequired[tuple[object, ...]]
     shards: NotRequired[tuple[int, ...] | None]

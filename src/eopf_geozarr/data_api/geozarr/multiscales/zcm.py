@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_serializer
 from pydantic.experimental.missing_sentinel import MISSING
 from zarr_cm import ConventionMetadataObject
 from zarr_cm import multiscales as multiscales_cm
@@ -28,6 +28,15 @@ class ZarrConventionAttrs(BaseModel):
 class Transform(BaseModel):
     scale: tuple[float, ...] | MISSING = MISSING  # type: ignore[valid-type]
     translation: tuple[float, ...] | MISSING = MISSING  # type: ignore[valid-type]
+
+    @model_serializer
+    def serialize_model(self) -> dict[str, tuple[float, ...]]:
+        result: dict[str, tuple[float, ...]] = {}
+        if self.scale is not MISSING:  # type: ignore[comparison-overlap]
+            result["scale"] = self.scale
+        if self.translation is not MISSING:  # type: ignore[comparison-overlap]
+            result["translation"] = self.translation
+        return result
 
 
 class ScaleLevel(BaseModel):
