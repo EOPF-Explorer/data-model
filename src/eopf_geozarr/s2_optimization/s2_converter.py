@@ -74,7 +74,7 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
                     log.info("Initialized CRS from dataset", crs=str(crs))
                     return crs
             except Exception:
-                pass
+                log.debug("Failed to get CRS from dataset rio accessor")
 
         # Check data variables for CRS information
         for var in dataset.data_vars.values():
@@ -85,7 +85,7 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
                         log.info("Initialized CRS from variable", crs=str(crs))
                         return crs
                 except Exception:
-                    pass
+                    log.debug("Failed to get CRS from variable rio accessor")
 
             # Check for proj:epsg attribute
             if "proj:epsg" in var.attrs:
@@ -94,7 +94,7 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
                     crs = CRS.from_epsg(epsg)
                     log.info("Initialized CRS from EPSG code", epsg=epsg)
                 except Exception:
-                    pass
+                    log.debug("Failed to initialize CRS from proj:epsg attribute")
                 else:
                     return crs
 

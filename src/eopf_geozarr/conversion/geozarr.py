@@ -1105,7 +1105,7 @@ def write_dataset_band_by_band_with_validation(
         try:
             fs.rm(target_path, recursive=True)
         except FileNotFoundError:
-            pass
+            log.debug("Target not found, skipping removal", target_path=target_path)
         except Exception as cleanup_error:
             log.info(
                 "    ⚠️ Failed to remove",
