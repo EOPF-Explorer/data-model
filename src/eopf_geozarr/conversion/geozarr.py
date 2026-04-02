@@ -1729,43 +1729,14 @@ def _add_grid_mapping_variable(
 
 
 def _calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
+    """Calculate shard dimension that is evenly divisible by chunk dimension.
+
+    Delegates to :func:`eopf_geozarr.conversion.utils.calculate_shard_dimension`.
+    Kept here for backward compatibility.
     """
-    Calculate shard dimension that is evenly divisible by chunk dimension.
+    from eopf_geozarr.conversion.utils import calculate_shard_dimension
 
-    For Zarr v3 sharding with Dask, the shard dimension must be evenly
-    divisible by the chunk dimension to avoid checksum mismatches.
-
-    Parameters
-    ----------
-    data_dim : int
-        Size of the data dimension
-    chunk_dim : int
-        Size of the chunk dimension
-
-    Returns
-    -------
-    int
-        Shard dimension that is evenly divisible by chunk_dim
-    """
-    # If chunk is larger than data dimension, the effective chunk will be data_dim
-    # In this case, shard should also be data_dim to maintain divisibility
-    if chunk_dim >= data_dim:
-        return data_dim
-
-    # Calculate how many complete chunks fit in the data dimension
-    num_complete_chunks = data_dim // chunk_dim
-
-    # If we have at least 2 complete chunks, use a multiple of chunk_dim
-    if num_complete_chunks >= 2:
-        # Use a shard size that's a multiple of chunk_dim
-        for multiplier in range(num_complete_chunks + 1, 2, -1):
-            shard_size = multiplier * chunk_dim
-            if shard_size <= data_dim:
-                return shard_size
-
-    # Fallback: use the largest multiple of chunk_dim that fits
-    # If no complete chunks fit, use data_dim (this handles edge cases)
-    return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
+    return calculate_shard_dimension(data_dim, chunk_dim)
 
 
 def _is_sentinel1(dt: xr.DataTree) -> bool:

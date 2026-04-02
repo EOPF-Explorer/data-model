@@ -1,5 +1,7 @@
 """Utility functions for GeoZarr conversion."""
 
+from math import ceil
+
 import numpy as np
 import rasterio  # noqa: F401  # Import to enable .rio accessor
 import structlog
@@ -13,9 +15,13 @@ def downsample_2d_array(
     target_height: int,
     target_width: int,
     nodata_value: float | None = None,
+    method: str = "average",
 ) -> np.ndarray:
     """
-    Downsample a 2D array using block averaging with proper nodata handling.
+    Downsample a 2D array using block averaging or nearest-neighbor subsampling.
+
+    For block averaging, non-divisible sizes are handled via edge-padding so
+    that all source pixels contribute to the result.
 
     Parameters
     ----------
@@ -27,22 +33,40 @@ def downsample_2d_array(
         Target width
     nodata_value : float, optional
         Value representing nodata/fill areas. If provided, these areas will be
-        excluded from averaging and preserved in the output.
+        excluded from averaging and preserved in the output.  Ignored when
+        *method* is ``"nearest"``.
+    method : str, optional
+        Resampling method: ``"average"`` (default) for block averaging or
+        ``"nearest"`` for stride-based subsampling.
 
     Returns
     -------
     numpy.ndarray
         Downsampled 2D array with nodata values preserved
     """
+    if method not in ("average", "nearest"):
+        raise ValueError(f"Unknown resampling method: {method!r}. Use 'average' or 'nearest'.")
+
     source_height, source_width = source_data.shape
 
-    # Calculate block sizes
-    block_size_y = source_height // target_height
-    block_size_x = source_width // target_width
+    if method == "nearest":
+        y_indices = np.linspace(0, source_height - 1, target_height, dtype=int)
+        x_indices = np.linspace(0, source_width - 1, target_width, dtype=int)
+        return source_data[np.ix_(y_indices, x_indices)]
 
-    if block_size_y > 1 and block_size_x > 1:
-        # Block averaging with nodata handling
-        reshaped = source_data[: target_height * block_size_y, : target_width * block_size_x]
+    # Calculate block sizes using ceiling so all source pixels participate
+    block_size_y = ceil(source_height / target_height)
+    block_size_x = ceil(source_width / target_width)
+
+    if block_size_y > 1 or block_size_x > 1:
+        # Pad edges for non-divisible sizes
+        pad_h = target_height * block_size_y - source_height
+        pad_w = target_width * block_size_x - source_width
+        if pad_h > 0 or pad_w > 0:
+            reshaped = np.pad(source_data, ((0, pad_h), (0, pad_w)), mode="edge")
+        else:
+            reshaped = source_data
+
         reshaped = reshaped.reshape(target_height, block_size_y, target_width, block_size_x)
 
         if nodata_value is not None and not np.isnan(nodata_value):
@@ -65,7 +89,7 @@ def downsample_2d_array(
             # No nodata handling needed
             downsampled = reshaped.mean(axis=(1, 3))
     else:
-        # Simple subsampling
+        # Simple subsampling for small reductions
         y_indices = np.linspace(0, source_height - 1, target_height, dtype=int)
         x_indices = np.linspace(0, source_width - 1, target_width, dtype=int)
         downsampled = source_data[np.ix_(y_indices, x_indices)]
@@ -128,6 +152,38 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 
     # If no divisor is found, return the closest value to target_chunk_size
     return min(target_chunk_size, dimension_size)
+
+
+def calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
+    """Calculate shard dimension that is evenly divisible by chunk dimension.
+
+    For Zarr v3 sharding with Dask, the shard dimension must be evenly
+    divisible by the chunk dimension to avoid checksum mismatches.
+
+    Parameters
+    ----------
+    data_dim : int
+        Size of the data dimension
+    chunk_dim : int
+        Size of the chunk dimension
+
+    Returns
+    -------
+    int
+        Shard dimension that is evenly divisible by chunk_dim
+    """
+    if chunk_dim >= data_dim:
+        return data_dim
+
+    num_complete_chunks = data_dim // chunk_dim
+
+    if num_complete_chunks >= 2:
+        for multiplier in range(num_complete_chunks + 1, 2, -1):
+            shard_size = multiplier * chunk_dim
+            if shard_size <= data_dim:
+                return shard_size
+
+    return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
 
 
 def validate_existing_band_data(

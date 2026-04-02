@@ -55,7 +55,9 @@ def test_s1_rtc_overview_levels(s1_rtc_json_example: dict[str, object]) -> None:
         assert "vv" in group.members
         assert "vh" in group.members
         assert "border_mask" in group.members
-        # Overview levels should NOT have coordinate arrays
+        assert "x" in group.members
+        assert "y" in group.members
+        # Overview levels should NOT have temporal coordinate arrays
         assert "time" not in group.members
 
 

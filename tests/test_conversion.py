@@ -45,14 +45,16 @@ class TestUtilityFunctions:
         np.testing.assert_array_equal(result, expected)
 
     def test_downsample_2d_array_subsampling(self) -> None:
-        """Test downsampling with subsampling when block size is 1."""
+        """Test downsampling with block averaging when source/target is not evenly divisible."""
         source_data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
 
-        # Downsample to 2x2 (will use subsampling)
+        # Downsample 3x3 to 2x2: ceil(3/2)=2 block size, pad to 4x4 then average
         result = downsample_2d_array(source_data, 2, 2)
 
-        # Should subsample at indices [0, 2] for both dimensions
-        expected = np.array([[1, 3], [7, 9]])
+        # Padded (edge) to 4x4: [[1,2,3,3],[4,5,6,6],[7,8,9,9],[7,8,9,9]]
+        # Block [0,0]=mean(1,2,4,5)=3.0, [0,1]=mean(3,3,6,6)=4.5
+        # Block [1,0]=mean(7,8,7,8)=7.5, [1,1]=mean(9,9,9,9)=9.0
+        expected = np.array([[3.0, 4.5], [7.5, 9.0]])
 
         np.testing.assert_array_equal(result, expected)
 
