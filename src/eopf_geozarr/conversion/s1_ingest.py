@@ -25,7 +25,7 @@ import zarr
 import zarr.codecs
 from zarr_cm import geo_proj, multiscales as multiscales_cm, spatial as spatial_cm
 
-from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
+from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size, downsample_2d_array
 
 log = structlog.get_logger()
 
@@ -238,12 +238,9 @@ def _create_spatial_coordinate_arrays(
     pixel_h = level_transform[4]  # e: pixel height (negative)
     y_origin = level_transform[5]  # f: y origin (top edge)
 
-    x_coords = np.linspace(
-        x_origin, x_origin + level_w * pixel_w, level_w, endpoint=False, dtype="float64"
-    )
-    y_coords = np.linspace(
-        y_origin, y_origin + level_h * pixel_h, level_h, endpoint=False, dtype="float64"
-    )
+    # Pixel-center convention: offset by half a pixel from the edge origin
+    x_coords = x_origin + (np.arange(level_w, dtype="float64") + 0.5) * pixel_w
+    y_coords = y_origin + (np.arange(level_h, dtype="float64") + 0.5) * pixel_h
 
     x_arr = level_group.create_array(
         "x",
@@ -376,38 +373,6 @@ def create_s1_store(
         native_shape=metadata.shape,
     )
     return root
-
-
-# =============================================================================
-# Downsampling (private helper)
-# =============================================================================
-
-
-def _downsample_2d(data: np.ndarray, factor: int, method: str = "average") -> np.ndarray:
-    """Downsample a 2D array by the given integer factor.
-
-    For average method, handles non-divisible sizes via edge padding.
-    For nearest method, uses stride-based subsampling.
-    """
-    h, w = data.shape
-    new_h = ceil(h / factor)
-    new_w = ceil(w / factor)
-
-    if method == "nearest":
-        return data[::factor, ::factor][:new_h, :new_w]
-
-    # Average: block mean with edge padding for non-divisible sizes
-    pad_h = new_h * factor - h
-    pad_w = new_w * factor - w
-    if pad_h > 0 or pad_w > 0:
-        padded = np.pad(data, ((0, pad_h), (0, pad_w)), mode="edge")
-    else:
-        padded = data
-
-    reshaped = padded.reshape(new_h, factor, new_w, factor)
-    if np.issubdtype(data.dtype, np.floating):
-        return np.nanmean(reshaped, axis=(1, 3)).astype(data.dtype)
-    return reshaped.mean(axis=(1, 3)).astype(data.dtype)
 
 
 # =============================================================================
@@ -591,9 +556,11 @@ def ingest_s1tiling_acquisition(
     }
     prev_vv, prev_vh, prev_mask = vv_data, vh_data, mask_data
     for level_name, _, factor in OVERVIEW_CHAIN[1:]:
-        prev_vv = _downsample_2d(prev_vv, factor, "average")
-        prev_vh = _downsample_2d(prev_vh, factor, "average")
-        prev_mask = _downsample_2d(prev_mask, factor, "nearest")
+        h, w = prev_vv.shape
+        target_h, target_w = ceil(h / factor), ceil(w / factor)
+        prev_vv = downsample_2d_array(prev_vv, target_h, target_w, nodata_value=float("nan"))
+        prev_vh = downsample_2d_array(prev_vh, target_h, target_w, nodata_value=float("nan"))
+        prev_mask = downsample_2d_array(prev_mask, target_h, target_w, method="nearest")
         data_by_level[level_name] = (prev_vv, prev_vh, prev_mask)
 
     log.info("Overviews generated", levels=len(data_by_level))
