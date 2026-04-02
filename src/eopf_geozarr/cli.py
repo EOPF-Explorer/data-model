@@ -1074,6 +1074,58 @@ def consolidate_s1_command(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def validate_s1_command(args: argparse.Namespace) -> None:
+    """Validate an S1 GRD RTC GeoZarr V3 store against the schema."""
+    import zarr
+    from pydantic_zarr.v3 import GroupSpec
+
+    from .conversion.fs_utils import open_zarr_group, path_exists
+    from .data_api.s1_rtc import S1RtcRoot
+
+    store_path = args.store
+    if not path_exists(store_path):
+        log.error("❌ Store does not exist", store=store_path)
+        sys.exit(1)
+
+    try:
+        root = open_zarr_group(store_path, mode="r")
+        untyped = GroupSpec.from_zarr(root).model_dump()
+        model = S1RtcRoot(**untyped)
+
+        orbit_dirs = []
+        if model.ascending is not None:
+            orbit_dirs.append("ascending")
+        if model.descending is not None:
+            orbit_dirs.append("descending")
+
+        log.info("✅ S1 RTC store is valid", store=store_path, orbit_dirs=orbit_dirs)
+
+        if args.verbose:
+            for od in orbit_dirs:
+                orbit = getattr(model, od)
+                data_arrays = [
+                    k for k in orbit.r10m.members
+                    if k not in ("x", "y", "time", "absolute_orbit", "relative_orbit", "platform")
+                ]
+                coord_vars = [
+                    k for k in orbit.r10m.members
+                    if k in ("time", "absolute_orbit", "relative_orbit", "platform")
+                ]
+                log.info(
+                    f"  {od}",
+                    data_arrays=data_arrays,
+                    coordinates=coord_vars,
+                    has_conditions=orbit.conditions is not None,
+                )
+    except Exception as e:
+        log.error("❌ Validation failed", store=store_path, error=str(e))
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create the argument parser for the CLI.
@@ -1250,6 +1302,14 @@ def add_s1_ingestion_commands(subparsers: argparse._SubParsersAction) -> None:
         help="Orbit direction",
     )
     cons_parser.set_defaults(func=consolidate_s1_command)
+
+    # validate-s1: schema validation
+    val_parser = subparsers.add_parser(
+        "validate-s1", help="Validate an S1 GRD RTC GeoZarr V3 store against the schema"
+    )
+    val_parser.add_argument("--store", type=str, required=True, help="Path to Zarr V3 store")
+    val_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    val_parser.set_defaults(func=validate_s1_command)
 
 
 def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None:
