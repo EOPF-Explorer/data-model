@@ -79,6 +79,11 @@ S1TILING_LIA_PATTERN = re.compile(
     r"^(?P<kind>sin_LIA|LIA)_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
     re.IGNORECASE,
 )
+# e.g. incidence_angle_31TCH_008.tif
+S1TILING_INCIDENCE_ANGLE_PATTERN = re.compile(
+    r"^incidence_angle_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
+    re.IGNORECASE,
+)
 
 
 # =============================================================================
@@ -800,19 +805,53 @@ def ingest_s1tiling_conditions(
         log.info("Created conditions group", orbit_direction=orbit_direction)
     else:
         conditions = orbit["conditions"]
+        # Validate existing conditions metadata matches the reference
+        cond_attrs = dict(conditions.attrs)
+        cond_crs = cond_attrs.get("proj:code")
+        if cond_crs is not None and cond_crs != ref_crs:
+            raise ValueError(
+                f"CRS mismatch: existing conditions group has {cond_crs}, "
+                f"reference condition GeoTIFF has {ref_crs}"
+            )
 
     # Write each condition array
     for label, cond_path in condition_inputs:
         array_name = f"{label}_{orbit_suffix}"
 
         with rasterio.open(str(cond_path)) as src:
+            cond_crs = str(src.crs)
+            t = src.transform
+            cond_transform = [t.a, t.b, t.c, t.d, t.e, t.f]
+            cond_shape = [src.height, src.width]
             data = src.read(1).astype(np.float32)
+
+        # Validate each condition file against the reference grid
+        if cond_crs != ref_crs:
+            raise ValueError(
+                f"CRS mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_crs}, got {cond_crs}"
+            )
+        if cond_transform != ref_transform:
+            raise ValueError(
+                f"Transform mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_transform}, got {cond_transform}"
+            )
+        if cond_shape != ref_shape:
+            raise ValueError(
+                f"Shape mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_shape}, got {cond_shape}"
+            )
 
         h, w = data.shape
 
         if array_name in conditions:
-            # Overwrite existing array
-            conditions[array_name][:, :] = data
+            existing = conditions[array_name]
+            if existing.shape != data.shape:
+                raise ValueError(
+                    f"Shape mismatch for condition array '{array_name}': "
+                    f"existing {existing.shape}, new {data.shape}"
+                )
+            existing[:, :] = data
             log.info("Overwrote condition array", array_name=array_name)
         else:
             arr = conditions.create_array(
@@ -850,10 +889,13 @@ def ingest_s1tiling_conditions(
 
 
 def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
-    """Discover S1Tiling condition GeoTIFF files (gamma_area, LIA).
+    """Discover S1Tiling condition GeoTIFF files (gamma_area, LIA, incidence_angle).
 
-    Returns a list of dicts, each with keys:
-        tile, orbit, gamma_area (Path), lia (Path or None)
+    Returns a list of dicts. Each dict always includes:
+        tile (str), orbit (str)
+    and may include any of:
+        gamma_area (Path), lia (Path), incidence_angle (Path)
+    depending on which files were discovered for that (tile, orbit).
 
     Groups by (tile, orbit).
     """
@@ -880,6 +922,16 @@ def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
             if key not in groups:
                 groups[key] = {"tile": tile, "orbit": orbit}
             groups[key]["lia"] = f
+            continue
+
+        m = S1TILING_INCIDENCE_ANGLE_PATTERN.match(f.name)
+        if m:
+            tile = m.group("tile")
+            orbit = m.group("orbit")
+            key = (tile, orbit)
+            if key not in groups:
+                groups[key] = {"tile": tile, "orbit": orbit}
+            groups[key]["incidence_angle"] = f
 
     conditions = list(groups.values())
     log.info("Discovered conditions", count=len(conditions), input_dir=str(input_dir))

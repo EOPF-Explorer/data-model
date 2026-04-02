@@ -35,6 +35,7 @@ from pydantic_zarr.v3 import GroupSpec
 SIZE = 256
 CRS = "EPSG:32633"
 XMIN, YMIN, XMAX, YMAX = 500000.0, 4997440.0, 502560.0, 5000000.0
+BOUNDS = (XMIN, YMIN, XMAX, YMAX)
 TRANSFORM = from_bounds(XMIN, YMIN, XMAX, YMAX, SIZE, SIZE)
 
 ACQ1_TAGS = {
@@ -783,6 +784,70 @@ class TestIngestConditions:
         assert model.ascending.conditions is not None
         assert "gamma_area_037" in model.ascending.conditions.members
 
+    def test_lia_only_fails_schema_validation(
+        self, s1_store_with_acquisition: Path, lia_geotiff: Path
+    ) -> None:
+        """LIA-only ingestion succeeds but the store fails schema validation
+        because S1RtcConditionsGroup requires at least one gamma_area_* array."""
+        ingest_s1tiling_conditions(
+            s1_store_with_acquisition, "ascending", 37, lia_path=lia_geotiff
+        )
+        root = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)
+        assert "lia_037" in root["ascending"]["conditions"]
+
+        untyped = GroupSpec.from_zarr(root).model_dump()
+        with pytest.raises(ValueError, match="gamma_area_"):
+            S1RtcRoot(**untyped)
+
+    def test_cross_file_crs_mismatch(
+        self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path, tmp_path: Path
+    ) -> None:
+        """Second condition file with different CRS is rejected."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        wrong_lia = tmp_path / "sin_LIA_32TQM_037_wrong.tif"
+        _create_synthetic_geotiff(wrong_lia, data, crs="EPSG:32632")
+        with pytest.raises(ValueError, match="CRS mismatch"):
+            ingest_s1tiling_conditions(
+                s1_store_with_acquisition, "ascending", 37,
+                gamma_area_path=gamma_area_geotiff,
+                lia_path=wrong_lia,
+            )
+
+    def test_cross_file_shape_mismatch(
+        self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path, tmp_path: Path
+    ) -> None:
+        """Second condition file with different shape/transform is rejected."""
+        data = np.ones((SIZE // 2, SIZE // 2), dtype=np.float32)
+        wrong_lia = tmp_path / "sin_LIA_32TQM_037_wrong.tif"
+        transform = rasterio.transform.from_bounds(*BOUNDS, SIZE // 2, SIZE // 2)
+        _create_synthetic_geotiff(wrong_lia, data, transform=transform)
+        with pytest.raises(ValueError, match="mismatch"):
+            ingest_s1tiling_conditions(
+                s1_store_with_acquisition, "ascending", 37,
+                gamma_area_path=gamma_area_geotiff,
+                lia_path=wrong_lia,
+            )
+
+    def test_overwrite_shape_mismatch_rejected(
+        self, s1_store_with_acquisition: Path, tmp_path: Path
+    ) -> None:
+        """Overwriting with a different shape raises ValueError."""
+        ga_path = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+
+        data_v1 = np.ones((SIZE, SIZE), dtype=np.float32)
+        _create_synthetic_geotiff(ga_path, data_v1)
+        ingest_s1tiling_conditions(
+            s1_store_with_acquisition, "ascending", 37, gamma_area_path=ga_path
+        )
+
+        data_v2 = np.ones((SIZE // 2, SIZE // 2), dtype=np.float32)
+        transform = rasterio.transform.from_bounds(*BOUNDS, SIZE // 2, SIZE // 2)
+        _create_synthetic_geotiff(ga_path, data_v2, transform=transform)
+        with pytest.raises(ValueError, match="Shape mismatch"):
+            ingest_s1tiling_conditions(
+                s1_store_with_acquisition, "ascending", 37, gamma_area_path=ga_path
+            )
+
 
 # =============================================================================
 # Phase 3: Conditions file discovery tests
@@ -811,6 +876,16 @@ class TestDiscoverConditions:
         assert len(conditions) == 1
         assert "lia" in conditions[0]
 
+    def test_discovers_incidence_angle(self, tmp_path: Path) -> None:
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        _create_synthetic_geotiff(tmp_path / "incidence_angle_32TQM_037.tif", data)
+
+        conditions = discover_s1tiling_conditions(tmp_path)
+        assert len(conditions) == 1
+        assert "incidence_angle" in conditions[0]
+        assert conditions[0]["tile"] == "32TQM"
+        assert conditions[0]["orbit"] == "037"
+
     def test_groups_gamma_area_and_lia(self, tmp_path: Path) -> None:
         """Gamma area and LIA for the same tile/orbit are grouped together."""
         data = np.ones((SIZE, SIZE), dtype=np.float32)
@@ -823,6 +898,19 @@ class TestDiscoverConditions:
         assert "lia" in conditions[0]
         assert conditions[0]["tile"] == "32TQM"
         assert conditions[0]["orbit"] == "037"
+
+    def test_groups_all_condition_types(self, tmp_path: Path) -> None:
+        """All three condition types for the same tile/orbit are grouped together."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        _create_synthetic_geotiff(tmp_path / "GAMMA_AREA_32TQM_037.tif", data)
+        _create_synthetic_geotiff(tmp_path / "sin_LIA_32TQM_037.tif", data)
+        _create_synthetic_geotiff(tmp_path / "incidence_angle_32TQM_037.tif", data)
+
+        conditions = discover_s1tiling_conditions(tmp_path)
+        assert len(conditions) == 1
+        assert "gamma_area" in conditions[0]
+        assert "lia" in conditions[0]
+        assert "incidence_angle" in conditions[0]
 
     def test_skips_non_matching(self, tmp_path: Path) -> None:
         data = np.ones((SIZE, SIZE), dtype=np.float32)

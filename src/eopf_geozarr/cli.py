@@ -1210,7 +1210,10 @@ def add_s1_ingestion_commands(subparsers: argparse._SubParsersAction) -> None:
     # ingest-s1-conditions: condition arrays
     cond_parser = subparsers.add_parser(
         "ingest-s1-conditions",
-        help="Ingest S1Tiling condition arrays (gamma_area, LIA) into a GeoZarr V3 store",
+        help=(
+            "Ingest S1Tiling condition arrays "
+            "(gamma_area, LIA, incidence_angle) into a GeoZarr V3 store"
+        ),
     )
     cond_parser.add_argument(
         "--store", type=str, required=True, help="Path to existing Zarr V3 store"
