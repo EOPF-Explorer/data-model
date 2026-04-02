@@ -275,19 +275,14 @@ def _create_spatial_coordinate_arrays(
     )
 
 
-def create_s1_store(
-    store_path: str | Path,
+def _create_orbit_group(
+    parent: zarr.Group,
     orbit_direction: str,
     metadata: S1TilingMetadata,
 ) -> zarr.Group:
-    """Create a new S1 GRD RTC Zarr V3 store with full conventions metadata.
-
-    Returns the root group.
-    """
+    """Create an orbit direction group with full conventions, arrays, and coordinates."""
     layout = compute_multiscales_layout(metadata.shape, metadata.spatial_transform)
-
-    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
-    orbit_group = root.create_group(orbit_direction)
+    orbit_group = parent.create_group(orbit_direction)
 
     orbit_group.attrs.update(
         {
@@ -365,6 +360,21 @@ def create_s1_store(
         dimension_names=["time"],
     )
 
+    return orbit_group
+
+
+def create_s1_store(
+    store_path: str | Path,
+    orbit_direction: str,
+    metadata: S1TilingMetadata,
+) -> zarr.Group:
+    """Create a new S1 GRD RTC Zarr V3 store with full conventions metadata.
+
+    Returns the root group.
+    """
+    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
+    _create_orbit_group(root, orbit_direction, metadata)
+
     log.info(
         "Created S1 store",
         store_path=str(store_path),
@@ -429,6 +439,29 @@ def ingest_s1tiling_acquisition(
     # Extract metadata from VV file
     meta = extract_geotiff_metadata(vv_path)
 
+    # Validate that VH and border mask rasters are spatially aligned with VV
+    with rasterio.open(str(vv_path)) as vv_ds, rasterio.open(
+        str(vh_path)
+    ) as vh_ds, rasterio.open(str(border_mask_path)) as mask_ds:
+        ref_crs = vv_ds.crs
+        ref_transform = vv_ds.transform
+        ref_width = vv_ds.width
+        ref_height = vv_ds.height
+
+        for name, ds, path in [
+            ("VH", vh_ds, vh_path),
+            ("border mask", mask_ds, border_mask_path),
+        ]:
+            if ds.crs != ref_crs or ds.transform != ref_transform:
+                raise ValueError(
+                    f"{name} GeoTIFF {path} CRS/transform does not match VV GeoTIFF {vv_path}"
+                )
+            if ds.width != ref_width or ds.height != ref_height:
+                raise ValueError(
+                    f"{name} GeoTIFF {path} shape {(ds.height, ds.width)} does not match "
+                    f"VV GeoTIFF {vv_path} shape {(ref_height, ref_width)}"
+                )
+
     log.info(
         "Ingesting S1 acquisition",
         vv_path=str(vv_path),
@@ -441,77 +474,7 @@ def ingest_s1tiling_acquisition(
     else:
         root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
         if orbit_direction not in root:
-            # Create orbit direction group in existing store
-            orbit_group = root.create_group(orbit_direction)
-            layout = compute_multiscales_layout(meta.shape, meta.spatial_transform)
-            orbit_group.attrs.update(
-                {
-                    "zarr_conventions": ZARR_CONVENTIONS,
-                    "multiscales": {
-                        "layout": layout,
-                        "resampling_method": "average",
-                    },
-                    "proj:code": meta.crs,
-                    "spatial:dimensions": ["y", "x"],
-                    "spatial:bbox": meta.bounds,
-                }
-            )
-            for level_entry in layout:
-                level_name = level_entry["asset"]
-                level_h, level_w = level_entry["spatial:shape"]
-                level_group = orbit_group.create_group(level_name)
-                level_group.attrs.update(
-                    {
-                        "spatial:shape": [level_h, level_w],
-                        "spatial:transform": level_entry["spatial:transform"],
-                    }
-                )
-                inner_chunks = (
-                    1,
-                    calculate_aligned_chunk_size(level_h, 512),
-                    calculate_aligned_chunk_size(level_w, 512),
-                )
-                shard_shape = (1, level_h, level_w)
-                for name, dtype, fill in [
-                    ("vv", "float32", float("nan")),
-                    ("vh", "float32", float("nan")),
-                    ("border_mask", "uint8", 0),
-                ]:
-                    level_group.create_array(
-                        name,
-                        shape=(0, level_h, level_w),
-                        dtype=dtype,
-                        chunks=inner_chunks,
-                        shards=shard_shape,
-                        compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
-                        fill_value=fill,
-                        dimension_names=["time", "y", "x"],
-                    )
-                _create_spatial_coordinate_arrays(
-                    level_group, level_h, level_w, level_entry["spatial:transform"]
-                )
-            r10m = orbit_group["r10m"]
-            for name, dtype, fill in [
-                ("time", "int64", 0),
-                ("absolute_orbit", "int32", 0),
-                ("relative_orbit", "int32", 0),
-            ]:
-                r10m.create_array(
-                    name,
-                    shape=(0,),
-                    dtype=dtype,
-                    chunks=(512,),
-                    fill_value=fill,
-                    dimension_names=["time"],
-                )
-            r10m.create_array(
-                "platform",
-                shape=(0,),
-                dtype="<U4",
-                chunks=(512,),
-                fill_value="",
-                dimension_names=["time"],
-            )
+            _create_orbit_group(root, orbit_direction, meta)
         else:
             # Validate consistency on append
             orbit_group = root[orbit_direction]
@@ -527,6 +490,12 @@ def ingest_s1tiling_acquisition(
                 if store_shape != meta.shape:
                     raise ValueError(
                         f"Shape mismatch: store has {store_shape}, GeoTIFF has {meta.shape}"
+                    )
+                store_transform = native_entry.get("spatial:transform")
+                if store_transform != meta.spatial_transform:
+                    raise ValueError(
+                        f"Transform mismatch: store has {store_transform}, "
+                        f"GeoTIFF has {meta.spatial_transform}"
                     )
 
     orbit = root[orbit_direction]
@@ -621,11 +590,18 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
 # =============================================================================
 
 
+_ORBIT_DIR_MAP = {"ASC": "ascending", "DES": "descending"}
+
+
 def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
     """Discover and group S1Tiling GeoTIFF files into acquisition bundles.
 
     Returns a list of dicts, each with keys:
         platform, tile, orbit_dir, rel_orbit, acq_stamp, vv, vh, vv_mask, vh_mask
+
+    The ``orbit_dir`` value is normalised from filenames ("ASC"/"DES") to
+    group names ("ascending"/"descending") for direct use with
+    `ingest_s1tiling_acquisition`.
 
     Logs warnings for incomplete acquisitions (missing polarisation or mask files).
     """
@@ -638,10 +614,12 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
         if parsed is None:
             continue
 
+        orbit_dir = _ORBIT_DIR_MAP.get(parsed["orbit_dir"], parsed["orbit_dir"])
+
         key = (
             parsed["platform"],
             parsed["tile"],
-            parsed["orbit_dir"],
+            orbit_dir,
             parsed["rel_orbit"],
             parsed["acq_stamp"],
         )
@@ -650,7 +628,7 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
             groups[key] = {
                 "platform": parsed["platform"],
                 "tile": parsed["tile"],
-                "orbit_dir": parsed["orbit_dir"],
+                "orbit_dir": orbit_dir,
                 "rel_orbit": parsed["rel_orbit"],
                 "acq_stamp": parsed["acq_stamp"],
             }

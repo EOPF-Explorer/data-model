@@ -44,6 +44,9 @@ def downsample_2d_array(
     numpy.ndarray
         Downsampled 2D array with nodata values preserved
     """
+    if method not in ("average", "nearest"):
+        raise ValueError(f"Unknown resampling method: {method!r}. Use 'average' or 'nearest'.")
+
     source_height, source_width = source_data.shape
 
     if method == "nearest":
@@ -55,7 +58,7 @@ def downsample_2d_array(
     block_size_y = ceil(source_height / target_height)
     block_size_x = ceil(source_width / target_width)
 
-    if block_size_y > 1 and block_size_x > 1:
+    if block_size_y > 1 or block_size_x > 1:
         # Pad edges for non-divisible sizes
         pad_h = target_height * block_size_y - source_height
         pad_w = target_width * block_size_x - source_width

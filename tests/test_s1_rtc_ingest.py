@@ -16,7 +16,6 @@ from eopf_geozarr.conversion.s1_ingest import (
     OVERVIEW_CHAIN,
     S1TilingMetadata,
     _normalise_s1tiling_datetime,
-    compute_multiscales_layout,
     consolidate_s1_store,
     create_s1_store,
     discover_s1tiling_acquisitions,
