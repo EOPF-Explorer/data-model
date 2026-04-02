@@ -831,7 +831,7 @@ class TestIngestConditions:
     def test_overwrite_shape_mismatch_rejected(
         self, s1_store_with_acquisition: Path, tmp_path: Path
     ) -> None:
-        """Overwriting with a different shape raises ValueError."""
+        """Overwriting with a different shape/transform raises ValueError."""
         ga_path = tmp_path / "GAMMA_AREA_32TQM_037.tif"
 
         data_v1 = np.ones((SIZE, SIZE), dtype=np.float32)
@@ -843,7 +843,7 @@ class TestIngestConditions:
         data_v2 = np.ones((SIZE // 2, SIZE // 2), dtype=np.float32)
         transform = rasterio.transform.from_bounds(*BOUNDS, SIZE // 2, SIZE // 2)
         _create_synthetic_geotiff(ga_path, data_v2, transform=transform)
-        with pytest.raises(ValueError, match="Shape mismatch"):
+        with pytest.raises(ValueError, match="mismatch"):
             ingest_s1tiling_conditions(
                 s1_store_with_acquisition, "ascending", 37, gamma_area_path=ga_path
             )
@@ -885,7 +885,17 @@ class TestDiscoverConditions:
         assert "incidence_angle" in conditions[0]
         assert conditions[0]["tile"] == "32TQM"
         assert conditions[0]["orbit"] == "037"
+    def test_normalizes_tile_casing(self, tmp_path: Path) -> None:
+        """Tiles with different casing are grouped together."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        _create_synthetic_geotiff(tmp_path / "GAMMA_AREA_32tqm_037.tif", data)
+        _create_synthetic_geotiff(tmp_path / "sin_LIA_32TQM_037.tif", data)
 
+        conditions = discover_s1tiling_conditions(tmp_path)
+        assert len(conditions) == 1
+        assert conditions[0]["tile"] == "32TQM"
+        assert "gamma_area" in conditions[0]
+        assert "lia" in conditions[0]
     def test_groups_gamma_area_and_lia(self, tmp_path: Path) -> None:
         """Gamma area and LIA for the same tile/orbit are grouped together."""
         data = np.ones((SIZE, SIZE), dtype=np.float32)

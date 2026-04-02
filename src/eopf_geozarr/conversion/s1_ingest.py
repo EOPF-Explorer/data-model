@@ -69,9 +69,9 @@ S1TILING_FILENAME_PATTERN = re.compile(
 )
 
 # S1Tiling conditions filename patterns
-# e.g. GAMMA_AREA_31TCH_008.tif or GAMMA_AREA_s1a_31TCH_ASC_008.tif
+# e.g. GAMMA_AREA_31TCH_008.tif (tile-independent of orbit direction)
 S1TILING_GAMMA_AREA_PATTERN = re.compile(
-    r"^GAMMA_AREA_(?:s1[abc]_)?(?P<tile>[A-Z0-9]+)_(?:(?:ASC|DES)_)?(?P<orbit>\d{3})\.tif$",
+    r"^GAMMA_AREA_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
     re.IGNORECASE,
 )
 # e.g. sin_LIA_31TCH_008.tif or LIA_31TCH_008.tif
@@ -785,11 +785,29 @@ def ingest_s1tiling_conditions(
         ref_shape = [src.height, src.width]
 
     # Validate CRS consistency with orbit group
-    store_crs = dict(orbit.attrs).get("proj:code")
+    orbit_attrs = dict(orbit.attrs)
+    store_crs = orbit_attrs.get("proj:code")
     if store_crs and store_crs != ref_crs:
         raise ValueError(
             f"CRS mismatch: store has {store_crs}, condition GeoTIFF has {ref_crs}"
         )
+
+    # Validate transform/shape against orbit group's native grid
+    store_layout = orbit_attrs.get("multiscales", {}).get("layout", [])
+    if store_layout:
+        native_entry = store_layout[0]
+        store_transform = native_entry.get("spatial:transform")
+        if store_transform and store_transform != ref_transform:
+            raise ValueError(
+                f"Transform mismatch: orbit group native grid has {store_transform}, "
+                f"condition GeoTIFF has {ref_transform}"
+            )
+        store_shape = native_entry.get("spatial:shape")
+        if store_shape and store_shape != ref_shape:
+            raise ValueError(
+                f"Shape mismatch: orbit group native grid has {store_shape}, "
+                f"condition GeoTIFF has {ref_shape}"
+            )
 
     # Create or open conditions group
     if "conditions" not in orbit:
@@ -867,12 +885,19 @@ def ingest_s1tiling_conditions(
                 dimension_names=["y", "x"],
             )
             arr[:, :] = data
+            finite_mask = np.isfinite(data)
+            if np.any(finite_mask):
+                min_val = float(np.nanmin(data[finite_mask]))
+                max_val = float(np.nanmax(data[finite_mask]))
+            else:
+                min_val = None
+                max_val = None
             log.info(
                 "Wrote condition array",
                 array_name=array_name,
                 shape=list(data.shape),
-                min=float(np.nanmin(data)),
-                max=float(np.nanmax(data)),
+                min=min_val,
+                max=max_val,
             )
 
     log.info(
@@ -906,17 +931,23 @@ def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
     for f in files:
         m = S1TILING_GAMMA_AREA_PATTERN.match(f.name)
         if m:
-            tile = m.group("tile")
+            tile = m.group("tile").upper()
             orbit = m.group("orbit")
             key = (tile, orbit)
             if key not in groups:
                 groups[key] = {"tile": tile, "orbit": orbit}
+            if "gamma_area" in groups[key]:
+                log.warning(
+                    "Duplicate gamma_area for same tile/orbit, overwriting",
+                    tile=tile, orbit=orbit, old=str(groups[key]["gamma_area"]),
+                    new=str(f),
+                )
             groups[key]["gamma_area"] = f
             continue
 
         m = S1TILING_LIA_PATTERN.match(f.name)
         if m:
-            tile = m.group("tile")
+            tile = m.group("tile").upper()
             orbit = m.group("orbit")
             key = (tile, orbit)
             if key not in groups:
@@ -926,7 +957,7 @@ def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
 
         m = S1TILING_INCIDENCE_ANGLE_PATTERN.match(f.name)
         if m:
-            tile = m.group("tile")
+            tile = m.group("tile").upper()
             orbit = m.group("orbit")
             key = (tile, orbit)
             if key not in groups:
