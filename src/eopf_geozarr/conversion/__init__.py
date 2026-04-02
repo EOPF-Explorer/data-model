@@ -20,8 +20,10 @@ from .geozarr import (
 from .s1_ingest import (
     consolidate_s1_store,
     discover_s1tiling_acquisitions,
+    discover_s1tiling_conditions,
     extract_geotiff_metadata,
     ingest_s1tiling_acquisition,
+    ingest_s1tiling_conditions,
 )
 from .utils import (
     calculate_aligned_chunk_size,
@@ -40,10 +42,12 @@ __all__ = [
     "consolidate_s1_store",
     "create_geozarr_dataset",
     "discover_s1tiling_acquisitions",
+    "discover_s1tiling_conditions",
     "downsample_2d_array",
     "extract_geotiff_metadata",
     "get_s3_credentials_info",
     "ingest_s1tiling_acquisition",
+    "ingest_s1tiling_conditions",
     "is_grid_mapping_variable",
     "is_s3_path",
     "iterative_copy",

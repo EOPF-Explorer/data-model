@@ -7,8 +7,10 @@ convention metadata.
 Public API:
     - extract_geotiff_metadata(path) -> S1TilingMetadata
     - ingest_s1tiling_acquisition(vv_path, vh_path, border_mask_path, store_path, orbit_direction) -> int
+    - ingest_s1tiling_conditions(store_path, orbit_direction, relative_orbit, ...) -> None
     - consolidate_s1_store(store_path, orbit_direction) -> None
     - discover_s1tiling_acquisitions(input_dir) -> list[dict]
+    - discover_s1tiling_conditions(input_dir) -> list[dict]
 """
 
 from __future__ import annotations
@@ -64,6 +66,23 @@ S1TILING_FILENAME_PATTERN = re.compile(
     r"(?P<acq_stamp>\d{8}t\d{6})_"
     r"(?P<product>GammaNaughtRTC)"
     r"(?P<mask>_BorderMask)?\.tif$"
+)
+
+# S1Tiling conditions filename patterns
+# e.g. GAMMA_AREA_31TCH_008.tif (tile-independent of orbit direction)
+S1TILING_GAMMA_AREA_PATTERN = re.compile(
+    r"^GAMMA_AREA_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
+    re.IGNORECASE,
+)
+# e.g. sin_LIA_31TCH_008.tif or LIA_31TCH_008.tif
+S1TILING_LIA_PATTERN = re.compile(
+    r"^(?P<kind>sin_LIA|LIA)_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
+    re.IGNORECASE,
+)
+# e.g. incidence_angle_31TCH_008.tif
+S1TILING_INCIDENCE_ANGLE_PATTERN = re.compile(
+    r"^incidence_angle_(?P<tile>[A-Z0-9]+)_(?P<orbit>\d{3})\.tif$",
+    re.IGNORECASE,
 )
 
 
@@ -685,3 +704,266 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
 
     log.info("Discovered acquisitions", count=len(acquisitions), input_dir=str(input_dir))
     return acquisitions
+
+
+# =============================================================================
+# Conditions Ingestion
+# =============================================================================
+
+
+def ingest_s1tiling_conditions(
+    store_path: str | Path,
+    orbit_direction: str,
+    relative_orbit: int,
+    gamma_area_path: str | Path | None = None,
+    lia_path: str | Path | None = None,
+    incidence_angle_path: str | Path | None = None,
+) -> None:
+    """Write time-invariant condition arrays into the conditions group.
+
+    Conditions are per-orbit (not per-acquisition) and have shape (Y, X) only.
+    The conditions group carries its own proj: and spatial: conventions.
+
+    Parameters
+    ----------
+    store_path : str or Path
+        Path to an existing Zarr V3 store (must already have the orbit group).
+    orbit_direction : str
+        Orbit direction group name (e.g. "ascending", "descending").
+    relative_orbit : int
+        Relative orbit number, used to suffix array names (e.g. 8 → "gamma_area_008").
+    gamma_area_path : str, Path, or None
+        Path to gamma area GeoTIFF. At least one condition path must be provided.
+    lia_path : str, Path, or None
+        Path to LIA (sin(LIA)) GeoTIFF.
+    incidence_angle_path : str, Path, or None
+        Path to incidence angle GeoTIFF.
+
+    Raises
+    ------
+    ValueError
+        If no condition paths are provided, or the store/orbit group doesn't exist.
+    FileNotFoundError
+        If any provided condition path does not exist.
+    """
+    condition_inputs: list[tuple[str, Path]] = []
+    for label, path in [
+        ("gamma_area", gamma_area_path),
+        ("lia", lia_path),
+        ("incidence_angle", incidence_angle_path),
+    ]:
+        if path is not None:
+            p = Path(path)
+            if not p.exists():
+                raise FileNotFoundError(f"Condition GeoTIFF not found: {p}")
+            condition_inputs.append((label, p))
+
+    if not condition_inputs:
+        raise ValueError("At least one condition path must be provided")
+
+    store_path = Path(store_path)
+    if not store_path.exists():
+        raise ValueError(f"Store does not exist: {store_path}")
+
+    orbit_suffix = f"{relative_orbit:03d}"
+
+    root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
+    if orbit_direction not in root:
+        raise ValueError(
+            f"Orbit direction '{orbit_direction}' not found in store. "
+            "Ingest at least one acquisition first."
+        )
+
+    orbit = root[orbit_direction]
+
+    # Read reference metadata from the first condition file
+    ref_label, ref_path = condition_inputs[0]
+    with rasterio.open(str(ref_path)) as src:
+        ref_crs = str(src.crs)
+        t = src.transform
+        ref_transform = [t.a, t.b, t.c, t.d, t.e, t.f]
+        ref_shape = [src.height, src.width]
+
+    # Validate CRS consistency with orbit group
+    orbit_attrs = dict(orbit.attrs)
+    store_crs = orbit_attrs.get("proj:code")
+    if store_crs and store_crs != ref_crs:
+        raise ValueError(
+            f"CRS mismatch: store has {store_crs}, condition GeoTIFF has {ref_crs}"
+        )
+
+    # Validate transform/shape against orbit group's native grid
+    store_layout = orbit_attrs.get("multiscales", {}).get("layout", [])
+    if store_layout:
+        native_entry = store_layout[0]
+        store_transform = native_entry.get("spatial:transform")
+        if store_transform and store_transform != ref_transform:
+            raise ValueError(
+                f"Transform mismatch: orbit group native grid has {store_transform}, "
+                f"condition GeoTIFF has {ref_transform}"
+            )
+        store_shape = native_entry.get("spatial:shape")
+        if store_shape and store_shape != ref_shape:
+            raise ValueError(
+                f"Shape mismatch: orbit group native grid has {store_shape}, "
+                f"condition GeoTIFF has {ref_shape}"
+            )
+
+    # Create or open conditions group
+    if "conditions" not in orbit:
+        conditions = orbit.create_group("conditions")
+        conditions.attrs.update(
+            {
+                "proj:code": ref_crs,
+                "spatial:dimensions": ["y", "x"],
+                "spatial:transform": ref_transform,
+                "spatial:shape": ref_shape,
+            }
+        )
+        log.info("Created conditions group", orbit_direction=orbit_direction)
+    else:
+        conditions = orbit["conditions"]
+        # Validate existing conditions metadata matches the reference
+        cond_attrs = dict(conditions.attrs)
+        cond_crs = cond_attrs.get("proj:code")
+        if cond_crs is not None and cond_crs != ref_crs:
+            raise ValueError(
+                f"CRS mismatch: existing conditions group has {cond_crs}, "
+                f"reference condition GeoTIFF has {ref_crs}"
+            )
+
+    # Write each condition array
+    for label, cond_path in condition_inputs:
+        array_name = f"{label}_{orbit_suffix}"
+
+        with rasterio.open(str(cond_path)) as src:
+            cond_crs = str(src.crs)
+            t = src.transform
+            cond_transform = [t.a, t.b, t.c, t.d, t.e, t.f]
+            cond_shape = [src.height, src.width]
+            data = src.read(1).astype(np.float32)
+
+        # Validate each condition file against the reference grid
+        if cond_crs != ref_crs:
+            raise ValueError(
+                f"CRS mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_crs}, got {cond_crs}"
+            )
+        if cond_transform != ref_transform:
+            raise ValueError(
+                f"Transform mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_transform}, got {cond_transform}"
+            )
+        if cond_shape != ref_shape:
+            raise ValueError(
+                f"Shape mismatch for condition '{label}' at '{cond_path}': "
+                f"expected {ref_shape}, got {cond_shape}"
+            )
+
+        h, w = data.shape
+
+        if array_name in conditions:
+            existing = conditions[array_name]
+            if existing.shape != data.shape:
+                raise ValueError(
+                    f"Shape mismatch for condition array '{array_name}': "
+                    f"existing {existing.shape}, new {data.shape}"
+                )
+            existing[:, :] = data
+            log.info("Overwrote condition array", array_name=array_name)
+        else:
+            arr = conditions.create_array(
+                array_name,
+                shape=(h, w),
+                dtype="float32",
+                chunks=(
+                    calculate_aligned_chunk_size(h, 512),
+                    calculate_aligned_chunk_size(w, 512),
+                ),
+                compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
+                fill_value=float("nan"),
+                dimension_names=["y", "x"],
+            )
+            arr[:, :] = data
+            finite_mask = np.isfinite(data)
+            if np.any(finite_mask):
+                min_val = float(np.nanmin(data[finite_mask]))
+                max_val = float(np.nanmax(data[finite_mask]))
+            else:
+                min_val = None
+                max_val = None
+            log.info(
+                "Wrote condition array",
+                array_name=array_name,
+                shape=list(data.shape),
+                min=min_val,
+                max=max_val,
+            )
+
+    log.info(
+        "Conditions ingestion complete",
+        orbit_direction=orbit_direction,
+        relative_orbit=orbit_suffix,
+        arrays=[f"{label}_{orbit_suffix}" for label, _ in condition_inputs],
+    )
+
+
+# =============================================================================
+# Conditions File Discovery
+# =============================================================================
+
+
+def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
+    """Discover S1Tiling condition GeoTIFF files (gamma_area, LIA, incidence_angle).
+
+    Returns a list of dicts. Each dict always includes:
+        tile (str), orbit (str)
+    and may include any of:
+        gamma_area (Path), lia (Path), incidence_angle (Path)
+    depending on which files were discovered for that (tile, orbit).
+
+    Groups by (tile, orbit).
+    """
+    input_dir = Path(input_dir)
+    files = sorted(input_dir.glob("*.tif"))
+    groups: dict[tuple[str, str], dict] = {}
+
+    for f in files:
+        m = S1TILING_GAMMA_AREA_PATTERN.match(f.name)
+        if m:
+            tile = m.group("tile").upper()
+            orbit = m.group("orbit")
+            key = (tile, orbit)
+            if key not in groups:
+                groups[key] = {"tile": tile, "orbit": orbit}
+            if "gamma_area" in groups[key]:
+                log.warning(
+                    "Duplicate gamma_area for same tile/orbit, overwriting",
+                    tile=tile, orbit=orbit, old=str(groups[key]["gamma_area"]),
+                    new=str(f),
+                )
+            groups[key]["gamma_area"] = f
+            continue
+
+        m = S1TILING_LIA_PATTERN.match(f.name)
+        if m:
+            tile = m.group("tile").upper()
+            orbit = m.group("orbit")
+            key = (tile, orbit)
+            if key not in groups:
+                groups[key] = {"tile": tile, "orbit": orbit}
+            groups[key]["lia"] = f
+            continue
+
+        m = S1TILING_INCIDENCE_ANGLE_PATTERN.match(f.name)
+        if m:
+            tile = m.group("tile").upper()
+            orbit = m.group("orbit")
+            key = (tile, orbit)
+            if key not in groups:
+                groups[key] = {"tile": tile, "orbit": orbit}
+            groups[key]["incidence_angle"] = f
+
+    conditions = list(groups.values())
+    log.info("Discovered conditions", count=len(conditions), input_dir=str(input_dir))
+    return conditions
