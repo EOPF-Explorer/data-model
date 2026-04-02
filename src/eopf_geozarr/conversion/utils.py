@@ -154,6 +154,38 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
     return min(target_chunk_size, dimension_size)
 
 
+def calculate_shard_dimension(data_dim: int, chunk_dim: int) -> int:
+    """Calculate shard dimension that is evenly divisible by chunk dimension.
+
+    For Zarr v3 sharding with Dask, the shard dimension must be evenly
+    divisible by the chunk dimension to avoid checksum mismatches.
+
+    Parameters
+    ----------
+    data_dim : int
+        Size of the data dimension
+    chunk_dim : int
+        Size of the chunk dimension
+
+    Returns
+    -------
+    int
+        Shard dimension that is evenly divisible by chunk_dim
+    """
+    if chunk_dim >= data_dim:
+        return data_dim
+
+    num_complete_chunks = data_dim // chunk_dim
+
+    if num_complete_chunks >= 2:
+        for multiplier in range(num_complete_chunks + 1, 2, -1):
+            shard_size = multiplier * chunk_dim
+            if shard_size <= data_dim:
+                return shard_size
+
+    return num_complete_chunks * chunk_dim if num_complete_chunks > 0 else data_dim
+
+
 def validate_existing_band_data(
     existing_group: xr.Dataset, var_name: str, reference_ds: xr.Dataset
 ) -> bool:

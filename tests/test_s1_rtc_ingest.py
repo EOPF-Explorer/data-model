@@ -23,6 +23,8 @@ from eopf_geozarr.conversion.s1_ingest import (
     ingest_s1tiling_acquisition,
     parse_s1tiling_filename,
 )
+from eopf_geozarr.data_api.s1_rtc import S1RtcRoot
+from pydantic_zarr.v3 import GroupSpec
 
 # =============================================================================
 # Constants
@@ -513,3 +515,31 @@ class TestDiscoverAcquisitions:
         _create_synthetic_geotiff(tmp_path / "random_file.tif", data, tags=ACQ1_TAGS)
         acqs = discover_s1tiling_acquisitions(tmp_path)
         assert len(acqs) == 0
+
+
+# =============================================================================
+# Schema validation tests
+# =============================================================================
+
+
+class TestSchemaValidation:
+    def _get_acq_paths(self, geotiff_dir: Path, stamp: str) -> tuple[Path, Path, Path]:
+        vv = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        vh = geotiff_dir / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        mask = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
+        return vv, vh, mask
+
+    def test_produced_store_conforms_to_schema(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Verify that an ingested store validates against S1RtcRoot."""
+        vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        untyped = GroupSpec.from_zarr(root).model_dump()
+        model = S1RtcRoot(**untyped)
+        assert model.ascending is not None
+        assert "vv" in model.ascending.r10m.members
+        assert "x" in model.ascending.r10m.members
+        assert "y" in model.ascending.r10m.members

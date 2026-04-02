@@ -117,13 +117,16 @@ class S1RtcConditionsAttrs(BaseModel):
 class S1RtcNativeResolutionMembers(TypedDict, closed=True, total=False):  # type: ignore[call-arg]
     """Members for the native resolution dataset (r10m).
 
-    Data variables (time, Y, X) plus 1-D coordinate variables (time,).
-    All fields optional since not all arrays are present during incremental construction.
+    Data variables (time, Y, X) plus 1-D spatial and temporal coordinate
+    variables.  All fields optional since not all arrays are present during
+    incremental construction.
     """
 
     vv: ArraySpec[Any]
     vh: ArraySpec[Any]
     border_mask: ArraySpec[Any]
+    x: ArraySpec[Any]
+    y: ArraySpec[Any]
     time: ArraySpec[Any]
     absolute_orbit: ArraySpec[Any]
     relative_orbit: ArraySpec[Any]
@@ -133,12 +136,14 @@ class S1RtcNativeResolutionMembers(TypedDict, closed=True, total=False):  # type
 class S1RtcOverviewResolutionMembers(TypedDict, closed=True, total=False):  # type: ignore[call-arg]
     """Members for overview resolution datasets (r20m … r720m).
 
-    Only data variables, no coordinate arrays.
+    Data variables plus 1-D spatial coordinate arrays (x, y).
     """
 
     vv: ArraySpec[Any]
     vh: ArraySpec[Any]
     border_mask: ArraySpec[Any]
+    x: ArraySpec[Any]
+    y: ArraySpec[Any]
 
 
 # ============================================================================

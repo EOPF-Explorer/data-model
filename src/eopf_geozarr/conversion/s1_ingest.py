@@ -25,7 +25,11 @@ import zarr
 import zarr.codecs
 from zarr_cm import geo_proj, multiscales as multiscales_cm, spatial as spatial_cm
 
-from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size, downsample_2d_array
+from eopf_geozarr.conversion.utils import (
+    calculate_aligned_chunk_size,
+    calculate_shard_dimension,
+    downsample_2d_array,
+)
 
 log = structlog.get_logger()
 
@@ -239,8 +243,8 @@ def _create_spatial_coordinate_arrays(
     y_origin = level_transform[5]  # f: y origin (top edge)
 
     # Pixel-center convention: offset by half a pixel from the edge origin
-    x_coords = x_origin + (np.arange(level_w, dtype="float64") + 0.5) * pixel_w
-    y_coords = y_origin + (np.arange(level_h, dtype="float64") + 0.5) * pixel_h
+    x_coords = (x_origin + (np.arange(level_w, dtype="float64") + 0.5) * pixel_w).astype("float32")
+    y_coords = (y_origin + (np.arange(level_h, dtype="float64") + 0.5) * pixel_h).astype("float32")
 
     x_arr = level_group.create_array(
         "x",
@@ -309,12 +313,14 @@ def _create_orbit_group(
             }
         )
 
-        inner_chunks = (
+        chunk_h = calculate_aligned_chunk_size(level_h, 512)
+        chunk_w = calculate_aligned_chunk_size(level_w, 512)
+        inner_chunks = (1, chunk_h, chunk_w)
+        shard_shape = (
             1,
-            calculate_aligned_chunk_size(level_h, 512),
-            calculate_aligned_chunk_size(level_w, 512),
+            calculate_shard_dimension(level_h, chunk_h),
+            calculate_shard_dimension(level_w, chunk_w),
         )
-        shard_shape = (1, level_h, level_w)
 
         for name, dtype, fill in [
             ("vv", "float32", float("nan")),
@@ -474,6 +480,31 @@ def ingest_s1tiling_acquisition(
     else:
         root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
         if orbit_direction not in root:
+            # Validate against existing orbit groups before creating a new one
+            for existing_name in root.members:
+                existing_group = root[existing_name]
+                existing_crs = dict(existing_group.attrs).get("proj:code")
+                if existing_crs and existing_crs != meta.crs:
+                    raise ValueError(
+                        f"CRS mismatch: existing orbit group '{existing_name}' has "
+                        f"{existing_crs}, GeoTIFF has {meta.crs}"
+                    )
+                existing_layout = (
+                    dict(existing_group.attrs).get("multiscales", {}).get("layout", [])
+                )
+                if existing_layout:
+                    existing_shape = existing_layout[0].get("spatial:shape")
+                    if existing_shape and existing_shape != meta.shape:
+                        raise ValueError(
+                            f"Shape mismatch: existing orbit group '{existing_name}' has "
+                            f"{existing_shape}, GeoTIFF has {meta.shape}"
+                        )
+                    existing_transform = existing_layout[0].get("spatial:transform")
+                    if existing_transform and existing_transform != meta.spatial_transform:
+                        raise ValueError(
+                            f"Transform mismatch: existing orbit group '{existing_name}' has "
+                            f"{existing_transform}, GeoTIFF has {meta.spatial_transform}"
+                        )
             _create_orbit_group(root, orbit_direction, meta)
         else:
             # Validate consistency on append

@@ -25,6 +25,7 @@ from .s1_ingest import (
 )
 from .utils import (
     calculate_aligned_chunk_size,
+    calculate_shard_dimension,
     downsample_2d_array,
     is_grid_mapping_variable,
     validate_existing_band_data,
@@ -34,6 +35,7 @@ __all__ = [
     "async_consolidate_metadata",
     "calculate_aligned_chunk_size",
     "calculate_overview_levels",
+    "calculate_shard_dimension",
     "consolidate_metadata",
     "consolidate_s1_store",
     "create_geozarr_dataset",
