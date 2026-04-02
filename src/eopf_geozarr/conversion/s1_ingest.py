@@ -27,6 +27,10 @@ import zarr
 import zarr.codecs
 from zarr_cm import geo_proj, multiscales as multiscales_cm, spatial as spatial_cm
 
+from eopf_geozarr.conversion.fs_utils import (
+    open_zarr_group,
+    path_exists,
+)
 from eopf_geozarr.conversion.utils import (
     calculate_aligned_chunk_size,
     calculate_shard_dimension,
@@ -397,7 +401,7 @@ def create_s1_store(
 
     Returns the root group.
     """
-    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
+    root = open_zarr_group(str(store_path), mode="w-")
     _create_orbit_group(root, orbit_direction, metadata)
 
     log.info(
@@ -455,7 +459,7 @@ def ingest_s1tiling_acquisition(
     vv_path = Path(vv_path)
     vh_path = Path(vh_path)
     border_mask_path = Path(border_mask_path)
-    store_path = Path(store_path)
+    store_path_str = str(store_path)
 
     for p in [vv_path, vh_path, border_mask_path]:
         if not p.exists():
@@ -494,10 +498,10 @@ def ingest_s1tiling_acquisition(
     )
 
     # Create-or-open store
-    if not store_path.exists():
-        root = create_s1_store(store_path, orbit_direction, meta)
+    if not path_exists(store_path_str):
+        root = create_s1_store(store_path_str, orbit_direction, meta)
     else:
-        root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
+        root = open_zarr_group(store_path_str, mode="r+")
         if orbit_direction not in root:
             # Validate against existing orbit groups before creating a new one
             for existing_name in root.members:
@@ -626,11 +630,13 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
     Must be called AFTER all ingestions complete — consolidated metadata
     caches array shapes and will become stale if called mid-ingestion.
     """
-    zarr.consolidate_metadata(str(store_path), path=orbit_direction, zarr_format=3)
-    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+    store_path_str = str(store_path)
+    root = open_zarr_group(store_path_str, mode="r+")
+    zarr.consolidate_metadata(root.store, path=orbit_direction, zarr_format=3)
+    zarr.consolidate_metadata(root.store, zarr_format=3)
     log.info(
         "Metadata consolidated",
-        store_path=str(store_path),
+        store_path=store_path_str,
         orbit_direction=orbit_direction,
     )
 
@@ -761,13 +767,13 @@ def ingest_s1tiling_conditions(
     if not condition_inputs:
         raise ValueError("At least one condition path must be provided")
 
-    store_path = Path(store_path)
-    if not store_path.exists():
-        raise ValueError(f"Store does not exist: {store_path}")
+    store_path_str = str(store_path)
+    if not path_exists(store_path_str):
+        raise ValueError(f"Store does not exist: {store_path_str}")
 
     orbit_suffix = f"{relative_orbit:03d}"
 
-    root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
+    root = open_zarr_group(store_path_str, mode="r+")
     if orbit_direction not in root:
         raise ValueError(
             f"Orbit direction '{orbit_direction}' not found in store. "

@@ -310,3 +310,144 @@ def test_cli_crs_groups_empty_list(tmp_path: str) -> None:
     # Should succeed (empty crs_groups list is valid)
     assert result.returncode == 0, f"CLI with empty --crs-groups failed: {result.stderr}"
     assert "CRS groups: []" in result.stdout, "Should show empty CRS groups list"
+
+
+# =============================================================================
+# S1 RTC CLI E2E tests
+# =============================================================================
+
+
+@pytest.fixture()
+def s1_cli_geotiff_dir(tmp_path: Path) -> Path:
+    """Create synthetic S1Tiling GeoTIFFs for CLI E2E tests."""
+    import numpy as np
+    import rasterio
+    from rasterio.transform import from_bounds
+
+    size = 256
+    xmin, ymin, xmax, ymax = 500000.0, 4997440.0, 502560.0, 5000000.0
+    transform = from_bounds(xmin, ymin, xmax, ymax, size, size)
+    crs = "EPSG:32633"
+    rng = np.random.default_rng(42)
+
+    tags = {
+        "ACQUISITION_DATETIME": "2023:01:15T06:12:34Z",
+        "ORBIT_NUMBER": "47001",
+        "RELATIVE_ORBIT_NUMBER": "037",
+        "FLYING_UNIT_CODE": "S1A",
+        "CALIBRATION": "gamma_naught",
+        "INPUT_S1_IMAGES": "S1A_IW_GRDH_1SDV_20230115",
+    }
+
+    def _write(filename: str, data: np.ndarray, t: dict | None = None) -> None:
+        with rasterio.open(
+            str(tmp_path / filename), "w", driver="GTiff",
+            height=data.shape[0], width=data.shape[1], count=1,
+            dtype=data.dtype, crs=crs, transform=transform,
+        ) as dst:
+            if t:
+                dst.update_tags(**t)
+            dst.write(data, 1)
+
+    vv = rng.uniform(0.0, 1.0, (size, size)).astype(np.float32)
+    vh = rng.uniform(0.0, 0.5, (size, size)).astype(np.float32)
+    mask = np.ones((size, size), dtype=np.uint8)
+    mask[:10, :] = 0
+
+    _write("s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif", vv, tags)
+    _write("s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif", vh, tags)
+    _write("s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif", mask, tags)
+
+    # Condition GeoTIFFs
+    ga = rng.uniform(0.5, 2.0, (size, size)).astype(np.float32)
+    _write("GAMMA_AREA_32TQM_037.tif", ga)
+
+    return tmp_path
+
+
+def test_s1_ingest_cli(s1_cli_geotiff_dir: Path, tmp_path: Path) -> None:
+    """E2E: ingest-s1 → consolidate-s1 → validate-s1 via CLI."""
+    store = str(tmp_path / "s1-test.zarr")
+    geotiff_dir = s1_cli_geotiff_dir
+
+    # 1) ingest-s1
+    result = subprocess.run(
+        [
+            "python", "-m", "eopf_geozarr", "ingest-s1",
+            "--vv", str(geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"),
+            "--vh", str(geotiff_dir / "s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif"),
+            "--mask", str(geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif"),
+            "--store", store,
+            "--orbit-dir", "ascending",
+        ],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"ingest-s1 failed: {result.stderr}"
+
+    # 2) ingest-s1-conditions
+    result = subprocess.run(
+        [
+            "python", "-m", "eopf_geozarr", "ingest-s1-conditions",
+            "--store", store,
+            "--orbit-dir", "ascending",
+            "--relative-orbit", "37",
+            "--gamma-area", str(geotiff_dir / "GAMMA_AREA_32TQM_037.tif"),
+        ],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"ingest-s1-conditions failed: {result.stderr}"
+
+    # 3) consolidate-s1
+    result = subprocess.run(
+        [
+            "python", "-m", "eopf_geozarr", "consolidate-s1",
+            "--store", store,
+            "--orbit-dir", "ascending",
+        ],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"consolidate-s1 failed: {result.stderr}"
+
+    # 4) validate-s1
+    result = subprocess.run(
+        [
+            "python", "-m", "eopf_geozarr", "validate-s1",
+            "--store", store,
+            "--verbose",
+        ],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"validate-s1 failed: {result.stderr}"
+
+    # 5) Verify xarray can read back the store
+    ds = xr.open_zarr(str(Path(store) / "ascending" / "r10m"))
+    assert "vv" in ds
+    assert ds["vv"].shape[0] == 1
+
+
+def test_s1_validate_cli_rejects_invalid(tmp_path: Path) -> None:
+    """validate-s1 returns non-zero for an invalid store."""
+    import zarr
+
+    # Create a bare Zarr group (no orbit groups → schema validation fails)
+    store = str(tmp_path / "empty.zarr")
+    zarr.open_group(store, mode="w-", zarr_format=3)
+
+    result = subprocess.run(
+        [
+            "python", "-m", "eopf_geozarr", "validate-s1",
+            "--store", store,
+        ],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode != 0
+
+
+def test_s1_cli_help() -> None:
+    """All S1 CLI subcommands display help."""
+    for subcmd in ["ingest-s1", "ingest-s1-conditions", "consolidate-s1", "validate-s1"]:
+        result = subprocess.run(
+            ["python", "-m", "eopf_geozarr", subcmd, "--help"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, f"{subcmd} --help failed"
