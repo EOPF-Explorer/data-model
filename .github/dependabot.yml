@@ -17,6 +17,13 @@ updates:
       include: "scope"
     cooldown:
       default-days: 7
+    groups:
+      pip-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -35,3 +42,11 @@ updates:
       include: "scope"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
+          - "major"
+        patterns:
+          - "*"
