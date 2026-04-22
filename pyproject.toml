@@ -180,6 +180,7 @@ module = [
     "eopf_geozarr.data_api.s1",
     "eopf_geozarr.data_api.s2",
     "eopf_geozarr.data_api.geozarr.v2",
+    "eopf_geozarr.data_api.geozarr.store",
 ]
 disable_error_code = ["valid-type"]
 

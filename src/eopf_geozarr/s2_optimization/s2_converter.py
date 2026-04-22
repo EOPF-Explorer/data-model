@@ -344,7 +344,7 @@ def write_store_root_bbox(output_path: str) -> None:
         for child in group.groups():
             _walk(child[1])
 
-    for child_name, child_group in root.groups():
+    for _, child_group in root.groups():
         _walk(child_group)
 
     if not bboxes_4326:

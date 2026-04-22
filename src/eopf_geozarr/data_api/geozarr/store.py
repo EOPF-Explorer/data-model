@@ -5,23 +5,25 @@ summary spatial footprint (`spatial:bbox` + optional CRS), and nested multiscale
 groups carry mandatory `spatial:bbox` at the root plus `spatial:transform` +
 `spatial:shape` on every layout entry.
 
-Tightens the looser convention-level models defined in `geozarr.multiscales`,
+Tightens the zarr convention-level models defined in `geozarr.multiscales`,
 `geozarr.spatial` and `geozarr.geoproj` without replacing them.
 """
 
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.experimental.missing_sentinel import MISSING  # noqa: F401  (re-export for mypy)
 from pydantic_zarr.v3 import ArraySpec, GroupSpec
 
 from eopf_geozarr.data_api.geozarr.common import is_none
 from eopf_geozarr.data_api.geozarr.multiscales import MultiscaleMeta
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import MultiscaleGroupAttrs
-from eopf_geozarr.data_api.geozarr.multiscales.zcm import ScaleLevel, Transform
-from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
+from eopf_geozarr.data_api.geozarr.multiscales.zcm import ScaleLevel
 
+if TYPE_CHECKING:
+    from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
 
 WGS84_CODE = "EPSG:4326"
 
@@ -36,13 +38,15 @@ class GeoZarrStoreAttrs(BaseModel):
     """
 
     bbox: list[float] = Field(alias="spatial:bbox", min_length=4, max_length=4)
-    code: str | None = Field(
-        None, alias="proj:code", exclude_if=is_none, pattern="^[A-Z]+:[0-9]+$"
-    )
+    code: str | None = Field(None, alias="proj:code", exclude_if=is_none, pattern="^[A-Z]+:[0-9]+$")
     wkt2: str | None = Field(None, alias="proj:wkt2", exclude_if=is_none)
     projjson: ProjJSON | None = Field(None, alias="proj:projjson", exclude_if=is_none)
 
-    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
+    model_config = ConfigDict(
+        extra="allow",
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
 
     @model_validator(mode="after")
     def validate_bbox_order(self) -> Self:
@@ -66,9 +70,7 @@ class GeoZarrStoreAttrs(BaseModel):
 
     @model_validator(mode="after")
     def validate_crs_consistency(self) -> Self:
-        crs_fields_set = sum(
-            1 for v in (self.code, self.wkt2, self.projjson) if v is not None
-        )
+        crs_fields_set = sum(1 for v in (self.code, self.wkt2, self.projjson) if v is not None)
         if crs_fields_set > 1:
             raise ValueError(
                 "At most one of proj:code, proj:wkt2, proj:projjson may be set at the store root"
@@ -80,26 +82,32 @@ class GeoZarrScaleLevel(ScaleLevel):
     """Multiscale layout entry with mandatory `spatial:transform` + `spatial:shape`."""
 
     spatial_shape: list[int] = Field(alias="spatial:shape", min_length=2, max_length=2)
-    spatial_transform: list[float] = Field(
-        alias="spatial:transform", min_length=6, max_length=6
-    )
+    spatial_transform: list[float] = Field(alias="spatial:transform", min_length=6, max_length=6)
 
-    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
+    model_config = ConfigDict(
+        extra="allow",
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
 
 
 class GeoZarrMultiscaleMeta(MultiscaleMeta):
     """Multiscale metadata where every layout entry is a `GeoZarrScaleLevel`."""
 
-    layout: tuple[GeoZarrScaleLevel, ...]  # type: ignore[assignment]
+    layout: tuple[GeoZarrScaleLevel, ...]
 
 
 class GeoZarrMultiscaleGroupAttrs(MultiscaleGroupAttrs):
     """Multiscale group attributes with a mandatory `spatial:bbox`."""
 
-    multiscales: GeoZarrMultiscaleMeta  # type: ignore[assignment]
+    multiscales: GeoZarrMultiscaleMeta
     spatial_bbox: list[float] = Field(alias="spatial:bbox", min_length=4, max_length=4)
 
-    model_config = {"extra": "allow", "populate_by_name": True, "serialize_by_alias": True}
+    model_config = ConfigDict(
+        extra="allow",
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
 
     @model_validator(mode="after")
     def validate_bbox_order(self) -> Self:
@@ -111,7 +119,10 @@ class GeoZarrMultiscaleGroupAttrs(MultiscaleGroupAttrs):
         return self
 
 
-class GeoZarr(GroupSpec[GeoZarrStoreAttrs, "GroupSpec[Any, Any] | ArraySpec"]):
+GeoZarrMember = GroupSpec[Any, Any] | ArraySpec
+
+
+class GeoZarr(GroupSpec[GeoZarrStoreAttrs, GeoZarrMember]):
     """A GeoZarr store.
 
     Pairs the required store-root attributes with arbitrary Zarr children.
