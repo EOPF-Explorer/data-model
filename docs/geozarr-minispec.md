@@ -49,6 +49,66 @@ and their attributes before moving to higher-level structures like groups and th
 
 This specification targets **Zarr V3** exclusively. The geo-proj, spatial, and multiscales conventions are all Zarr V3.
 
+## Store Root
+
+A GeoZarr Store is the outermost Zarr group of a dataset — the group located at the root of the Zarr store (e.g. `my_dataset.zarr/zarr.json`). It sits above any [Dataset](#dataset) or [Multiscale Dataset](#multiscale-dataset) nodes in the hierarchy and is intended to give clients a single place to read a **summary spatial footprint** for the whole store without having to walk into child groups.
+
+### Attributes
+
+The store root carries a top-level spatial footprint. This is **informative**: it helps clients place the store spatially (STAC-style discovery) but is not authoritative — per-Dataset / per-Multiscale Dataset `spatial:` and `proj:` attributes remain the source of truth for reading individual variables.
+
+| key | type | required | notes |
+| --- | ---- | -------- | ----- |
+| `spatial:bbox` | number[4] | yes | Bounding box `[xmin, ymin, xmax, ymax]` covering the union of all spatial assets in the store |
+| `proj:code` | string | conditional* | CRS of the bbox. May be omitted when the bbox is expressed in **EPSG:4326** (the default, STAC convention). Required when `spatial:bbox` is expressed in any other CRS |
+| `proj:wkt2` | string | conditional* | WKT2 representation of the bbox CRS. Alternative to `proj:code` when the CRS has no authority code |
+| `proj:projjson` | object | conditional* | PROJJSON representation of the bbox CRS. Alternative to `proj:code` |
+
+\* Exactly one of `proj:code`, `proj:wkt2`, `proj:projjson` MUST be provided when `spatial:bbox` is in a CRS other than EPSG:4326. When omitted, readers MUST interpret `spatial:bbox` as EPSG:4326 (longitude/latitude, degrees).
+
+The store root MAY also declare the `spatial:` and `proj:` conventions in its `zarr_conventions` array. Declaration is RECOMMENDED when a non-4326 CRS is used, so clients can introspect the convention metadata.
+
+> [!Note]
+> The store-root `spatial:bbox` is **a summary** — e.g. the union of footprints from all nested Datasets / Multiscale Datasets. It is not a substitute for the per-group `spatial:bbox` defined by the [spatial convention](https://github.com/zarr-conventions/spatial).
+
+### Example — store root with an implicit EPSG:4326 bbox
+
+```json
+{
+    "zarr.json": {
+        "node_type": "group",
+        "zarr_format": 3,
+        "attributes": {
+            "spatial:bbox": [6.45686, 44.13800, 7.87192, 45.14807]
+        }
+    }
+}
+```
+
+### Example — store root with an explicit non-4326 CRS
+
+```json
+{
+    "zarr.json": {
+        "node_type": "group",
+        "zarr_format": 3,
+        "attributes": {
+            "zarr_conventions": [
+                {
+                    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json",
+                    "spec_url": "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md",
+                    "name": "proj:",
+                    "description": "Coordinate reference system information for geospatial data"
+                }
+            ],
+            "proj:code": "EPSG:32632",
+            "spatial:bbox": [296577.1, 4887794.6, 413081.4, 5004299.4]
+        }
+    }
+}
+```
+
 ## DataArray
 
 A DataArray is a Zarr V3 array with named axes.
@@ -244,7 +304,7 @@ The `zarr_conventions` array at the Multiscale Dataset's root group MUST declare
 | `multiscales` | [MultiscalesMetadata](#multiscalesmetadata) | yes | Pyramid layout for this group |
 | `proj:code` | string | conditional* | CRS for all resolution levels (group-level inheritance) |
 | `spatial:dimensions` | string[] | yes | Names of spatial dimensions, e.g. `["Y", "X"]` |
-| `spatial:bbox` | number[] | no | Overall bounding box in the CRS coordinate space |
+| `spatial:bbox` | number[4] | yes | Overall bounding box `[xmin, ymin, xmax, ymax]` in the CRS coordinate space, covering every level in the pyramid |
 
 \* At least one of `proj:code`, `proj:wkt2`, or `proj:projjson` must be provided for geospatial datasets.
 
@@ -267,8 +327,8 @@ Each object in the `layout` array represents one resolution level:
 | `derived_from` | string | no | Path to the source level from which this level was generated. Required to define the transform |
 | `transform` | [TransformObject](#transformobject) | conditional | Required when `derived_from` is present. Describes the relative coordinate transformation from the source level |
 | `resampling_method` | string | no | Per-level override of the default resampling method |
-| `spatial:shape` | integer[] | no | Shape of the spatial dimensions at this level `[height, width]` |
-| `spatial:transform` | number[6] | no | Affine transform coefficients for this level, in Rasterio/Affine ordering `[a, b, c, d, e, f]` |
+| `spatial:shape` | integer[2] | yes | Shape of the spatial dimensions at this level `[height, width]` |
+| `spatial:transform` | number[6] | yes | Absolute affine transform coefficients for this level, in Rasterio/Affine ordering `[a, b, c, d, e, f]` |
 
 #### TransformObject
 
@@ -496,8 +556,8 @@ Key aspects:
 | `derived_from` | string | no | Relative path to the source level |
 | `transform` | TransformObject | conditional | Required when `derived_from` is present |
 | `resampling_method` | string | no | Per-level resampling override |
-| `spatial:shape` | integer[] | no | Spatial dimensions shape `[height, width]` at this level |
-| `spatial:transform` | number[6] | no | Absolute affine transform for this level (Rasterio/Affine ordering) |
+| `spatial:shape` | integer[2] | yes | Spatial dimensions shape `[height, width]` at this level |
+| `spatial:transform` | number[6] | yes | Absolute affine transform for this level (Rasterio/Affine ordering) |
 
 #### TransformObject
 

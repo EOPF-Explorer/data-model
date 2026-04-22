@@ -303,11 +303,60 @@ def simple_root_consolidation(output_path: str, datasets: dict[str, dict]) -> No
     )
     log.info("Root zarr group created")
 
+    # Write the store-root spatial footprint (geozarr minispec, Store Root section).
+    # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
+    # and writes the union on the root `zarr.json`.
+    write_store_root_bbox(output_path)
+
     # consolidate reflectance group metadata
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)
 
     # consolidate root group metadata
     zarr.consolidate_metadata(output_path, zarr_format=3)
+
+
+def write_store_root_bbox(output_path: str) -> None:
+    """Write `spatial:bbox` at the store root by unioning child-group footprints.
+
+    Walks the zarr store, collects every child-group `spatial:bbox` along with
+    its `proj:code`, reprojects each to EPSG:4326 and writes the union as a
+    WGS84 bbox on the root group. No `proj:code` is written at the root, per
+    the Store Root section of the minispec (bbox in EPSG:4326 is the default).
+    """
+    from pyproj import Transformer
+
+    root = zarr.open_group(output_path, mode="r+")
+
+    bboxes_4326: list[tuple[float, float, float, float]] = []
+
+    def _walk(group: zarr.Group) -> None:
+        attrs = dict(group.attrs)
+        bbox = attrs.get("spatial:bbox")
+        code = attrs.get("proj:code")
+        if bbox is not None and len(bbox) == 4:
+            if code and code != "EPSG:4326":
+                transformer = Transformer.from_crs(code, "EPSG:4326", always_xy=True)
+                xmin, ymin = transformer.transform(bbox[0], bbox[1])
+                xmax, ymax = transformer.transform(bbox[2], bbox[3])
+                bboxes_4326.append((xmin, ymin, xmax, ymax))
+            else:
+                bboxes_4326.append(tuple(float(v) for v in bbox))  # type: ignore[arg-type]
+        for child in group.groups():
+            _walk(child[1])
+
+    for child_name, child_group in root.groups():
+        _walk(child_group)
+
+    if not bboxes_4326:
+        log.warning("No child-group spatial:bbox found; skipping store-root bbox")
+        return
+
+    xmin = min(b[0] for b in bboxes_4326)
+    ymin = min(b[1] for b in bboxes_4326)
+    xmax = max(b[2] for b in bboxes_4326)
+    ymax = max(b[3] for b in bboxes_4326)
+    root.attrs["spatial:bbox"] = [xmin, ymin, xmax, ymax]
+    log.info("Wrote store-root spatial:bbox", bbox=[xmin, ymin, xmax, ymax])
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
