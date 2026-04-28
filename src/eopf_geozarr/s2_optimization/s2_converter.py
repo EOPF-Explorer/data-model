@@ -316,12 +316,12 @@ def simple_root_consolidation(output_path: str, datasets: dict[str, dict]) -> No
 
 
 def write_store_root_bbox(output_path: str) -> None:
-    """Write `spatial:bbox` at the store root by unioning child-group footprints.
+    """Write `spatial:bbox` and `proj:code` at the store root.
 
     Walks the zarr store, collects every child-group `spatial:bbox` along with
-    its `proj:code`, reprojects each to EPSG:4326 and writes the union as a
-    WGS84 bbox on the root group. No `proj:code` is written at the root, per
-    the Store Root section of the minispec (bbox in EPSG:4326 is the default).
+    its `proj:code`, reprojects each to EPSG:4326 and writes the union plus
+    the CRS code on the root group. The CRS is always declared explicitly per
+    the Store Root section of the minispec — there is no implicit default.
     """
     from pyproj import Transformer
 
@@ -356,6 +356,7 @@ def write_store_root_bbox(output_path: str) -> None:
     xmax = max(b[2] for b in bboxes_4326)
     ymax = max(b[3] for b in bboxes_4326)
     root.attrs["spatial:bbox"] = [xmin, ymin, xmax, ymax]
+    root.attrs["proj:code"] = "EPSG:4326"
     log.info("Wrote store-root spatial:bbox", bbox=[xmin, ymin, xmax, ymax])
 
 

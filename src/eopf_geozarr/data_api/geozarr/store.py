@@ -1,9 +1,10 @@
 """GeoZarr store model.
 
 Enforces the store-level GeoZarr mini-spec profile: the store root carries a
-summary spatial footprint (`spatial:bbox` + optional CRS), and nested multiscale
-groups carry mandatory `spatial:bbox` at the root plus `spatial:transform` +
-`spatial:shape` on every layout entry.
+mandatory spatial footprint (`spatial:bbox` + a CRS via one of `proj:code`,
+`proj:wkt2`, `proj:projjson`), and nested multiscale groups carry mandatory
+`spatial:bbox` at the root plus `spatial:transform` + `spatial:shape` on every
+layout entry.
 
 Tightens the zarr convention-level models defined in `geozarr.multiscales`,
 `geozarr.spatial` and `geozarr.geoproj` without replacing them.
@@ -11,7 +12,7 @@ Tightens the zarr convention-level models defined in `geozarr.multiscales`,
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.experimental.missing_sentinel import MISSING  # noqa: F401  (re-export for mypy)
@@ -21,20 +22,17 @@ from eopf_geozarr.data_api.geozarr.common import is_none
 from eopf_geozarr.data_api.geozarr.multiscales import MultiscaleMeta
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import MultiscaleGroupAttrs
 from eopf_geozarr.data_api.geozarr.multiscales.zcm import ScaleLevel
-
-if TYPE_CHECKING:
-    from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
-
-WGS84_CODE = "EPSG:4326"
+from eopf_geozarr.data_api.geozarr.projjson import (
+    ProjJSON,  # noqa: TC001  (runtime use by pydantic)
+)
 
 
 class GeoZarrStoreAttrs(BaseModel):
     """Attributes required at the store root (outermost Zarr group).
 
-    `spatial:bbox` is mandatory. When omitted, `proj:code` (or `proj:wkt2` /
-    `proj:projjson`) defaults to WGS84 (EPSG:4326), matching the STAC
-    convention. When the bbox is stored in any other CRS, one of the `proj:*`
-    fields MUST be set.
+    Both `spatial:bbox` and a CRS are mandatory. The CRS is encoded by exactly
+    one of `proj:code`, `proj:wkt2`, or `proj:projjson`; there is no implicit
+    default. Use `"EPSG:4326"` when no other CRS is meaningful.
     """
 
     bbox: list[float] = Field(alias="spatial:bbox", min_length=4, max_length=4)
@@ -63,14 +61,13 @@ class GeoZarrStoreAttrs(BaseModel):
             )
         return self
 
-    @property
-    def effective_crs_code(self) -> str:
-        """Return the explicit proj:code, or WGS84 when no CRS fields are set."""
-        return self.code or WGS84_CODE
-
     @model_validator(mode="after")
-    def validate_crs_consistency(self) -> Self:
+    def validate_crs(self) -> Self:
         crs_fields_set = sum(1 for v in (self.code, self.wkt2, self.projjson) if v is not None)
+        if crs_fields_set == 0:
+            raise ValueError(
+                "Store root requires a CRS: set exactly one of proj:code, proj:wkt2, or proj:projjson"
+            )
         if crs_fields_set > 1:
             raise ValueError(
                 "At most one of proj:code, proj:wkt2, proj:projjson may be set at the store root"

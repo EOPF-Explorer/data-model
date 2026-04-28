@@ -53,39 +53,42 @@ This specification targets **Zarr V3** exclusively. The geo-proj, spatial, and m
 
 A GeoZarr Store is the outermost Zarr group of a dataset — the group located at the root of the Zarr store (e.g. `my_dataset.zarr/zarr.json`). It sits above any [Dataset](#dataset) or [Multiscale Dataset](#multiscale-dataset) nodes in the hierarchy and is intended to give clients a single place to read a **summary spatial footprint** for the whole store without having to walk into child groups.
 
+> [!Note]
+> The hierarchy and identification rules below are local choices made for this implementation. They are subject to revision once the OGC GeoZarr Standards Working Group decides on canonical wording. A follow-up to surface these rules upstream is tracked in [zarr-developers/geozarr-spec#132](https://github.com/zarr-developers/geozarr-spec/issues/132). See also [GeoZarr Specification Contribution](geozarr-specification-contribution.md).
+
+### Hierarchy & Identification
+
+A GeoZarr hierarchy has these properties:
+
+- **Single root**: every GeoZarr store has exactly one root group.
+- **Root naming**: the root group is stored under a prefix ending with `.zarr` (e.g. `my_dataset.zarr/`). Clients given any sub-path inside a GeoZarr store MAY recover the root by walking up the path until they hit a segment ending in `.zarr`.
+- **No nested stores**: the `.zarr` suffix SHOULD occur exactly once in any path within the hierarchy. Nesting GeoZarr stores (e.g. `a.zarr/b/c.zarr/`) is strongly discouraged because it breaks the root-recovery rule above.
+- **Terminal paths**: a path `p` within the hierarchy is *terminal* (a leaf) when any of the following holds:
+  - an array node is reached at `p`,
+  - a group with no members is reached at `p`,
+  - `p` ends with a `zarr.json` file.
+
 ### Attributes
 
 The store root carries a top-level spatial footprint. This is **informative**: it helps clients place the store spatially (STAC-style discovery) but is not authoritative — per-Dataset / per-Multiscale Dataset `spatial:` and `proj:` attributes remain the source of truth for reading individual variables.
 
 | key | type | required | notes |
 | --- | ---- | -------- | ----- |
-| `spatial:bbox` | number[4] | yes | Bounding box `[xmin, ymin, xmax, ymax]` covering the union of all spatial assets in the store |
-| `proj:code` | string | conditional* | CRS of the bbox. May be omitted when the bbox is expressed in **EPSG:4326** (the default, STAC convention). Required when `spatial:bbox` is expressed in any other CRS |
-| `proj:wkt2` | string | conditional* | WKT2 representation of the bbox CRS. Alternative to `proj:code` when the CRS has no authority code |
-| `proj:projjson` | object | conditional* | PROJJSON representation of the bbox CRS. Alternative to `proj:code` |
+| `zarr_conventions` | array | yes | MUST declare the `spatial:` and `proj:` conventions used at the root |
+| `spatial:bbox` | number[4] | yes | Bounding box `[xmin, ymin, xmax, ymax]` covering the union of all spatial assets in the store, expressed in the CRS named by `proj:code` (or `proj:wkt2` / `proj:projjson`) |
+| `proj:code` | string | conditional* | Authority:code identifier of the bbox CRS, e.g. `"EPSG:4326"` |
+| `proj:wkt2` | string | conditional* | WKT2 representation of the bbox CRS |
+| `proj:projjson` | object | conditional* | PROJJSON representation of the bbox CRS |
 
-\* Exactly one of `proj:code`, `proj:wkt2`, `proj:projjson` MUST be provided when `spatial:bbox` is in a CRS other than EPSG:4326. When omitted, readers MUST interpret `spatial:bbox` as EPSG:4326 (longitude/latitude, degrees).
-
-The store root MAY also declare the `spatial:` and `proj:` conventions in its `zarr_conventions` array. Declaration is RECOMMENDED when a non-4326 CRS is used, so clients can introspect the convention metadata.
+\* At least one of `proj:code`, `proj:wkt2`, `proj:projjson` MUST be provided. Use `"EPSG:4326"` (longitude/latitude, degrees) when no other CRS is meaningful — the store-root CRS is always declared explicitly; there is no implicit default.
 
 > [!Note]
 > The store-root `spatial:bbox` is **a summary** — e.g. the union of footprints from all nested Datasets / Multiscale Datasets. It is not a substitute for the per-group `spatial:bbox` defined by the [spatial convention](https://github.com/zarr-conventions/spatial).
 
-### Example — store root with an implicit EPSG:4326 bbox
+> [!Note]
+> A future extension may carry a list-of-bboxes at the root (one global + one per child group), STAC-style. This is tracked in [zarr-developers/geozarr-spec#133](https://github.com/zarr-developers/geozarr-spec/issues/133).
 
-```json
-{
-    "zarr.json": {
-        "node_type": "group",
-        "zarr_format": 3,
-        "attributes": {
-            "spatial:bbox": [6.45686, 44.13800, 7.87192, 45.14807]
-        }
-    }
-}
-```
-
-### Example — store root with an explicit non-4326 CRS
+### Example — store root in EPSG:4326
 
 ```json
 {
@@ -100,6 +103,44 @@ The store root MAY also declare the `spatial:` and `proj:` conventions in its `z
                     "spec_url": "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md",
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
+                },
+                {
+                    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
+                    "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
+                    "name": "spatial:",
+                    "description": "Spatial coordinate information"
+                }
+            ],
+            "proj:code": "EPSG:4326",
+            "spatial:bbox": [6.45686, 44.13800, 7.87192, 45.14807]
+        }
+    }
+}
+```
+
+### Example — store root in a non-4326 CRS
+
+```json
+{
+    "zarr.json": {
+        "node_type": "group",
+        "zarr_format": 3,
+        "attributes": {
+            "zarr_conventions": [
+                {
+                    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json",
+                    "spec_url": "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md",
+                    "name": "proj:",
+                    "description": "Coordinate reference system information for geospatial data"
+                },
+                {
+                    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
+                    "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
+                    "name": "spatial:",
+                    "description": "Spatial coordinate information"
                 }
             ],
             "proj:code": "EPSG:32632",

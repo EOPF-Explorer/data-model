@@ -261,8 +261,8 @@ def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     assert 43.0 < ymin < 45.0, bbox
     assert 7.0 < xmax < 9.0, bbox
     assert 44.0 < ymax < 46.0, bbox
-    # No proj:code at root when result is WGS84
-    assert "proj:code" not in root_attrs
+    # CRS is always declared explicitly at the store root
+    assert root_attrs["proj:code"] == "EPSG:4326"
 
 
 def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
@@ -278,8 +278,9 @@ def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
 
     write_store_root_bbox(str(store_path))
 
-    bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
-    assert bbox == [0.0, 0.0, 3.0, 3.0]
+    root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
+    assert root_attrs["spatial:bbox"] == [0.0, 0.0, 3.0, 3.0]
+    assert root_attrs["proj:code"] == "EPSG:4326"
 
 
 class TestConvenienceFunction:

@@ -48,7 +48,37 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 
 **Impact:** This approach prevents chunk overlap issues with Dask while optimizing for actual data dimensions rather than arbitrary tile sizes, significantly improving performance.
 
-### 3. Multiscale Hierarchy Structure Clarification
+### 3. GeoZarr Hierarchy Boundaries & Root Identification
+
+**Issue:** [zarr-developers/geozarr-spec#132](https://github.com/zarr-developers/geozarr-spec/issues/132)
+
+**Problem:** The current draft does not define how a GeoZarr store is bounded as a set of paths. The base Zarr spec treats the `.zarr` suffix as advisory only, so two implementations can disagree on whether nested stores (e.g. `a.zarr/b/c.zarr/`) are allowed, how a client given a deep URL recovers the root, and where a traversal should stop.
+
+**Our Solution:** We adopted an explicit set of rules in our [Store Root section](geozarr-minispec.md#hierarchy--identification): single root, root prefix ends with `.zarr`, the suffix occurs at most once in the hierarchy, and an enumerated list of terminal-path conditions.
+
+**Impact:** Clients reading a sub-path like `https://example.org/foo.zarr/measurements/reflectance/r10m` can now reliably recover the store root and read its summary `spatial:bbox` + `proj:code`. This also resolves a recurring URL-parsing question raised in [EOPF-Explorer/data-model#124](https://github.com/EOPF-Explorer/data-model/issues/124) without needing fragment-based URL workarounds.
+
+### 4. Store-root Summary Footprint (`spatial:bbox` + `proj:code`)
+
+**Issue:** [EOPF-Explorer/data-model#156](https://github.com/EOPF-Explorer/data-model/issues/156) — to be surfaced upstream once [#132](https://github.com/zarr-developers/geozarr-spec/issues/132) lands.
+
+**Problem:** Without a top-level summary footprint, clients have to walk into child groups to discover where a store sits geographically. That is expensive over network, and prevents STAC-style discovery patterns.
+
+**Our Solution:** A mandatory `spatial:bbox` plus an explicit CRS (one of `proj:code`, `proj:wkt2`, or `proj:projjson`) at the store root, defined in the [Store Root section](geozarr-minispec.md#store-root). The CRS is always declared explicitly — there is no implicit default.
+
+**Impact:** A single read of the root `zarr.json` is enough for catalogues and viewers to place a store on a map, without disturbing per-group `spatial:` attributes which remain authoritative for individual variables.
+
+### 5. STAC-style `spatial:extent` (multi-bbox at root)
+
+**Issue:** [zarr-developers/geozarr-spec#133](https://github.com/zarr-developers/geozarr-spec/issues/133)
+
+**Problem:** A single union `spatial:bbox` at the store root loses per-asset footprint information. Stores that mix several Datasets / Multiscale Datasets cannot expose individual extents without forcing clients to walk every child group.
+
+**Our Solution (proposed):** Mirror STAC's `extent.spatial.bbox` by introducing `spatial:extent` as a list of bboxes — first entry is the global union, subsequent entries are per-child extents. Suggested by @vincentsarago during review of #4 above; deferred until the upstream `spatial:` convention adopts it.
+
+**Impact:** Lets clients fetch all per-child footprints in one request, aligning Zarr discovery with STAC conventions.
+
+### 6. Multiscale Hierarchy Structure Clarification
 
 **Issue:** [zarr-developers/geozarr-spec#83](https://github.com/zarr-developers/geozarr-spec/issues/83)
 
