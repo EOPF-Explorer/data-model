@@ -6,6 +6,7 @@ import json
 import pathlib
 from itertools import pairwise
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -19,6 +20,7 @@ from zarr.core.dtype import Int16
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _coarsen_variable,
+    add_multiscales_metadata_to_parent,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
@@ -54,6 +56,47 @@ def test_create_downsampled_resolution_group_quality_mask() -> None:
     assert "quality_clouds" in out.data_vars
     assert out["quality_clouds"].dtype == np.uint8
     assert out["quality_clouds"].shape == (3, 4)
+
+
+def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_rio(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Derived levels should not reuse a stale rio transform."""
+
+    def _dataset(resolution: int, size: int, x0: float, y0: float) -> xr.Dataset:
+        x = x0 + np.arange(size, dtype="float64") * resolution
+        y = y0 - np.arange(size, dtype="float64") * resolution
+        ds = xr.Dataset(
+            {"band": (["y", "x"], np.ones((size, size), dtype=np.uint16))},
+            coords={"x": x, "y": y},
+        )
+        return ds.rio.write_crs("EPSG:32631")
+
+    r10m = _dataset(10, 12, 600000.0, 4900020.0)
+    r120m = _dataset(120, 3, 600030.0, 4899990.0)
+
+    parent_group = zarr.create_group(tmp_path / "multiscales.zarr")
+
+    def stale_transform() -> tuple[float, float, float, float, float, float]:
+        return (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
+
+    with patch.object(r120m.rio, "transform", stale_transform):
+        add_multiscales_metadata_to_parent(
+            parent_group,
+            {"r10m": r10m, "r120m": r120m},
+            multiscales_flavor={"experimental_multiscales_convention"},
+        )
+
+    layout = parent_group.attrs["multiscales"]["layout"]
+    derived_level = next(level for level in layout if level["asset"] == "r120m")
+    assert tuple(derived_level["spatial:transform"]) == (
+        120.0,
+        0.0,
+        600030.0,
+        0.0,
+        -120.0,
+        4899990.0,
+    )
 
 
 def test_calculate_simple_shard_dimensions() -> None:
