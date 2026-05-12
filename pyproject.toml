@@ -222,7 +222,7 @@ skips = ["B101", "B601"]
 [tool.uv]
 default-groups = ["dev", "test"]
 constraint-dependencies = [
-    "urllib3>=2.6.3",
+    "urllib3>=2.7.0",
     "requests>=2.33.0",
     "cryptography>=46.0.6",
     "tornado>=6.5.5",
