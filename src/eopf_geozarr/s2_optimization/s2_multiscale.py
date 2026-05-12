@@ -69,7 +69,9 @@ def get_grid_spacing(ds: xr.DataArray, coords: tuple[Hashable, ...]) -> tuple[fl
     return tuple(np.abs(ds.coords[coord][0].data - ds.coords[coord][1].data) for coord in coords)
 
 
-def _transform_from_coordinates(dataset: xr.Dataset) -> tuple[float, float, float, float, float, float] | None:
+def _transform_from_coordinates(
+    dataset: xr.Dataset,
+) -> tuple[float, float, float, float, float, float] | None:
     """Construct an affine transform from dataset coordinates when possible."""
     if "x" not in dataset.coords or "y" not in dataset.coords:
         return None
@@ -97,7 +99,9 @@ def _rio_transform_matches_coordinates(
     return all(np.isclose(a, b) for a, b in zip(transform, coordinate_transform, strict=False))
 
 
-def _preferred_spatial_transform(dataset: xr.Dataset) -> tuple[float, float, float, float, float, float] | None:
+def _preferred_spatial_transform(
+    dataset: xr.Dataset,
+) -> tuple[float, float, float, float, float, float] | None:
     """Prefer rio metadata only when it matches the current coordinate grid."""
     coordinate_transform = _transform_from_coordinates(dataset)
     rio_transform: tuple[float, float, float, float, float, float] | None = None
@@ -107,13 +111,25 @@ def _preferred_spatial_transform(dataset: xr.Dataset) -> tuple[float, float, flo
             rio_value = dataset.rio.transform
             if callable(rio_value):
                 rio_value = rio_value()
-            rio_transform = tuple(float(value) for value in tuple(rio_value)[:6])
+            rio_values = tuple(float(value) for value in tuple(rio_value)[:6])
+            if len(rio_values) == 6:
+                rio_transform = (
+                    rio_values[0],
+                    rio_values[1],
+                    rio_values[2],
+                    rio_values[3],
+                    rio_values[4],
+                    rio_values[5],
+                )
         except (AttributeError, TypeError, ValueError):
             rio_transform = None
 
-    if rio_transform is not None and not all(value == 0 for value in rio_transform):
-        if _rio_transform_matches_coordinates(rio_transform, coordinate_transform):
-            return rio_transform
+    if (
+        rio_transform is not None
+        and not all(value == 0 for value in rio_transform)
+        and _rio_transform_matches_coordinates(rio_transform, coordinate_transform)
+    ):
+        return rio_transform
 
     return coordinate_transform or rio_transform
 

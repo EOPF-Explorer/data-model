@@ -259,7 +259,8 @@ class TestWriteGeoMetadata:
             coords={"x": x, "y": y},
         ).rio.write_crs("EPSG:32631")
 
-        stale_transform = lambda: (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
+        def stale_transform() -> tuple[float, float, float, float, float, float]:
+            return (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
 
         with patch.object(ds.rio, "transform", stale_transform):
             write_geo_metadata(ds)

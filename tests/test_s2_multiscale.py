@@ -76,7 +76,9 @@ def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_
     r120m = _dataset(120, 3, 600030.0, 4899990.0)
 
     parent_group = zarr.create_group(tmp_path / "multiscales.zarr")
-    stale_transform = lambda: (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
+
+    def stale_transform() -> tuple[float, float, float, float, float, float]:
+        return (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
 
     with patch.object(r120m.rio, "transform", stale_transform):
         add_multiscales_metadata_to_parent(
