@@ -69,6 +69,55 @@ def get_grid_spacing(ds: xr.DataArray, coords: tuple[Hashable, ...]) -> tuple[fl
     return tuple(np.abs(ds.coords[coord][0].data - ds.coords[coord][1].data) for coord in coords)
 
 
+def _transform_from_coordinates(dataset: xr.Dataset) -> tuple[float, float, float, float, float, float] | None:
+    """Construct an affine transform from dataset coordinates when possible."""
+    if "x" not in dataset.coords or "y" not in dataset.coords:
+        return None
+
+    x_coords = dataset.coords["x"].values
+    y_coords = dataset.coords["y"].values
+    if len(x_coords) < 2 or len(y_coords) < 2:
+        return None
+
+    pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
+    pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+    x_min = float(x_coords.min())
+    y_max = float(y_coords.max())
+    return (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
+
+
+def _rio_transform_matches_coordinates(
+    transform: tuple[float, float, float, float, float, float] | None,
+    coordinate_transform: tuple[float, float, float, float, float, float] | None,
+) -> bool:
+    """Check whether rio-derived metadata matches the current x/y grid."""
+    if transform is None or coordinate_transform is None:
+        return False
+
+    return all(np.isclose(a, b) for a, b in zip(transform, coordinate_transform, strict=False))
+
+
+def _preferred_spatial_transform(dataset: xr.Dataset) -> tuple[float, float, float, float, float, float] | None:
+    """Prefer rio metadata only when it matches the current coordinate grid."""
+    coordinate_transform = _transform_from_coordinates(dataset)
+    rio_transform: tuple[float, float, float, float, float, float] | None = None
+
+    if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
+        try:
+            rio_value = dataset.rio.transform
+            if callable(rio_value):
+                rio_value = rio_value()
+            rio_transform = tuple(float(value) for value in tuple(rio_value)[:6])
+        except (AttributeError, TypeError, ValueError):
+            rio_transform = None
+
+    if rio_transform is not None and not all(value == 0 for value in rio_transform):
+        if _rio_transform_matches_coordinates(rio_transform, coordinate_transform):
+            return rio_transform
+
+    return coordinate_transform or rio_transform
+
+
 def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.DataArray:
     """Coarsen a single variable using type-aware resampling.
 
@@ -607,56 +656,7 @@ def add_multiscales_metadata_to_parent(
         first_var = next(iter(dataset.data_vars.values()))
         height, width = first_var.shape[-2:]
 
-        # Calculate spatial transform (affine transformation)
-        transform = None
-        if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
-            try:
-                # Try to get transform as property first
-                rio_transform = dataset.rio.transform
-                if callable(rio_transform):
-                    rio_transform = rio_transform()
-                transform = tuple(rio_transform)[:6]  # Get 6 coefficients
-                log.info("Got transform from rio accessor", transform=transform, level=res_name)
-            except (AttributeError, TypeError) as e:
-                log.warning(
-                    "Could not get transform from rio accessor", error=str(e), level=res_name
-                )
-
-        if transform is None or all(t == 0 for t in transform):
-            # Fallback: construct from grid spacing and bounds
-            if "x" in dataset.coords and "y" in dataset.coords:
-                # Use coordinate arrays to calculate spacing
-                x_coords = dataset.coords["x"].values
-                y_coords = dataset.coords["y"].values
-
-                if len(x_coords) > 1 and len(y_coords) > 1:
-                    # Calculate pixel size from actual coordinate spacing
-                    pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
-                    pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
-
-                    x_min = float(x_coords.min())
-                    y_max = float(y_coords.max())
-                    transform = (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
-                    log.info(
-                        "Calculated transform from coordinates",
-                        transform=transform,
-                        pixel_size_x=pixel_size_x,
-                        pixel_size_y=pixel_size_y,
-                        level=res_name,
-                    )
-                else:
-                    log.warning(
-                        "Insufficient coordinate points for transform calculation",
-                        x_len=len(x_coords),
-                        y_len=len(y_coords),
-                        level=res_name,
-                    )
-            else:
-                log.warning(
-                    "Missing x/y coordinates for transform calculation",
-                    coords=list(dataset.coords.keys()),
-                    level=res_name,
-                )
+        transform = _preferred_spatial_transform(dataset)
 
         # Calculate zoom level (higher resolution = higher zoom)
         tile_width = 256
@@ -1162,30 +1162,11 @@ def write_geo_metadata(
             y_min, y_max = float(y_coords.min()), float(y_coords.max())
             dataset.attrs["spatial:bbox"] = [x_min, y_min, x_max, y_max]
 
-            # Calculate spatial transform (affine transformation)
-            spatial_transform = None
-            if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
-                try:
-                    rio_transform = dataset.rio.transform
-                    if callable(rio_transform):
-                        rio_transform = rio_transform()
-                    spatial_transform = list(rio_transform)[:6]
-                except (AttributeError, TypeError):
-                    # Fallback: construct from coordinate spacing
-                    pixel_size_x = float(get_grid_spacing(dataset, ("x",))[0])
-                    pixel_size_y = float(get_grid_spacing(dataset, ("y",))[0])
-                    spatial_transform = [
-                        pixel_size_x,
-                        0.0,
-                        x_min,
-                        0.0,
-                        -pixel_size_y,
-                        y_max,
-                    ]
+            spatial_transform = _preferred_spatial_transform(dataset)
 
             # Only add spatial:transform if we have valid transform data (not all zeros)
             if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
-                dataset.attrs["spatial:transform"] = spatial_transform
+                dataset.attrs["spatial:transform"] = list(spatial_transform)
 
             # Add spatial shape if data variables exist
             if dataset.data_vars:

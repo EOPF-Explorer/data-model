@@ -249,6 +249,23 @@ class TestWriteGeoMetadata:
         assert written_ds.rio.crs is not None
         assert written_ds.rio.crs.to_epsg() == 32632
 
+    def test_write_geo_metadata_prefers_coordinate_transform_for_inconsistent_rio(self) -> None:
+        """Derived datasets should derive spatial:transform from current coordinates."""
+
+        x = 600030.0 + np.arange(3, dtype="float64") * 120.0
+        y = 4899990.0 - np.arange(3, dtype="float64") * 120.0
+        ds = xr.Dataset(
+            {"b01": (["y", "x"], np.ones((3, 3), dtype=np.uint16))},
+            coords={"x": x, "y": y},
+        ).rio.write_crs("EPSG:32631")
+
+        stale_transform = lambda: (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
+
+        with patch.object(ds.rio, "transform", stale_transform):
+            write_geo_metadata(ds)
+
+        assert ds.attrs["spatial:transform"] == [120.0, 0.0, 600030.0, 0.0, -120.0, 4899990.0]
+
 
 class TestWriteGeoMetadataEdgeCases:
     """Test edge cases for _write_geo_metadata method."""
