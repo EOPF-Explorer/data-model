@@ -202,6 +202,14 @@ def create_multiscale_from_datatree(
         if group_path == ".":
             continue
 
+        # Skip the quicklook groups (`/quality/l1c_quicklook`, `/quality/l2a_quicklook`).
+        # They duplicate RGB data that downstream consumers can derive from the
+        # reflectance bands, so dropping them shrinks the output store and
+        # speeds up conversion. See EOPF-Explorer/data-model#81.
+        if group_path.startswith(("/quality/l1c_quicklook", "/quality/l2a_quicklook")):
+            log.info("Skipping quicklook group", group_path=group_path)
+            continue
+
         group_node = dt_input[group_path]
 
         # Skip parent groups that have children (only process leaf groups)
