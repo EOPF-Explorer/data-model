@@ -1,11 +1,11 @@
 version: 2
 updates:
   # Enable version updates for Python dependencies
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "wednesday"
       time: "09:00"
     open-pull-requests-limit: 10
     reviewers:
@@ -17,13 +17,20 @@ updates:
       include: "scope"
     cooldown:
       default-days: 7
+    groups:
+      uv-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "wednesday"
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
@@ -35,3 +42,11 @@ updates:
       include: "scope"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
+          - "major"
+        patterns:
+          - "*"
