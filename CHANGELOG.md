@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.0 (2026-05-12)
+
+## What's Changed
+* fix: upgrade pytest to 9.0.3 (CVE-2025-71176) by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/161
+* feat: add store-root spatial:bbox and tighten minispec requirements by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/164
+* feat: implement scale-offset and data type casting via codecs by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/154
+* chore: bump urllib3 to 2.7.0 by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/166
+* chore: skip quicklook groups by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/165
+* chore: group dependabot updates for actions and pip by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/160
+* fix: derive coarse spatial transforms from coordinates by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/168
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.9.0...v0.10.0
+
 ## 0.9.0 (2026-04-02)
 
 ## What's Changed
