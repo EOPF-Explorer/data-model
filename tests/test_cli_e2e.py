@@ -81,8 +81,6 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
         "1024",  # From notebook
         "--min-dimension",
         "256",  # From notebook
-        "--tile-width",
-        "256",  # From notebook
         "--max-retries",
         "3",  # From notebook
         "--verbose",
@@ -239,8 +237,6 @@ def test_cli_convert_with_crs_groups(s2_group_example, tmp_path: Path) -> None:
         "--spatial-chunk",
         "1024",
         "--min-dimension",
-        "256",
-        "--tile-width",
         "256",
         "--max-retries",
         "3",
