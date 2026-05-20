@@ -84,9 +84,7 @@ def test_multiscales_round_trip(s2_optimized_geozarr_group_example: zarr.Group) 
     flat = source_untyped.to_flat()
     meta = flat["/measurements/reflectance"].attributes["multiscales"]
     # pull out the multiscales keys, ignore extra
-    submodel = tuplify_json(
-        {k: meta[k] for k in ZCMMultiscales.model_fields if k in meta}
-    )
+    submodel = tuplify_json({k: meta[k] for k in ZCMMultiscales.model_fields if k in meta})
     assert ZCMMultiscales(**submodel).model_dump() == submodel
 
 

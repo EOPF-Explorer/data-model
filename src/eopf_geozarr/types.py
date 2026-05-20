@@ -44,6 +44,8 @@ class OverviewLevelJSON(TypedDict):
     height: int
     translation_relative: float
     scale_relative: int | float
+    zoom: NotRequired[int]
+    scale_absolute: NotRequired[int | float]
     spatial_transform: NotRequired[tuple[float, ...] | None]
     spatial_shape: NotRequired[tuple[int, ...]]
     chunks: NotRequired[tuple[tuple[int, ...], ...] | None]

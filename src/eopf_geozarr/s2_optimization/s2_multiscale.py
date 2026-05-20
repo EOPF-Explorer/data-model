@@ -545,9 +545,7 @@ def create_measurements_encoding(
         # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
         # otherwise leak into the output).
         is_float = np.issubdtype(var_data.dtype, np.floating)
-        var_data.attrs = utils.sanitize_array_attrs(
-            var_data.attrs, is_decoded_float=is_float
-        )
+        var_data.attrs = utils.sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
         encoding[var_name] = var_encoding
 
     # Add coordinate encoding and sanitize coord attrs (e.g. drop

@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import json
 import pathlib
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def _walk(node: dict, path: str = "") -> Iterator[tuple[str, dict]]:
@@ -48,9 +51,7 @@ def snapshot(request: pytest.FixtureRequest) -> dict:
 
 def test_no_eopf_attrs(snapshot: dict) -> None:
     offenders = [
-        path
-        for path, node in _walk(snapshot)
-        if "_eopf_attrs" in (node.get("attributes") or {})
+        path for path, node in _walk(snapshot) if "_eopf_attrs" in (node.get("attributes") or {})
     ]
     assert not offenders, f"`_eopf_attrs` leaked at: {offenders}"
 
@@ -70,8 +71,7 @@ def test_no_digital_counts_units(snapshot: dict) -> None:
     offenders = [
         path
         for path, node in _walk(snapshot)
-        if _is_float_array(node)
-        and (node.get("attributes") or {}).get("units") == "digital_counts"
+        if _is_float_array(node) and (node.get("attributes") or {}).get("units") == "digital_counts"
     ]
     assert not offenders, f"`units: digital_counts` on floats at: {offenders}"
 

@@ -1,5 +1,6 @@
 """Tests for the eopf-geozarr package."""
 
+import itertools
 import json
 import pathlib
 
@@ -286,7 +287,9 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
         for d in group_path.iterdir()
         if d.is_dir() and d.name.startswith("r") and d.name[1:].isdigit()
     ]
-    print(f"    Found {len(overview_dirs)} overview levels: {sorted(d.name for d in overview_dirs)}")
+    print(
+        f"    Found {len(overview_dirs)} overview levels: {sorted(d.name for d in overview_dirs)}"
+    )
 
     # Native resolution dataset lives at the group root.
     ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3)
@@ -323,7 +326,7 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
 
     # Verify overviews halve dimensions at each successive factor of 2.
     factors_sorted = sorted(level_shapes.keys())
-    for prev, curr in zip(factors_sorted, factors_sorted[1:], strict=False):
+    for prev, curr in itertools.pairwise(factors_sorted):
         if curr != prev * 2:
             continue  # gaps allowed (e.g. r1 → r4 if r2 absent)
         prev_h, prev_w = level_shapes[prev]
@@ -369,8 +372,9 @@ def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> Non
         ]
         # Include native (group root) first, then up to two overviews.
         targets: list[tuple[str, pathlib.Path]] = [("native", group_path)]
-        for ov in sorted(overview_dirs, key=lambda x: int(x.name[1:]))[:2]:
-            targets.append((ov.name, ov))
+        targets.extend(
+            (ov.name, ov) for ov in sorted(overview_dirs, key=lambda x: int(x.name[1:]))[:2]
+        )
 
         for label, level_path in targets:
             ds = xr.open_dataset(str(level_path), engine="zarr", zarr_format=3)

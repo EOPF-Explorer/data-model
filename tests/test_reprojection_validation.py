@@ -172,9 +172,7 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
 
     # Validate base level (native, written at the group root)
     print("✅ Validating base level data...")
-    ds_measurements = xr.open_dataset(
-        str(measurements_root), engine="zarr", zarr_format=3
-    )
+    ds_measurements = xr.open_dataset(str(measurements_root), engine="zarr", zarr_format=3)
     grd = ds_measurements.grd
 
     print(f"   - Data dimensions: {grd.dims}")

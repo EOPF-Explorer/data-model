@@ -655,11 +655,11 @@ def create_geozarr_compliant_multiscales(
     layout: list[zcm.ScaleLevel] = []
     for i, ol in enumerate(overview_levels):
         level_int = int(ol["level"])
-        asset = "." if level_int == 0 else f"r{2 ** level_int}"
+        asset = "." if level_int == 0 else f"r{2**level_int}"
         scale_level_data: dict[str, Any] = {"asset": asset}
         if i > 0:
             prev_level_int = int(overview_levels[i - 1]["level"])
-            prev_asset = "." if prev_level_int == 0 else f"r{2 ** prev_level_int}"
+            prev_asset = "." if prev_level_int == 0 else f"r{2**prev_level_int}"
             scale_level_data["derived_from"] = prev_asset
             scale_level_data["transform"] = zcm.Transform(
                 scale=(2.0, 2.0),
@@ -707,7 +707,7 @@ def create_geozarr_compliant_multiscales(
         if level == 0:
             continue
 
-        asset_name = f"r{2 ** level}"
+        asset_name = f"r{2**level}"
         width = overview["width"]
         height = overview["height"]
 
