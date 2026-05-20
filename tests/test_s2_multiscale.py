@@ -84,7 +84,6 @@ def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_
         add_multiscales_metadata_to_parent(
             parent_group,
             {"r10m": r10m, "r120m": r120m},
-            multiscales_flavor={"experimental_multiscales_convention"},
         )
 
     layout = parent_group.attrs["multiscales"]["layout"]

@@ -16,8 +16,8 @@ from eopf_geozarr.data_api.geozarr.common import (
     check_standard_name,
     get_cf_standard_names,
 )
-from eopf_geozarr.data_api.geozarr.multiscales.tms import (
-    Multiscales as TMSMultiscales,
+from eopf_geozarr.data_api.geozarr.multiscales.zcm import (
+    Multiscales as ZCMMultiscales,
 )
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V2
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V3
@@ -84,8 +84,10 @@ def test_multiscales_round_trip(s2_optimized_geozarr_group_example: zarr.Group) 
     flat = source_untyped.to_flat()
     meta = flat["/measurements/reflectance"].attributes["multiscales"]
     # pull out the multiscales keys, ignore extra
-    submodel = {k: meta[k] for k in TMSMultiscales.__annotations__}
-    assert TMSMultiscales(**submodel).model_dump() == tuplify_json(submodel)
+    submodel = tuplify_json(
+        {k: meta[k] for k in ZCMMultiscales.model_fields if k in meta}
+    )
+    assert ZCMMultiscales(**submodel).model_dump() == submodel
 
 
 def test_projattrs_crs_required() -> None:

@@ -151,7 +151,6 @@ def convert_command(args: argparse.Namespace) -> None:
             log.info("Output path: %s", output_path)
             log.info("Spatial chunk size: %s", args.spatial_chunk)
             log.info("Min dimension: %s", args.min_dimension)
-            log.info("Tile width: %s", args.tile_width)
 
         # Load the EOPF DataTree with appropriate storage options
         log.info("Loading EOPF dataset...")
@@ -175,7 +174,6 @@ def convert_command(args: argparse.Namespace) -> None:
             output_path=output_path,
             spatial_chunk=args.spatial_chunk,
             min_dimension=args.min_dimension,
-            tile_width=args.tile_width,
             max_retries=args.max_retries,
             crs_groups=args.crs_groups,
             gcp_group=args.gcp_group,
@@ -1068,12 +1066,6 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=256,
         help="Minimum dimension for overview levels (default: 256)",
-    )
-    convert_parser.add_argument(
-        "--tile-width",
-        type=int,
-        default=256,
-        help="Tile width for TMS compatibility (default: 256)",
     )
     convert_parser.add_argument(
         "--max-retries",

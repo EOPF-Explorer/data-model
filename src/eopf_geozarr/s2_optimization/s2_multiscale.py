@@ -22,11 +22,7 @@ from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
-from eopf_geozarr.conversion.geozarr import (
-    _create_tile_matrix_limits,
-    create_native_crs_tile_matrix_set,
-)
-from eopf_geozarr.data_api.geozarr.multiscales import tms, zcm
+from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleGroupAttrs,
     MultiscaleMeta,
@@ -50,7 +46,7 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
-MultiscalesFlavor = Literal["ogc_tms", "experimental_multiscales_convention"]
+MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
 pyramid_levels = {
     0: 10,  # Level 0: 10m (native for b02,b03,b04,b08)
@@ -419,7 +415,6 @@ def create_multiscale_from_datatree(
     dt_multiscale = add_multiscales_metadata_to_parent(
         parent_group,
         resolution_groups,
-        multiscales_flavor={"ogc_tms", "experimental_multiscales_convention"},
     )
     processed_groups[base_path] = dt_multiscale
 
@@ -521,6 +516,8 @@ def create_measurements_encoding(
             # on the source variable.
             keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue", "filters"}
             var_encoding["fill_value"] = "NaN"
+            # Inject CF _FillValue attribute for xarray issue #11345
+            var_data.attrs["_FillValue"] = np.nan
         elif not keep_scale_offset:
             # When stripping scale/offset, also strip _FillValue since the original
             # _FillValue is in raw integer units and meaningless for decoded float data.
@@ -531,6 +528,8 @@ def create_measurements_encoding(
             # to set the zarr-level fill value, distinct from "_FillValue" which
             # controls CF-convention attribute masking.
             var_encoding["fill_value"] = "NaN"
+            # Inject CF _FillValue attribute for xarray issue #11345
+            var_data.attrs["_FillValue"] = np.nan
 
         for key in keep_keys:
             if key in var_data.encoding:
@@ -542,10 +541,19 @@ def create_measurements_encoding(
                 var_name,
                 set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS,
             )
+        # Sanitize source-only attributes (replace dict — ``.update`` cannot
+        # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
+        # otherwise leak into the output).
+        is_float = np.issubdtype(var_data.dtype, np.floating)
+        var_data.attrs = utils.sanitize_array_attrs(
+            var_data.attrs, is_decoded_float=is_float
+        )
         encoding[var_name] = var_encoding
 
-    # Add coordinate encoding
-    for coord_name in dataset.coords:
+    # Add coordinate encoding and sanitize coord attrs (e.g. drop
+    # ``_eopf_attrs`` from datetime coords carried in from the source).
+    for coord_name, coord_data in dataset.coords.items():
+        coord_data.attrs = utils.sanitize_array_attrs(coord_data.attrs)
         encoding[coord_name] = {"compressors": []}  # type: ignore[typeddict-item]
 
     return encoding
@@ -607,12 +615,9 @@ def calculate_simple_shard_dimensions(
 def add_multiscales_metadata_to_parent(
     group: zarr.Group,
     res_groups: Mapping[str, xr.Dataset],
-    multiscales_flavor: set[MultiscalesFlavor] | None = None,
 ) -> xr.DataTree:
     """Add GeoZarr-compliant multiscales metadata to parent group."""
     # Sort by resolution (finest to coarsest)
-    if multiscales_flavor is None:
-        multiscales_flavor = {"ogc_tms", "experimental_multiscales_convention"}
     res_order = {
         "r10m": 10,
         "r20m": 20,
@@ -770,71 +775,46 @@ def add_multiscales_metadata_to_parent(
         log.info("    Could not create overview levels for {}", base_path=group.path)
         return None
 
-    multiscales: dict[str, Any] = {"multiscales": {}}
     layout: list[zcm.ScaleLevel] | MISSING = MISSING  # type: ignore[valid-type]
-    tile_matrix_set: tms.TileMatrixSet | MISSING = MISSING  # type: ignore[valid-type]
-    tile_matrix_limits: dict[str, tms.TileMatrixLimit] | MISSING = MISSING  # type: ignore[valid-type]
 
-    if "ogc_tms" in multiscales_flavor:
-        # Create tile matrix set using geozarr function
-        tile_matrix_set = create_native_crs_tile_matrix_set(
-            native_crs,
-            native_bounds,
-            overview_levels,
-            group_prefix=None,
-        )
+    layout = []
 
-        # Create tile matrix limits
-        tile_matrix_limits = _create_tile_matrix_limits(
-            overview_levels,
-            tile_width=256,
-        )
-        multiscales["multiscales"].update(
-            {
-                "tile_matrix_set": tile_matrix_set,
-                "resampling_method": "average",
-                "tile_matrix_limits": tile_matrix_limits,
-            }
-        )
-    if "experimental_multiscales_convention" in multiscales_flavor:
-        layout = []
+    # Define the correct derivation chain
+    derivation_chain = {
+        "r10m": None,  # base resolution
+        "r20m": "r10m",
+        "r60m": "r10m",
+        "r120m": "r60m",
+        "r360m": "r120m",
+        "r720m": "r360m",
+    }
 
-        # Define the correct derivation chain
-        derivation_chain = {
-            "r10m": None,  # base resolution
-            "r20m": "r10m",
-            "r60m": "r10m",
-            "r120m": "r60m",
-            "r360m": "r120m",
-            "r720m": "r360m",
-        }
+    for i, overview_level in enumerate(overview_levels):
+        # Create scale level with required fields
+        asset = str(overview_level["level"])
 
-        for i, overview_level in enumerate(overview_levels):
-            # Create scale level with required fields
-            asset = str(overview_level["level"])
+        # Build complete dict for ScaleLevel initialization
+        scale_level_data: dict[str, Any] = {"asset": asset}
 
-            # Build complete dict for ScaleLevel initialization
-            scale_level_data: dict[str, Any] = {"asset": asset}
+        if i > 0:  # Not the first (base) resolution
+            derived_from = derivation_chain.get(asset, str(all_resolutions[0]))
+            multiscale_transform = zcm.Transform(
+                scale=(overview_level["scale_relative"],) * 2,
+                translation=(overview_level["translation_relative"],) * 2,
+            )
+            scale_level_data["derived_from"] = derived_from
+            scale_level_data["transform"] = multiscale_transform
 
-            if i > 0:  # Not the first (base) resolution
-                derived_from = derivation_chain.get(asset, str(all_resolutions[0]))
-                multiscale_transform = zcm.Transform(
-                    scale=(overview_level["scale_relative"],) * 2,
-                    translation=(overview_level["translation_relative"],) * 2,
-                )
-                scale_level_data["derived_from"] = derived_from
-                scale_level_data["transform"] = multiscale_transform
+        # Add spatial properties
+        scale_level_data["spatial:shape"] = overview_level["spatial_shape"]
+        if "spatial_transform" in overview_level:
+            spatial_transform = overview_level["spatial_transform"]
+            # Only add spatial_transform if we have valid transform data (not all zeros)
+            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+                scale_level_data["spatial:transform"] = spatial_transform
 
-            # Add spatial properties
-            scale_level_data["spatial:shape"] = overview_level["spatial_shape"]
-            if "spatial_transform" in overview_level:
-                spatial_transform = overview_level["spatial_transform"]
-                # Only add spatial_transform if we have valid transform data (not all zeros)
-                if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
-                    scale_level_data["spatial:transform"] = spatial_transform
-
-            scale_level = zcm.ScaleLevel(**scale_level_data)
-            layout.append(scale_level)
+        scale_level = zcm.ScaleLevel(**scale_level_data)
+        layout.append(scale_level)
     # Create convention metadata for all three conventions
     multiscale_attrs = MultiscaleGroupAttrs(
         zarr_conventions=(
@@ -845,8 +825,6 @@ def add_multiscales_metadata_to_parent(
         multiscales=MultiscaleMeta(
             layout=layout,
             resampling_method="average",
-            tile_matrix_set=tile_matrix_set,
-            tile_matrix_limits=tile_matrix_limits,
         ),
     )
 
@@ -902,9 +880,13 @@ def create_original_encoding(dataset: xr.Dataset) -> dict[str, XarrayDataArrayEn
                 var_name,
                 set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS,
             )
+        # Sanitize source-only attributes (replace dict — ``.update`` cannot
+        # remove keys, so stale ``_eopf_attrs`` would otherwise leak through).
+        var_data.attrs = utils.sanitize_array_attrs(var_data.attrs)
         encoding[var_name] = var_encoding
 
-    for coord_name in dataset.coords:
+    for coord_name, coord_data in dataset.coords.items():
+        coord_data.attrs = utils.sanitize_array_attrs(coord_data.attrs)
         encoding[coord_name] = {"compressors": None}
 
     return encoding
@@ -1245,16 +1227,3 @@ def rechunk_dataset_for_encoding(
 
     # Create new dataset with rechunked variables, preserving coordinates
     return xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
-
-
-def extract_scale_offset_encoding(
-    attrs: Mapping[str, Mapping[str, object]],
-) -> dict[str, object]:
-    """
-    extract the scale / offset encoding from _eopf_attrs
-    """
-    encoding = {}
-    encoding["add_offset"] = attrs["_eopf_attrs"]["add_offset"]
-    encoding["scale_factor"] = attrs["_eopf_attrs"]["scale_factor"]
-    encoding["dtype"] = attrs["_eopf_attrs"]["dtype"]
-    return encoding
