@@ -98,3 +98,47 @@ def test_float_measurements_have_fill_value(snapshot: dict) -> None:
         if "_FillValue" not in attrs:
             offenders.append(path)
     assert not offenders, f"float measurements missing `_FillValue`: {offenders}"
+
+
+def test_fill_value_masking_roundtrip(tmp_path: pathlib.Path) -> None:
+    """End-to-end: a float array written with our ``_FillValue`` convention
+    must round-trip through xarray's ``use_zarr_fill_value_as_mask=True``.
+
+    Mirrors the rio-tiler reader expectation: NaN-filled cells become masked
+    when re-opened, all other cells remain unmasked.
+    """
+    import numpy as np
+    import xarray as xr
+
+    # Build a small float dataset following the converter's convention:
+    #   - attrs["_FillValue"] = np.nan (xarray encodes via FillValueCoder)
+    #   - encoding["fill_value"] = "NaN"
+    data = np.arange(50 * 50, dtype="float32").reshape(50, 50)
+    data[0:5, 0:5] = np.nan  # nodata patch
+    da = xr.DataArray(data, dims=("y", "x"), name="band")
+    da.attrs["_FillValue"] = np.nan
+
+    ds = da.to_dataset()
+    store = tmp_path / "roundtrip.zarr"
+    ds.to_zarr(
+        store,
+        zarr_format=3,
+        encoding={"band": {"fill_value": "NaN", "chunks": (25, 25)}},
+        consolidated=True,
+    )
+
+    reopened = xr.open_dataset(
+        store,
+        engine="zarr",
+        zarr_format=3,
+        consolidated=True,
+        decode_times=False,
+        decode_coords=False,
+        use_zarr_fill_value_as_mask=True,
+    )
+    masked = reopened["band"].to_masked_array()
+
+    assert np.ma.is_masked(masked), "NaN cells should be masked when opened with mask=True"
+    assert masked.mask[0, 0], "nodata corner cell must be masked"
+    assert not masked.mask[-1, -1], "valid cell must not be masked"
+    reopened.close()
