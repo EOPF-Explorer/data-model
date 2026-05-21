@@ -101,34 +101,55 @@ def test_float_measurements_have_fill_value(snapshot: dict) -> None:
 
 
 def test_fill_value_masking_roundtrip(tmp_path: pathlib.Path) -> None:
-    """End-to-end: a float array written with our ``_FillValue`` convention
-    must round-trip through xarray's ``use_zarr_fill_value_as_mask=True``.
+    """End-to-end converter check: float arrays produced by
+    ``create_geozarr_dataset`` must round-trip through xarray's
+    ``use_zarr_fill_value_as_mask=True`` so NaN cells come back masked.
 
-    Mirrors the rio-tiler reader expectation: NaN-filled cells become masked
-    when re-opened, all other cells remain unmasked.
+    Mirrors the rio-tiler reader expectation. Builds a minimal float
+    DataTree, runs the real converter, then reopens the output and
+    asserts masking semantics on a measurement band.
     """
     import numpy as np
     import xarray as xr
 
-    # Build a small float dataset following the converter's convention:
-    #   - attrs["_FillValue"] = np.nan (xarray encodes via FillValueCoder)
-    #   - encoding["fill_value"] = "NaN"
-    data = np.arange(50 * 50, dtype="float32").reshape(50, 50)
-    data[0:5, 0:5] = np.nan  # nodata patch
-    da = xr.DataArray(data, dims=("y", "x"), name="band")
-    da.attrs["_FillValue"] = np.nan
+    from eopf_geozarr.conversion import create_geozarr_dataset
 
-    ds = da.to_dataset()
-    store = tmp_path / "roundtrip.zarr"
-    ds.to_zarr(
-        store,
-        zarr_format=3,
-        encoding={"band": {"fill_value": "NaN", "chunks": (25, 25)}},
-        consolidated=True,
+    epsg_code = 32632
+    x_min, x_max = 600000, 605120  # 5.12 km
+    y_min, y_max = 5090000, 5095120
+    nx = ny = 512
+
+    # Float reflectance band with a nodata patch (NaN) — what the converter
+    # would normally see after CF decoding of scale_factor/add_offset.
+    data = np.random.default_rng(42).uniform(0.0, 1.0, size=(ny, nx)).astype("float32")
+    data[0:32, 0:32] = np.nan
+
+    ds = xr.Dataset(
+        {"b04": (["y", "x"], data, {"long_name": "Red band (B04)"})},
+        coords={
+            "x": np.linspace(x_min, x_max, nx, endpoint=False),
+            "y": np.linspace(y_max, y_min, ny, endpoint=False),
+        },
+    ).rio.write_crs(f"EPSG:{epsg_code}")
+
+    dt = xr.DataTree()
+    dt["measurements"] = xr.DataTree()
+    dt["measurements/reflectance"] = xr.DataTree()
+    dt["measurements/reflectance/r10m"] = ds
+
+    output_path = tmp_path / "fill_value_roundtrip.zarr"
+    create_geozarr_dataset(
+        dt_input=dt,
+        groups=["/measurements/reflectance/r10m"],
+        output_path=str(output_path),
+        spatial_chunk=256,
+        min_dimension=128,
+        max_retries=1,
     )
 
+    band_group = output_path / "measurements" / "reflectance" / "r10m"
     reopened = xr.open_dataset(
-        store,
+        band_group,
         engine="zarr",
         zarr_format=3,
         consolidated=True,
@@ -136,9 +157,13 @@ def test_fill_value_masking_roundtrip(tmp_path: pathlib.Path) -> None:
         decode_coords=False,
         use_zarr_fill_value_as_mask=True,
     )
-    masked = reopened["band"].to_masked_array()
-
-    assert np.ma.is_masked(masked), "NaN cells should be masked when opened with mask=True"
-    assert masked.mask[0, 0], "nodata corner cell must be masked"
-    assert not masked.mask[-1, -1], "valid cell must not be masked"
-    reopened.close()
+    try:
+        masked = reopened["b04"].to_masked_array()
+        assert np.ma.is_masked(masked), (
+            "NaN cells in converter output should be masked when opened with "
+            "use_zarr_fill_value_as_mask=True"
+        )
+        assert masked.mask[0, 0], "nodata corner cell must be masked"
+        assert not masked.mask[-1, -1], "valid cell must not be masked"
+    finally:
+        reopened.close()
