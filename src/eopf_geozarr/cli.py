@@ -1074,6 +1074,20 @@ def consolidate_s1_command(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def generate_stac_s1_command(args: argparse.Namespace) -> None:
+    """Build and print a STAC item for an S1 GRD RTC Zarr store."""
+    import json
+
+    from .stac.s1_rtc import build_s1_rtc_stac_item
+
+    try:
+        item = build_s1_rtc_stac_item(args.store, args.collection)
+        print(json.dumps(item.to_dict(), indent=2))
+    except Exception as e:
+        log.exception("❌ Error generating STAC item", error=str(e))
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create the argument parser for the CLI.
@@ -1183,6 +1197,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Add S1 ingestion commands
     add_s1_ingestion_commands(subparsers)
+    add_s1_stac_commands(subparsers)
 
     return parser
 
@@ -1247,6 +1262,24 @@ def add_s1_ingestion_commands(subparsers: argparse._SubParsersAction) -> None:
         help="Orbit direction",
     )
     cons_parser.set_defaults(func=consolidate_s1_command)
+
+
+def add_s1_stac_commands(subparsers: argparse._SubParsersAction) -> None:
+    """Add S1 GRD RTC STAC builder command to CLI parser."""
+    stac_parser = subparsers.add_parser(
+        "generate-stac-s1",
+        help="Build and print a STAC item for an S1 GRD RTC Zarr store",
+    )
+    stac_parser.add_argument(
+        "--store", type=str, required=True, help="Path or s3:// URI to the Zarr store"
+    )
+    stac_parser.add_argument(
+        "--collection",
+        type=str,
+        default="sentinel-1-grd-rtc-staging",
+        help="STAC collection ID (default: sentinel-1-grd-rtc-staging)",
+    )
+    stac_parser.set_defaults(func=generate_stac_s1_command)
 
 
 def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None:
