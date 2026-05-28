@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -494,6 +495,20 @@ class TestDiscoverAcquisitions:
         acqs = discover_s1tiling_acquisitions(tmp_path)
         assert len(acqs) == 0
 
+    def test_s3_uri_discovers_acquisitions(self) -> None:
+        """s3:// prefix is listed via s3fs; pathlib.glob is NOT used."""
+        s3_files = [
+            "bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif",
+            "bucket/prefix/s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif",
+            "bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif",
+            "bucket/prefix/s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif",
+        ]
+        with patch("s3fs.S3FileSystem.glob", return_value=s3_files):
+            acqs = discover_s1tiling_acquisitions("s3://bucket/prefix/")
+        assert len(acqs) == 1
+        expected_vv = "s3://bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        assert acqs[0]["vv"] == expected_vv
+
 
 # =============================================================================
 # Phase 3: Conditions ingestion tests
@@ -757,3 +772,12 @@ class TestDiscoverConditions:
     def test_empty_directory(self, tmp_path: Path) -> None:
         conditions = discover_s1tiling_conditions(tmp_path)
         assert len(conditions) == 0
+
+    def test_s3_uri_discovers_conditions(self) -> None:
+        """s3:// prefix is listed via s3fs; pathlib.glob is NOT used."""
+        s3_files = ["bucket/prefix/GAMMA_AREA_32TQM_037.tif"]
+        with patch("s3fs.S3FileSystem.glob", return_value=s3_files):
+            conditions = discover_s1tiling_conditions("s3://bucket/prefix/")
+        assert len(conditions) == 1
+        assert conditions[0]["tile"] == "32TQM"
+        assert conditions[0]["orbit"] == "037"
