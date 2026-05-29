@@ -374,6 +374,7 @@ def create_s1_store(
             {
                 "spatial:shape": [level_h, level_w],
                 "spatial:transform": level_entry["spatial:transform"],
+                "proj:code": metadata.crs,
             }
         )
 
