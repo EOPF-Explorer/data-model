@@ -137,10 +137,10 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         item.add_asset(
             pol,
             pystac.Asset(
-                href=f"{store_str}/{preferred_orbit}/r10m/{pol}",
+                href=f"{store_str}/{preferred_orbit}",
                 media_type="application/vnd.zarr; version=3",
                 roles=["data"],
-                title=f"{pol.upper()} polarisation (native 10 m)",
+                title=f"{pol.upper()} polarisation",
             ),
         )
 
