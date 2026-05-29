@@ -165,14 +165,14 @@ def test_empty_store_raises(tmp_path: Path) -> None:
 
 
 def test_asset_hrefs(tmp_path: Path) -> None:
-    """zarr-store href = store URI; vv/vh hrefs = {store}/{orbit}/r10m/{pol}."""
+    """zarr-store href = store URI; vv/vh hrefs = {store}/{orbit} (orbit group root, per geozarr spec)."""
     store = _make_s1_store(tmp_path, {"descending": [(T1_NS, "S1A")]})
     item = build_s1_rtc_stac_item(str(store), "sentinel-1-grd-rtc-staging")
 
     store_str = str(store)
     assert item.assets["zarr-store"].href == store_str
-    assert item.assets["vv"].href == f"{store_str}/descending/r10m/vv"
-    assert item.assets["vh"].href == f"{store_str}/descending/r10m/vh"
+    assert item.assets["vv"].href == f"{store_str}/descending"
+    assert item.assets["vh"].href == f"{store_str}/descending"
 
 
 def test_sar_extension_fields(tmp_path: Path) -> None:

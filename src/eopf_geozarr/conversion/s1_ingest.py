@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
+import rasterio.crs
 import structlog
 import zarr
 import zarr.codecs
@@ -294,6 +295,47 @@ def _create_spatial_coordinate_arrays(
     )
 
 
+def _create_tile_matrix_set(crs_string: str, bounds: list[float], layout: list[dict]) -> dict:
+    """Build an OGC TileMatrixSet for the orbit group from the store layout.
+
+    Each resolution level becomes one tile matrix with matrixWidth=matrixHeight=1
+    (one tile covers the full MGRS tile extent), matching the GeoZarr convention
+    used by S2 measurements/reflectance groups.
+    """
+    left, bottom, right, top = bounds
+    native_crs = rasterio.crs.CRS.from_string(crs_string)
+    epsg = native_crs.to_epsg()
+    crs_uri = (
+        f"http://www.opengis.net/def/crs/EPSG/0/{epsg}"
+        if epsg
+        else native_crs.to_wkt()
+    )
+    tile_matrices = []
+    for entry in layout:
+        h, w = entry["spatial:shape"]
+        cell_size = max((right - left) / w, (top - bottom) / h)
+        tile_matrices.append(
+            {
+                "id": entry["asset"],
+                "scaleDenominator": cell_size * 3779.5275,
+                "cellSize": cell_size,
+                "pointOfOrigin": [left, top],
+                "tileWidth": w,
+                "tileHeight": h,
+                "matrixWidth": 1,
+                "matrixHeight": 1,
+            }
+        )
+    return {
+        "id": f"Native_CRS_{epsg or 'Custom'}",
+        "title": f"Native CRS Tile Matrix Set (EPSG:{epsg})",
+        "crs": crs_uri,
+        "supportedCRS": crs_uri,
+        "orderedAxes": ["X", "Y"],
+        "tileMatrices": tile_matrices,
+    }
+
+
 def create_s1_store(
     store_path: str | Path,
     orbit_direction: str,
@@ -304,6 +346,7 @@ def create_s1_store(
     Returns the root group.
     """
     layout = compute_multiscales_layout(metadata.shape, metadata.spatial_transform)
+    tile_matrix_set = _create_tile_matrix_set(metadata.crs, metadata.bounds, layout)
 
     root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
     orbit_group = root.create_group(orbit_direction)
@@ -314,6 +357,7 @@ def create_s1_store(
             "multiscales": {
                 "layout": layout,
                 "resampling_method": "average",
+                "tile_matrix_set": tile_matrix_set,
             },
             "proj:code": metadata.crs,
             "spatial:dimensions": ["y", "x"],
