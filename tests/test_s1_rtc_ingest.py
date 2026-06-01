@@ -234,6 +234,38 @@ class TestCreateStore:
         assert r10m["vv"].dtype == np.float32
         assert r10m["border_mask"].dtype == np.uint8
 
+    def test_no_tile_matrix_set(
+        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
+    ) -> None:
+        # tile_matrix_set is not part of the S1 GRD RTC data model (confirmed with the
+        # data-model owner): the multiscales attribute must not carry one.
+        root = create_s1_store(s1_store_path, "ascending", sample_metadata)
+        ms = dict(root["ascending"].attrs)["multiscales"]
+        assert "tile_matrix_set" not in ms
+        assert "layout" in ms
+
+    def test_cf_grid_mapping_resolves_crs(
+        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
+    ) -> None:
+        # Each resolution level carries a CF spatial_ref grid-mapping so rioxarray (and
+        # TiTiler's GeoZarr reader) can resolve the CRS -- the geozarr proj:code attr
+        # alone is not read by rioxarray.
+        import rioxarray  # noqa: F401  -- registers the .rio accessor
+
+        create_s1_store(s1_store_path, "ascending", sample_metadata)
+        r10m = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)["ascending"]["r10m"]
+        assert "spatial_ref" in list(r10m.array_keys())
+        assert dict(r10m["vv"].attrs).get("grid_mapping") == "spatial_ref"
+        assert dict(r10m["vh"].attrs).get("grid_mapping") == "spatial_ref"
+
+        ds = xr.open_zarr(
+            str(s1_store_path / "ascending" / "r10m"),
+            consolidated=False,
+            decode_coords="all",
+        )
+        assert ds.rio.crs is not None
+        assert ds.rio.crs.to_epsg() == 32633
+
     def test_coordinate_variables(
         self, s1_store_path: Path, sample_metadata: S1TilingMetadata
     ) -> None:
@@ -578,6 +610,9 @@ class TestIngestConditions:
         assert attrs["spatial:dimensions"] == ["y", "x"]
         assert len(attrs["spatial:transform"]) == 6
         assert attrs["spatial:shape"] == [SIZE, SIZE]
+        # CF grid-mapping so rioxarray can resolve the CRS of the condition arrays
+        assert "spatial_ref" in list(conditions.array_keys())
+        assert dict(conditions["gamma_area_037"].attrs).get("grid_mapping") == "spatial_ref"
 
     def test_gamma_area_array_shape_and_dtype(
         self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path

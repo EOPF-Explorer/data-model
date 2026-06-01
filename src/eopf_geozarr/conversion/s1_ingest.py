@@ -22,10 +22,10 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
-import rasterio.crs
 import structlog
 import zarr
 import zarr.codecs
+from pyproj import CRS as PyprojCRS
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
@@ -295,45 +295,34 @@ def _create_spatial_coordinate_arrays(
     )
 
 
-def _create_tile_matrix_set(crs_string: str, bounds: list[float], layout: list[dict]) -> dict:
-    """Build an OGC TileMatrixSet for the orbit group from the store layout.
+def _add_grid_mapping(group: zarr.Group, crs_string: str) -> None:
+    """Add a CF ``spatial_ref`` grid-mapping coordinate to a group holding (y, x) arrays.
 
-    Each resolution level becomes one tile matrix with matrixWidth=matrixHeight=1
-    (one tile covers the full MGRS tile extent), matching the GeoZarr convention
-    used by S2 measurements/reflectance groups.
+    rioxarray -- and TiTiler's GeoZarr reader -- resolve the CRS from a CF
+    ``spatial_ref``/``crs_wkt`` coordinate; the GeoZarr ``proj:code`` attribute alone
+    is not read. This mirrors the S2 converter (which writes a ``spatial_ref``
+    grid-mapping variable via ``rio.write_crs``). The CF attributes come from
+    ``pyproj.CRS.to_cf()`` -- the same source rioxarray uses -- so the projection is
+    described correctly for any CRS rather than hard-coded.
+
+    The scalar ``spatial_ref`` array is created (if absent) and every (y, x) data
+    array in the group is given ``grid_mapping = "spatial_ref"``.
     """
-    left, bottom, right, top = bounds
-    native_crs = rasterio.crs.CRS.from_string(crs_string)
-    epsg = native_crs.to_epsg()
-    crs_uri = (
-        f"http://www.opengis.net/def/crs/EPSG/0/{epsg}"
-        if epsg
-        else native_crs.to_wkt()
-    )
-    tile_matrices = []
-    for entry in layout:
-        h, w = entry["spatial:shape"]
-        cell_size = max((right - left) / w, (top - bottom) / h)
-        tile_matrices.append(
-            {
-                "id": entry["asset"],
-                "scaleDenominator": cell_size * 3779.5275,
-                "cellSize": cell_size,
-                "pointOfOrigin": [left, top],
-                "tileWidth": w,
-                "tileHeight": h,
-                "matrixWidth": 1,
-                "matrixHeight": 1,
-            }
-        )
-    return {
-        "id": f"Native_CRS_{epsg or 'Custom'}",
-        "title": f"Native CRS Tile Matrix Set (EPSG:{epsg})",
-        "crs": crs_uri,
-        "supportedCRS": crs_uri,
-        "orderedAxes": ["X", "Y"],
-        "tileMatrices": tile_matrices,
-    }
+    cf_attrs = PyprojCRS.from_user_input(crs_string).to_cf()
+    # rioxarray writes both ``crs_wkt`` and a ``spatial_ref`` attr holding the WKT.
+    cf_attrs["spatial_ref"] = cf_attrs["crs_wkt"]
+    cf_attrs["_ARRAY_DIMENSIONS"] = []
+
+    if "spatial_ref" in group:
+        sref = group["spatial_ref"]
+    else:
+        sref = group.create_array("spatial_ref", shape=(), dtype="int64", fill_value=0)
+        sref[...] = 0
+    sref.attrs.update(cf_attrs)
+
+    for name, arr in group.arrays():
+        if name != "spatial_ref" and {"y", "x"}.issubset(arr.metadata.dimension_names or ()):
+            arr.attrs["grid_mapping"] = "spatial_ref"
 
 
 def create_s1_store(
@@ -346,7 +335,6 @@ def create_s1_store(
     Returns the root group.
     """
     layout = compute_multiscales_layout(metadata.shape, metadata.spatial_transform)
-    tile_matrix_set = _create_tile_matrix_set(metadata.crs, metadata.bounds, layout)
 
     root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
     orbit_group = root.create_group(orbit_direction)
@@ -357,7 +345,6 @@ def create_s1_store(
             "multiscales": {
                 "layout": layout,
                 "resampling_method": "average",
-                "tile_matrix_set": tile_matrix_set,
             },
             "proj:code": metadata.crs,
             "spatial:dimensions": ["y", "x"],
@@ -404,6 +391,7 @@ def create_s1_store(
         _create_spatial_coordinate_arrays(
             level_group, level_h, level_w, level_entry["spatial:transform"]
         )
+        _add_grid_mapping(level_group, metadata.crs)
 
     # Coordinate variables at native resolution only
     r10m = orbit_group["r10m"]
@@ -586,6 +574,7 @@ def ingest_s1tiling_acquisition(
                 _create_spatial_coordinate_arrays(
                     level_group, level_h, level_w, level_entry["spatial:transform"]
                 )
+                _add_grid_mapping(level_group, meta.crs)
             r10m = orbit_group["r10m"]
             for name, dtype, fill in [
                 ("time", "int64", 0),
@@ -960,6 +949,8 @@ def ingest_s1tiling_conditions(
                 min=float(np.nanmin(data)),
                 max=float(np.nanmax(data)),
             )
+
+    _add_grid_mapping(conditions, ref_crs)
 
     log.info(
         "Conditions ingestion complete",
