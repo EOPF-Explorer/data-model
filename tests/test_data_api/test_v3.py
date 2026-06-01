@@ -81,4 +81,9 @@ def test_multiscale_attrs_round_trip(s2_geozarr_group_example: Any) -> None:
     for val in source_group_members.values():
         if isinstance(val, zarr.Group) and "multiscales" in val.attrs.asdict():
             model_json = MultiscaleGroup.from_zarr(val).model_dump()
-            assert MultiscaleGroup(**model_json).model_dump() == tuplify_json(model_json)
+            # tuplify both sides: level groups may carry list-valued attributes
+            # (e.g. ``spatial:bbox``) that are JSON-equivalent to tuples but not
+            # normalised by ``model_dump`` alone.
+            assert tuplify_json(MultiscaleGroup(**model_json).model_dump()) == tuplify_json(
+                model_json
+            )
