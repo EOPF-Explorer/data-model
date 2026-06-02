@@ -240,28 +240,29 @@ grid_mapping_attrs = {
 
 ### 3. Multiscales Metadata
 
-GeoZarr-compliant multiscales structure:
+The converter writes the [multiscales convention](https://github.com/zarr-conventions/multiscales) attributes on the parent group. Each level entry points at a sibling subgroup (`r{2**level}`) carrying the downsampled dataset:
 
 ```python
 # test: skip
-multiscales = [{
-    'version': '0.4',
-    'name': group_name,
-    'type': 'reduce',
-    'metadata': {
-        'method': 'mean',
-        'version': '0.1.0'
-    },
-    'datasets': [
-        {'path': '0', 'pixels_per_tile': tile_width},
-        {'path': '1', 'pixels_per_tile': tile_width},
-        {'path': '2', 'pixels_per_tile': tile_width}
+multiscales = {
+    "resampling_method": "mean",
+    "layout": [
+        {
+            "asset": "r10m",                     # native, group root
+            "transform": {"scale": [1, 1], "translation": [0, 0]},
+        },
+        {
+            "asset": "r20m",                     # overview
+            "derived_from": "r10m",
+            "transform": {"scale": [2, 2], "translation": [0, 0]},
+        },
+        {
+            "asset": "r40m",
+            "derived_from": "r10m",
+            "transform": {"scale": [4, 4], "translation": [0, 0]},
+        },
     ],
-    'coordinateSystem': {
-        'wkid': crs_epsg,
-        'wkt': crs.to_wkt()
-    }
-}]
+}
 ```
 
 ## Performance Considerations

@@ -3,15 +3,8 @@
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 
-class TileMatrixLimitJSON(TypedDict):
-    tileMatrix: str
-    minTileCol: int
-    minTileRow: int
-    maxTileCol: int
-    maxTileRow: int
-
-
 class XarrayEncodingJSON(TypedDict):
+    fill_value: NotRequired[object]
     chunks: NotRequired[tuple[int, ...]]
     compressors: Any
     shards: NotRequired[Any]
@@ -47,35 +40,15 @@ class StandardLatCoordAttrsJSON(TypedDict):
 
 class OverviewLevelJSON(TypedDict):
     level: int | str
-    zoom: int
     width: int
     height: int
     translation_relative: float
-    scale_absolute: float
     scale_relative: int | float
-    spatial_transform: tuple[float, ...] | None
-    spatial_shape: tuple[int, ...]
-    chunks: tuple[tuple[int, ...], ...] | None
-
-
-class TileMatrixJSON(TypedDict):
-    id: str
-    scaleDenominator: float
-    cellSize: float
-    pointOfOrigin: tuple[float, float]
-    tileWidth: int
-    tileHeight: int
-    matrixWidth: int
-    matrixHeight: int
-
-
-class TileMatrixSetJSON(TypedDict):
-    id: str
-    title: str | None
-    crs: str | None
-    supportedCRS: str | None
-    orderedAxes: tuple[str, str] | None
-    tileMatrices: tuple[TileMatrixJSON, ...]
+    zoom: NotRequired[int]
+    scale_absolute: NotRequired[int | float]
+    spatial_transform: NotRequired[tuple[float, ...] | None]
+    spatial_shape: NotRequired[tuple[int, ...]]
+    chunks: NotRequired[tuple[tuple[int, ...], ...] | None]
 
 
 ResamplingMethod = Literal[
