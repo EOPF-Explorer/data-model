@@ -158,18 +158,21 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
         output_path=str(output_path),
         spatial_chunk=512,
         min_dimension=256,
-        tile_width=256,
         max_retries=3,
         gcp_group="conditions/gcp",
     )
 
-    # Load the result for validation
+    # Load each multiscale level independently. The new layout writes native
+    # data at the ``measurements`` group root and downsampled overviews at
+    # ``measurements/r2`` (etc.). Parent + child groups share dim names ``x``
+    # and ``y`` with different sizes, so ``open_datatree`` over the whole
+    # subtree fails its exact-join alignment check.
     polarization_group = "S01SIWGRD_20170508T164830_0025_A094_8604_01B54C_VH"
-    dt = xr.open_datatree(output_path, group=polarization_group)
+    measurements_root = output_path / polarization_group / "measurements"
 
-    # Validate base level (level 0)
+    # Validate base level (native, written at the group root)
     print("✅ Validating base level data...")
-    ds_measurements = dt["measurements/0"].to_dataset()
+    ds_measurements = xr.open_dataset(str(measurements_root), engine="zarr", zarr_format=3)
     grd = ds_measurements.grd
 
     print(f"   - Data dimensions: {grd.dims}")
@@ -233,9 +236,10 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
 
     # Validate overview levels
     print("✅ Validating overview levels...")
-    assert "1" in dt["measurements"], "Missing overview level 1"
+    r2_path = measurements_root / "r2"
+    assert r2_path.exists(), f"Missing overview r2 at {r2_path}"
 
-    ds_overview = dt["measurements/1"].to_dataset()
+    ds_overview = xr.open_dataset(str(r2_path), engine="zarr", zarr_format=3)
     grd_overview = ds_overview.grd
 
     print(f"   - Overview dimensions: {grd_overview.dims}")

@@ -1,5 +1,6 @@
 """Tests for the eopf-geozarr package."""
 
+import itertools
 import json
 import pathlib
 
@@ -179,11 +180,8 @@ def _verify_basic_structure(output_path: pathlib.Path, groups: list[str]) -> Non
         group_path = output_path / group.lstrip("/")
         assert group_path.exists(), f"Group {group} not found"
         assert (group_path / "zarr.json").exists(), f"Group {group} missing zarr.json"
-
-        # Check that level 0 (native resolution) exists
-        level_0_path = group_path / "0"
-        assert level_0_path.exists(), f"Level 0 not found for {group}"
-        assert (level_0_path / "zarr.json").exists(), f"Level 0 missing zarr.json for {group}"
+        # Native-resolution arrays are written directly at the group root
+        # (new S2-aligned layout — no /0 subdirectory).
 
 
 def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> None:
@@ -199,8 +197,8 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
     """
     print(f"Verifying GeoZarr-spec compliance for {group}...")
 
-    # Open the native resolution dataset (level 0)
-    group_path = str(output_path / group.lstrip("/") / "0")
+    # Open the native resolution dataset (written at the group root)
+    group_path = str(output_path / group.lstrip("/"))
     ds = xr.open_dataset(group_path, engine="zarr", zarr_format=3)
 
     print(f"  Variables: {list(ds.data_vars)}")
@@ -284,76 +282,73 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
 
 
 def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
-    """Verify multiscale structure following notebook patterns."""
+    """Verify multiscale structure (new S2-aligned layout).
+
+    Native-resolution arrays are written directly at the group root; downsampled
+    overviews live under sibling subgroups named ``r2``, ``r4``, ``r8``, …
+    """
     print(f"Verifying multiscale structure for {group}...")
 
     group_path = output_path / group.lstrip("/")
 
-    # Check that at least one level exists (level 0 is always created)
-    level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
-    assert len(level_dirs) >= 1, (
-        f"Expected at least 1 overview level for {group}, found {len(level_dirs)}"
+    # Discover overview subgroups (e.g. r2, r4, r8) — pure rN names.
+    overview_dirs = [
+        d
+        for d in group_path.iterdir()
+        if d.is_dir() and d.name.startswith("r") and d.name[1:].isdigit()
+    ]
+    print(
+        f"    Found {len(overview_dirs)} overview levels: {sorted(d.name for d in overview_dirs)}"
     )
-    print(f"    Found {len(level_dirs)} overview levels: {sorted([d.name for d in level_dirs])}")
 
-    # For larger datasets, expect multiple levels
-    level_0_path = str(group_path / "0")
-    ds_0 = xr.open_dataset(level_0_path, engine="zarr", zarr_format=3)
-    native_size = min(ds_0.sizes["y"], ds_0.sizes["x"])
-    ds_0.close()
+    # Native resolution dataset lives at the group root.
+    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3)
+    native_size = min(ds_native.sizes["y"], ds_native.sizes["x"])
+    ds_native.close()
 
-    if native_size >= 512:  # Larger datasets should have multiple levels
-        assert len(level_dirs) >= 2, (
-            f"Expected multiple overview levels for large dataset {group} (size {native_size}), found {len(level_dirs)}"
+    if native_size >= 512:
+        assert len(overview_dirs) >= 1, (
+            f"Expected at least 1 overview for large dataset {group} (size {native_size}),"
+            f" found {len(overview_dirs)}"
         )
     else:
-        print(f"    Small dataset (size {native_size}), single level is acceptable")
+        print(f"    Small dataset (size {native_size}), no overviews is acceptable")
 
-    # Verify level 0 (native resolution) exists
-    assert (group_path / "0").exists(), f"Level 0 missing for {group}"
+    # Walk levels in factor order: native (1), r2, r4, …
+    level_shapes: dict[int, tuple[int, int]] = {}
+    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3)
+    assert len(ds_native.data_vars) > 0, f"No data variables in {group_path}"
+    assert "x" in ds_native.dims, f"Missing 'x' dimension in {group_path}"
+    assert "y" in ds_native.dims, f"Missing 'y' dimension in {group_path}"
+    level_shapes[1] = (ds_native.sizes["y"], ds_native.sizes["x"])
+    print(f"    Native (r1): {level_shapes[1]} pixels")
+    ds_native.close()
 
-    # Check that each level contains valid data
-    level_shapes = {}
-    for level_dir in sorted(level_dirs, key=lambda x: int(x.name)):
-        level_num = int(level_dir.name)
-        level_path = str(level_dir)
-        ds = xr.open_dataset(level_path, engine="zarr", zarr_format=3)
-
-        # Verify that the dataset has data variables
-        assert len(ds.data_vars) > 0, f"No data variables in {level_path}"
-
-        # Verify that spatial dimensions exist
-        assert "x" in ds.dims, f"Missing 'x' dimension in {level_path}"
-        assert "y" in ds.dims, f"Missing 'y' dimension in {level_path}"
-
-        # Store shape for progression verification
-        level_shapes[level_num] = (ds.dims["y"], ds.dims["x"])
-        print(f"    Level {level_num}: {level_shapes[level_num]} pixels")
-
+    for ov_dir in sorted(overview_dirs, key=lambda x: int(x.name[1:])):
+        factor = int(ov_dir.name[1:])
+        ds = xr.open_dataset(str(ov_dir), engine="zarr", zarr_format=3)
+        assert len(ds.data_vars) > 0, f"No data variables in {ov_dir}"
+        assert "x" in ds.dims, f"Missing 'x' dimension in {ov_dir}"
+        assert "y" in ds.dims, f"Missing 'y' dimension in {ov_dir}"
+        level_shapes[factor] = (ds.sizes["y"], ds.sizes["x"])
+        print(f"    Overview r{factor}: {level_shapes[factor]} pixels")
         ds.close()
 
-    # Verify that overview levels have progressively smaller dimensions (COG-style /2 downsampling)
-    if len(level_shapes) > 1:
-        for level in sorted(level_shapes.keys())[1:]:
-            prev_level = level - 1
-            if prev_level in level_shapes:
-                prev_height, prev_width = level_shapes[prev_level]
-                curr_height, curr_width = level_shapes[level]
-
-                # Check that dimensions are roughly half (allowing for rounding)
-                height_ratio = prev_height / curr_height
-                width_ratio = prev_width / curr_width
-
-                assert 1.8 <= height_ratio <= 2.2, (
-                    f"Height ratio between level {prev_level} and {level} should be ~2, got {height_ratio:.2f}"
-                )
-                assert 1.8 <= width_ratio <= 2.2, (
-                    f"Width ratio between level {prev_level} and {level} should be ~2, got {width_ratio:.2f}"
-                )
-
-                print(
-                    f"    Level {prev_level}→{level} downsampling ratio: {height_ratio:.2f}x{width_ratio:.2f}"
-                )
+    # Verify overviews halve dimensions at each successive factor of 2.
+    factors_sorted = sorted(level_shapes.keys())
+    for prev, curr in itertools.pairwise(factors_sorted):
+        if curr != prev * 2:
+            continue  # gaps allowed (e.g. r1 → r4 if r2 absent)
+        prev_h, prev_w = level_shapes[prev]
+        curr_h, curr_w = level_shapes[curr]
+        height_ratio = prev_h / curr_h
+        width_ratio = prev_w / curr_w
+        assert 1.8 <= height_ratio <= 2.2, (
+            f"Height ratio between r{prev} and r{curr} should be ~2, got {height_ratio:.2f}"
+        )
+        assert 1.8 <= width_ratio <= 2.2, (
+            f"Width ratio between r{prev} and r{curr} should be ~2, got {width_ratio:.2f}"
+        )
 
 
 def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> None:
@@ -363,7 +358,7 @@ def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> Non
     # Find groups with RGB bands (following notebook logic)
     rgb_groups = []
     for group in groups:
-        group_path_str = str(output_path / group.lstrip("/") / "0")
+        group_path_str = str(output_path / group.lstrip("/"))
         ds = xr.open_dataset(group_path_str, engine="zarr", zarr_format=3)
 
         # Check for RGB bands (b04=red, b03=green, b02=blue for Sentinel-2)
@@ -378,32 +373,34 @@ def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> Non
     for group in rgb_groups:
         print(f"    Testing data access for {group}...")
 
-        # Test access to different overview levels (as in notebook)
+        # Test access at native and a few overview levels.
         group_path = output_path / group.lstrip("/")
-        level_dirs = [d for d in group_path.iterdir() if d.is_dir() and d.name.isdigit()]
+        overview_dirs = [
+            d
+            for d in group_path.iterdir()
+            if d.is_dir() and d.name.startswith("r") and d.name[1:].isdigit()
+        ]
+        # Include native (group root) first, then up to two overviews.
+        targets: list[tuple[str, pathlib.Path]] = [("native", group_path)]
+        targets.extend(
+            (ov.name, ov) for ov in sorted(overview_dirs, key=lambda x: int(x.name[1:]))[:2]
+        )
 
-        for level_dir in sorted(level_dirs, key=lambda x: int(x.name))[:3]:  # Test first 3 levels
-            level_num = int(level_dir.name)
-            level_path = str(level_dir)
+        for label, level_path in targets:
+            ds = xr.open_dataset(str(level_path), engine="zarr", zarr_format=3)
 
-            # Open dataset and access RGB bands (following notebook pattern)
-            ds = xr.open_dataset(level_path, engine="zarr", zarr_format=3)
-
-            # Access RGB data (as in notebook)
             red_data = ds["b04"].values
             green_data = ds["b03"].values
             blue_data = ds["b02"].values
 
-            # Verify data shapes match
             assert red_data.shape == green_data.shape == blue_data.shape, (
-                f"RGB band shapes don't match in {group} level {level_num}"
+                f"RGB band shapes don't match in {group} level {label}"
             )
 
-            # Verify data is not empty
-            assert red_data.size > 0, f"Empty red data in {group} level {level_num}"
-            assert green_data.size > 0, f"Empty green data in {group} level {level_num}"
-            assert blue_data.size > 0, f"Empty blue data in {group} level {level_num}"
+            assert red_data.size > 0, f"Empty red data in {group} level {label}"
+            assert green_data.size > 0, f"Empty green data in {group} level {label}"
+            assert blue_data.size > 0, f"Empty blue data in {group} level {label}"
 
-            print(f"      Level {level_num}: RGB access successful, shape {red_data.shape}")
+            print(f"      Level {label}: RGB access successful, shape {red_data.shape}")
 
             ds.close()

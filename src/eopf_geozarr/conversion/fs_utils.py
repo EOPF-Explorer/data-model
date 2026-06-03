@@ -16,6 +16,8 @@ from eopf_geozarr.types import S3Credentials, S3FsOptions
 if TYPE_CHECKING:
     import xarray as xr
 
+_MISSING = object()  # sentinel for missing optional attrs
+
 
 def replace_json_invalid_floats(obj: object) -> object:
     """
@@ -90,7 +92,12 @@ def sanitize_dataset_attributes(ds: "xr.Dataset") -> "xr.Dataset":
     # Sanitize variable attributes
     for var_name in ds_clean.data_vars:
         var = ds_clean[var_name]
+        # Preserve _FillValue as-is — xarray encodes it via FillValueCoder on write;
+        # converting np.nan to the string "NaN" would break FillValueCoder.encode.
+        fill_value = var.attrs.get("_FillValue", _MISSING)
         var.attrs = replace_json_invalid_floats(var.attrs)
+        if fill_value is not _MISSING:
+            var.attrs["_FillValue"] = fill_value
 
     # Sanitize coordinate attributes
     for coord_name in ds_clean.coords:
