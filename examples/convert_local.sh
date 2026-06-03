@@ -9,5 +9,6 @@ https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tu
 --crs-groups /conditions/geometry \
 --spatial-chunk 4096 \
 --min-dimension 256 \
+--tile-width 256 \
 --max-retries 2 \
 --verbose

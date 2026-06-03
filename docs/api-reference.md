@@ -16,6 +16,7 @@ def create_geozarr_dataset(
     output_path: str,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
+    tile_width: int = 256,
     max_retries: int = 3,
     **storage_kwargs
 ) -> xr.DataTree
@@ -28,6 +29,7 @@ def create_geozarr_dataset(
 - `output_path` (str): Output path for the GeoZarr dataset (local or S3)
 - `spatial_chunk` (int, optional): Target spatial chunk size. Default: 4096
 - `min_dimension` (int, optional): Minimum dimension size for processing. Default: 256
+- `tile_width` (int, optional): Tile width for multiscale levels. Default: 256
 - `max_retries` (int, optional): Maximum retry attempts for operations. Default: 3
 - `**storage_kwargs`: Additional storage options (S3 credentials, etc.)
 
@@ -199,20 +201,14 @@ def write_geozarr_group(
 
 ### create_geozarr_compliant_multiscales
 
-Creates the overview pyramid (`r{2**level}` sibling groups) and writes the
-`multiscales` metadata onto the parent group.
+Creates multiscales metadata compliant with GeoZarr specification.
 
 ```python
 # test: skip
 def create_geozarr_compliant_multiscales(
-    ds: xr.Dataset,
-    output_path: str,
-    group_name: str,
-    min_dimension: int = 256,
-    spatial_chunk: int = 4096,
-    ds_gcp: xr.Dataset | None = None,
-    enable_sharding: bool = False,
-) -> dict[str, Any]
+    datasets: Dict[str, xr.Dataset],
+    tile_width: int = 256
+) -> List[Dict[str, Any]]
 ```
 
 ## Utility Functions
@@ -344,7 +340,22 @@ def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None
 def _add_geotransform(ds: xr.Dataset, grid_mapping_var: str) -> None
 ```
 
-### Overview Generation
+### CRS and Tile Matrix
+
+```python
+# test: skip
+def create_native_crs_tile_matrix_set(
+    crs: Any,
+    transform: Any,
+    width: int,
+    height: int,
+    tile_width: int = 256
+) -> Dict[str, Any]
+```
+
+Creates a tile matrix set for native CRS (non-Web Mercator).
+
+## Overview Generation
 
 ### calculate_overview_levels
 

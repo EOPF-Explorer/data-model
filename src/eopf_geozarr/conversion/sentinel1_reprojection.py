@@ -12,8 +12,6 @@ import structlog
 import xarray as xr
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 
-from eopf_geozarr.conversion import utils
-
 log = structlog.get_logger()
 
 
@@ -255,7 +253,7 @@ def _reproject_data_variable(
         raise ValueError(f"Unsupported data variable dimensionality: {data_var.ndim}")
 
     # Create attributes for reprojected variable
-    attrs = utils.sanitize_array_attrs(data_var.attrs.copy())
+    attrs = data_var.attrs.copy()
     attrs["_ARRAY_DIMENSIONS"] = dims
     attrs["grid_mapping"] = "spatial_ref"
 

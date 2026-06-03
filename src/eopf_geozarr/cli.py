@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import structlog
 import xarray as xr
 
-from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized, is_sentinel2_dataset
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
 from . import create_geozarr_dataset
 from .conversion.fs_utils import (
@@ -23,7 +23,6 @@ from .conversion.fs_utils import (
     is_s3_path,
     validate_s3_access,
 )
-from .conversion.geozarr import get_zarr_group
 
 if TYPE_CHECKING:
     from dask.distributed import Client
@@ -83,21 +82,6 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> "Client | No
         sys.exit(1)
     else:
         return client
-
-
-def _is_sentinel2_input(dt: xr.DataTree) -> bool:
-    """Best-effort Sentinel-2 detection that never breaks the generic path.
-
-    ``is_sentinel2_dataset`` validates against a Zarr v2 model and can raise on
-    unrelated inputs (e.g. plain Zarr v3 stores); any failure here simply means
-    "not a recognised Sentinel-2 product", so fall back to the generic converter.
-    """
-    try:
-        return is_sentinel2_dataset(get_zarr_group(dt))
-    except Exception as exc:
-        # Detection must never abort conversion; treat any failure as "not S2".
-        log.debug("Sentinel-2 detection skipped", error=str(exc))
-        return False
 
 
 def convert_command(args: argparse.Namespace) -> None:
@@ -167,6 +151,7 @@ def convert_command(args: argparse.Namespace) -> None:
             log.info("Output path: %s", output_path)
             log.info("Spatial chunk size: %s", args.spatial_chunk)
             log.info("Min dimension: %s", args.min_dimension)
+            log.info("Tile width: %s", args.tile_width)
 
         # Load the EOPF DataTree with appropriate storage options
         log.info("Loading EOPF dataset...")
@@ -184,37 +169,18 @@ def convert_command(args: argparse.Namespace) -> None:
 
         # Convert to GeoZarr compliant format
         log.info("Converting to GeoZarr compliant format...")
-        if _is_sentinel2_input(dt):
-            # Sentinel-2 inputs use the optimized flat multiscale layout
-            # (sibling r{N}m levels), shared with `convert-s2-optimized`. The
-            # generic per-group options below do not apply to that layout.
-            log.info(
-                "Detected Sentinel-2 input; using optimized flat multiscale layout "
-                "(per-group options such as --groups/--crs-groups/--gcp-group/--min-dimension "
-                "do not apply)"
-            )
-            dt_geozarr = convert_s2_optimized(
-                dt_input=dt,
-                output_path=output_path,
-                enable_sharding=args.enable_sharding,
-                spatial_chunk=args.spatial_chunk,
-                compression_level=3,
-                validate_output=True,
-                keep_scale_offset=False,
-                max_retries=args.max_retries,
-            )
-        else:
-            dt_geozarr = create_geozarr_dataset(
-                dt_input=dt,
-                groups=args.groups,
-                output_path=output_path,
-                spatial_chunk=args.spatial_chunk,
-                min_dimension=args.min_dimension,
-                max_retries=args.max_retries,
-                crs_groups=args.crs_groups,
-                gcp_group=args.gcp_group,
-                enable_sharding=args.enable_sharding,
-            )
+        dt_geozarr = create_geozarr_dataset(
+            dt_input=dt,
+            groups=args.groups,
+            output_path=output_path,
+            spatial_chunk=args.spatial_chunk,
+            min_dimension=args.min_dimension,
+            tile_width=args.tile_width,
+            max_retries=args.max_retries,
+            crs_groups=args.crs_groups,
+            gcp_group=args.gcp_group,
+            enable_sharding=args.enable_sharding,
+        )
 
         log.info("✅ Successfully converted EOPF dataset to GeoZarr format")
         log.info("Output saved to %s", output_path)
@@ -1108,20 +1074,6 @@ def consolidate_s1_command(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def generate_stac_s1_command(args: argparse.Namespace) -> None:
-    """Build and print a STAC item for an S1 GRD RTC Zarr store."""
-    import json
-
-    from .stac.s1_rtc import build_s1_rtc_stac_item
-
-    try:
-        item = build_s1_rtc_stac_item(args.store, args.collection)
-        print(json.dumps(item.to_dict(), indent=2))
-    except Exception as e:
-        log.exception("❌ Error generating STAC item", error=str(e))
-        sys.exit(1)
-
-
 def create_parser() -> argparse.ArgumentParser:
     """
     Create the argument parser for the CLI.
@@ -1170,6 +1122,12 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=256,
         help="Minimum dimension for overview levels (default: 256)",
+    )
+    convert_parser.add_argument(
+        "--tile-width",
+        type=int,
+        default=256,
+        help="Tile width for TMS compatibility (default: 256)",
     )
     convert_parser.add_argument(
         "--max-retries",
@@ -1225,7 +1183,6 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Add S1 ingestion commands
     add_s1_ingestion_commands(subparsers)
-    add_s1_stac_commands(subparsers)
 
     return parser
 
@@ -1292,24 +1249,6 @@ def add_s1_ingestion_commands(subparsers: argparse._SubParsersAction) -> None:
     cons_parser.set_defaults(func=consolidate_s1_command)
 
 
-def add_s1_stac_commands(subparsers: argparse._SubParsersAction) -> None:
-    """Add S1 GRD RTC STAC builder command to CLI parser."""
-    stac_parser = subparsers.add_parser(
-        "generate-stac-s1",
-        help="Build and print a STAC item for an S1 GRD RTC Zarr store",
-    )
-    stac_parser.add_argument(
-        "--store", type=str, required=True, help="Path or s3:// URI to the Zarr store"
-    )
-    stac_parser.add_argument(
-        "--collection",
-        type=str,
-        default="sentinel-1-grd-rtc-staging",
-        help="STAC collection ID (default: sentinel-1-grd-rtc-staging)",
-    )
-    stac_parser.set_defaults(func=generate_stac_s1_command)
-
-
 def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None:
     """Add S2 optimization commands to CLI parser."""
 
@@ -1346,11 +1285,6 @@ def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None
         """,
     )
     s2_parser.add_argument(
-        "--experimental-scale-offset-codec",
-        action="store_true",
-        help="Push CF scale-offset encoding into zarr codec pipeline instead of decoding to float.",
-    )
-    s2_parser.add_argument(
         "--dask-cluster",
         action="store_true",
         help="Start a local dask cluster for parallel processing and progress bars",
@@ -1382,7 +1316,6 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
             compression_level=args.compression_level,
             validate_output=not args.skip_validation,
             keep_scale_offset=args.keep_scale_offset,
-            experimental_scale_offset_codec=args.experimental_scale_offset_codec,
         )
 
         log.info("✅ S2 optimization completed", output_path=args.output_path)
