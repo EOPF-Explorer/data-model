@@ -232,6 +232,7 @@ def test_sentinel1_gcp_conversion(
             output_path=str(output_path),
             spatial_chunk=1024,
             min_dimension=256,
+            tile_width=256,
             max_retries=3,
             gcp_group=gcp_group,
         )
@@ -242,27 +243,25 @@ def test_sentinel1_gcp_conversion(
 
     _verify_basic_structure(output_path / polarization_group, groups)
 
-    # Load each multiscale level independently. The new layout writes native
-    # data at the ``measurements`` group root and downsampled overviews at
-    # ``measurements/r2`` (etc.). Parent + child groups share dim names ``x``
-    # and ``y`` with different sizes, so they cannot be opened together as a
-    # single DataTree (``open_datatree`` does an exact-join alignment).
-    measurements_root = f"{output_path}/{polarization_group}/measurements"
-    ds_native = xr.open_dataset(measurements_root, engine="zarr", zarr_format=3)
+    # Load the result for validation
+    dt = xr.open_datatree(output_path, group=polarization_group)
 
-    # Check basic structure (native level lives at the group root)
-    assert "grd" in ds_native.data_vars
-    assert "spatial_ref" in ds_native.variables
+    # Check basic structure (multiscale)
+    assert "measurements" in dt
+    assert "0" in dt["measurements"]
+    assert "grd" not in dt["measurements"].to_dataset().data_vars
+    assert "spatial_ref" in dt["measurements/0"]
 
     # Verify Sentinel-1 GRD specific metadata - now reprojected to x/y coordinates
-    grd = ds_native.grd
+    grd = dt["measurements/0"].grd
     assert grd.dims == ("y", "x")  # Now reprojected to geographic coordinates
     assert grd.attrs["standard_name"] == "surface_backwards_scattering_coefficient_of_radar_wave"
     assert grd.attrs["units"] == "1"
     assert grd.attrs["grid_mapping"] == "spatial_ref"
 
     # Verify reprojected data has proper CRS
-    spatial_ref = ds_native.spatial_ref
+    ds_measurements = dt["measurements/0"].to_dataset()
+    spatial_ref = ds_measurements.spatial_ref
     assert "crs_wkt" in spatial_ref.attrs
     assert "spatial_ref" in spatial_ref.attrs
     actual_crs = pyproj.CRS.from_wkt(spatial_ref.attrs["crs_wkt"])
@@ -270,16 +269,16 @@ def test_sentinel1_gcp_conversion(
     assert actual_crs == pyproj.CRS.from_wkt(spatial_ref.attrs["spatial_ref"])
 
     # Verify coordinate attributes for reprojected data
-    assert "x" in ds_native.coords
-    assert "y" in ds_native.coords
-    assert ds_native.x.attrs["standard_name"] == "longitude"
-    assert ds_native.x.attrs["units"] == "degrees_east"
-    assert ds_native.y.attrs["standard_name"] == "latitude"
-    assert ds_native.y.attrs["units"] == "degrees_north"
+    assert "x" in ds_measurements.coords
+    assert "y" in ds_measurements.coords
+    assert ds_measurements.x.attrs["standard_name"] == "longitude"
+    assert ds_measurements.x.attrs["units"] == "degrees_east"
+    assert ds_measurements.y.attrs["standard_name"] == "latitude"
+    assert ds_measurements.y.attrs["units"] == "degrees_north"
 
     # Verify data bounds are reasonable (should be within the GCP bounds)
-    x_bounds = (ds_native.x.min().values, ds_native.x.max().values)
-    y_bounds = (ds_native.y.min().values, ds_native.y.max().values)
+    x_bounds = (ds_measurements.x.min().values, ds_measurements.x.max().values)
+    y_bounds = (ds_measurements.y.min().values, ds_measurements.y.max().values)
 
     # Should be within the original GCP bounds (15-18 lon, 39-41 lat)
     assert 14.5 <= x_bounds[0] <= 15.5, f"X min bound {x_bounds[0]} outside expected range"
@@ -287,21 +286,17 @@ def test_sentinel1_gcp_conversion(
     assert 38.5 <= y_bounds[0] <= 39.5, f"Y min bound {y_bounds[0]} outside expected range"
     assert 40.5 <= y_bounds[1] <= 41.5, f"Y max bound {y_bounds[1]} outside expected range"
 
-    ds_native.close()
-
-    # First overview level is now ``r2`` (was ``1`` in the v0 layout).
-    overview_path = f"{measurements_root}/r2"
-    assert Path(overview_path).exists(), f"Overview r2 not found at {overview_path}"
-    ds_overview = xr.open_dataset(overview_path, engine="zarr", zarr_format=3)
-    grd1 = ds_overview.grd
+    # Check multiscales 2 levels created: 0 (native, checked above) and 1
+    assert "1" in dt["measurements"]
+    ds_measurements1 = dt["measurements/1"].to_dataset()
+    grd1 = ds_measurements1.grd
     assert grd1.dims == ("y", "x")  # Overview also has reprojected coordinates
-    spatial_ref1 = ds_overview.spatial_ref
+    spatial_ref1 = ds_measurements1.spatial_ref
     assert "crs_wkt" in spatial_ref1.attrs
     assert "spatial_ref" in spatial_ref1.attrs
     actual_crs = pyproj.CRS.from_wkt(spatial_ref1.attrs["crs_wkt"])
     assert actual_crs == pyproj.CRS.from_epsg(4326)  # Overview also in lat/lon WGS84
     assert actual_crs == pyproj.CRS.from_wkt(spatial_ref1.attrs["spatial_ref"])
-    ds_overview.close()
 
 
 if __name__ == "__main__":

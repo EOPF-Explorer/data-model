@@ -35,9 +35,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](
-            attributes={}, members={"base": base_array, **coords_arrays}
-        )
+        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
         assert check_valid_coordinates(group) == group
 
     @staticmethod
@@ -59,9 +57,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s + 1), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](
-            attributes={}, members={"base": base_array, **coords_arrays}
-        )
+        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
         msg = "Dimension .* for array 'base' has a shape mismatch:"
         with pytest.raises(ValueError, match=msg):
             check_valid_coordinates(group)

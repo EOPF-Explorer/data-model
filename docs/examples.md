@@ -76,19 +76,22 @@ for group_name in dt_geozarr.groups:
 
 ### Sentinel-2 Band Analysis
 
-Access bands from the consolidated pyramid structure produced by
-`convert_s2_optimized`:
+> **Note on V0 vs V1:** This example shows both V0 (deprecated) and V1 (current) approaches. See [converter documentation](converter.md#v0-vs-v1-converter-key-differences) for structural differences.
+
+#### V1 Approach (Recommended - `convert_s2_optimized`)
+
+Access bands from the consolidated pyramid structure:
 
 ```python
 import xarray as xr
 import matplotlib.pyplot as plt
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
-# Convert using the S2-optimized converter
+# Convert using V1 optimizer (recommended)
 dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr")
 dt = convert_s2_optimized(
     dt_input=dt_input,
-    output_path="s2_l2a.zarr",
+    output_path="s2_l2a_v1.zarr",
     spatial_chunk=256
 )
 
@@ -126,6 +129,27 @@ axes[2].set_title("60m Resolution (Native)")
 plt.tight_layout()
 plt.show()
 ```
+
+#### V0 Approach (Deprecated - `create_geozarr_dataset`)
+
+For reference, the V0 structure with nested pyramid levels:
+
+```python
+import xarray as xr
+import matplotlib.pyplot as plt
+
+# Open V0 converted GeoZarr dataset (deprecated structure)
+dt = xr.open_datatree("s2_l2a_v0.zarr", engine="zarr")
+
+# Access 10m resolution with nested pyramid levels
+ds_10m_native = dt["/measurements/r10m/0"].ds    # Level 0: native 10m
+ds_10m_level1 = dt["/measurements/r10m/1"].ds    # Level 1: downsampled to ~20m
+ds_10m_level2 = dt["/measurements/r10m/2"].ds    # Level 2: downsampled to ~40m
+
+# Note: This creates redundant data since r10m/1 ≈ r20m/0
+```
+
+> **Migration Note:** V0 is deprecated. Use V1 (`convert_s2_optimized`) for new projects.
 
 ## Cloud Storage Examples
 
@@ -409,7 +433,7 @@ dt_geozarr = create_geozarr_dataset(
 )
 
 # Extract metadata for STAC
-ds = dt_geozarr["/measurements/r10m"].ds
+ds = dt_geozarr["/measurements/r10m/0"].ds
 spatial_ref = ds.get('spatial_ref', ds.get('crs', None))
 
 # Create basic STAC item

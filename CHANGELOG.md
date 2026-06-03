@@ -5,40 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.10.0 (2026-05-12)
-
-## What's Changed
-* fix: upgrade pytest to 9.0.3 (CVE-2025-71176) by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/161
-* feat: add store-root spatial:bbox and tighten minispec requirements by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/164
-* feat: implement scale-offset and data type casting via codecs by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/154
-* chore: bump urllib3 to 2.7.0 by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/166
-* chore: skip quicklook groups by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/165
-* chore: group dependabot updates for actions and pip by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/160
-* fix: derive coarse spatial transforms from coordinates by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/168
-
-
-**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.9.0...v0.10.0
-
-## 0.9.0 (2026-04-02)
-
-## What's Changed
-* Add site_url to the mkdocs config by @maxrjones in https://github.com/EOPF-Explorer/data-model/pull/121
-* Update GeoZarr mini-spec to EOPF V1 by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/129
-* use zarr-cm for defining zarr conventions metadata by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/131
-* chore/fill value consistency by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/135
-* Set the minimum supported python version to 3.12 by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/141
-* add titiler integration test by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/137
-* Pin GitHub Actions to commit SHAs (coordination#239) by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/143
-* ci: add permissions block and make security checks blocking by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/145
-* enh: clarify CF metadata scope in GeoZarr mini-spec and update attribute definitions by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/133
-* feat: include b08 in resolution groups by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/152
-
-## New Contributors
-* @maxrjones made their first contribution in https://github.com/EOPF-Explorer/data-model/pull/121
-* @lhoupert made their first contribution in https://github.com/EOPF-Explorer/data-model/pull/143
-
-**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.8.0...v0.9.0
-
 ## 0.8.0 (2026-01-21)
 
 ## What's Changed

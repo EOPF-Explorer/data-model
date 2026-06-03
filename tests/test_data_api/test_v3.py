@@ -29,9 +29,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](
-            attributes={}, members={"base": base_array, **coords_arrays}
-        )
+        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
         assert check_valid_coordinates(group) == group
 
     @staticmethod
@@ -53,9 +51,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s + 1), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Any, DataArray](
-            attributes={}, members={"base": base_array, **coords_arrays}
-        )
+        group = GroupSpec[Any, DataArray](members={"base": base_array, **coords_arrays})
         msg = "Dimension .* for array 'base' has a shape mismatch:"
         with pytest.raises(ValueError, match=msg):
             check_valid_coordinates(group)
@@ -81,9 +77,4 @@ def test_multiscale_attrs_round_trip(s2_geozarr_group_example: Any) -> None:
     for val in source_group_members.values():
         if isinstance(val, zarr.Group) and "multiscales" in val.attrs.asdict():
             model_json = MultiscaleGroup.from_zarr(val).model_dump()
-            # tuplify both sides: level groups may carry list-valued attributes
-            # (e.g. ``spatial:bbox``) that are JSON-equivalent to tuples but not
-            # normalised by ``model_dump`` alone.
-            assert tuplify_json(MultiscaleGroup(**model_json).model_dump()) == tuplify_json(
-                model_json
-            )
+            assert MultiscaleGroup(**model_json).model_dump() == tuplify_json(model_json)

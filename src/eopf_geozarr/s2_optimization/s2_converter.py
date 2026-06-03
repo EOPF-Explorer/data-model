@@ -186,7 +186,6 @@ def convert_s2_optimized(
     compression_level: int,
     validate_output: bool,
     keep_scale_offset: bool,
-    experimental_scale_offset_codec: bool = False,
     max_retries: int = 3,
 ) -> xr.DataTree:
     """
@@ -200,7 +199,6 @@ def convert_s2_optimized(
         compression_level: Compression level 1-9
         validate_output: Whether to validate the output
         keep_scale_offset: Whether to preserve scale-offset encoding of the source data.
-        experimental_scale_offset_codec: Push CF scale-offset into zarr codec pipeline.
         max_retries: Maximum number of retries for network operations
 
     Returns:
@@ -236,7 +234,6 @@ def convert_s2_optimized(
         enable_sharding=enable_sharding,
         crs=crs,
         keep_scale_offset=keep_scale_offset,
-        experimental_scale_offset_codec=experimental_scale_offset_codec,
     )
 
     log.info("Created multiscale pyramids", num_groups=len(datasets))
@@ -306,61 +303,11 @@ def simple_root_consolidation(output_path: str, datasets: dict[str, dict]) -> No
     )
     log.info("Root zarr group created")
 
-    # Write the store-root spatial footprint (geozarr minispec, Store Root section).
-    # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
-    # and writes the union on the root `zarr.json`.
-    write_store_root_bbox(output_path)
-
     # consolidate reflectance group metadata
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)
 
     # consolidate root group metadata
     zarr.consolidate_metadata(output_path, zarr_format=3)
-
-
-def write_store_root_bbox(output_path: str) -> None:
-    """Write `spatial:bbox` and `proj:code` at the store root.
-
-    Walks the zarr store, collects every child-group `spatial:bbox` along with
-    its `proj:code`, reprojects each to EPSG:4326 and writes the union plus
-    the CRS code on the root group. The CRS is always declared explicitly per
-    the Store Root section of the minispec — there is no implicit default.
-    """
-    from pyproj import Transformer
-
-    root = zarr.open_group(output_path, mode="r+")
-
-    bboxes_4326: list[tuple[float, float, float, float]] = []
-
-    def _walk(group: zarr.Group) -> None:
-        attrs = dict(group.attrs)
-        bbox = attrs.get("spatial:bbox")
-        code = attrs.get("proj:code")
-        if bbox is not None and len(bbox) == 4:
-            if code and code != "EPSG:4326":
-                transformer = Transformer.from_crs(code, "EPSG:4326", always_xy=True)
-                xmin, ymin = transformer.transform(bbox[0], bbox[1])
-                xmax, ymax = transformer.transform(bbox[2], bbox[3])
-                bboxes_4326.append((xmin, ymin, xmax, ymax))
-            else:
-                bboxes_4326.append(tuple(float(v) for v in bbox))  # type: ignore[arg-type]
-        for child in group.groups():
-            _walk(child[1])
-
-    for _, child_group in root.groups():
-        _walk(child_group)
-
-    if not bboxes_4326:
-        log.warning("No child-group spatial:bbox found; skipping store-root bbox")
-        return
-
-    xmin = min(b[0] for b in bboxes_4326)
-    ymin = min(b[1] for b in bboxes_4326)
-    xmax = max(b[2] for b in bboxes_4326)
-    ymax = max(b[3] for b in bboxes_4326)
-    root.attrs["spatial:bbox"] = [xmin, ymin, xmax, ymax]
-    root.attrs["proj:code"] = "EPSG:4326"
-    log.info("Wrote store-root spatial:bbox", bbox=[xmin, ymin, xmax, ymax])
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
