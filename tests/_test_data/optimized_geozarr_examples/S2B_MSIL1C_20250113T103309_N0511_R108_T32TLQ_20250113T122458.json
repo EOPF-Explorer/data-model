@@ -128,14 +128,6 @@
             "mean_sun_angles": {
               "attributes": {
                 "_FillValue": "AAAAAAAA+H8=",
-                "_eopf_attrs": {
-                  "coordinates": [
-                    "angle"
-                  ],
-                  "dimensions": [
-                    "angle"
-                  ]
-                },
                 "unit": "deg"
               },
               "chunk_grid": {
@@ -174,7 +166,7 @@
               "dimension_names": [
                 "angle"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 2
@@ -185,16 +177,6 @@
             "mean_viewing_incidence_angles": {
               "attributes": {
                 "_FillValue": "AAAAAAAA+H8=",
-                "_eopf_attrs": {
-                  "coordinates": [
-                    "angle",
-                    "band"
-                  ],
-                  "dimensions": [
-                    "band",
-                    "angle"
-                  ]
-                },
                 "unit": "deg"
               },
               "chunk_grid": {
@@ -235,7 +217,7 @@
                 "band",
                 "angle"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 13,
@@ -246,19 +228,7 @@
             },
             "sun_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
-                "_eopf_attrs": {
-                  "coordinates": [
-                    "angle",
-                    "y",
-                    "x"
-                  ],
-                  "dimensions": [
-                    "angle",
-                    "y",
-                    "x"
-                  ]
-                }
+                "_FillValue": "AAAAAAAA+H8="
               },
               "chunk_grid": {
                 "configuration": {
@@ -300,7 +270,7 @@
                 "y",
                 "x"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 2,
@@ -312,23 +282,7 @@
             },
             "viewing_incidence_angles": {
               "attributes": {
-                "_FillValue": "AAAAAAAA+H8=",
-                "_eopf_attrs": {
-                  "coordinates": [
-                    "angle",
-                    "y",
-                    "x",
-                    "detector",
-                    "band"
-                  ],
-                  "dimensions": [
-                    "band",
-                    "detector",
-                    "angle",
-                    "y",
-                    "x"
-                  ]
-                }
+                "_FillValue": "AAAAAAAA+H8="
               },
               "chunk_grid": {
                 "configuration": {
@@ -374,7 +328,7 @@
                 "y",
                 "x"
               ],
-              "fill_value": 0.0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 13,
@@ -473,16 +427,6 @@
                   "members": {
                     "b02": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -555,16 +499,6 @@
                     },
                     "b03": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -637,16 +571,6 @@
                     },
                     "b04": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -719,16 +643,6 @@
                     },
                     "b08": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -880,16 +794,6 @@
                   "members": {
                     "b05": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -962,16 +866,6 @@
                     },
                     "b06": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1044,16 +938,6 @@
                     },
                     "b07": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1126,16 +1010,6 @@
                     },
                     "b11": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1208,16 +1082,6 @@
                     },
                     "b12": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1290,16 +1154,6 @@
                     },
                     "b8a": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1451,16 +1305,6 @@
                   "members": {
                     "b01": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1533,16 +1377,6 @@
                     },
                     "b09": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1615,16 +1449,6 @@
                     },
                     "b10": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ]
-                        },
                         "dtype": "<u1",
                         "long_name": "detector footprint mask provided in the final reference frame (ground geometry). 0 = no detector, 1-12 = detector 1-12",
                         "proj:bbox": [
@@ -1783,26 +1607,6 @@
                   "members": {
                     "b00": {
                       "attributes": {
-                        "_eopf_attrs": {
-                          "coordinates": [
-                            "x",
-                            "y"
-                          ],
-                          "dimensions": [
-                            "y",
-                            "x"
-                          ],
-                          "flag_masks": [
-                            1,
-                            2,
-                            4
-                          ],
-                          "flag_meanings": [
-                            "OPAQUE",
-                            "CIRRUS",
-                            "SNOW_ICE"
-                          ]
-                        },
                         "dtype": "<u1",
                         "flag_masks": [
                           1,
@@ -2011,23 +1815,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total Aerosol Optical Depth at 1240nm",
                     "standard_name": "unknown",
@@ -2071,7 +1858,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2110,23 +1897,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total Aerosol Optical Depth at 469nm",
                     "standard_name": "unknown",
@@ -2170,7 +1940,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2209,23 +1979,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -2269,7 +2022,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2308,23 +2061,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total Aerosol Optical Depth at 670nm",
                     "standard_name": "unknown",
@@ -2368,7 +2104,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2407,23 +2143,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total Aerosol Optical Depth at 865nm",
                     "standard_name": "unknown",
@@ -2467,7 +2186,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2506,23 +2225,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Black Carbon Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -2566,7 +2268,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2605,23 +2307,6 @@
                     "GRIB_typeOfLevel": "isobaricInhPa",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step isobaricInhPa latitude longitude valid_time",
                     "long_name": "Dust Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -2665,7 +2350,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2705,7 +2390,7 @@
                   ],
                   "data_type": "float64",
                   "dimension_names": null,
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -2745,7 +2430,7 @@
                   "dimension_names": [
                     "latitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -2786,7 +2471,7 @@
                   "dimension_names": [
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -2858,23 +2543,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Organic Matter Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -2918,7 +2586,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -2957,23 +2625,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Sea Salt Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -3017,7 +2668,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3028,10 +2679,9 @@
                 },
                 "step": {
                   "attributes": {
-                    "dtype": "timedelta64[ns]",
                     "long_name": "time since forecast_reference_time",
                     "standard_name": "forecast_period",
-                    "units": "days"
+                    "units": "minutes"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -3091,23 +2741,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "~",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "~"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Sulphate Aerosol Optical Depth at 550nm",
                     "standard_name": "unknown",
@@ -3151,7 +2784,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3188,7 +2821,7 @@
                   ],
                   "data_type": "float64",
                   "dimension_names": null,
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3196,9 +2829,6 @@
                 },
                 "time": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "_eopf_decode_datetime64": "datetime64[ns]"
-                    },
                     "calendar": "proleptic_gregorian",
                     "long_name": "initial time of forecast",
                     "standard_name": "forecast_reference_time",
@@ -3234,9 +2864,6 @@
                 },
                 "valid_time": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "_eopf_decode_datetime64": "datetime64[ns]"
-                    },
                     "calendar": "proleptic_gregorian",
                     "long_name": "time",
                     "standard_name": "time",
@@ -3300,23 +2927,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m**2 s**-2",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "m**2 s**-2"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Geopotential",
                     "standard_name": "geopotential",
@@ -3360,7 +2970,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3415,7 +3025,7 @@
                   ],
                   "data_type": "float64",
                   "dimension_names": null,
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3455,7 +3065,7 @@
                   "dimension_names": [
                     "latitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -3496,7 +3106,7 @@
                   "dimension_names": [
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9
@@ -3534,23 +3144,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "Pa",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "Pa"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Mean sea level pressure",
                     "standard_name": "air_pressure_at_mean_sea_level",
@@ -3594,7 +3187,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3667,23 +3260,6 @@
                     "GRIB_typeOfLevel": "isobaricInhPa",
                     "GRIB_units": "%",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "%"
-                    },
                     "coordinates": "number time step isobaricInhPa latitude longitude valid_time",
                     "long_name": "Relative humidity",
                     "standard_name": "relative_humidity",
@@ -3727,7 +3303,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3738,10 +3314,9 @@
                 },
                 "step": {
                   "attributes": {
-                    "dtype": "timedelta64[ns]",
                     "long_name": "time since forecast_reference_time",
                     "standard_name": "forecast_period",
-                    "units": "days"
+                    "units": "minutes"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -3799,7 +3374,7 @@
                   ],
                   "data_type": "float64",
                   "dimension_names": null,
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [],
                   "storage_transformers": [],
@@ -3835,23 +3410,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "kg m**-2",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "kg m**-2"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total column ozone",
                     "standard_name": "atmosphere_mass_content_of_ozone",
@@ -3895,7 +3453,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -3934,23 +3492,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "kg m**-2",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "kg m**-2"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "Total column vertically-integrated water vapour",
                     "standard_name": "lwe_thickness_of_atmosphere_mass_content_of_water_vapor",
@@ -3994,7 +3535,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4005,9 +3546,6 @@
                 },
                 "time": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "_eopf_decode_datetime64": "datetime64[ns]"
-                    },
                     "calendar": "proleptic_gregorian",
                     "long_name": "initial time of forecast",
                     "standard_name": "forecast_reference_time",
@@ -4071,23 +3609,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m s**-1",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "m s**-1"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "10 metre U wind component",
                     "standard_name": "unknown",
@@ -4131,7 +3652,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4170,23 +3691,6 @@
                     "GRIB_typeOfLevel": "surface",
                     "GRIB_units": "m s**-1",
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "number",
-                        "time",
-                        "step",
-                        "surface",
-                        "latitude",
-                        "longitude",
-                        "valid_time",
-                        "isobaricInhPa"
-                      ],
-                      "dimensions": [
-                        "latitude",
-                        "longitude"
-                      ],
-                      "units": "m s**-1"
-                    },
                     "coordinates": "number time step surface latitude longitude valid_time",
                     "long_name": "10 metre V wind component",
                     "standard_name": "unknown",
@@ -4230,7 +3734,7 @@
                     "latitude",
                     "longitude"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     9,
@@ -4241,9 +3745,6 @@
                 },
                 "valid_time": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "_eopf_decode_datetime64": "datetime64[ns]"
-                    },
                     "calendar": "proleptic_gregorian",
                     "long_name": "time",
                     "standard_name": "time",
@@ -4394,141 +3895,7 @@
                   }
                 }
               ],
-              "resampling_method": "average",
-              "tile_matrix_limits": {
-                "r10m": {
-                  "maxTileCol": 42,
-                  "maxTileRow": 42,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r10m"
-                },
-                "r120m": {
-                  "maxTileCol": 3,
-                  "maxTileRow": 3,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r120m"
-                },
-                "r20m": {
-                  "maxTileCol": 21,
-                  "maxTileRow": 21,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r20m"
-                },
-                "r360m": {
-                  "maxTileCol": 1,
-                  "maxTileRow": 1,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r360m"
-                },
-                "r60m": {
-                  "maxTileCol": 7,
-                  "maxTileRow": 7,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r60m"
-                },
-                "r720m": {
-                  "maxTileCol": 0,
-                  "maxTileRow": 0,
-                  "minTileCol": 0,
-                  "minTileRow": 0,
-                  "tileMatrix": "r720m"
-                }
-              },
-              "tile_matrix_set": {
-                "crs": "http://www.opengis.net/def/crs/EPSG/0/32632",
-                "id": "Native_CRS_32632",
-                "orderedAxes": [
-                  "X",
-                  "Y"
-                ],
-                "supportedCRS": "http://www.opengis.net/def/crs/EPSG/0/32632",
-                "tileMatrices": [
-                  {
-                    "cellSize": 0.0,
-                    "id": "r10m",
-                    "matrixHeight": 1,
-                    "matrixWidth": 1,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 10980,
-                    "tileWidth": 10980
-                  },
-                  {
-                    "cellSize": 0.0,
-                    "id": "r20m",
-                    "matrixHeight": 1,
-                    "matrixWidth": 1,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 5490,
-                    "tileWidth": 5490
-                  },
-                  {
-                    "cellSize": 0.0,
-                    "id": "r60m",
-                    "matrixHeight": 1,
-                    "matrixWidth": 1,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 1830,
-                    "tileWidth": 1830
-                  },
-                  {
-                    "cellSize": 0.0,
-                    "id": "r120m",
-                    "matrixHeight": 1,
-                    "matrixWidth": 1,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 915,
-                    "tileWidth": 915
-                  },
-                  {
-                    "cellSize": 0.0,
-                    "id": "r360m",
-                    "matrixHeight": 2,
-                    "matrixWidth": 2,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 256,
-                    "tileWidth": 256
-                  },
-                  {
-                    "cellSize": 0.0,
-                    "id": "r720m",
-                    "matrixHeight": 1,
-                    "matrixWidth": 1,
-                    "pointOfOrigin": [
-                      0.0,
-                      0.0
-                    ],
-                    "scaleDenominator": 0.0,
-                    "tileHeight": 152,
-                    "tileWidth": 152
-                  }
-                ],
-                "title": "Native CRS Tile Matrix Set (EPSG:32632)"
-              }
+              "resampling_method": "average"
             },
             "proj:code": "EPSG:32632",
             "spatial:bbox": [
@@ -4607,22 +3974,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -4648,9 +3999,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -4725,22 +4074,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -4766,9 +4099,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -4843,22 +4174,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -4884,9 +4199,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -4961,22 +4274,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -5002,9 +4299,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5247,22 +4542,6 @@
                 "b01": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -5288,9 +4567,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5365,22 +4642,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -5406,9 +4667,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5483,22 +4742,6 @@
                 "b09": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -5524,9 +4767,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5601,22 +4842,6 @@
                 "b10": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -5642,9 +4867,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5794,7 +5017,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915
@@ -5832,7 +5055,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915
@@ -5884,22 +5107,6 @@
                 "b05": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -5925,9 +5132,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6002,22 +5207,6 @@
                 "b06": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -6043,9 +5232,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6120,22 +5307,6 @@
                 "b07": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -6161,9 +5332,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6238,22 +5407,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -6279,9 +5432,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6356,22 +5507,6 @@
                 "b11": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -6397,9 +5532,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6474,22 +5607,6 @@
                 "b12": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -6515,9 +5632,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6592,22 +5707,6 @@
                 "b8a": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -6633,9 +5732,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6878,22 +5975,6 @@
                 "b01": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -6919,9 +6000,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6996,22 +6075,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -7037,9 +6100,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7114,22 +6175,6 @@
                 "b09": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -7155,9 +6200,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7232,22 +6275,6 @@
                 "b10": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -7273,9 +6300,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7425,7 +6450,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305
@@ -7463,7 +6488,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305
@@ -7515,22 +6540,6 @@
                 "b01": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -7556,9 +6565,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7633,22 +6640,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -7674,9 +6665,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7751,22 +6740,6 @@
                 "b09": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -7792,9 +6765,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7869,22 +6840,6 @@
                 "b10": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -7910,9 +6865,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8155,22 +7108,6 @@
                 "b01": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -8196,9 +7133,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8273,22 +7208,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -8314,9 +7233,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8391,22 +7308,6 @@
                 "b09": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -8432,9 +7333,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8509,22 +7408,6 @@
                 "b10": {
                   "attributes": {
                     "_FillValue": "AAAAAAAA+H8=",
-                    "_eopf_attrs": {
-                      "add_offset": -0.1,
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "fill_value": 0,
-                      "scale_factor": 0.0001,
-                      "units": "digital_counts"
-                    },
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -8550,9 +7433,7 @@
                       1.0
                     ],
                     "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8702,7 +7583,7 @@
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152
@@ -8740,7 +7621,7 @@
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0.0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152
@@ -8763,304 +7644,6 @@
     "quality": {
       "attributes": {},
       "members": {
-        "l1c_quicklook": {
-          "attributes": {},
-          "members": {
-            "r10m": {
-              "attributes": {
-                "grid_mapping": "spatial_ref",
-                "proj:code": "EPSG:32632",
-                "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "spatial:dimensions": [
-                  "y",
-                  "x"
-                ],
-                "spatial:registration": "pixel",
-                "spatial:shape": [
-                  10980,
-                  10980
-                ],
-                "zarr_conventions": [
-                  {
-                    "description": "Spatial coordinate information",
-                    "name": "spatial:",
-                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v1/schema.json",
-                    "spec_url": "https://github.com/zarr-conventions/spatial/blob/v1/README.md",
-                    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
-                  },
-                  {
-                    "description": "Coordinate reference system information for geospatial data",
-                    "name": "proj:",
-                    "schema_url": "https://raw.githubusercontent.com/zarr-experimental/geo-proj/refs/tags/v1/schema.json",
-                    "spec_url": "https://github.com/zarr-experimental/geo-proj/blob/v1/README.md",
-                    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f"
-                  }
-                ]
-              },
-              "members": {
-                "band": {
-                  "attributes": {},
-                  "chunk_grid": {
-                    "configuration": {
-                      "chunk_shape": [
-                        3
-                      ]
-                    },
-                    "name": "regular"
-                  },
-                  "chunk_key_encoding": {
-                    "configuration": {
-                      "separator": "/"
-                    },
-                    "name": "default"
-                  },
-                  "codecs": [
-                    {
-                      "configuration": {
-                        "endian": "little"
-                      },
-                      "name": "bytes"
-                    }
-                  ],
-                  "data_type": "int64",
-                  "dimension_names": [
-                    "band"
-                  ],
-                  "fill_value": 0,
-                  "node_type": "array",
-                  "shape": [
-                    3
-                  ],
-                  "storage_transformers": [],
-                  "zarr_format": 3
-                },
-                "spatial_ref": {
-                  "attributes": {
-                    "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
-                    "false_easting": 500000.0,
-                    "false_northing": 0.0,
-                    "geographic_crs_name": "WGS 84",
-                    "grid_mapping_name": "transverse_mercator",
-                    "horizontal_datum_name": "World Geodetic System 1984",
-                    "inverse_flattening": 298.257223563,
-                    "latitude_of_projection_origin": 0.0,
-                    "longitude_of_central_meridian": 9.0,
-                    "longitude_of_prime_meridian": 0.0,
-                    "prime_meridian_name": "Greenwich",
-                    "projected_crs_name": "WGS 84 / UTM zone 32N",
-                    "reference_ellipsoid_name": "WGS 84",
-                    "scale_factor_at_central_meridian": 0.9996,
-                    "semi_major_axis": 6378137.0,
-                    "semi_minor_axis": 6356752.314245179,
-                    "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
-                  },
-                  "chunk_grid": {
-                    "configuration": {
-                      "chunk_shape": []
-                    },
-                    "name": "regular"
-                  },
-                  "chunk_key_encoding": {
-                    "configuration": {
-                      "separator": "/"
-                    },
-                    "name": "default"
-                  },
-                  "codecs": [
-                    {
-                      "configuration": {
-                        "endian": "little"
-                      },
-                      "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "checksum": false,
-                        "level": 0
-                      },
-                      "name": "zstd"
-                    }
-                  ],
-                  "data_type": "int64",
-                  "dimension_names": null,
-                  "fill_value": 0,
-                  "node_type": "array",
-                  "shape": [],
-                  "storage_transformers": [],
-                  "zarr_format": 3
-                },
-                "tci": {
-                  "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "band",
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "band",
-                        "y",
-                        "x"
-                      ]
-                    },
-                    "grid_mapping": "spatial_ref",
-                    "long_name": "TCI: True Color Image",
-                    "proj:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
-                    ],
-                    "proj:epsg": 32632,
-                    "proj:shape": [
-                      10980,
-                      10980
-                    ],
-                    "proj:transform": [
-                      10.0,
-                      0.0,
-                      300000.0,
-                      0.0,
-                      -10.0,
-                      5000040.0,
-                      0.0,
-                      0.0,
-                      1.0
-                    ],
-                    "proj:wkt2": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
-                  },
-                  "chunk_grid": {
-                    "configuration": {
-                      "chunk_shape": [
-                        1,
-                        1830,
-                        1830
-                      ]
-                    },
-                    "name": "regular"
-                  },
-                  "chunk_key_encoding": {
-                    "configuration": {
-                      "separator": "/"
-                    },
-                    "name": "default"
-                  },
-                  "codecs": [
-                    {
-                      "name": "bytes"
-                    },
-                    {
-                      "configuration": {
-                        "blocksize": 0,
-                        "clevel": 3,
-                        "cname": "zstd",
-                        "shuffle": "shuffle",
-                        "typesize": 1
-                      },
-                      "name": "blosc"
-                    }
-                  ],
-                  "data_type": "uint8",
-                  "dimension_names": [
-                    "band",
-                    "y",
-                    "x"
-                  ],
-                  "fill_value": 0,
-                  "node_type": "array",
-                  "shape": [
-                    3,
-                    10980,
-                    10980
-                  ],
-                  "storage_transformers": [],
-                  "zarr_format": 3
-                },
-                "x": {
-                  "attributes": {},
-                  "chunk_grid": {
-                    "configuration": {
-                      "chunk_shape": [
-                        10980
-                      ]
-                    },
-                    "name": "regular"
-                  },
-                  "chunk_key_encoding": {
-                    "configuration": {
-                      "separator": "/"
-                    },
-                    "name": "default"
-                  },
-                  "codecs": [
-                    {
-                      "configuration": {
-                        "endian": "little"
-                      },
-                      "name": "bytes"
-                    }
-                  ],
-                  "data_type": "int64",
-                  "dimension_names": [
-                    "x"
-                  ],
-                  "fill_value": 0,
-                  "node_type": "array",
-                  "shape": [
-                    10980
-                  ],
-                  "storage_transformers": [],
-                  "zarr_format": 3
-                },
-                "y": {
-                  "attributes": {},
-                  "chunk_grid": {
-                    "configuration": {
-                      "chunk_shape": [
-                        10980
-                      ]
-                    },
-                    "name": "regular"
-                  },
-                  "chunk_key_encoding": {
-                    "configuration": {
-                      "separator": "/"
-                    },
-                    "name": "default"
-                  },
-                  "codecs": [
-                    {
-                      "configuration": {
-                        "endian": "little"
-                      },
-                      "name": "bytes"
-                    }
-                  ],
-                  "data_type": "int64",
-                  "dimension_names": [
-                    "y"
-                  ],
-                  "fill_value": 0,
-                  "node_type": "array",
-                  "shape": [
-                    10980
-                  ],
-                  "storage_transformers": [],
-                  "zarr_format": 3
-                }
-              },
-              "node_type": "group",
-              "zarr_format": 3
-            }
-          },
-          "node_type": "group",
-          "zarr_format": 3
-        },
         "mask": {
           "attributes": {},
           "members": {
@@ -9103,36 +7686,6 @@
               "members": {
                 "b02": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9226,36 +7779,6 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9349,36 +7872,6 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9472,36 +7965,6 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9763,36 +8226,6 @@
               "members": {
                 "b05": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -9886,36 +8319,6 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10009,36 +8412,6 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10132,36 +8505,6 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10255,36 +8598,6 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10378,36 +8691,6 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10669,36 +8952,6 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10792,36 +9045,6 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,
@@ -10915,36 +9138,6 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_eopf_attrs": {
-                      "coordinates": [
-                        "x",
-                        "y"
-                      ],
-                      "dimensions": [
-                        "y",
-                        "x"
-                      ],
-                      "flag_masks": [
-                        1,
-                        2,
-                        4,
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                      ],
-                      "flag_meanings": [
-                        "ANC_LOST",
-                        "ANC_DEG",
-                        "MSI_LOST",
-                        "MSI_DEG",
-                        "QT_DEFECTIVE_PIXELS",
-                        "QT_NODATA_PIXELS",
-                        "QT_PARTIALLY_CORRECTED_PIXELS",
-                        "QT_SATURATED_PIXELS_L1A"
-                      ]
-                    },
                     "dtype": "<u1",
                     "flag_masks": [
                       1,

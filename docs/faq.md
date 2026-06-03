@@ -409,15 +409,15 @@ dt = xr.open_datatree("output.zarr", engine="zarr")
 # Check multiscales metadata
 print("Multiscales:", dt.attrs.get('multiscales', 'Missing'))
 
-# Check overview levels
-for level in ['0', '1', '2']:
-    path = f"/measurements/r10m/{level}"
+# Check overview levels (sibling `r{2**level}` subgroups)
+for level_name in ['r10m', 'r20m', 'r40m']:
+    path = f"/measurements/reflectance/{level_name}"
     if path in dt.groups:
         ds = dt[path].ds
-        print(f"Level {level}: {dict(ds.dims)}")
+        print(f"{level_name}: {dict(ds.dims)}")
 
 # Check required attributes
-ds = dt["/measurements/r10m/0"].ds
+ds = dt["/measurements/reflectance/r10m"].ds
 for var_name in ds.data_vars:
     var = ds[var_name]
     print(f"{var_name}: grid_mapping={var.attrs.get('grid_mapping', 'Missing')}")
@@ -441,7 +441,7 @@ dt_output = xr.open_datatree("output.zarr", engine="zarr")
 
 # Compare native resolution data
 ds_input = dt_input["/measurements/r10m"].ds
-ds_output = dt_output["/measurements/r10m/0"].ds
+ds_output = dt_output["/measurements/reflectance/r10m"].ds
 
 # Check data values (should be identical)
 import numpy as np

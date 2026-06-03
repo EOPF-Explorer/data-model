@@ -125,7 +125,7 @@ class TestUtilityFunctions:
 
     def test_calculate_overview_levels(self) -> None:
         """Test overview levels calculation."""
-        levels = calculate_overview_levels(1024, 1024, min_dimension=256, tile_width=256)
+        levels = calculate_overview_levels(1024, 1024, min_dimension=256)
 
         # Should have levels 0, 1, 2 (1024 -> 512 -> 256)
         assert len(levels) == 3

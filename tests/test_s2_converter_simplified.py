@@ -16,6 +16,7 @@ from eopf_geozarr.s2_optimization.s2_converter import (
     convert_s2_optimized,
     initialize_crs_from_dataset,
     simple_root_consolidation,
+    write_store_root_bbox,
 )
 
 
@@ -236,6 +237,50 @@ def test_simple_root_consolidation_success(tmp_path: Path) -> None:
     assert isinstance(reflectance_zmeta["consolidated_metadata"], dict)
     if "consolidated_metadata" in atmos_zmeta:
         assert atmos_zmeta["consolidated_metadata"] is None
+
+
+def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
+    """Store-root bbox unions child-group bboxes and outputs EPSG:4326 coords."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    child = root.create_group("measurements/reflectance")
+    # UTM zone 32N, ~10x10km block near S2 tile T32TLQ
+    child.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]
+    child.attrs["proj:code"] = "EPSG:32632"
+
+    write_store_root_bbox(str(store_path))
+
+    root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
+    bbox = root_attrs["spatial:bbox"]
+    assert len(bbox) == 4
+    xmin, ymin, xmax, ymax = bbox
+    # Roughly 7.0-8.0E, 44.1-45.1N after reprojection
+    assert 6.0 < xmin < 8.0, bbox
+    assert 43.0 < ymin < 45.0, bbox
+    assert 7.0 < xmax < 9.0, bbox
+    assert 44.0 < ymax < 46.0, bbox
+    # CRS is always declared explicitly at the store root
+    assert root_attrs["proj:code"] == "EPSG:4326"
+
+
+def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
+    """Store-root bbox is the union across multiple child-group footprints."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    a = root.create_group("a")
+    a.attrs["spatial:bbox"] = [0.0, 0.0, 1.0, 1.0]
+    b = root.create_group("b")
+    b.attrs["spatial:bbox"] = [2.0, 2.0, 3.0, 3.0]
+
+    write_store_root_bbox(str(store_path))
+
+    root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
+    assert root_attrs["spatial:bbox"] == [0.0, 0.0, 3.0, 3.0]
+    assert root_attrs["proj:code"] == "EPSG:4326"
 
 
 class TestConvenienceFunction:

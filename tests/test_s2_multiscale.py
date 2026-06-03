@@ -6,6 +6,7 @@ import json
 import pathlib
 from itertools import pairwise
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -14,9 +15,12 @@ import zarr
 from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
 from structlog.testing import capture_logs
+from zarr.codecs import BloscCodec, CastValue, ScaleOffset
+from zarr.core.dtype import Int16
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _coarsen_variable,
+    add_multiscales_metadata_to_parent,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
@@ -54,6 +58,46 @@ def test_create_downsampled_resolution_group_quality_mask() -> None:
     assert out["quality_clouds"].shape == (3, 4)
 
 
+def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_rio(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Derived levels should not reuse a stale rio transform."""
+
+    def _dataset(resolution: int, size: int, x0: float, y0: float) -> xr.Dataset:
+        x = x0 + np.arange(size, dtype="float64") * resolution
+        y = y0 - np.arange(size, dtype="float64") * resolution
+        ds = xr.Dataset(
+            {"band": (["y", "x"], np.ones((size, size), dtype=np.uint16))},
+            coords={"x": x, "y": y},
+        )
+        return ds.rio.write_crs("EPSG:32631")
+
+    r10m = _dataset(10, 12, 600000.0, 4900020.0)
+    r120m = _dataset(120, 3, 600030.0, 4899990.0)
+
+    parent_group = zarr.create_group(tmp_path / "multiscales.zarr")
+
+    def stale_transform() -> tuple[float, float, float, float, float, float]:
+        return (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
+
+    with patch.object(r120m.rio, "transform", stale_transform):
+        add_multiscales_metadata_to_parent(
+            parent_group,
+            {"r10m": r10m, "r120m": r120m},
+        )
+
+    layout = parent_group.attrs["multiscales"]["layout"]
+    derived_level = next(level for level in layout if level["asset"] == "r120m")
+    assert tuple(derived_level["spatial:transform"]) == (
+        120.0,
+        0.0,
+        600030.0,
+        0.0,
+        -120.0,
+        4899990.0,
+    )
+
+
 def test_calculate_simple_shard_dimensions() -> None:
     """Test simplified shard dimensions calculation."""
     # Test 3D data (time, y, x) - shards are multiples of chunks
@@ -77,6 +121,52 @@ def test_calculate_simple_shard_dimensions() -> None:
     # Should use largest multiple of chunk_size that fits
     assert shard_dims[0] == 768  # 3 * 256 = 768 (largest multiple that fits in 1000)
     assert shard_dims[1] == 768  # 3 * 256 = 768
+
+
+def test_create_measurements_encoding_experimental_scale_offset_codec() -> None:
+    """Test that experimental_scale_offset_codec adds ScaleOffset + CastValue filters."""
+    # Create a dataset with CF-style scale-offset encoding, as xarray would
+    # produce when reading a CF-encoded zarr/netCDF variable.
+    data = xr.DataArray(
+        np.arange(0, 100, dtype="float64").reshape(10, 10),
+        dims=["y", "x"],
+    )
+    data.encoding = {
+        "scale_factor": 0.01,
+        "add_offset": 273.15,
+        "dtype": np.dtype("int16"),
+    }
+    ds = xr.Dataset({"temperature": data})
+
+    encoding = create_measurements_encoding(
+        ds,
+        enable_sharding=True,
+        spatial_chunk=256,
+        keep_scale_offset=False,
+        experimental_scale_offset_codec=True,
+    )
+
+    int16_min = int(np.iinfo(np.int16).min)
+    assert encoding == {
+        "temperature": {
+            "chunks": (10, 10),
+            "compressors": (BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0),),
+            "shards": (10, 10),
+            "filters": (
+                ScaleOffset(offset=273.15, scale=100.0),
+                CastValue(
+                    data_type=Int16(endianness="little"),
+                    rounding="nearest-even",
+                    out_of_range=None,
+                    scalar_map={
+                        "encode": [("NaN", int16_min)],
+                        "decode": [(int16_min, "NaN")],
+                    },
+                ),
+            ),
+            "fill_value": "NaN",
+        }
+    }
 
 
 @pytest.mark.parametrize("keep_scale_offset", [True, False])
@@ -153,7 +243,13 @@ def test_create_multiscale_from_datatree(
     s2_group_example: zarr.Group,
     tmp_path: pathlib.Path,
 ) -> None:
-    """Test multiscale creation from DataTree."""
+    """Snapshot test: a single canonical parametrization (keep_scale_offset=False,
+    experimental_scale_offset_codec=False) compared against a stored fixture.
+
+    Behavior under other parametrizations is exercised by
+    `test_create_multiscale_from_datatree_behavior` below, which uses a small
+    in-memory dataset with explicit, easily-verified expectations.
+    """
     output_path = str(tmp_path / "output.zarr")
     input_group = zarr.open_group(s2_group_example)
     output_group = zarr.create_group(output_path)
@@ -167,6 +263,7 @@ def test_create_multiscale_from_datatree(
             enable_sharding=True,
             spatial_chunk=256,
             keep_scale_offset=False,
+            experimental_scale_offset_codec=False,
         )
 
     observed_group = zarr.open_group(output_path, use_consolidated=False)
@@ -218,6 +315,194 @@ def test_create_multiscale_from_datatree(
     assert o_keys == e_keys
     # Check that all values are the same
     assert [k for k in o_keys if expected_structure_flat[k] != observed_structure_flat[k]] == []
+
+
+def _make_minimal_s2_datatree() -> xr.DataTree:
+    """Build a tiny CF-encoded reflectance DataTree for behavior tests.
+
+    Three levels (r10m, r20m, r60m), one band each, with `scale_factor`,
+    `add_offset`, and `dtype` set in the variable encoding so that the
+    measurement-encoding logic recognises CF-encoded variables.
+    """
+    rng = np.random.default_rng(0)
+
+    def _band(size: int) -> xr.DataArray:
+        # Decoded floats in a small range so the codec round-trips cleanly.
+        data = rng.uniform(0.0, 1.0, size=(size, size)).astype("float64")
+        da = xr.DataArray(
+            data,
+            dims=["y", "x"],
+            coords={
+                "x": np.arange(size, dtype="float64"),
+                "y": np.arange(size, dtype="float64"),
+            },
+        )
+        # CF encoding: stored as uint16, decoded via scale_factor/add_offset.
+        da.encoding = {
+            "scale_factor": 0.0001,
+            "add_offset": 0.0,
+            "dtype": np.dtype("uint16"),
+        }
+        return da
+
+    r10m = xr.Dataset({"b02": _band(120)})
+    r20m = xr.Dataset({"b05": _band(60)})
+    r60m = xr.Dataset({"b01": _band(20)})
+
+    dt = xr.DataTree()
+    dt["measurements/reflectance/r10m"] = xr.DataTree(r10m)
+    dt["measurements/reflectance/r20m"] = xr.DataTree(r20m)
+    dt["measurements/reflectance/r60m"] = xr.DataTree(r60m)
+    return dt
+
+
+# Spatial chunk small enough that no padding is needed for the 20x20 r60m band.
+_BEHAVIOR_SPATIAL_CHUNK = 16
+
+# Original groups in the synthetic datatree — those that have CF encoding on input.
+_ORIGINAL_GROUPS = {
+    "measurements/reflectance/r10m": "b02",
+    "measurements/reflectance/r20m": "b05",
+    "measurements/reflectance/r60m": "b01",
+}
+
+# Downsampled groups added by `create_multiscale_from_datatree`, derived from the
+# r60m level by successive coarsening. `_coarsen_variable` preserves the source
+# variable's CF encoding, so these levels see the same encoding flags as the
+# original groups.
+_DOWNSAMPLED_GROUPS = (
+    "measurements/reflectance/r120m",
+    "measurements/reflectance/r360m",
+    "measurements/reflectance/r720m",
+)
+
+
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*:FutureWarning")
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+@pytest.mark.parametrize("experimental_scale_offset_codec", [False, True])
+@pytest.mark.parametrize("keep_scale_offset", [False, True])
+def test_create_multiscale_from_datatree_behavior(
+    keep_scale_offset: bool,
+    experimental_scale_offset_codec: bool,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Verify per-parameter behavior of multiscale generation on a tiny dataset.
+
+    This test asserts the *meaning* of the two flags directly, instead of
+    snapshotting an entire pyramid. Both flags apply uniformly to every level
+    of the pyramid (original groups + downsampled groups). The expectations
+    per (keep_scale_offset, experimental_scale_offset_codec) combo:
+
+    * `keep_scale_offset=True`: every level preserves the packed integer dtype
+      on disk.
+    * `keep_scale_offset=False, experimental_scale_offset_codec=False`:
+      every level is written as decoded floats, CF attributes are stripped.
+    * `keep_scale_offset=False, experimental_scale_offset_codec=True`: every
+      level carries a `[scale_offset, cast_value]` filter pipeline; logical
+      dtype is float32 (decoded), chunks store packed integers.
+    """
+    dt_input = _make_minimal_s2_datatree()
+    output_path = str(tmp_path / "output.zarr")
+    output_group = zarr.create_group(output_path)
+
+    with capture_logs():
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=output_group,
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            keep_scale_offset=keep_scale_offset,
+            experimental_scale_offset_codec=experimental_scale_offset_codec,
+        )
+
+    # ------------------------------------------------------------------
+    # Original groups (those that had CF encoding on input)
+    # ------------------------------------------------------------------
+    for group_path, var_name in _ORIGINAL_GROUPS.items():
+        arr = zarr.open_array(output_path, path=f"{group_path}/{var_name}")
+        codec_names = [type(c).__name__ for c in arr.metadata.codecs]
+
+        if keep_scale_offset:
+            # Source CF encoding is preserved as-is: packed integer on disk,
+            # CF attributes round-tripped via xarray.
+            assert arr.dtype == np.uint16, (
+                f"{group_path}/{var_name}: expected uint16 on disk, got {arr.dtype}"
+            )
+        elif experimental_scale_offset_codec:
+            # CF encoding is pushed into a codec pipeline. The logical dtype
+            # is the cast-to-float32 array dtype; the codec stores uint16.
+            assert arr.dtype == np.float32, (
+                f"{group_path}/{var_name}: expected float32 logical dtype, got {arr.dtype}"
+            )
+            assert "ScaleOffset" in codec_names, f"{group_path}/{var_name}: codecs={codec_names}"
+            assert "CastValue" in codec_names, f"{group_path}/{var_name}: codecs={codec_names}"
+        else:
+            # CF encoding is stripped; data is written as decoded floats.
+            assert arr.dtype == np.float32, (
+                f"{group_path}/{var_name}: expected float32, got {arr.dtype}"
+            )
+            assert "ScaleOffset" not in codec_names
+            assert "CastValue" not in codec_names
+
+    # ------------------------------------------------------------------
+    # Downsampled groups: `_coarsen_variable` preserves the source variable's
+    # CF encoding, so the same per-combo expectations as the original groups
+    # apply here too — every level in the pyramid should be encoded
+    # consistently.
+    # ------------------------------------------------------------------
+    parent_group = zarr.open_group(output_path, path="measurements/reflectance")
+    for group_path in _DOWNSAMPLED_GROUPS:
+        # All three downsampled levels should exist for the minimal datatree
+        # (10/20/60 → 120/360/720).
+        sub = group_path.removeprefix("measurements/reflectance/")
+        assert sub in dict(parent_group.groups()), f"missing downsampled group {group_path}"
+        ds = xr.open_dataset(output_path, engine="zarr", group=group_path)
+        assert ds.data_vars, f"{group_path} has no variables"
+        for name in ds.data_vars:
+            arr = zarr.open_array(output_path, path=f"{group_path}/{name}")
+            codec_names = [type(c).__name__ for c in arr.metadata.codecs]
+
+            if keep_scale_offset:
+                assert arr.dtype == np.uint16, (
+                    f"{group_path}/{name}: expected uint16 on disk, got {arr.dtype}"
+                )
+                assert "ScaleOffset" not in codec_names
+                assert "CastValue" not in codec_names
+            elif experimental_scale_offset_codec:
+                assert arr.dtype == np.float32, (
+                    f"{group_path}/{name}: expected float32 logical dtype, got {arr.dtype}"
+                )
+                assert "ScaleOffset" in codec_names, f"{group_path}/{name}: codecs={codec_names}"
+                assert "CastValue" in codec_names, f"{group_path}/{name}: codecs={codec_names}"
+            else:
+                assert arr.dtype == np.float32, (
+                    f"{group_path}/{name}: expected float32, got {arr.dtype}"
+                )
+                assert "ScaleOffset" not in codec_names
+                assert "CastValue" not in codec_names
+
+    # ------------------------------------------------------------------
+    # Decoded-value invariance: regardless of which storage path the
+    # converter chose, the values xarray hands back must be the same — the
+    # input quantised onto the source variable's scale_factor/add_offset
+    # grid (every storage path round-trips through that grid).
+    # ------------------------------------------------------------------
+    for group_path, var_name in _ORIGINAL_GROUPS.items():
+        da_in = dt_input[group_path].to_dataset()[var_name]
+        sf = float(da_in.encoding["scale_factor"])
+        ao = float(da_in.encoding["add_offset"])
+        packed = np.round((da_in.values - ao) / sf).astype("uint16")
+        expected = (packed.astype("float64") * sf + ao).astype("float32")
+
+        observed = xr.open_dataset(output_path, engine="zarr", group=group_path)[var_name].values
+        # CF quantisation rounds to the nearest multiple of `scale_factor`,
+        # so values agree with `expected` to within sf/2 in exact arithmetic.
+        # On the r10m level the values round-trip through a float64 → float32
+        # cast in the converter, which can push a handful of points up to one
+        # full step off (observed worst case: ~1.0002 * sf due to float32
+        # ULP slop at this magnitude). Tolerate one full step.
+        np.testing.assert_allclose(observed.astype("float32"), expected, atol=sf, rtol=1e-3)
 
 
 # ---------------------------------------------------------------------------

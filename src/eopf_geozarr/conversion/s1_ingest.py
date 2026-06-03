@@ -25,6 +25,7 @@ import rasterio
 import structlog
 import zarr
 import zarr.codecs
+from pyproj import CRS as PyprojCRS
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
@@ -128,7 +129,7 @@ def extract_geotiff_metadata(path: str | Path) -> S1TilingMetadata:
         If critical tags (ACQUISITION_DATETIME, ORBIT_NUMBER,
         RELATIVE_ORBIT_NUMBER, FLYING_UNIT_CODE) are missing.
     """
-    with rasterio.open(str(path)) as src:
+    with _rasterio_env(path), rasterio.open(str(path)) as src:
         tags = src.tags()
         t = src.transform
         spatial_transform = [t.a, t.b, t.c, t.d, t.e, t.f]
@@ -294,6 +295,36 @@ def _create_spatial_coordinate_arrays(
     )
 
 
+def _add_grid_mapping(group: zarr.Group, crs_string: str) -> None:
+    """Add a CF ``spatial_ref`` grid-mapping coordinate to a group holding (y, x) arrays.
+
+    rioxarray -- and TiTiler's GeoZarr reader -- resolve the CRS from a CF
+    ``spatial_ref``/``crs_wkt`` coordinate; the GeoZarr ``proj:code`` attribute alone
+    is not read. This mirrors the S2 converter (which writes a ``spatial_ref``
+    grid-mapping variable via ``rio.write_crs``). The CF attributes come from
+    ``pyproj.CRS.to_cf()`` -- the same source rioxarray uses -- so the projection is
+    described correctly for any CRS rather than hard-coded.
+
+    The scalar ``spatial_ref`` array is created (if absent) and every (y, x) data
+    array in the group is given ``grid_mapping = "spatial_ref"``.
+    """
+    cf_attrs = PyprojCRS.from_user_input(crs_string).to_cf()
+    # rioxarray writes both ``crs_wkt`` and a ``spatial_ref`` attr holding the WKT.
+    cf_attrs["spatial_ref"] = cf_attrs["crs_wkt"]
+    cf_attrs["_ARRAY_DIMENSIONS"] = []
+
+    if "spatial_ref" in group:
+        sref = group["spatial_ref"]
+    else:
+        sref = group.create_array("spatial_ref", shape=(), dtype="int64", fill_value=0)
+        sref[...] = 0
+    sref.attrs.update(cf_attrs)
+
+    for name, arr in group.arrays():
+        if name != "spatial_ref" and {"y", "x"}.issubset(arr.metadata.dimension_names or ()):
+            arr.attrs["grid_mapping"] = "spatial_ref"
+
+
 def create_s1_store(
     store_path: str | Path,
     orbit_direction: str,
@@ -330,6 +361,7 @@ def create_s1_store(
             {
                 "spatial:shape": [level_h, level_w],
                 "spatial:transform": level_entry["spatial:transform"],
+                "proj:code": metadata.crs,
             }
         )
 
@@ -359,6 +391,7 @@ def create_s1_store(
         _create_spatial_coordinate_arrays(
             level_group, level_h, level_w, level_entry["spatial:transform"]
         )
+        _add_grid_mapping(level_group, metadata.crs)
 
     # Coordinate variables at native resolution only
     r10m = orbit_group["r10m"]
@@ -468,13 +501,13 @@ def ingest_s1tiling_acquisition(
     ValueError
         If the GeoTIFF CRS or shape does not match the existing store.
     """
-    vv_path = Path(vv_path)
-    vh_path = Path(vh_path)
-    border_mask_path = Path(border_mask_path)
+    vv_path = _coerce_input_path(vv_path)
+    vh_path = _coerce_input_path(vh_path)
+    border_mask_path = _coerce_input_path(border_mask_path)
     store_path = Path(store_path)
 
     for p in [vv_path, vh_path, border_mask_path]:
-        if not p.exists():
+        if not _input_path_exists(p):
             raise FileNotFoundError(f"GeoTIFF not found: {p}")
 
     # Extract metadata from VV file
@@ -541,6 +574,7 @@ def ingest_s1tiling_acquisition(
                 _create_spatial_coordinate_arrays(
                     level_group, level_h, level_w, level_entry["spatial:transform"]
                 )
+                _add_grid_mapping(level_group, meta.crs)
             r10m = orbit_group["r10m"]
             for name, dtype, fill in [
                 ("time", "int64", 0),
@@ -581,12 +615,13 @@ def ingest_s1tiling_acquisition(
     orbit = root[orbit_direction]
 
     # Read GeoTIFF pixel data
-    with rasterio.open(str(vv_path)) as src:
-        vv_data = src.read(1)
-    with rasterio.open(str(vh_path)) as src:
-        vh_data = src.read(1)
-    with rasterio.open(str(border_mask_path)) as src:
-        mask_data = src.read(1).astype(np.uint8)
+    with _rasterio_env(vv_path):
+        with rasterio.open(str(vv_path)) as src:
+            vv_data = src.read(1)
+        with rasterio.open(str(vh_path)) as src:
+            vh_data = src.read(1)
+        with rasterio.open(str(border_mask_path)) as src:
+            mask_data = src.read(1).astype(np.uint8)
 
     log.info(
         "GeoTIFF read complete",
@@ -664,6 +699,62 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
 
 
 # =============================================================================
+# S3 / local filesystem helpers
+# =============================================================================
+
+
+def _list_tifs(input_dir: str | Path) -> list[str | Path]:
+    """List *.tif files; supports local paths and s3:// URIs."""
+    s = str(input_dir).rstrip("/")
+    if s.startswith("s3://"):
+        import s3fs as _s3
+
+        fs = _s3.S3FileSystem()
+        bucket_key = s[len("s3://") :]
+        return [f"s3://{p}" for p in sorted(fs.glob(f"{bucket_key}/*.tif"))]
+    return sorted(Path(input_dir).glob("*.tif"))
+
+
+def _coerce_input_path(p: str | Path) -> str | Path:
+    """Return str for s3:// URIs (preserves double-slash); Path otherwise."""
+    s = str(p)
+    return s if s.startswith("s3://") else Path(s)
+
+
+def _input_path_exists(p: str | Path) -> bool:
+    """Existence check for both local Path and s3:// URI."""
+    s = str(p)
+    if s.startswith("s3://"):
+        import s3fs as _s3
+
+        return _s3.S3FileSystem().exists(s.removeprefix("s3://"))
+    return Path(p).exists()
+
+
+def _rasterio_env(path: str | Path):  # type: ignore[return]
+    """rasterio.Env context for S3 paths; no-op context manager for local paths.
+
+    rasterio 1.5 passes endpoint_url verbatim as GDAL's AWS_S3_ENDPOINT.
+    GDAL expects hostname only (no scheme), so strip https:// from
+    AWS_ENDPOINT_URL if that is what the environment provides.
+    """
+    import contextlib
+    import os
+
+    if not str(path).startswith("s3://"):
+        return contextlib.nullcontext()
+
+    import boto3
+    import rasterio
+    from rasterio.session import AWSSession
+
+    raw = os.environ.get("AWS_S3_ENDPOINT") or os.environ.get("AWS_ENDPOINT_URL", "")
+    endpoint = raw.split("://", 1)[-1] if "://" in raw else raw
+    session = boto3.Session()
+    return rasterio.Env(AWSSession(session, endpoint_url=endpoint or None))
+
+
+# =============================================================================
 # File Discovery
 # =============================================================================
 
@@ -676,12 +767,11 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
 
     Logs warnings for incomplete acquisitions (missing polarisation or mask files).
     """
-    input_dir = Path(input_dir)
-    files = sorted(input_dir.glob("*.tif"))
+    files = _list_tifs(input_dir)
     groups: dict[tuple, dict] = {}
 
     for f in files:
-        parsed = parse_s1tiling_filename(f.name)
+        parsed = parse_s1tiling_filename(Path(str(f)).name)
         if parsed is None:
             continue
 
@@ -772,8 +862,8 @@ def ingest_s1tiling_conditions(
         ("incidence_angle", incidence_angle_path),
     ]:
         if path is not None:
-            p = Path(path)
-            if not p.exists():
+            p = _coerce_input_path(path)
+            if not _input_path_exists(p):
                 raise FileNotFoundError(f"Condition GeoTIFF not found: {p}")
             condition_inputs.append((label, p))
 
@@ -797,7 +887,7 @@ def ingest_s1tiling_conditions(
 
     # Read reference metadata from the first condition file
     ref_label, ref_path = condition_inputs[0]
-    with rasterio.open(str(ref_path)) as src:
+    with _rasterio_env(ref_path), rasterio.open(str(ref_path)) as src:
         ref_crs = str(src.crs)
         t = src.transform
         ref_transform = [t.a, t.b, t.c, t.d, t.e, t.f]
@@ -829,7 +919,7 @@ def ingest_s1tiling_conditions(
     for label, cond_path in condition_inputs:
         array_name = f"{label}_{orbit_suffix}"
 
-        with rasterio.open(str(cond_path)) as src:
+        with _rasterio_env(cond_path), rasterio.open(str(cond_path)) as src:
             data = src.read(1).astype(np.float32)
 
         h, w = data.shape
@@ -860,6 +950,8 @@ def ingest_s1tiling_conditions(
                 max=float(np.nanmax(data)),
             )
 
+    _add_grid_mapping(conditions, ref_crs)
+
     log.info(
         "Conditions ingestion complete",
         orbit_direction=orbit_direction,
@@ -881,12 +973,11 @@ def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
 
     Groups by (tile, orbit).
     """
-    input_dir = Path(input_dir)
-    files = sorted(input_dir.glob("*.tif"))
+    files = _list_tifs(input_dir)
     groups: dict[tuple[str, str], dict] = {}
 
     for f in files:
-        m = S1TILING_GAMMA_AREA_PATTERN.match(f.name)
+        m = S1TILING_GAMMA_AREA_PATTERN.match(Path(str(f)).name)
         if m:
             tile = m.group("tile")
             orbit = m.group("orbit")
@@ -896,7 +987,7 @@ def discover_s1tiling_conditions(input_dir: str | Path) -> list[dict]:
             groups[key]["gamma_area"] = f
             continue
 
-        m = S1TILING_LIA_PATTERN.match(f.name)
+        m = S1TILING_LIA_PATTERN.match(Path(str(f)).name)
         if m:
             tile = m.group("tile")
             orbit = m.group("orbit")

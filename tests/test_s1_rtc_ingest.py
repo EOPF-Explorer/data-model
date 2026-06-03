@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -232,6 +233,38 @@ class TestCreateStore:
             assert arr.shape[0] == 0  # time axis starts at 0
         assert r10m["vv"].dtype == np.float32
         assert r10m["border_mask"].dtype == np.uint8
+
+    def test_no_tile_matrix_set(
+        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
+    ) -> None:
+        # tile_matrix_set is not part of the S1 GRD RTC data model (confirmed with the
+        # data-model owner): the multiscales attribute must not carry one.
+        root = create_s1_store(s1_store_path, "ascending", sample_metadata)
+        ms = dict(root["ascending"].attrs)["multiscales"]
+        assert "tile_matrix_set" not in ms
+        assert "layout" in ms
+
+    def test_cf_grid_mapping_resolves_crs(
+        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
+    ) -> None:
+        # Each resolution level carries a CF spatial_ref grid-mapping so rioxarray (and
+        # TiTiler's GeoZarr reader) can resolve the CRS -- the geozarr proj:code attr
+        # alone is not read by rioxarray.
+        import rioxarray  # noqa: F401  -- registers the .rio accessor
+
+        create_s1_store(s1_store_path, "ascending", sample_metadata)
+        r10m = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)["ascending"]["r10m"]
+        assert "spatial_ref" in list(r10m.array_keys())
+        assert dict(r10m["vv"].attrs).get("grid_mapping") == "spatial_ref"
+        assert dict(r10m["vh"].attrs).get("grid_mapping") == "spatial_ref"
+
+        ds = xr.open_zarr(
+            str(s1_store_path / "ascending" / "r10m"),
+            consolidated=False,
+            decode_coords="all",
+        )
+        assert ds.rio.crs is not None
+        assert ds.rio.crs.to_epsg() == 32633
 
     def test_coordinate_variables(
         self, s1_store_path: Path, sample_metadata: S1TilingMetadata
@@ -494,6 +527,20 @@ class TestDiscoverAcquisitions:
         acqs = discover_s1tiling_acquisitions(tmp_path)
         assert len(acqs) == 0
 
+    def test_s3_uri_discovers_acquisitions(self) -> None:
+        """s3:// prefix is listed via s3fs; pathlib.glob is NOT used."""
+        s3_files = [
+            "bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif",
+            "bucket/prefix/s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif",
+            "bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif",
+            "bucket/prefix/s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif",
+        ]
+        with patch("s3fs.S3FileSystem.glob", return_value=s3_files):
+            acqs = discover_s1tiling_acquisitions("s3://bucket/prefix/")
+        assert len(acqs) == 1
+        expected_vv = "s3://bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        assert acqs[0]["vv"] == expected_vv
+
 
 # =============================================================================
 # Phase 3: Conditions ingestion tests
@@ -563,6 +610,9 @@ class TestIngestConditions:
         assert attrs["spatial:dimensions"] == ["y", "x"]
         assert len(attrs["spatial:transform"]) == 6
         assert attrs["spatial:shape"] == [SIZE, SIZE]
+        # CF grid-mapping so rioxarray can resolve the CRS of the condition arrays
+        assert "spatial_ref" in list(conditions.array_keys())
+        assert dict(conditions["gamma_area_037"].attrs).get("grid_mapping") == "spatial_ref"
 
     def test_gamma_area_array_shape_and_dtype(
         self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path
@@ -757,3 +807,12 @@ class TestDiscoverConditions:
     def test_empty_directory(self, tmp_path: Path) -> None:
         conditions = discover_s1tiling_conditions(tmp_path)
         assert len(conditions) == 0
+
+    def test_s3_uri_discovers_conditions(self) -> None:
+        """s3:// prefix is listed via s3fs; pathlib.glob is NOT used."""
+        s3_files = ["bucket/prefix/GAMMA_AREA_32TQM_037.tif"]
+        with patch("s3fs.S3FileSystem.glob", return_value=s3_files):
+            conditions = discover_s1tiling_conditions("s3://bucket/prefix/")
+        assert len(conditions) == 1
+        assert conditions[0]["tile"] == "32TQM"
+        assert conditions[0]["orbit"] == "037"
