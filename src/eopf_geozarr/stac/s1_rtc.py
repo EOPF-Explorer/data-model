@@ -24,14 +24,15 @@ def _rgb_render(orbit: str) -> dict[str, object]:
 
     Produces a 3-band false-colour composite (R=VV, G=VH, B=VV/VH ratio) that
     titiler renders into previews/tiles. ``bidx=[1]`` selects the single time
-    slice from each multi-band variable; ``rescale`` is in linear gamma0 units.
+    slice from each multi-band variable; the single ``rescale`` pair (linear
+    gamma0 units) is applied to every band.
     """
     vv = f"/{orbit}:vv"
     vh = f"/{orbit}:vh"
     return {
         "title": "VV, VH, VV/VH composite",
         "expression": f"{vv};{vh};({vv})/({vh})",
-        "rescale": [[0.0, 0.1], [0.0, 0.1], [0.0, 0.1]],
+        "rescale": [[0.0, 0.1]],
         "bidx": [1],
         "tilesize": 256,
     }
