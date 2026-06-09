@@ -14,8 +14,27 @@ import zarr
 SAR_EXT = "https://stac-extensions.github.io/sar/v1.0.0/schema.json"
 SAT_EXT = "https://stac-extensions.github.io/sat/v1.0.0/schema.json"
 PROJ_EXT = "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
+RENDER_EXT = "https://stac-extensions.github.io/render/v1.0.0/schema.json"
 
 _ORBIT_PREFERENCE = ("ascending", "descending")
+
+
+def _rgb_render(orbit: str) -> dict[str, object]:
+    """Build the dual-pol RGB composite render config for the given orbit group.
+
+    Produces a 3-band false-colour composite (R=VV, G=VH, B=VV/VH ratio) that
+    titiler renders into previews/tiles. ``bidx=[1]`` selects the single time
+    slice from each multi-band variable; ``rescale`` is in linear gamma0 units.
+    """
+    vv = f"/{orbit}:vv"
+    vh = f"/{orbit}:vh"
+    return {
+        "title": "VV, VH, VV/VH composite",
+        "expression": f"{vv};{vh};({vv})/({vh})",
+        "rescale": [[0.0, 0.1], [0.0, 0.1], [0.0, 0.1]],
+        "bidx": [1],
+        "tilesize": 256,
+    }
 
 
 def _utm_to_wgs84(
@@ -118,8 +137,10 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
             "sat:orbit_state": preferred_orbit,
             # Projection extension
             "proj:code": preferred_proj_code,
+            # Render extension: dual-pol RGB composite for previews/tiles
+            "renders": {"rgb": _rgb_render(preferred_orbit)},
         },
-        stac_extensions=[SAR_EXT, SAT_EXT, PROJ_EXT],
+        stac_extensions=[SAR_EXT, SAT_EXT, PROJ_EXT, RENDER_EXT],
         collection=collection_id,
     )
 

@@ -189,3 +189,36 @@ def test_sar_extension_fields(tmp_path: Path) -> None:
 
     sar_ext_uri = "https://stac-extensions.github.io/sar/v1.0.0/schema.json"
     assert sar_ext_uri in item.stac_extensions
+
+
+def test_render_extension_rgb_composite(tmp_path: Path) -> None:
+    """Item must declare a render-extension RGB composite using the preferred orbit."""
+    store = _make_s1_store(tmp_path, {"descending": [(T1_NS, "S1A")]})
+    item = build_s1_rtc_stac_item(str(store), "sentinel-1-grd-rtc-staging")
+
+    render_ext_uri = "https://stac-extensions.github.io/render/v1.0.0/schema.json"
+    assert render_ext_uri in item.stac_extensions
+
+    rgb = item.properties["renders"]["rgb"]
+    assert rgb["expression"] == "/descending:vv;/descending:vh;(/descending:vv)/(/descending:vh)"
+    assert rgb["rescale"] == [[0.0, 0.1], [0.0, 0.1], [0.0, 0.1]]
+    assert rgb["bidx"] == [1]
+    assert rgb["tilesize"] == 256
+
+
+def test_render_uses_ascending_when_preferred(tmp_path: Path) -> None:
+    """When ascending is the preferred orbit, the render expression must reference it."""
+    store_path = tmp_path / "s1-grd-rtc-31TCH.zarr"
+    root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
+    for orbit_dir in ("descending", "ascending"):
+        og = root.create_group(orbit_dir)
+        og.attrs.update({"proj:code": CRS, "spatial:bbox": UTM_BBOX})
+        r10m = og.create_group("r10m")
+        t_arr = r10m.create_array("time", shape=(1,), dtype="int64", chunks=(512,))
+        t_arr[:] = [T1_NS]
+        p_arr = r10m.create_array("platform", shape=(1,), dtype="<U4", chunks=(512,))
+        p_arr[:] = ["S1A"]
+    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+
+    item = build_s1_rtc_stac_item(str(store_path), "sentinel-1-grd-rtc-staging")
+    assert item.properties["renders"]["rgb"]["expression"].startswith("/ascending:vv")
