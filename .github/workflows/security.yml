@@ -16,7 +16,7 @@ jobs:
       contents: read
       pull-requests: write  # action-python-security-auditing posts and updates PR comments
     steps:
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         persist-credentials: false
     - uses: developmentseed/action-python-security-auditing@8ebea22ea75dfba2244ed9883c2aa6cb4df8d9a9 # v0.6.0
