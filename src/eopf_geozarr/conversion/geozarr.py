@@ -30,16 +30,21 @@ from zarr.codecs import BloscCodec
 from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
+from zarr_cm import geo_proj
+from zarr_cm import multiscales as multiscales_cm
+from zarr_cm import spatial as spatial_cm
 
+from eopf_geozarr.data_api.geozarr.multiscales import zcm
+from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
+    MultiscaleGroupAttrs,
+    MultiscaleMeta,
+)
 from eopf_geozarr.types import (
     OverviewLevelJSON,
     StandardLatCoordAttrsJSON,
     StandardLonCoordAttrsJSON,
     StandardXCoordAttrsJSON,
     StandardYCoordAttrsJSON,
-    TileMatrixJSON,
-    TileMatrixLimitJSON,
-    TileMatrixSetJSON,
     XarrayEncodingJSON,
 )
 
@@ -56,7 +61,6 @@ def create_geozarr_dataset(
     output_path: str,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
-    tile_width: int = 256,
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
@@ -77,8 +81,6 @@ def create_geozarr_dataset(
         Spatial chunk size for encoding
     min_dimension : int, default 256
         Minimum dimension for overview levels
-    tile_width : int, default 256
-        Tile width for TMS compatibility
     max_retries : int, default 3
         Maximum number of retries for network operations
     crs_groups : Iterabl[str], optional
@@ -135,7 +137,6 @@ def create_geozarr_dataset(
         compressor,
         spatial_chunk,
         min_dimension,
-        tile_width,
         max_retries,
         crs_groups,
         gcp_group,
@@ -207,6 +208,15 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         for var_name in ds.data_vars:
             log.info("Processing variable / band %s", var_name)
 
+            # Sanitize source-only and misleading attributes
+            is_float = np.issubdtype(ds[var_name].dtype, np.floating)
+            ds[var_name].attrs = utils.sanitize_array_attrs(
+                ds[var_name].attrs,
+                is_decoded_float=is_float,
+            )
+            if is_float:
+                ds[var_name].attrs["_FillValue"] = np.nan
+
             # Set CF standard name and _ARRAY_DIMENSIONS
             if _is_sentinel1(dt):
                 ds[var_name].attrs["standard_name"] = (
@@ -256,7 +266,6 @@ def iterative_copy(
     compressor: Any,
     spatial_chunk: int = 4096,
     min_dimension: int = 256,
-    tile_width: int = 256,
     max_retries: int = 3,
     crs_groups: Iterable[str] | None = None,
     gcp_group: str | None = None,
@@ -279,8 +288,6 @@ def iterative_copy(
         Spatial chunk size for encoding
     min_dimension : int, default 256
         Minimum dimension for overview levels
-    tile_width : int, default 256
-        Tile width for TMS compatibility
     max_retries : int, default 3
         Maximum number of retries for network operations
     crs_groups : Iterable[str], optional
@@ -330,7 +337,6 @@ def iterative_copy(
                 compressor=compressor,
                 max_retries=max_retries,
                 min_dimension=min_dimension,
-                tile_width=tile_width,
                 gcp_group=gcp_group,
                 enable_sharding=enable_sharding,
             )
@@ -432,7 +438,6 @@ def write_geozarr_group(
     compressor: Any = None,
     max_retries: int = 3,
     min_dimension: int = 256,
-    tile_width: int = 256,
     gcp_group: str | None = None,
     enable_sharding: bool = False,
 ) -> xr.DataTree:
@@ -459,8 +464,6 @@ def write_geozarr_group(
         Maximum number of retries for writing
     min_dimension : int, default 256
         Minimum dimension for overview levels
-    tile_width : int, default 256
-        Tile width for TMS compatibility
     gcp_group : str, optional
         Group name where GCPs (Ground Control Points) are located
         in the input DataTree (ignored if ``dt_input`` does not
@@ -481,8 +484,8 @@ def write_geozarr_group(
     # Create encoding for all variables
     encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk, enable_sharding)
 
-    # Write native data in the group 0 (overview level 0)
-    native_dataset_group_name = f"{group_name}/0"
+    # Write native data directly at the group path (GeoZarr 0.4 layout)
+    native_dataset_group_name = group_name
     native_dataset_path = f"{output_path}/{native_dataset_group_name.lstrip('/')}"
 
     # Check for existing dataset
@@ -517,7 +520,6 @@ def write_geozarr_group(
             output_path=output_path,
             group_name=group_name,
             min_dimension=min_dimension,
-            tile_width=tile_width,
             spatial_chunk=spatial_chunk,
             ds_gcp=ds_gcp,
             enable_sharding=enable_sharding,
@@ -545,26 +547,28 @@ def create_geozarr_compliant_multiscales(
     output_path: str,
     group_name: str,
     min_dimension: int = 256,
-    tile_width: int = 256,
     spatial_chunk: int = 4096,
     ds_gcp: xr.Dataset | None = None,
     enable_sharding: bool = False,
 ) -> dict[str, Any]:
     """
-    Create GeoZarr-spec compliant multiscales following the specification exactly.
+    Create GeoZarr-spec 0.4 compliant multiscales for a group.
+
+    Native data is expected to already be written at ``group_name``.
+    Overview sub-groups are written at ``{group_name}/r{scale}``
+    (e.g. ``r2``, ``r4``, ``r8`` …) and the experimental multiscales
+    convention metadata is added to ``group_name``.
 
     Parameters
     ----------
     ds : xarray.Dataset
-        Source dataset with all variables
+        Source dataset with all variables (native resolution)
     output_path : str
         Output path for the Zarr store
     group_name : str
-        Name of the resolution group
+        Path of the group that already holds the native data
     min_dimension : int, default 256
         Minimum dimension for overview levels
-    tile_width : int, default 256
-        Tile width for TMS compatibility
     spatial_chunk : int, default 4096
         Spatial chunk size for encoding
     ds_gcp : xr.Dataset, optional
@@ -574,8 +578,10 @@ def create_geozarr_compliant_multiscales(
     Returns
     -------
     dict
-        Dictionary with overview levels information
+        Dictionary with overview_datasets and overview levels information
     """
+    import rasterio.transform
+
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
 
     # Get spatial information from the first data variable
@@ -613,11 +619,6 @@ def create_geozarr_compliant_multiscales(
 
         except Exception as e:
             log.info("Error computing native bounds", error=str(e))
-            # TODO: check GCP bounds vs. raster data bounds?
-            # Below we compute GCP bbox and assume that it roughly corresponds
-            # to the data bounds, which might be too crude / wrong approximation.
-            # Alternatively we could check GCPs' line/pixel values and adjust
-            # the bounds if we know approx the resolution.
             native_bounds = (
                 ds_gcp["longitude"].values.min(),
                 ds_gcp["latitude"].values.min(),
@@ -629,10 +630,8 @@ def create_geozarr_compliant_multiscales(
     log.info("Native resolution", width=native_width, height=native_height)
     log.info("Native CRS: %s", native_crs)
 
-    # Calculate overview levels
-    overview_levels = calculate_overview_levels(
-        native_width, native_height, min_dimension, tile_width
-    )
+    # Calculate overview levels (integer indexed, 0 = native)
+    overview_levels = calculate_overview_levels(native_width, native_height, min_dimension)
 
     log.info("Total overview levels: %s", len(overview_levels))
     for ol in overview_levels:
@@ -641,57 +640,81 @@ def create_geozarr_compliant_multiscales(
             level=ol["level"],
             width=ol["width"],
             height=ol["height"],
-            scale_factor=ol["scale_relative"],
         )
 
-    # Create native CRS tile matrix set
-    tile_matrix_set = create_native_crs_tile_matrix_set(
-        native_crs, native_bounds, overview_levels, None
+    # Build experimental multiscales layout ----------------------------------
+    # Level 0 → asset "." (native data written at the group root)
+    # Level N → asset "r{2**N}" (overview sub-group)
+
+    def _spatial_transform_for(
+        bounds: tuple[float, float, float, float], w: int, h: int
+    ) -> tuple[float, ...]:
+        t = rasterio.transform.from_bounds(*bounds, w, h)
+        return tuple(float(v) for v in tuple(t)[:6])
+
+    layout: list[zcm.ScaleLevel] = []
+    for i, ol in enumerate(overview_levels):
+        level_int = int(ol["level"])
+        asset = "." if level_int == 0 else f"r{2**level_int}"
+        scale_level_data: dict[str, Any] = {"asset": asset}
+        if i > 0:
+            prev_level_int = int(overview_levels[i - 1]["level"])
+            prev_asset = "." if prev_level_int == 0 else f"r{2**prev_level_int}"
+            scale_level_data["derived_from"] = prev_asset
+            scale_level_data["transform"] = zcm.Transform(
+                scale=(2.0, 2.0),
+                translation=(0.0, 0.0),
+            )
+        w, h = int(ol["width"]), int(ol["height"])
+        scale_level_data["spatial:shape"] = (h, w)
+        spatial_tf = _spatial_transform_for(native_bounds, w, h)
+        if not all(v == 0.0 for v in spatial_tf):
+            scale_level_data["spatial:transform"] = spatial_tf
+        layout.append(zcm.ScaleLevel(**scale_level_data))
+
+    multiscale_attrs = MultiscaleGroupAttrs(
+        zarr_conventions=(multiscales_cm.CMO, spatial_cm.CMO, geo_proj.CMO),
+        multiscales=MultiscaleMeta(
+            layout=layout,
+            resampling_method="average",
+        ),
     )
+    attrs_to_write = multiscale_attrs.model_dump()
+    if native_crs and native_bounds:
+        attrs_to_write["spatial:dimensions"] = ["y", "x"]
+        attrs_to_write["spatial:bbox"] = list(native_bounds)
+        attrs_to_write["spatial:registration"] = "pixel"
+        if hasattr(native_crs, "to_epsg") and native_crs.to_epsg():
+            attrs_to_write["proj:code"] = f"EPSG:{native_crs.to_epsg()}"
+        elif hasattr(native_crs, "to_wkt"):
+            attrs_to_write["proj:wkt2"] = native_crs.to_wkt()
 
-    # Create tile matrix limits
-    tile_matrix_limits = _create_tile_matrix_limits(overview_levels, tile_width)
-
-    # Add multiscales metadata to the group
-    zarr_json_path = fs_utils.normalize_path(f"{output_path}/{group_name}/zarr.json")
-    zarr_json = fs_utils.read_json_metadata(zarr_json_path)
-    zarr_json_attributes = zarr_json.get("attributes", {})
-    zarr_json_attributes["multiscales"] = {
-        "tile_matrix_set": tile_matrix_set,
-        "resampling_method": "average",
-        "tile_matrix_limits": tile_matrix_limits,
-    }
-    fs_utils.write_json_metadata(zarr_json_path, zarr_json)
+    group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
+    zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
+    zarr_group.attrs.update(attrs_to_write)
 
     log.info("Added multiscales metadata to group %s", group_name)
 
-    # Create overview levels as children groups
+    # Create overview sub-groups as r2, r4, r8, ... -------------------------
     timing_data = []
     previous_level_ds = ds
-    overview_datasets = {}
+    overview_datasets: dict[str, xr.Dataset] = {}
 
     for overview in overview_levels:
-        level = overview["level"]
-        if isinstance(level, str):
-            level = int(level)
+        level = int(overview["level"])
 
-        # Skip level 0 - native resolution is already in group 0
+        # Skip level 0 — native data already written at the group root
         if level == 0:
-            log.info("Skipping level 0 - native resolution is already in group 0")
             continue
 
+        asset_name = f"r{2**level}"
         width = overview["width"]
         height = overview["height"]
-        scale_factor = overview["scale_relative"]
 
-        log.info("Creating overview level (scale) %s with scale factor %s", level, scale_factor)
-        log.info("Target dimensions:", width=width, height=height)
-        log.info(
-            "Using pyramid approach: creating level %s from previous level %s", level, level - 1
-        )
+        log.info("Creating overview %s (%dx%d)", asset_name, width, height)
 
         if ds_gcp is not None:
-            ds_gcp_overview = utils.compute_overview_gcps(ds_gcp, scale_factor, width, height)
+            ds_gcp_overview = utils.compute_overview_gcps(ds_gcp, 2.0, width, height)
         else:
             ds_gcp_overview = None
 
@@ -711,23 +734,19 @@ def create_geozarr_compliant_multiscales(
         # Create encoding for this overview level
         encoding = _create_geozarr_encoding(overview_ds, compressor, spatial_chunk, enable_sharding)
 
-        # Write overview level
-        overview_path = fs_utils.normalize_path(f"{output_path}/{group_name}/{level}")
+        overview_group = f"{group_name}/{asset_name}"
+        overview_path = fs_utils.normalize_path(f"{output_path}/{overview_group.lstrip('/')}")
         start_time = time.time()
 
         storage_options = fs_utils.get_storage_options(overview_path)
         log.info("Writing overview level at path %s", overview_path)
 
-        # Ensure the directory exists for local paths
         if not fs_utils.is_s3_path(overview_path):
             os.makedirs(os.path.dirname(overview_path), exist_ok=True)
 
-        # Sanitize NaN values in overview dataset attributes
+        # Sanitize NaN values in overview dataset attributes before writing
         overview_ds = sanitize_dataset_attributes(overview_ds)
 
-        # Write the overview dataset
-        overview_group = f"{group_name}/{level}"
-        # When sharding enabled, let Dask rechunk to shard boundaries
         align_chunks_flag = not enable_sharding
         overview_ds.to_zarr(
             output_path,
@@ -740,29 +759,27 @@ def create_geozarr_compliant_multiscales(
             storage_options=storage_options,
         )
 
-        overview_datasets[level] = overview_ds
+        overview_datasets[asset_name] = overview_ds
         proc_time = time.time() - start_time
 
         timing_data.append(
             {
-                "level": level,
+                "level": asset_name,
                 "time": proc_time,
                 "pixels": width * height,
                 "width": width,
                 "height": height,
-                "scale_factor": scale_factor,
             }
         )
 
-        log.info("Level %s created in %s seconds", level, round(proc_time, 2))
+        log.info("%s created in %s seconds", asset_name, round(proc_time, 2))
 
-        # Consolidate metadata
-        group_path = fs_utils.normalize_path(f"{output_path}/{overview_group.lstrip('/')}")
-        zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
-        consolidate_metadata(zarr_group.store)
-        log.info("✅ Metadata consolidated for overview level %s", level)
+        # Consolidate metadata for this overview group
+        ov_group_path = fs_utils.normalize_path(f"{output_path}/{overview_group.lstrip('/')}")
+        ov_zarr_group = fs_utils.open_zarr_group(ov_group_path, mode="r+")
+        consolidate_metadata(ov_zarr_group.store)
+        log.info("✅ Metadata consolidated for overview %s", asset_name)
 
-        # Update previous_level_ds for the next iteration
         previous_level_ds = overview_ds
 
     log.info(
@@ -774,8 +791,6 @@ def create_geozarr_compliant_multiscales(
         "overview_datasets": overview_datasets,
         "levels": overview_levels,
         "timing": timing_data,
-        "tile_matrix_set": tile_matrix_set,
-        "tile_matrix_limits": tile_matrix_limits,
     }
 
 
@@ -783,7 +798,6 @@ def calculate_overview_levels(
     native_width: int,
     native_height: int,
     min_dimension: int = 256,
-    tile_width: int = 256,
 ) -> list[OverviewLevelJSON]:
     """
     Calculate overview levels following COG /2 downsampling logic.
@@ -796,13 +810,11 @@ def calculate_overview_levels(
         Height of the native resolution data
     min_dimension : int, default 256
         Stop creating overviews when dimension is smaller than this
-    tile_width : int, default 256
-        Tile width for TMS compatibility calculations
 
     Returns
     -------
     list
-        List of overview level dictionaries
+        List of overview level dictionaries (level 0 = native resolution)
     """
     overview_levels: list[OverviewLevelJSON] = []
     level = 0
@@ -810,18 +822,11 @@ def calculate_overview_levels(
     current_height = native_height
 
     while min(current_width, current_height) >= min_dimension:
-        # Calculate zoom level for TMS compatibility
-        zoom_for_width = max(0, int(np.ceil(np.log2(current_width / tile_width))))
-        zoom_for_height = max(0, int(np.ceil(np.log2(current_height / tile_width))))
-        zoom = max(zoom_for_width, zoom_for_height)
-
         overview_level: dict[str, Any] = {
             "level": level,
-            "zoom": zoom,
             "width": current_width,
             "height": current_height,
             "translation_relative": 0.0,
-            "scale_absolute": 1.0,
             "scale_relative": 2**level,
         }
         overview_levels.append(overview_level)  # type: ignore[arg-type]
@@ -831,86 +836,6 @@ def calculate_overview_levels(
         current_height = native_height // (2**level)
 
     return overview_levels
-
-
-def create_native_crs_tile_matrix_set(
-    native_crs: Any,
-    native_bounds: tuple[float, float, float, float],
-    overview_levels: Iterable[OverviewLevelJSON],
-    group_prefix: str | None = "",
-) -> TileMatrixSetJSON:
-    """
-    Create a custom Tile Matrix Set for the native CRS following GeoZarr spec.
-
-    Parameters
-    ----------
-    native_crs : rasterio.crs.CRS
-        Native CRS of the data
-    native_bounds : tuple
-        Native bounds (left, bottom, right, top)
-    overview_levels : Iterable[OverViewLevelJSON]
-        Iterable of overview level dictionaries
-    group_prefix : str, optional
-        Group prefix for the tile matrix IDs
-
-    Returns
-    -------
-    dict
-        Tile Matrix Set definition following OGC standard
-    """
-    left, bottom, right, top = native_bounds
-    tile_matrices: list[TileMatrixJSON] = []
-
-    for overview in overview_levels:
-        level = overview["level"]
-        width = overview["width"]
-        height = overview["height"]
-
-        # Calculate cell size
-        cell_size_x = (right - left) / width
-        cell_size_y = (top - bottom) / height
-        cell_size = max(cell_size_x, cell_size_y)
-
-        # Calculate scale denominator
-        scale_denominator = cell_size * 3779.5275
-
-        # Calculate matrix dimensions
-        tile_width = overview["chunks"][1][0] if "chunks" in overview else 256  # type: ignore[index]
-        tile_height = overview["chunks"][0][0] if "chunks" in overview else 256  # type: ignore[index]
-        matrix_width = int(np.ceil(width / tile_width))
-        matrix_height = int(np.ceil(height / tile_height))
-
-        matrix_id = f"{group_prefix}/{level}" if group_prefix else str(level)
-
-        tile_matrices.append(
-            {
-                "id": matrix_id,
-                "scaleDenominator": scale_denominator,
-                "cellSize": cell_size,
-                "pointOfOrigin": (left, top),
-                "tileWidth": tile_width,
-                "tileHeight": tile_height,
-                "matrixWidth": matrix_width,
-                "matrixHeight": matrix_height,
-            }
-        )
-
-    # Create the complete Tile Matrix Set
-    epsg_code = native_crs.to_epsg() if native_crs else None
-    crs_uri = (
-        f"http://www.opengis.net/def/crs/EPSG/0/{epsg_code}"
-        if epsg_code
-        else (native_crs.to_wkt() if native_crs else "")
-    )
-
-    return {
-        "id": f"Native_CRS_{epsg_code if epsg_code else 'Custom'}",
-        "title": f"Native CRS Tile Matrix Set ({native_crs})",
-        "crs": crs_uri,
-        "supportedCRS": crs_uri,
-        "orderedAxes": ("X", "Y"),
-        "tileMatrices": tuple(tile_matrices),
-    }
 
 
 def create_overview_dataset_all_vars(
@@ -1021,6 +946,8 @@ def create_overview_dataset_all_vars(
             "_ARRAY_DIMENSIONS": dims,
             "grid_mapping": grid_mapping_var_name,
         }
+        if np.issubdtype(downsampled_data.dtype, np.floating):
+            attrs["_FillValue"] = np.nan
 
         overview_data_vars[var] = (dims, downsampled_data, attrs)
 
@@ -1577,9 +1504,12 @@ def _create_geozarr_encoding(
                 "compressors": compressor,
                 "shards": shards,
             }
-            fv = utils.explicit_fill_value(ds[var])
-            if fv is not utils.UNSET:
-                var_encoding["fill_value"] = fv
+            if np.issubdtype(ds[var].dtype, np.floating):
+                var_encoding["fill_value"] = "NaN"
+            else:
+                fv = utils.explicit_fill_value(ds[var])
+                if fv is not utils.UNSET:
+                    var_encoding["fill_value"] = fv
             encoding[var] = var_encoding
 
     # Add coordinate encoding
@@ -1605,27 +1535,6 @@ def _load_existing_dataset(path: str) -> xr.Dataset | None:
     except Exception as e:
         log.warning("Could not open existing dataset at path", path=path, error=str(e))
     return None
-
-
-def _create_tile_matrix_limits(
-    overview_levels: Iterable[OverviewLevelJSON], tile_width: int
-) -> dict[str, TileMatrixLimitJSON]:
-    """Create tile matrix limits for overview levels."""
-    tile_matrix_limits: dict[str, TileMatrixLimitJSON] = {}
-    for ol in overview_levels:
-        level_str = str(ol["level"])
-        max_tile_col = int(np.ceil(ol["width"] / tile_width)) - 1
-        max_tile_row = int(np.ceil(ol["height"] / tile_width)) - 1
-
-        tile_matrix_limits[level_str] = {
-            "tileMatrix": level_str,
-            "minTileCol": 0,
-            "maxTileCol": max_tile_col,
-            "minTileRow": 0,
-            "maxTileRow": max_tile_row,
-        }
-
-    return tile_matrix_limits
 
 
 def _get_x_coord_attrs() -> StandardXCoordAttrsJSON:

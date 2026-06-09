@@ -43,6 +43,30 @@ def explicit_fill_value(var: xr.DataArray) -> Any:
     return source_fill
 
 
+def sanitize_array_attrs(
+    attrs: dict[str, Any],
+    *,
+    is_decoded_float: bool = False,
+) -> dict[str, Any]:
+    """Return a copy of *attrs* with source-only and misleading keys removed.
+
+    - ``_eopf_attrs`` is always removed.
+    - For decoded float measurement arrays (*is_decoded_float=True*), also
+      removes raw-encoding leftovers ``dtype``, ``fill_value``,
+      ``valid_min``, ``valid_max`` and rewrites
+      ``units: "digital_counts"`` → ``"1"``.
+
+    CF keys ``scale_factor`` and ``add_offset`` are always preserved.
+    """
+    out = {k: v for k, v in attrs.items() if k not in ("_eopf_attrs", "_FillValue")}
+    if is_decoded_float:
+        for key in ("dtype", "fill_value", "valid_min", "valid_max"):
+            out.pop(key, None)
+        if out.get("units") == "digital_counts":
+            out["units"] = "1"
+    return out
+
+
 def downsample_2d_array(
     source_data: np.ndarray,
     target_height: int,

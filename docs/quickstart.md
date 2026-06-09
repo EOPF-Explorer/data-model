@@ -123,16 +123,9 @@ print(dt)
 print(dt.attrs.get('multiscales', 'No multiscales found'))
 
 # Examine resolution levels
-# Note: Structure depends on converter version (see converter.md for V0 vs V1 differences)
-# V0 (deprecated): /measurements/r10m/0, /measurements/r10m/1, etc.
-# V1 (current): /measurements/reflectance/r10m, /measurements/reflectance/r20m, etc.
-
-# Example for V0 structure:
-if "/measurements/r10m/0" in dt.groups:
-    ds_native = dt["/measurements/r10m/0"].ds
-    print(f"Native shape: {ds_native.dims}")
-
-# Example for V1 structure:
+# Native resolutions live at the group root; overviews live as sibling
+# `r{2**level}` subgroups (e.g. `/measurements/reflectance/r10m`,
+# `/measurements/reflectance/r20m`, ...).
 if "/measurements/reflectance/r10m" in dt.groups:
     ds_10m = dt["/measurements/reflectance/r10m"].ds
     ds_20m = dt["/measurements/reflectance/r20m"].ds
@@ -144,12 +137,11 @@ if "/measurements/reflectance/r10m" in dt.groups:
 
 ### Sentinel-2 Data
 
-For Sentinel-2 L2A data, use the optimized V1 converter (recommended):
+For Sentinel-2 L2A data, use the optimized converter:
 
 ```python
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
-# Recommended: Use V1 optimized converter for Sentinel-2
 dt_optimized = convert_s2_optimized(
     dt_input=dt,
     output_path="s2_optimized.zarr",
@@ -158,12 +150,10 @@ dt_optimized = convert_s2_optimized(
 )
 ```
 
-The V1 converter automatically:
+The S2-optimized converter automatically:
 - Reuses native resolutions (r10m, r20m, r60m) without duplication
 - Adds coarser levels (r120m, r360m, r720m) for efficient visualization
 - Applies variable-aware resampling for different data types
-
-> **Note:** For details on V0 vs V1 differences, see the [converter documentation](converter.md#v0-vs-v1-converter-key-differences).
 
 ### Large Datasets with Dask
 

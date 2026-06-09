@@ -265,7 +265,6 @@ def test_complete_sentinel2_conversion_notebook_workflow(
             output_path=str(output_path),
             spatial_chunk=1024,  # From notebook: spatial_chunk = 1024
             min_dimension=256,  # From notebook: min_dimension = 256
-            tile_width=256,  # From notebook: tileWidth = 256
             max_retries=3,  # From notebook: max_retries = 3
         )
 
@@ -313,7 +312,6 @@ def test_performance_characteristics(sample_sentinel2_datatree, temp_output_dir)
             output_path=str(output_path),
             spatial_chunk=512,
             min_dimension=128,
-            tile_width=256,
             max_retries=2,
         )
 

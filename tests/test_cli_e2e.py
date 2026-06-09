@@ -81,8 +81,6 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
         "1024",  # From notebook
         "--min-dimension",
         "256",  # From notebook
-        "--tile-width",
-        "256",  # From notebook
         "--max-retries",
         "3",  # From notebook
         "--verbose",
@@ -96,14 +94,14 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
         timeout=300,  # 5 minute timeout for network operations
     )
 
-    # Check command succeeded
-    assert result.returncode == 0, result.stderr
+    # Check command succeeded (the CLI logs errors to stdout, so surface both)
+    assert result.returncode == 0, result.stdout + result.stderr
 
     cmd_info = ["python", "-m", "eopf_geozarr", "info", str(output_path)]
 
     result_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=60)
 
-    assert result_info.returncode == 0, result_info.stderr
+    assert result_info.returncode == 0, result_info.stdout + result_info.stderr
 
     # Verify info output contains expected information
     info_output = result_info.stdout
@@ -121,7 +119,9 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
 
     result_validate = subprocess.run(cmd_validate, capture_output=True, text=True, timeout=60)
 
-    assert result_validate.returncode == 0, f"CLI validate command failed: {result_validate.stderr}"
+    assert result_validate.returncode == 0, (
+        f"CLI validate command failed: {result_validate.stdout + result_validate.stderr}"
+    )
     # Verify validation output
     validate_output = result_validate.stdout
     assert "Validation Results:" in validate_output, "Should show validation header"
@@ -239,8 +239,6 @@ def test_cli_convert_with_crs_groups(s2_group_example, tmp_path: Path) -> None:
         "--spatial-chunk",
         "1024",
         "--min-dimension",
-        "256",
-        "--tile-width",
         "256",
         "--max-retries",
         "3",
