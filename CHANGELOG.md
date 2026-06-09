@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.1 (2026-06-09)
+
+## What's Changed
+* enh: deprecate v0, fix fill values and sanitize attributes by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/172
+* ci(deps): bump the actions group across 1 directory with 8 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/167
+* deps(deps-dev): bump mypy from 1.20.2 to 2.1.0 by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/170
+* deps(deps): bump the uv-minor-patch group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/174
+* fix(deps): bump aiohttp to >=3.14.0 to resolve security CVEs by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/182
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.10.0...v0.10.1
+
 ## 0.10.0 (2026-05-12)
 
 ## What's Changed
