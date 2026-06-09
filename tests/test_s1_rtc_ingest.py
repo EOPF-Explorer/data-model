@@ -188,6 +188,16 @@ class TestParseFilename:
         assert result["pol"] == "vh"
         assert result["is_mask"] is True
 
+    def test_masked_multiframe_time_stamp(self) -> None:
+        """Multi-frame products carry a masked time (…txxxxxx); the parser must still match so
+        the file isn't skipped (the real stamp is resolved later from the tag). See #183."""
+        result = parse_s1tiling_filename(
+            "s1a_32TQM_vv_ASC_037_20230115txxxxxx_GammaNaughtRTC.tif"
+        )
+        assert result is not None
+        assert result["acq_stamp"] == "20230115txxxxxx"
+        assert result["pol"] == "vv"
+
     def test_returns_none_for_unknown(self) -> None:
         assert parse_s1tiling_filename("random_file.tif") is None
         assert parse_s1tiling_filename("not_a_geotiff.txt") is None
@@ -540,6 +550,27 @@ class TestDiscoverAcquisitions:
         assert len(acqs) == 1
         expected_vv = "s3://bucket/prefix/s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
         assert acqs[0]["vv"] == expected_vv
+
+    def test_resolves_masked_multiframe_stamp_from_tag(self, tmp_path: Path) -> None:
+        """Multi-frame products whose filename time is masked (…txxxxxx) must still be discovered
+        as a complete acquisition, with acq_stamp resolved from the GeoTIFF ACQUISITION_DATETIME
+        tag rather than the filename. Regression for #183 (previously returned 0 acquisitions)."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        mask = np.ones((SIZE, SIZE), dtype=np.uint8)
+        stamp = "20230115txxxxxx"  # masked multi-frame time
+        for pol in ("vv", "vh"):
+            base = f"s1a_32TQM_{pol}_ASC_037_{stamp}_GammaNaughtRTC"
+            _create_synthetic_geotiff(tmp_path / f"{base}.tif", data, tags=ACQ1_TAGS)
+            _create_synthetic_geotiff(tmp_path / f"{base}_BorderMask.tif", mask, tags=ACQ1_TAGS)
+
+        acqs = discover_s1tiling_acquisitions(tmp_path)
+
+        assert len(acqs) == 1
+        acq = acqs[0]
+        # ACQUISITION_DATETIME "2023:01:15T06:12:34Z" -> resolved stamp
+        assert acq["acq_stamp"] == "20230115t061234"
+        for k in ("vv", "vh", "vv_mask", "vh_mask"):
+            assert k in acq
 
 
 # =============================================================================

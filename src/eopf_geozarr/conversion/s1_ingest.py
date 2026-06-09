@@ -56,13 +56,15 @@ OVERVIEW_CHAIN = [
 
 # S1Tiling filename pattern
 # e.g. s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif
+# Multi-frame products mask the time as 'txxxxxx' (no single shared acquisition time); those are
+# accepted here and the real stamp is resolved from the GeoTIFF ACQUISITION_DATETIME tag (#183).
 S1TILING_FILENAME_PATTERN = re.compile(
     r"(?P<platform>s1[abc])_"
     r"(?P<tile>[0-9]{2}[A-Z]{3})_"
     r"(?P<pol>vv|vh)_"
     r"(?P<orbit_dir>ASC|DES)_"
     r"(?P<rel_orbit>\d{3})_"
-    r"(?P<acq_stamp>\d{8}t\d{6})_"
+    r"(?P<acq_stamp>\d{8}t(?:\d{6}|x{6}))_"
     r"(?P<product>GammaNaughtRTC)"
     r"(?P<mask>_BorderMask)?\.tif$"
 )
@@ -759,6 +761,17 @@ def _rasterio_env(path: str | Path):  # type: ignore[return]
 # =============================================================================
 
 
+def _acq_stamp_from_geotiff(path: str | Path) -> str:
+    """Resolve a ``YYYYMMDDtHHMMSS`` acquisition stamp from a GeoTIFF's ACQUISITION_DATETIME tag.
+
+    Used when an S1Tiling filename carries a masked multi-frame time (e.g. ``…txxxxxx``), which
+    has no real timestamp to parse from the name. See #183.
+    """
+    iso = extract_geotiff_metadata(path).datetime  # e.g. "2023-01-15T06:12:34"
+    date_part, time_part = iso.split("T")
+    return f"{date_part.replace('-', '')}t{time_part.replace(':', '')}"
+
+
 def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
     """Discover and group S1Tiling GeoTIFF files into acquisition bundles.
 
@@ -775,12 +788,19 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
         if parsed is None:
             continue
 
+        acq_stamp = parsed["acq_stamp"]
+        if "x" in acq_stamp:
+            # Multi-frame product: the filename time is masked (…txxxxxx); resolve the real
+            # stamp from the GeoTIFF ACQUISITION_DATETIME tag so grouping + downstream STAC
+            # datetime are correct (#183).
+            acq_stamp = _acq_stamp_from_geotiff(f)
+
         key = (
             parsed["platform"],
             parsed["tile"],
             parsed["orbit_dir"],
             parsed["rel_orbit"],
-            parsed["acq_stamp"],
+            acq_stamp,
         )
 
         if key not in groups:
@@ -789,7 +809,7 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
                 "tile": parsed["tile"],
                 "orbit_dir": parsed["orbit_dir"],
                 "rel_orbit": parsed["rel_orbit"],
-                "acq_stamp": parsed["acq_stamp"],
+                "acq_stamp": acq_stamp,
             }
 
         pol = parsed["pol"]
