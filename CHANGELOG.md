@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.2 (2026-06-10)
+
+## What's Changed
+* ci(deps): bump the actions group with 3 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/185
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.10.1...v0.10.2
+
 ## 0.10.1 (2026-06-09)
 
 ## What's Changed
