@@ -37,11 +37,14 @@ def _make_s1_store(
     tile_id: str = "31TCH",
     crs: str = CRS,
     utm_bbox: list[float] | None = None,
+    consolidate: bool = True,
 ) -> Path:
-    """Create a minimal consolidated S1 Zarr store.
+    """Create a minimal S1 Zarr store.
 
     ``orbits`` maps orbit_direction -> list of (time_ns, platform) tuples.
     Creates only the attrs and coordinate arrays needed by build_s1_rtc_stac_item.
+    ``consolidate=False`` skips writing root consolidated metadata, mirroring a cube that grew by
+    appending a time-slice to an existing same-orbit group (the builder must still read it).
     """
     if utm_bbox is None:
         utm_bbox = UTM_BBOX
@@ -59,7 +62,8 @@ def _make_s1_store(
         t_arr[:] = times
         p_arr = r10m.create_array("platform", shape=platforms.shape, dtype="<U4", chunks=(512,))
         p_arr[:] = platforms
-    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+    if consolidate:
+        zarr.consolidate_metadata(str(store_path), zarr_format=3)
     return store_path
 
 
@@ -73,6 +77,23 @@ def test_item_id_matches_tile_id(tmp_path: Path) -> None:
     store = _make_s1_store(tmp_path, {"descending": [(T1_NS, "S1A")]})
     item = build_s1_rtc_stac_item(str(store), "sentinel-1-grd-rtc-staging")
     assert item.id == "s1-rtc-31TCH"
+
+
+def test_builds_from_non_consolidated_store(tmp_path: Path) -> None:
+    """Regression: the builder must read a store that lacks root consolidated metadata.
+
+    A per-tile cube grown by appending a time-slice to an existing same-orbit group can end up
+    without root consolidated metadata (re-consolidating an S3 append is unreliable), which made
+    ``zarr.open_consolidated`` raise ``ValueError: Consolidated metadata ... not found`` and broke
+    STAC registration in the live S1 RTC pipeline. The builder must fall back to a direct read.
+    """
+    store = _make_s1_store(
+        tmp_path, {"ascending": [(T1_NS, "S1A"), (T2_NS, "S1A")]}, consolidate=False
+    )
+    item = build_s1_rtc_stac_item(str(store), "sentinel-1-grd-rtc-staging")
+    assert item.id == "s1-rtc-31TCH"
+    assert item.properties["start_datetime"]
+    assert item.properties["end_datetime"]
 
 
 def test_temporal_range_min_max(tmp_path: Path) -> None:

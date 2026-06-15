@@ -74,7 +74,16 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     # href). Revert this prefix to "s1-grd-rtc-" when titiler-eopf#108 lands.
     tile_id = Path(zarr_store).name.removeprefix("s1-rtc-").removesuffix(".zarr")
 
-    root = zarr.open_consolidated(zarr_store, zarr_format=3)
+    # A cube grown by appending a time-slice to an *existing same-orbit* group can end up without
+    # root consolidated metadata (re-consolidating an append on the S3 store is unreliable). The
+    # builder must not require it — fall back to reading the hierarchy directly, exactly as titiler
+    # does. See the data-model issue on the S1 RTC consolidated-metadata regression.
+    try:
+        root = zarr.open_consolidated(zarr_store, zarr_format=3)
+    except ValueError as exc:
+        if "consolidated metadata" not in str(exc).lower():
+            raise
+        root = zarr.open_group(zarr_store, mode="r", zarr_format=3)
 
     all_times_ns: list[int] = []
     wgs84_bboxes: list[tuple[float, float, float, float]] = []
