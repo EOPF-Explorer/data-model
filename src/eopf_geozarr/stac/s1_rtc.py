@@ -69,7 +69,10 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     ValueError
         If the store contains no acquisitions.
     """
-    tile_id = Path(zarr_store).name.removeprefix("s1-grd-rtc-").removesuffix(".zarr")
+    # TEMPORARY (#246): the store is written as s1-rtc-{tile}.zarr so its filename equals
+    # the item id, which titiler-eopf reconstructs as the render path (it ignores the asset
+    # href). Revert this prefix to "s1-grd-rtc-" when titiler-eopf#108 lands.
+    tile_id = Path(zarr_store).name.removeprefix("s1-rtc-").removesuffix(".zarr")
 
     root = zarr.open_consolidated(zarr_store, zarr_format=3)
 

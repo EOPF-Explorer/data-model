@@ -45,7 +45,9 @@ def _make_s1_store(
     """
     if utm_bbox is None:
         utm_bbox = UTM_BBOX
-    store_path = tmp_path / f"s1-grd-rtc-{tile_id}.zarr"
+    # TEMPORARY (#246): store basename == item id (s1-rtc-{tile}) so titiler's reconstructed
+    # render path resolves; revert to "s1-grd-rtc-" when titiler-eopf#108 lands.
+    store_path = tmp_path / f"s1-rtc-{tile_id}.zarr"
     root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
     for orbit_dir, acquisitions in orbits.items():
         og = root.create_group(orbit_dir)
@@ -105,7 +107,7 @@ def test_bbox_wgs84_from_utm(tmp_path: Path) -> None:
 def test_both_orbits_bbox_union(tmp_path: Path) -> None:
     """When ascending and descending are both present, the WGS84 bbox is the union."""
     # Give ascending a different UTM bbox (shifted east)
-    store_path = tmp_path / "s1-grd-rtc-31TCH.zarr"
+    store_path = tmp_path / "s1-rtc-31TCH.zarr"
     root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
 
     for orbit_dir, bbox in [
@@ -131,7 +133,7 @@ def test_both_orbits_bbox_union(tmp_path: Path) -> None:
 
 def test_ascending_preferred_for_assets(tmp_path: Path) -> None:
     """When both orbits present, vv/vh assets must point to the ascending group."""
-    store_path = tmp_path / "s1-grd-rtc-31TCH.zarr"
+    store_path = tmp_path / "s1-rtc-31TCH.zarr"
     root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
     for orbit_dir in ("descending", "ascending"):
         og = root.create_group(orbit_dir)
@@ -150,7 +152,7 @@ def test_ascending_preferred_for_assets(tmp_path: Path) -> None:
 
 def test_empty_store_raises(tmp_path: Path) -> None:
     """A store with an orbit group but no acquisitions must raise ValueError."""
-    store_path = tmp_path / "s1-grd-rtc-31TCH.zarr"
+    store_path = tmp_path / "s1-rtc-31TCH.zarr"
     root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
     og = root.create_group("descending")
     og.attrs.update({"proj:code": CRS, "spatial:bbox": UTM_BBOX})
@@ -208,7 +210,7 @@ def test_render_extension_rgb_composite(tmp_path: Path) -> None:
 
 def test_render_uses_ascending_when_preferred(tmp_path: Path) -> None:
     """When ascending is the preferred orbit, the render expression must reference it."""
-    store_path = tmp_path / "s1-grd-rtc-31TCH.zarr"
+    store_path = tmp_path / "s1-rtc-31TCH.zarr"
     root = zarr.open_group(str(store_path), mode="w", zarr_format=3)
     for orbit_dir in ("descending", "ascending"):
         og = root.create_group(orbit_dir)
