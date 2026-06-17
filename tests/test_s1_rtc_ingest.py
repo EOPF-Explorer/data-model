@@ -847,3 +847,98 @@ class TestDiscoverConditions:
         assert len(conditions) == 1
         assert conditions[0]["tile"] == "32TQM"
         assert conditions[0]["orbit"] == "037"
+
+
+# =============================================================================
+# CF datetime `time` coordinate — render-by-datetime support (data-model #192)
+# =============================================================================
+
+_LEVELS = ["r10m", "r20m", "r60m", "r120m", "r360m", "r720m"]
+
+
+class TestTimeCFDatetime:
+    """`time` is CF-encoded at every multiscale level so readers decode it to datetime64 and can
+    select a slice by datetime (`sel=time={datetime}`) at any rendered scale, even on a non-monotonic
+    axis. This replaces the fragile positional `sel=time={index}` rendering (#192)."""
+
+    def _paths(self, geotiff_dir: Path, stamp: str) -> tuple[Path, Path, Path]:
+        vv = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        vh = geotiff_dir / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        mask = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
+        return vv, vh, mask
+
+    def test_time_has_cf_attrs_at_every_level(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        vv, vh, mask = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        for level in _LEVELS:
+            attrs = dict(root["ascending"][level]["time"].attrs)
+            assert attrs.get("units") == "nanoseconds since 1970-01-01", level
+            assert attrs.get("calendar") == "proleptic_gregorian", level
+            assert attrs.get("standard_name") == "time", level
+
+    def test_open_datatree_decodes_time_to_datetime64(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        vv, vh, mask = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+        dt = xr.open_datatree(
+            str(s1_store_path), engine="zarr", decode_times=True, consolidated=False
+        )
+        for level in ("r10m", "r720m"):
+            da = dt["ascending"][level]["vv"]
+            assert "time" in da.coords, level
+            assert np.issubdtype(da["time"].dtype, np.datetime64), level
+
+    def test_exact_datetime_sel_on_nonmonotonic_axis(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Ingest LATER acq first then EARLIER → non-monotonic axis; exact datetime `.sel` still
+        returns the right physical slice at both the native and a coarse level (the 31TEH case)."""
+        vv2, vh2, mask2 = self._paths(s1_geotiff_dir, "20230127t061235")  # 2023-01-27 (later)
+        vv1, vh1, mask1 = self._paths(s1_geotiff_dir, "20230115t061234")  # 2023-01-15 (earlier)
+        ingest_s1tiling_acquisition(vv2, vh2, mask2, s1_store_path, "ascending")  # -> index 0
+        ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")  # -> index 1
+
+        dt = xr.open_datatree(
+            str(s1_store_path), engine="zarr", decode_times=True, consolidated=False
+        )
+        times = dt["ascending"]["r10m"]["time"].values
+        assert times[0] > times[1], "axis should be non-monotonic (later acq appended first)"
+
+        early = np.datetime64("2023-01-15T06:12:34")  # physical index 1
+        later = np.datetime64("2023-01-27T06:12:35")  # physical index 0
+        for level in ("r10m", "r720m"):
+            vvda = dt["ascending"][level]["vv"]
+            np.testing.assert_array_equal(
+                vvda.sel(time=early).values, vvda.isel(time=1).values, err_msg=f"{level} early"
+            )
+            np.testing.assert_array_equal(
+                vvda.sel(time=later).values, vvda.isel(time=0).values, err_msg=f"{level} later"
+            )
+
+    def test_time_values_identical_across_levels(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        vv1, vh1, mask1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        vv2, vh2, mask2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(vv2, vh2, mask2, s1_store_path, "ascending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        ref = np.asarray(root["ascending"]["r10m"]["time"][:])
+        assert ref.shape == (2,)
+        for level in _LEVELS[1:]:
+            np.testing.assert_array_equal(np.asarray(root["ascending"][level]["time"][:]), ref)
+
+    def test_r10m_time_still_int64_for_register(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """register_per_acquisition reads r10m/time as raw int64 ns — CF attrs must not change that."""
+        vv, vh, mask = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        arr = root["ascending"]["r10m"]["time"]
+        assert arr.dtype == np.dtype("int64")
+        assert str(np.datetime64(int(arr[0]), "ns")).startswith("2023-01-15")

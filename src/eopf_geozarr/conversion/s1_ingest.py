@@ -297,6 +297,37 @@ def _create_spatial_coordinate_arrays(
     )
 
 
+# CF datetime encoding for the `time` coordinate. Without it the array is a bare int64 and readers
+# (xarray / TiTiler's `open_datatree(decode_times=True)`) cannot expose `time` as a datetime index, so
+# per-acquisition previews can only select positionally (`sel=time={index}`) — fragile once a cube's
+# time axis goes non-monotonic. With these attrs `time` decodes to datetime64 and previews can render by
+# `sel=time={datetime}` (order-immune). The stored dtype stays int64 nanoseconds. See data-model #192.
+TIME_CF_ATTRS = {
+    "units": "nanoseconds since 1970-01-01",
+    "calendar": "proleptic_gregorian",
+    "standard_name": "time",
+}
+
+
+def _create_time_coordinate_array(level_group: zarr.Group) -> None:
+    """Create the CF-encoded ``time`` coordinate (length 0, grown on append) on one level group.
+
+    Replicated at EVERY multiscale level (with identical values) so datetime ``.sel`` resolves at
+    whatever level a reader renders — TiTiler picks a coarse level for previews, and a level lacking a
+    ``time`` coordinate cannot be selected by datetime. Keeping the dtype/values consistent across
+    levels is also required for the datatree to open (mixed int64/datetime64 fails alignment).
+    """
+    t_arr = level_group.create_array(
+        "time",
+        shape=(0,),
+        dtype="int64",
+        chunks=(512,),
+        fill_value=0,
+        dimension_names=["time"],
+    )
+    t_arr.attrs.update({**TIME_CF_ATTRS, "_ARRAY_DIMENSIONS": ["time"]})
+
+
 def _add_grid_mapping(group: zarr.Group, crs_string: str) -> None:
     """Add a CF ``spatial_ref`` grid-mapping coordinate to a group holding (y, x) arrays.
 
@@ -394,11 +425,12 @@ def create_s1_store(
             level_group, level_h, level_w, level_entry["spatial:transform"]
         )
         _add_grid_mapping(level_group, metadata.crs)
+        # `time` coordinate on every level so datetime `.sel` resolves at any rendered scale (#192).
+        _create_time_coordinate_array(level_group)
 
-    # Coordinate variables at native resolution only
+    # Per-time metadata coordinates at native resolution only (not selected on by readers).
     r10m = orbit_group["r10m"]
     for name, dtype, fill in [
-        ("time", "int64", 0),
         ("absolute_orbit", "int32", 0),
         ("relative_orbit", "int32", 0),
     ]:
@@ -577,9 +609,10 @@ def ingest_s1tiling_acquisition(
                     level_group, level_h, level_w, level_entry["spatial:transform"]
                 )
                 _add_grid_mapping(level_group, meta.crs)
+                # `time` coordinate on every level (datetime `.sel` at any scale, #192).
+                _create_time_coordinate_array(level_group)
             r10m = orbit_group["r10m"]
             for name, dtype, fill in [
-                ("time", "int64", 0),
                 ("absolute_orbit", "int32", 0),
                 ("relative_orbit", "int32", 0),
             ]:
@@ -649,7 +682,10 @@ def ingest_s1tiling_acquisition(
 
     log.info("Overviews generated", levels=len(data_by_level))
 
-    # Write data at all levels
+    dt_ns = np.datetime64(meta.datetime).astype("datetime64[ns]").astype(np.int64)
+
+    # Write data + the `time` coordinate at all levels (time is replicated per level so datetime
+    # `.sel` resolves at any rendered scale, #192).
     for level_name, (vv_lev, vh_lev, mask_lev) in data_by_level.items():
         level = orbit[level_name]
         h, w = vv_lev.shape
@@ -662,12 +698,12 @@ def ingest_s1tiling_acquisition(
         level["vh"][current_size, :, :] = vh_lev
         level["border_mask"][current_size, :, :] = mask_lev
 
-    # Append coordinate variables
-    for coord_name in ["time", "absolute_orbit", "relative_orbit", "platform"]:
-        r10m[coord_name].resize((new_size,))
+        level["time"].resize((new_size,))
+        level["time"][current_size] = dt_ns
 
-    dt_ns = np.datetime64(meta.datetime).astype("datetime64[ns]").astype(np.int64)
-    r10m["time"][current_size] = dt_ns
+    # Per-time metadata coordinates at native resolution only.
+    for coord_name in ["absolute_orbit", "relative_orbit", "platform"]:
+        r10m[coord_name].resize((new_size,))
     r10m["absolute_orbit"][current_size] = meta.absolute_orbit
     r10m["relative_orbit"][current_size] = meta.relative_orbit
     r10m["platform"][current_size] = meta.platform
