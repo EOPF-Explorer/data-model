@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from math import ceil
 from pathlib import Path
 from unittest.mock import patch
@@ -26,6 +27,7 @@ from eopf_geozarr.conversion.s1_ingest import (
     ingest_s1tiling_conditions,
     parse_s1tiling_filename,
 )
+from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
 # =============================================================================
 # Constants
@@ -676,6 +678,55 @@ class TestIngestConditions:
         root = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)
         actual = root["ascending"]["conditions"]["gamma_area_037"][:]
         np.testing.assert_allclose(actual, expected, rtol=1e-6)
+
+    def test_gamma_area_is_sharded(
+        self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path
+    ) -> None:
+        """The condition array carries a sharding codec: one shard over the full (y, x) extent,
+        512-aligned inner chunks (the same layout vv/vh already use)."""
+        ingest_s1tiling_conditions(
+            store_path=s1_store_with_acquisition,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=gamma_area_geotiff,
+        )
+        arr = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)[
+            "ascending"
+        ]["conditions"]["gamma_area_037"]
+        # shards == full extent (None would mean unsharded — the pre-fix layout)
+        assert arr.shards == (SIZE, SIZE)
+        assert arr.chunks == (calculate_aligned_chunk_size(SIZE, 512),) * 2
+
+    def test_sharding_collapses_chunk_objects_to_one(self, s1_store_with_acquisition: Path) -> None:
+        """A multi-chunk condition array lands as a SINGLE on-disk shard object, not one object per
+        inner chunk — the object-count collapse (real gamma_area: ~900 chunk objects → 1 shard)."""
+        # 1098 sq with a 366 sq inner chunk = 3x3 = 9 inner chunks that, sharded, share one shard.
+        big = 1098
+        rng = np.random.default_rng(7)
+        data = rng.uniform(0.5, 2.0, (big, big)).astype(np.float32)
+        gpath = s1_store_with_acquisition.parent / "GAMMA_AREA_BIG_037.tif"
+        _create_synthetic_geotiff(
+            gpath, data, transform=from_bounds(XMIN, YMIN, XMAX, YMAX, big, big)
+        )
+        ingest_s1tiling_conditions(
+            store_path=s1_store_with_acquisition,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=gpath,
+        )
+        arr = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)[
+            "ascending"
+        ]["conditions"]["gamma_area_037"]
+        assert arr.chunks == (366, 366)
+        assert arr.shards == (big, big)
+        # exactly one chunk-data object on disk (the shard), regardless of the 9 inner chunks
+        array_dir = s1_store_with_acquisition / "ascending" / "conditions" / "gamma_area_037"
+        data_objects = [
+            f for _r, _d, files in os.walk(array_dir) for f in files if f != "zarr.json"
+        ]
+        assert len(data_objects) == 1, data_objects
+        # values still byte-identical through the shard
+        np.testing.assert_allclose(arr[:], data, rtol=1e-6)
 
     def test_multiple_conditions(
         self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path, lia_geotiff: Path

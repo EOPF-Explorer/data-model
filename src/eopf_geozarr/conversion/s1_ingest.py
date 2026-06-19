@@ -985,14 +985,20 @@ def ingest_s1tiling_conditions(
             conditions[array_name][:, :] = data
             log.info("Overwrote condition array", array_name=array_name)
         else:
+            # Shard like the vv/vh pyramid: one shard over the full (y, x) extent so a 10980²
+            # condition array is a single object, not ~900 tiny 366²-chunk objects.
+            # calculate_aligned_chunk_size returns a divisor of the dimension, so (h, w) is a clean
+            # multiple of the inner chunk — the Zarr v3 shard-divisibility requirement.
+            inner_chunks = (
+                calculate_aligned_chunk_size(h, 512),
+                calculate_aligned_chunk_size(w, 512),
+            )
             arr = conditions.create_array(
                 array_name,
                 shape=(h, w),
                 dtype="float32",
-                chunks=(
-                    calculate_aligned_chunk_size(h, 512),
-                    calculate_aligned_chunk_size(w, 512),
-                ),
+                chunks=inner_chunks,
+                shards=(h, w),
                 compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
                 fill_value=float("nan"),
                 dimension_names=["y", "x"],
