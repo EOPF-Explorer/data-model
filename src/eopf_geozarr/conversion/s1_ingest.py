@@ -684,6 +684,38 @@ def ingest_s1tiling_acquisition(
 
     dt_ns = np.datetime64(meta.datetime).astype("datetime64[ns]").astype(np.int64)
 
+    # Heal a multiscale level missing `time` before the per-level resize below. A cube built before
+    # #192 -- or left half-built by an interrupted append -- can carry `r10m/time` yet lack it at a
+    # coarser level; the unconditional `level["time"].resize` then raises `KeyError: 'time'` and,
+    # because the consistency check above validates only CRS + shape, the append is non-convergent.
+    # Recreate the missing-level coordinate from `r10m/time` (backfilling the existing slices so prior
+    # timestamps are preserved), or raise if the cube is inconsistent in a way a backfill cannot fix.
+    if "time" in r10m:
+        ref_time = np.asarray(r10m["time"][:])
+        healed = []
+        for level_name in data_by_level:
+            level = orbit[level_name]
+            if level_name == "r10m" or "time" in level:
+                continue
+            level_len = level["vv"].shape[0]
+            if level_len != ref_time.shape[0]:
+                raise ValueError(
+                    f"Cannot append to {orbit_direction}/{level_name}: it has {level_len} slice(s) "
+                    f"but r10m/time has {ref_time.shape[0]}; the cube is half-built and `time` cannot "
+                    "be safely backfilled (wipe + reingest)"
+                )
+            _create_time_coordinate_array(level)
+            level["time"].resize((ref_time.shape[0],))
+            level["time"][:] = ref_time
+            healed.append(level_name)
+        if healed:
+            log.info("Healed missing per-level `time`", levels=healed)
+    elif current_size > 0:
+        raise ValueError(
+            f"Cannot append to {orbit_direction}: r10m has {current_size} slice(s) but no `time` "
+            "coordinate (no backfill source -- wipe + reingest)"
+        )
+
     # Write data + the `time` coordinate at all levels (time is replicated per level so datetime
     # `.sel` resolves at any rendered scale, #192).
     for level_name, (vv_lev, vh_lev, mask_lev) in data_by_level.items():
