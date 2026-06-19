@@ -993,3 +993,98 @@ class TestTimeCFDatetime:
         arr = root["ascending"]["r10m"]["time"]
         assert arr.dtype == np.dtype("int64")
         assert str(np.datetime64(int(arr[0]), "ns")).startswith("2023-01-15")
+
+
+# =============================================================================
+# Per-level `time` self-heal on append (robust to a pre-#192 / half-built cube)
+# =============================================================================
+
+
+class TestPerLevelTimeHeal:
+    """The append recreates a multiscale level's missing `time` from r10m/time instead of raising
+    `KeyError: 'time'` (a cube built before #192, or left half-built by an interrupted append), and
+    refuses to mis-heal a genuinely inconsistent cube."""
+
+    def _paths(self, d: Path, stamp: str) -> tuple[Path, Path, Path]:
+        return (
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif",
+        )
+
+    def _coarse_levels(self, store_path: Path) -> list[str]:
+        root = zarr.open_group(str(store_path), mode="r", zarr_format=3)
+        return [n for n, _ in root["ascending"].groups() if n not in ("r10m", "conditions")]
+
+    def _drop_time(self, store_path: Path, level: str) -> None:
+        """Simulate a pre-#192 cube by removing a level's `time` array. `ingest_s1tiling_acquisition`
+        does not consolidate, so a filesystem removal is enough for the group to no longer see it."""
+        import shutil
+
+        shutil.rmtree(Path(store_path) / "ascending" / level / "time")
+
+    def test_append_heals_levels_missing_time(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A coarser level lacking `time` is recreated from r10m/time (prior slices preserved); the
+        append that previously crashed now succeeds."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        coarse = self._coarse_levels(s1_store_path)
+        assert coarse  # sanity: there ARE coarser levels
+        for lvl in coarse:
+            self._drop_time(s1_store_path, lvl)
+
+        idx = ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending")  # was KeyError: 'time'
+
+        assert idx == 1
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        ref = list(root["ascending"]["r10m"]["time"][:])
+        assert len(ref) == 2
+        for lvl in coarse:
+            t = root["ascending"][lvl]["time"]
+            assert t.dtype == np.dtype("int64")
+            assert list(t[:]) == ref  # backfilled prior slice + appended new slice, matching r10m
+
+    def test_append_noop_when_all_levels_have_time(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A healthy cube: the heal is a no-op and the append works normally."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        idx = ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending")
+        assert idx == 1
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        for lvl in self._coarse_levels(s1_store_path):
+            assert root["ascending"][lvl]["time"].shape[0] == 2
+
+    def test_append_raises_on_half_built_cube(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A level whose data length disagrees with r10m/time (and lacks `time`) is unhealable -> raise
+        rather than write a wrong-length coordinate."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending")  # 2 slices
+
+        root = zarr.open_group(str(s1_store_path), mode="r+", zarr_format=3)
+        r20m = root["ascending"]["r20m"]
+        _, h, w = r20m["vv"].shape
+        r20m["vv"].resize((1, h, w))  # half-built: r20m has 1 slice, r10m has 2
+        self._drop_time(s1_store_path, "r20m")
+
+        with pytest.raises(ValueError, match="half-built"):
+            ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+    def test_append_raises_when_r10m_time_missing(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """r10m holds slices but no `time` -> no backfill source -> raise (not a silent invention)."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        self._drop_time(s1_store_path, "r10m")
+        with pytest.raises(ValueError, match="no backfill source"):
+            ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
