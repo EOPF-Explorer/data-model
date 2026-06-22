@@ -60,6 +60,18 @@ class StandardYCoordAttrsJSON(TypedDict):
     _ARRAY_DIMENSIONS: list[Literal["y"]]
 
 
+class S1BackscatterAttrsJSON(TypedDict):
+    """CF attributes for the Sentinel-1 RTC backscatter bands (vv/vh).
+
+    ``_FillValue`` is the ``FillValueCoder``-encoded base64 NaN that lets xarray mask
+    nodata under ``use_zarr_fill_value_as_mask`` despite xarray #11345 (data-model #172).
+    """
+
+    standard_name: Literal["surface_backwards_scattering_coefficient_of_radar_wave"]
+    units: Literal["1"]
+    _FillValue: str
+
+
 class TileMatrixJSON(TypedDict):
     id: str
     scaleDenominator: float

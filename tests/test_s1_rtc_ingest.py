@@ -246,6 +246,34 @@ class TestCreateStore:
         assert r10m["vv"].dtype == np.float32
         assert r10m["border_mask"].dtype == np.uint8
 
+    def test_float_bands_declare_cf_fill_value(
+        self, s1_store_path: Path, sample_metadata: S1TilingMetadata
+    ) -> None:
+        """Float backscatter bands must declare a CF ``_FillValue`` attribute at
+        *every* multiscale level, matching S2 (data-model #172 / xarray #11345).
+
+        The zarr-level ``fill_value`` alone is not surfaced by xarray's encoding,
+        so ``to_masked_array()`` / ``use_zarr_fill_value_as_mask=True`` cannot mask
+        NaN nodata without the attribute. ``test_array_attrs`` only guards the S2
+        ``/measurements/`` layout, so the S1 RTC layout was previously unchecked.
+        """
+        from xarray.backends.zarr import FillValueCoder
+
+        root = create_s1_store(s1_store_path, "ascending", sample_metadata)
+        orbit = root["ascending"]
+        expected = FillValueCoder.encode(np.nan, np.dtype("float32"))
+        for level_name, _, _ in OVERVIEW_CHAIN:
+            for band in ("vv", "vh"):
+                attrs = dict(orbit[level_name][band].attrs)
+                assert attrs.get("_FillValue") == expected, (
+                    f"{level_name}/{band} missing/!= CF _FillValue"
+                )
+                assert (
+                    attrs.get("standard_name")
+                    == "surface_backwards_scattering_coefficient_of_radar_wave"
+                )
+                assert attrs.get("units") == "1"
+
     def test_no_tile_matrix_set(
         self, s1_store_path: Path, sample_metadata: S1TilingMetadata
     ) -> None:
@@ -353,6 +381,83 @@ class TestIngestAcquisition:
         assert idx == 1
         root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
         assert root["ascending"]["r10m"]["vv"].shape[0] == 2
+
+    def test_ingested_bands_declare_cf_fill_value(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """End-to-end (production path): vv/vh carry CF ``_FillValue``/``standard_name``/
+        ``units`` at every level for BOTH the store-creating orbit (``create_s1_store``)
+        and a second orbit added via the inline new-orbit path — the two paths that were
+        previously inconsistent. Parity with S2 / S1 GRD (#172; xarray #11345).
+        """
+        from xarray.backends.zarr import FillValueCoder
+
+        vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")  # create_s1_store
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "descending")  # inline new orbit
+        expected = FillValueCoder.encode(np.nan, np.dtype("float32"))
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        for orbit in ("ascending", "descending"):
+            for level_name, _, _ in OVERVIEW_CHAIN:
+                for band in ("vv", "vh"):
+                    attrs = dict(root[orbit][level_name][band].attrs)
+                    assert attrs.get("_FillValue") == expected, f"{orbit}/{level_name}/{band}"
+                    assert (
+                        attrs.get("standard_name")
+                        == "surface_backwards_scattering_coefficient_of_radar_wave"
+                    )
+                    assert attrs.get("units") == "1"
+
+    def test_new_orbit_level_groups_carry_proj_code(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A second orbit added to an existing store must get the same per-level metadata
+        as the store-creating orbit — incl. ``proj:code`` on every level group. The inline
+        new-orbit path previously omitted it (drift vs ``create_s1_store``)."""
+        vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "descending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        for orbit in ("ascending", "descending"):
+            for level_name, _, _ in OVERVIEW_CHAIN:
+                attrs = dict(root[orbit][level_name].attrs)
+                assert attrs.get("proj:code") == CRS, f"{orbit}/{level_name} missing proj:code"
+
+    def test_fill_value_masking_roundtrip(self, tmp_path: Path, s1_store_path: Path) -> None:
+        """End-to-end: NaN nodata in vv comes back masked when the cube is reopened with
+        ``use_zarr_fill_value_as_mask=True`` — the behaviour the CF ``_FillValue`` attribute
+        exists to enable despite xarray #11345. Mirrors the S2 guarantee in
+        ``tests/test_array_attrs.py::test_fill_value_masking_roundtrip``.
+        """
+        stamp = "20230115t061234"
+        rng = np.random.default_rng(0)
+        vv_data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
+        vv_data[0:16, 0:16] = np.nan  # nodata patch
+        vh_data = rng.uniform(0.0, 0.5, (SIZE, SIZE)).astype(np.float32)
+        mask_data = np.ones((SIZE, SIZE), dtype=np.uint8)
+        vv = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        vh = tmp_path / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        mask = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
+        _create_synthetic_geotiff(vv, vv_data, tags=ACQ1_TAGS)
+        _create_synthetic_geotiff(vh, vh_data, tags=ACQ1_TAGS)
+        _create_synthetic_geotiff(mask, mask_data, tags=ACQ1_TAGS)
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+
+        ds = xr.open_dataset(
+            str(s1_store_path / "ascending" / "r10m"),
+            engine="zarr",
+            consolidated=False,
+            decode_times=False,
+            decode_coords=False,
+            use_zarr_fill_value_as_mask=True,
+        )
+        try:
+            masked = ds["vv"].to_masked_array()
+            assert np.ma.is_masked(masked), "NaN nodata must be masked via `_FillValue`"
+            assert masked.mask[0, 0, 0], "nodata cell must be masked"
+            assert not masked.mask[0, -1, -1], "valid cell must not be masked"
+        finally:
+            ds.close()
 
     def test_preserves_data_integrity(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
@@ -678,6 +783,30 @@ class TestIngestConditions:
         root = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)
         actual = root["ascending"]["conditions"]["gamma_area_037"][:]
         np.testing.assert_allclose(actual, expected, rtol=1e-6)
+
+    def test_float_conditions_declare_cf_fill_value(
+        self,
+        s1_store_with_acquisition: Path,
+        gamma_area_geotiff: Path,
+        lia_geotiff: Path,
+    ) -> None:
+        """Float condition arrays (gamma_area, lia) must declare a CF ``_FillValue`` so
+        readers mask NaN nodata (xarray #11345), like vv/vh (#172)."""
+        from xarray.backends.zarr import FillValueCoder
+
+        ingest_s1tiling_conditions(
+            store_path=s1_store_with_acquisition,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=gamma_area_geotiff,
+            lia_path=lia_geotiff,
+        )
+        expected = FillValueCoder.encode(np.nan, np.dtype("float32"))
+        conditions = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)[
+            "ascending"
+        ]["conditions"]
+        for arr_name in ("gamma_area_037", "lia_037"):
+            assert dict(conditions[arr_name].attrs).get("_FillValue") == expected, arr_name
 
     def test_gamma_area_is_sharded(
         self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path

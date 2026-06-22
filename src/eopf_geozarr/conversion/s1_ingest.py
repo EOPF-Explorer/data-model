@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import rasterio
@@ -26,11 +27,19 @@ import structlog
 import zarr
 import zarr.codecs
 from pyproj import CRS as PyprojCRS
+
+# `FillValueCoder` is xarray's internal CF fill-value encoder: the canonical way to produce
+# the base64 `_FillValue` xarray reads back under `use_zarr_fill_value_as_mask` (xarray
+# #11345); the S2 path relies on the same mechanism. Internal API — revisit if xarray moves it.
+from xarray.backends.zarr import FillValueCoder
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
+
+if TYPE_CHECKING:
+    from eopf_geozarr.data_api.geozarr.types import S1BackscatterAttrsJSON
 
 log = structlog.get_logger()
 
@@ -308,6 +317,21 @@ TIME_CF_ATTRS = {
     "standard_name": "time",
 }
 
+# CF `_FillValue` for the float32 arrays, mirroring the S1 GRD converter (geozarr.py)
+# and S2 (data-model #172). This is what lets xarray mask NaN nodata via
+# `use_zarr_fill_value_as_mask=True` despite xarray #11345 — the zarr-level `fill_value`
+# field alone is not surfaced through xarray's encoding. We encode it with
+# `FillValueCoder` so the stored attribute matches the base64 form S2 writes
+# (`AAAAAAAA+H8=`). The S2 path gets this for free via `to_zarr`; this store is written
+# zarr-direct, so the attribute must be set explicitly.
+FLOAT32_NAN_FILL_VALUE = FillValueCoder.encode(np.nan, np.dtype("float32"))
+# CF metadata for the backscatter bands (vv/vh).
+BACKSCATTER_CF_ATTRS: S1BackscatterAttrsJSON = {
+    "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+    "units": "1",
+    "_FillValue": FLOAT32_NAN_FILL_VALUE,
+}
+
 
 def _create_time_coordinate_array(level_group: zarr.Group) -> None:
     """Create the CF-encoded ``time`` coordinate (length 0, grown on append) on one level group.
@@ -358,20 +382,55 @@ def _add_grid_mapping(group: zarr.Group, crs_string: str) -> None:
             arr.attrs["grid_mapping"] = "spatial_ref"
 
 
-def create_s1_store(
-    store_path: str | Path,
-    orbit_direction: str,
-    metadata: S1TilingMetadata,
-) -> zarr.Group:
-    """Create a new S1 GRD RTC Zarr V3 store with full conventions metadata.
+def _create_band_arrays(level_group: zarr.Group, level_h: int, level_w: int) -> None:
+    """Create the (time, y, x) data bands (vv, vh, border_mask) for one multiscale level.
 
-    Returns the root group.
+    Float backscatter bands (vv/vh) get the CF ``_FillValue``/``standard_name``/``units``
+    attributes so readers can mask NaN nodata (xarray #11345) — parity with the S1 GRD
+    converter and S2 (data-model #172). Shared by ``create_s1_store`` (new store) and
+    ``ingest_s1tiling_acquisition`` (new orbit added to an existing store) so the two
+    creation paths cannot drift.
+    """
+    inner_chunks = (
+        1,
+        calculate_aligned_chunk_size(level_h, 512),
+        calculate_aligned_chunk_size(level_w, 512),
+    )
+    shard_shape = (1, level_h, level_w)
+    for name, dtype, fill in [
+        ("vv", "float32", float("nan")),
+        ("vh", "float32", float("nan")),
+        ("border_mask", "uint8", 0),
+    ]:
+        band = level_group.create_array(
+            name,
+            shape=(0, level_h, level_w),
+            dtype=dtype,
+            chunks=inner_chunks,
+            shards=shard_shape,
+            compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
+            fill_value=fill,
+            dimension_names=["time", "y", "x"],
+        )
+        if name in ("vv", "vh"):
+            # cast: zarr's `attrs.update` is typed for its JSON union, which a TypedDict
+            # (invariant) doesn't satisfy structurally; the values are JSON-safe.
+            band.attrs.update(cast("dict", BACKSCATTER_CF_ATTRS))
+
+
+def _build_orbit_group(
+    root: zarr.Group, orbit_direction: str, metadata: S1TilingMetadata
+) -> zarr.Group:
+    """Create one orbit group (asc/desc) with full GeoZarr metadata.
+
+    Builds the multiscale level groups (bands + spatial coordinates + grid-mapping +
+    per-level ``time``) and the native-resolution per-acquisition metadata coordinates.
+    Shared by ``create_s1_store`` (new store) and ``ingest_s1tiling_acquisition`` (new
+    orbit added to an existing store) so the two creation paths cannot drift — the inline
+    path previously omitted ``proj:code`` on level groups.
     """
     layout = compute_multiscales_layout(metadata.shape, metadata.spatial_transform)
-
-    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
     orbit_group = root.create_group(orbit_direction)
-
     orbit_group.attrs.update(
         {
             "zarr_conventions": ZARR_CONVENTIONS,
@@ -398,28 +457,7 @@ def create_s1_store(
             }
         )
 
-        inner_chunks = (
-            1,
-            calculate_aligned_chunk_size(level_h, 512),
-            calculate_aligned_chunk_size(level_w, 512),
-        )
-        shard_shape = (1, level_h, level_w)
-
-        for name, dtype, fill in [
-            ("vv", "float32", float("nan")),
-            ("vh", "float32", float("nan")),
-            ("border_mask", "uint8", 0),
-        ]:
-            level_group.create_array(
-                name,
-                shape=(0, level_h, level_w),
-                dtype=dtype,
-                chunks=inner_chunks,
-                shards=shard_shape,
-                compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
-                fill_value=fill,
-                dimension_names=["time", "y", "x"],
-            )
+        _create_band_arrays(level_group, level_h, level_w)
 
         _create_spatial_coordinate_arrays(
             level_group, level_h, level_w, level_entry["spatial:transform"]
@@ -450,6 +488,20 @@ def create_s1_store(
         fill_value="",
         dimension_names=["time"],
     )
+    return orbit_group
+
+
+def create_s1_store(
+    store_path: str | Path,
+    orbit_direction: str,
+    metadata: S1TilingMetadata,
+) -> zarr.Group:
+    """Create a new S1 GRD RTC Zarr V3 store with full conventions metadata.
+
+    Returns the root group.
+    """
+    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
+    _build_orbit_group(root, orbit_direction, metadata)
 
     log.info(
         "Created S1 store",
@@ -559,79 +611,9 @@ def ingest_s1tiling_acquisition(
     else:
         root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
         if orbit_direction not in root:
-            # Create orbit direction group in existing store
-            orbit_group = root.create_group(orbit_direction)
-            layout = compute_multiscales_layout(meta.shape, meta.spatial_transform)
-            orbit_group.attrs.update(
-                {
-                    "zarr_conventions": ZARR_CONVENTIONS,
-                    "multiscales": {
-                        "layout": layout,
-                        "resampling_method": "average",
-                    },
-                    "proj:code": meta.crs,
-                    "spatial:dimensions": ["y", "x"],
-                    "spatial:bbox": meta.bounds,
-                }
-            )
-            for level_entry in layout:
-                level_name = level_entry["asset"]
-                level_h, level_w = level_entry["spatial:shape"]
-                level_group = orbit_group.create_group(level_name)
-                level_group.attrs.update(
-                    {
-                        "spatial:shape": [level_h, level_w],
-                        "spatial:transform": level_entry["spatial:transform"],
-                    }
-                )
-                inner_chunks = (
-                    1,
-                    calculate_aligned_chunk_size(level_h, 512),
-                    calculate_aligned_chunk_size(level_w, 512),
-                )
-                shard_shape = (1, level_h, level_w)
-                for name, dtype, fill in [
-                    ("vv", "float32", float("nan")),
-                    ("vh", "float32", float("nan")),
-                    ("border_mask", "uint8", 0),
-                ]:
-                    level_group.create_array(
-                        name,
-                        shape=(0, level_h, level_w),
-                        dtype=dtype,
-                        chunks=inner_chunks,
-                        shards=shard_shape,
-                        compressors=zarr.codecs.BloscCodec(cname="zstd", clevel=5),
-                        fill_value=fill,
-                        dimension_names=["time", "y", "x"],
-                    )
-                _create_spatial_coordinate_arrays(
-                    level_group, level_h, level_w, level_entry["spatial:transform"]
-                )
-                _add_grid_mapping(level_group, meta.crs)
-                # `time` coordinate on every level (datetime `.sel` at any scale, #192).
-                _create_time_coordinate_array(level_group)
-            r10m = orbit_group["r10m"]
-            for name, dtype, fill in [
-                ("absolute_orbit", "int32", 0),
-                ("relative_orbit", "int32", 0),
-            ]:
-                r10m.create_array(
-                    name,
-                    shape=(0,),
-                    dtype=dtype,
-                    chunks=(512,),
-                    fill_value=fill,
-                    dimension_names=["time"],
-                )
-            r10m.create_array(
-                "platform",
-                shape=(0,),
-                dtype="<U4",
-                chunks=(512,),
-                fill_value="",
-                dimension_names=["time"],
-            )
+            # Create the new orbit group in the existing store (same builder as a fresh
+            # store, so per-level metadata — incl. `proj:code` — stays consistent).
+            _build_orbit_group(root, orbit_direction, meta)
         else:
             # Validate consistency on append
             orbit_group = root[orbit_direction]
@@ -1035,6 +1017,8 @@ def ingest_s1tiling_conditions(
                 fill_value=float("nan"),
                 dimension_names=["y", "x"],
             )
+            # CF `_FillValue` so readers mask NaN nodata (xarray #11345), like vv/vh (#172).
+            arr.attrs["_FillValue"] = FLOAT32_NAN_FILL_VALUE
             arr[:, :] = data
             log.info(
                 "Wrote condition array",
