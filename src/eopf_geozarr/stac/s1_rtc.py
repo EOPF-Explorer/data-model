@@ -17,6 +17,7 @@ PROJ_EXT = "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
 RENDER_EXT = "https://stac-extensions.github.io/render/v1.0.0/schema.json"
 DATACUBE_EXT = "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
 TIMESTAMPS_EXT = "https://stac-extensions.github.io/timestamps/v1.1.0/schema.json"
+GRID_EXT = "https://stac-extensions.github.io/grid/v1.1.0/schema.json"
 
 ZARR_MEDIA_TYPE = "application/vnd.zarr; version=3"
 
@@ -216,6 +217,9 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # Projection extension
         "proj:code": preferred_proj_code,
         "proj:bbox": preferred_bbox,
+        # Grid extension: the Sentinel-2 MGRS tile this cube is gridded onto — a queryable tile id
+        # (enables tile-filtering the acquisitions collection and cube↔acquisition cross-links).
+        "grid:code": f"MGRS-{tile_id}",
         # Render extension: dual-pol RGB composite for previews/tiles (defaults to the preferred orbit)
         "renders": {"rgb": _rgb_render(preferred_orbit)},
     }
@@ -224,7 +228,7 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     if preferred["transform"] is not None:
         properties["proj:transform"] = preferred["transform"]
 
-    stac_extensions = [SAR_EXT, PROJ_EXT, RENDER_EXT, DATACUBE_EXT, TIMESTAMPS_EXT]
+    stac_extensions = [SAR_EXT, PROJ_EXT, RENDER_EXT, DATACUBE_EXT, TIMESTAMPS_EXT, GRID_EXT]
 
     # sat:orbit_state is single-valued, so it's only meaningful when the cube holds a single orbit. A
     # dual-orbit cube would mislabel half its slices — omit it there (per-acquisition items, which are

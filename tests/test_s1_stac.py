@@ -92,6 +92,14 @@ def test_item_id_matches_tile_id(tmp_path: Path) -> None:
     assert item.id == "s1-rtc-31TCH"
 
 
+def test_grid_code_and_extension(tmp_path: Path) -> None:
+    """The cube declares the grid extension + grid:code = MGRS-{tile} (a queryable tile id)."""
+    store = _make_s1_store(tmp_path, {"descending": [(T1_NS, "S1A")]})
+    item = build_s1_rtc_stac_item(str(store), "sentinel-1-grd-rtc-staging")
+    assert item.properties["grid:code"] == "MGRS-31TCH"
+    assert "https://stac-extensions.github.io/grid/v1.1.0/schema.json" in item.stac_extensions
+
+
 def test_builds_from_non_consolidated_store(tmp_path: Path) -> None:
     """Regression: the builder must read a store that lacks root consolidated metadata.
 

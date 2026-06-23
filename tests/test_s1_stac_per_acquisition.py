@@ -233,6 +233,14 @@ def test_per_slice_platform_and_no_datacube(tmp_path: Path) -> None:
         assert "created" not in item.properties
 
 
+def test_grid_code_inherited_from_cube(tmp_path: Path) -> None:
+    """Per-acquisition items inherit the cube's grid extension + grid:code (the MGRS tile)."""
+    store = _make_acq_cube(tmp_path, {"descending": [(T_EARLY, "S1A")]})
+    item = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+    assert item.properties["grid:code"] == "MGRS-31TCH"
+    assert "https://stac-extensions.github.io/grid/v1.1.0/schema.json" in item.stac_extensions
+
+
 def test_footprint_is_run_orbit_not_cube_union(tmp_path: Path) -> None:
     """A per-acq item must carry ITS orbit's footprint, not the cube's union of both orbits' extents."""
     # ascending shifted east so the cube union bbox is wider than the descending orbit alone.
