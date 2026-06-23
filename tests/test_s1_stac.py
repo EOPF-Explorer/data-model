@@ -324,7 +324,7 @@ def test_render_extension_rgb_composite(tmp_path: Path) -> None:
 
     rgb = item.properties["renders"]["rgb"]
     assert rgb["expression"] == "/descending:vv;/descending:vh;(/descending:vv)/(/descending:vh)"
-    assert rgb["rescale"] == [[0.0, 0.2]]
+    assert rgb["rescale"] == [[0.0, 0.4], [0.0, 0.1], [1.0, 15.0]]
     assert rgb["bidx"] == [1]
     assert rgb["tilesize"] == 256
 

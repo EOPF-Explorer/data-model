@@ -38,16 +38,20 @@ def _rgb_render(orbit: str) -> dict[str, object]:
 
     Produces a 3-band false-colour composite (R=VV, G=VH, B=VV/VH ratio) that
     titiler renders into previews/tiles. ``bidx=[1]`` selects the single time
-    slice from each multi-band variable; the single ``rescale`` pair (linear
-    gamma0 units) is applied to every band.
+    slice from each multi-band variable. Each band gets its own ``rescale`` pair:
+    VV and VH are linear gamma0 (low values) while the VV/VH ratio spans ~1-15, so
+    a single shared pair blew the ratio band out to a flat blue/purple wash (and
+    dropped low-cross-pol water to transparent, making swaths look mislocated).
+    Per-band stretches keep the composite natural and the swath readable.
     """
     vv = f"/{orbit}:vv"
     vh = f"/{orbit}:vh"
     return {
         "title": "VV, VH, VV/VH composite",
         "expression": f"{vv};{vh};({vv})/({vh})",
-        # Linear gamma0 stretch tuned for the S1 RTC product (the 0.0,0.1 default was too bright).
-        "rescale": [[0.0, 0.2]],
+        # Per-band linear stretch: VV/VH are low-valued gamma0; the VV/VH ratio spans ~1-15.
+        # One shared pair saturated the ratio band (purple wash) and dropped low-cross-pol water.
+        "rescale": [[0.0, 0.4], [0.0, 0.1], [1.0, 15.0]],
         "bidx": [1],
         "tilesize": 256,
     }
