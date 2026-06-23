@@ -652,6 +652,26 @@ class TestConsolidation:
         r10m = root["ascending"]["r10m"]
         assert r10m["vv"].shape[0] == 2
 
+    def test_consolidate_all_orbits_present(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """``consolidate_s1_store`` must leave EVERY orbit group consolidated on disk, not just the
+        one passed. The pipeline ingests acquisitions one orbit at a time after stripping all
+        consolidated metadata (so ``time`` can resize), so consolidating only the passed orbit left
+        staging cubes asc✓/desc✗. Each orbit group is checked **standalone**: a consolidated root
+        synthesises the child's view, so ``root[orbit].metadata.consolidated_metadata`` is a
+        false-green (non-None even when ``<orbit>/zarr.json`` lacks it).
+        """
+        vv1, vh1, mask1 = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
+        vv2, vh2, mask2 = self._get_acq_paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(vv2, vh2, mask2, s1_store_path, "descending")
+        consolidate_s1_store(s1_store_path, "descending")  # only one orbit passed
+
+        for orbit in ("ascending", "descending"):
+            grp = zarr.open_group(str(s1_store_path / orbit), mode="r", zarr_format=3)
+            assert grp.metadata.consolidated_metadata is not None, f"{orbit} orbit not consolidated"
+
     def _get_acq_paths(self, geotiff_dir: Path, stamp: str) -> tuple[Path, Path, Path]:
         vv = geotiff_dir / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
         vh = geotiff_dir / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"

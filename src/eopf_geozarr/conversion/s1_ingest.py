@@ -743,12 +743,21 @@ def ingest_s1tiling_acquisition(
 
 
 def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
-    """Consolidate metadata at orbit direction and root levels.
+    """Consolidate metadata for every orbit-direction group and the root.
 
     Must be called AFTER all ingestions complete — consolidated metadata
     caches array shapes and will become stale if called mid-ingestion.
+
+    Consolidates *every* orbit group present, not just ``orbit_direction``: the
+    pipeline ingests acquisitions one orbit at a time after stripping all
+    consolidated metadata (so ``time`` can resize), so consolidating only the
+    passed orbit would leave the other orbit's group unconsolidated on disk
+    (readers opening that orbit standalone then fall back to a listing).
+    ``orbit_direction`` is retained for logging / caller compatibility.
     """
-    zarr.consolidate_metadata(str(store_path), path=orbit_direction, zarr_format=3)
+    root = zarr.open_group(str(store_path), mode="r", zarr_format=3)
+    for orbit_name, _ in root.groups():
+        zarr.consolidate_metadata(str(store_path), path=orbit_name, zarr_format=3)
     zarr.consolidate_metadata(str(store_path), zarr_format=3)
     log.info(
         "Metadata consolidated",
