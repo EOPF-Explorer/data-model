@@ -646,6 +646,13 @@ def ingest_s1tiling_acquisition(
         vv_max=float(np.nanmax(vv_data)),
     )
 
+    # nodata → NaN: s1tiling writes 0 out of swath, which titiler treats as valid data and renders
+    # opaque black. Store NaN there instead so it masks transparent like the S2 reference. The
+    # border mask is the authoritative valid-data mask (0 = no-data); `_downsample_2d` uses
+    # `np.nanmean` for floats, so NaN propagates to every overview level below.
+    vv_data = np.where(mask_data == 0, np.nan, vv_data).astype("float32")
+    vh_data = np.where(mask_data == 0, np.nan, vh_data).astype("float32")
+
     # Determine time index
     r10m = orbit["r10m"]
     current_size = r10m["vv"].shape[0]
@@ -990,7 +997,10 @@ def ingest_s1tiling_conditions(
         array_name = f"{label}_{orbit_suffix}"
 
         with _rasterio_env(cond_path), rasterio.open(str(cond_path)) as src:
-            data = src.read(1).astype(np.float32)
+            # nodata → NaN via the GeoTIFF's declared nodata (border_mask is N/A for static
+            # conditions), so out-of-coverage pixels mask transparent like vv/vh. A no-op when
+            # the GeoTIFF declares no nodata.
+            data = src.read(1, masked=True).filled(np.nan).astype(np.float32)
 
         h, w = data.shape
 

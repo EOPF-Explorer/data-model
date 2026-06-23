@@ -68,8 +68,9 @@ def _create_synthetic_geotiff(
     crs: str = CRS,
     transform: rasterio.transform.Affine | None = None,
     tags: dict[str, str] | None = None,
+    nodata: float | None = None,
 ) -> None:
-    """Write a single-band GeoTIFF with optional metadata tags."""
+    """Write a single-band GeoTIFF with optional metadata tags and declared nodata."""
     if transform is None:
         transform = TRANSFORM
     with rasterio.open(
@@ -82,6 +83,7 @@ def _create_synthetic_geotiff(
         dtype=data.dtype,
         crs=crs,
         transform=transform,
+        nodata=nodata,
     ) as dst:
         if tags:
             dst.update_tags(**tags)
@@ -424,17 +426,22 @@ class TestIngestAcquisition:
                 assert attrs.get("proj:code") == CRS, f"{orbit}/{level_name} missing proj:code"
 
     def test_fill_value_masking_roundtrip(self, tmp_path: Path, s1_store_path: Path) -> None:
-        """End-to-end: NaN nodata in vv comes back masked when the cube is reopened with
-        ``use_zarr_fill_value_as_mask=True`` — the behaviour the CF ``_FillValue`` attribute
-        exists to enable despite xarray #11345. Mirrors the S2 guarantee in
+        """End-to-end: out-of-swath nodata (``border_mask == 0``) comes back masked when the cube
+        is reopened with ``use_zarr_fill_value_as_mask=True`` — the behaviour the CF ``_FillValue``
+        attribute exists to enable despite xarray #11345. Mirrors the S2 guarantee in
         ``tests/test_array_attrs.py::test_fill_value_masking_roundtrip``.
+
+        The nodata region comes from ``border_mask``, not a pre-seeded NaN: s1tiling stores ``0.0``
+        out of swath, and the writer is what must convert that to NaN.
         """
         stamp = "20230115t061234"
         rng = np.random.default_rng(0)
-        vv_data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
-        vv_data[0:16, 0:16] = np.nan  # nodata patch
-        vh_data = rng.uniform(0.0, 0.5, (SIZE, SIZE)).astype(np.float32)
+        vv_data = rng.uniform(0.1, 1.0, (SIZE, SIZE)).astype(np.float32)
+        vh_data = rng.uniform(0.1, 0.5, (SIZE, SIZE)).astype(np.float32)
         mask_data = np.ones((SIZE, SIZE), dtype=np.uint8)
+        mask_data[0:16, 0:16] = 0  # out-of-swath border
+        vv_data[0:16, 0:16] = 0.0  # s1tiling stores 0 where there is no swath
+        vh_data[0:16, 0:16] = 0.0
         vv = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
         vh = tmp_path / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"
         mask = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
@@ -453,11 +460,48 @@ class TestIngestAcquisition:
         )
         try:
             masked = ds["vv"].to_masked_array()
-            assert np.ma.is_masked(masked), "NaN nodata must be masked via `_FillValue`"
-            assert masked.mask[0, 0, 0], "nodata cell must be masked"
+            assert np.ma.is_masked(masked), "out-of-swath nodata must be masked via `_FillValue`"
+            assert masked.mask[0, 0, 0], "nodata cell (border_mask==0) must be masked"
             assert not masked.mask[0, -1, -1], "valid cell must not be masked"
         finally:
             ds.close()
+
+    def test_nodata_masked_to_nan(self, tmp_path: Path, s1_store_path: Path) -> None:
+        """The writer stores NaN — not 0 — wherever ``border_mask == 0``, at the native level and
+        every overview, so titiler masks out-of-swath nodata transparent like the S2 reference.
+
+        NaN must coincide exactly with ``border_mask == 0``: valid pixels stay finite. Root cause
+        of the "black area" render bug: s1tiling writes 0 out of swath, and 0 is valid data to
+        titiler. ``np.nanmean`` downsampling must carry the NaN to every overview level.
+        """
+        stamp = "20230115t061234"
+        rng = np.random.default_rng(7)
+        vv_data = rng.uniform(0.1, 1.0, (SIZE, SIZE)).astype(np.float32)
+        vh_data = rng.uniform(0.1, 0.5, (SIZE, SIZE)).astype(np.float32)
+        mask_data = np.ones((SIZE, SIZE), dtype=np.uint8)
+        mask_data[0:32, :] = 0  # out-of-swath border band (whole rows)
+        vv_data[0:32, :] = 0.0  # s1tiling stores 0 there — valid data to titiler today
+        vh_data[0:32, :] = 0.0
+        vv = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        vh = tmp_path / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif"
+        mask = tmp_path / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
+        _create_synthetic_geotiff(vv, vv_data, tags=ACQ1_TAGS)
+        _create_synthetic_geotiff(vh, vh_data, tags=ACQ1_TAGS)
+        _create_synthetic_geotiff(mask, mask_data, tags=ACQ1_TAGS)
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        nodata = mask_data == 0
+        for band in ("vv", "vh"):
+            native = root["ascending"]["r10m"][band][0, :, :]
+            assert np.all(np.isnan(native[nodata])), f"{band}: nodata region must be NaN, not 0"
+            assert not np.any(np.isnan(native[~nodata])), f"{band}: valid region must stay finite"
+            assert not np.any(native[nodata] == 0.0), f"{band}: nodata must not read back as 0"
+
+        # NaN propagates through np.nanmean downsampling: the all-nodata top band stays NaN.
+        coarse = root["ascending"]["r20m"]["vv"][0, :, :]
+        assert np.isnan(coarse[0, 0]), "all-nodata block must stay NaN at the overview level"
+        assert not np.any(np.isnan(coarse[-1, :])), "fully-valid bottom row must stay finite"
 
     def test_preserves_data_integrity(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
         vv, vh, mask = self._get_acq_paths(s1_geotiff_dir, "20230115t061234")
@@ -466,13 +510,18 @@ class TestIngestAcquisition:
         # Read back and compare
         with rasterio.open(str(vv)) as src:
             expected_vv = src.read(1)
-        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
-        actual_vv = root["ascending"]["r10m"]["vv"][0, :, :]
-        np.testing.assert_allclose(actual_vv, expected_vv, rtol=1e-6)
-
-        # Mask should be exact
         with rasterio.open(str(mask)) as src:
             expected_mask = src.read(1).astype(np.uint8)
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
+        actual_vv = root["ascending"]["r10m"]["vv"][0, :, :]
+
+        # Valid pixels (border_mask == 1) are preserved exactly; out-of-swath pixels
+        # (border_mask == 0) are written as NaN, not the raw 0 — the render-bug fix.
+        valid = expected_mask == 1
+        np.testing.assert_allclose(actual_vv[valid], expected_vv[valid], rtol=1e-6)
+        assert np.all(np.isnan(actual_vv[~valid])), "out-of-swath nodata must be NaN"
+
+        # border_mask itself is stored verbatim (uint8, never masked).
         actual_mask = root["ascending"]["r10m"]["border_mask"][0, :, :]
         np.testing.assert_array_equal(actual_mask, expected_mask)
 
@@ -783,6 +832,30 @@ class TestIngestConditions:
         root = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)
         actual = root["ascending"]["conditions"]["gamma_area_037"][:]
         np.testing.assert_allclose(actual, expected, rtol=1e-6)
+
+    def test_conditions_nodata_masked_to_nan(
+        self, s1_store_with_acquisition: Path, tmp_path: Path
+    ) -> None:
+        """A condition GeoTIFF's declared-nodata pixels read back as NaN (not the raw sentinel),
+        so the auxiliary arrays mask transparent like vv/vh. border_mask is N/A for static
+        conditions, so the writer relies on the GeoTIFF's declared nodata via a masked read.
+        """
+        data = np.full((SIZE, SIZE), 1.5, dtype=np.float32)
+        data[0:20, 0:20] = 0.0  # declared-nodata region
+        cond_path = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+        _create_synthetic_geotiff(cond_path, data, nodata=0.0)
+        ingest_s1tiling_conditions(
+            store_path=s1_store_with_acquisition,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=cond_path,
+        )
+        conditions = zarr.open_group(str(s1_store_with_acquisition), mode="r", zarr_format=3)[
+            "ascending"
+        ]["conditions"]
+        arr = conditions["gamma_area_037"][:]
+        assert np.all(np.isnan(arr[0:20, 0:20])), "declared-nodata region must be NaN"
+        assert not np.any(np.isnan(arr[20:, 20:])), "valid region must stay finite"
 
     def test_float_conditions_declare_cf_fill_value(
         self,
