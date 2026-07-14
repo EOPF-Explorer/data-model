@@ -44,6 +44,7 @@ from eopf_geozarr.types import (
     StandardXCoordAttrsJSON,
     StandardYCoordAttrsJSON,
     XarrayEncodingJSON,
+    make_epsg_code,
 )
 
 from . import fs_utils, utils
@@ -177,11 +178,10 @@ def setup_datatree_metadata_geozarr_spec_compliant(
     """
     geozarr_groups: dict[str, xr.Dataset] = {}
     grid_mapping_var_name = "spatial_ref"
-    epsg_CPM_260 = dt.attrs.get("other_metadata", {}).get(
+    raw_epsg_cpm_260 = dt.attrs.get("other_metadata", {}).get(
         "horizontal_CRS_code", dt.attrs.get("other_metadata", {}).get("horizontal_crs_code", None)
     )
-    if epsg_CPM_260 is not None:
-        epsg_CPM_260 = epsg_CPM_260.split(":")[-1]
+    epsg_CPM_260 = make_epsg_code(raw_epsg_cpm_260) if raw_epsg_cpm_260 is not None else None
 
     for key in groups:
         # Check if key exists in DataTree by attempting to access it
@@ -234,7 +234,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
 
             # Set CRS if available
             if "proj:epsg" in ds[var_name].attrs:
-                epsg = ds[var_name].attrs["proj:epsg"]
+                epsg = make_epsg_code(ds[var_name].attrs["proj:epsg"])
                 log.info("Setting CRS for variable %s to EPSG %s", var_name, epsg)
                 ds = ds.rio.write_crs(f"epsg:{epsg}")
             elif epsg_CPM_260:

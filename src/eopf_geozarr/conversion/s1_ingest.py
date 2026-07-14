@@ -359,7 +359,7 @@ TIME_CF_ATTRS: Final[S1TimeCoordAttrsJSON] = {
 # zarr-direct, so the attribute must be set explicitly.
 FLOAT32_NAN_FILL_VALUE = FillValueCoder.encode(np.nan, np.dtype("float32"))
 # CF metadata for the backscatter bands (vv/vh).
-BACKSCATTER_CF_ATTRS: S1BackscatterAttrsJSON = {
+BACKSCATTER_CF_ATTRS: Final[S1BackscatterAttrsJSON] = {
     "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
     "units": "1",
     "_FillValue": FLOAT32_NAN_FILL_VALUE,

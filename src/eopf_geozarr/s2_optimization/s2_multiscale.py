@@ -31,6 +31,7 @@ from eopf_geozarr.data_api.geozarr.types import (
 )
 from eopf_geozarr.s2_optimization.common import DISTRIBUTED_AVAILABLE
 from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
+from eopf_geozarr.types import make_epsg_code
 
 from .s2_resampling import determine_variable_type, downsample_variable
 
@@ -1150,7 +1151,7 @@ def write_geo_metadata(
                 crs = var.rio.crs
                 break
             if "proj:epsg" in var.attrs:
-                epsg = var.attrs["proj:epsg"]
+                epsg = make_epsg_code(var.attrs["proj:epsg"])
                 crs = CRS.from_epsg(epsg)
                 break
 

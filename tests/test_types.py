@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from eopf_geozarr.types import make_bounding_box, make_crs_code
+from eopf_geozarr.types import make_bounding_box, make_crs_code, make_epsg_code
 
 # =============================================================================
 # make_crs_code
@@ -29,6 +29,29 @@ def test_crs_code_rejects_non_string(bad: object) -> None:
 def test_crs_code_rejects_empty_or_whitespace(bad: str) -> None:
     with pytest.raises(TypeError, match="non-empty"):
         make_crs_code(bad)
+
+
+# =============================================================================
+# make_epsg_code
+# =============================================================================
+
+
+def test_epsg_code_accepts_int() -> None:
+    assert make_epsg_code(32631) == 32631
+
+
+@pytest.mark.parametrize("value", ["32631", "EPSG:32631", "  EPSG:32631  "])
+def test_epsg_code_accepts_string_forms(value: str) -> None:
+    # Stored attrs and CPM metadata carry EPSG codes as "32631" or "EPSG:32631".
+    code = make_epsg_code(value)
+    assert code == 32631
+    assert isinstance(code, int)
+
+
+@pytest.mark.parametrize("bad", [None, True, 32631.0, ["EPSG:32631"], "EPSG:", "EPSG:abc", ""])
+def test_epsg_code_rejects_non_codes(bad: object) -> None:
+    with pytest.raises(TypeError, match="EPSG code"):
+        make_epsg_code(bad)
 
 
 # =============================================================================

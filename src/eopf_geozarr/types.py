@@ -21,6 +21,27 @@ def make_crs_code(value: object) -> CRSCode:
     return CRSCode(value)
 
 
+EPSGCode = NewType("EPSGCode", int)
+"""A bare EPSG integer code, e.g. ``32631`` (the legacy ``proj:epsg`` attribute value)."""
+
+
+def make_epsg_code(value: object) -> EPSGCode:
+    """Validate an untyped value (e.g. a zarr attribute) as an EPSG integer code.
+
+    Accepts an int (``32631``) or the string forms found in stored attrs and CPM
+    metadata (``"32631"``, ``"EPSG:32631"``). Validation is intentionally light:
+    pyproj's ``CRS.from_epsg`` raises ``CRSError`` downstream on codes it does
+    not recognize.
+    """
+    if isinstance(value, int) and not isinstance(value, bool):
+        return EPSGCode(value)
+    if isinstance(value, str):
+        tail = value.strip().split(":")[-1]
+        if tail.isdigit():
+            return EPSGCode(int(tail))
+    raise TypeError(f"EPSG code must be an int or 'EPSG:<int>' string, got {value!r}")
+
+
 def make_bounding_box(value: object) -> BoundingBox2D:
     """Validate an untyped value (e.g. a zarr attribute) as a 4-number bounding box.
 

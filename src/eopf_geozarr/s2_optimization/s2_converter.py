@@ -17,6 +17,12 @@ from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
+from eopf_geozarr.types import (
+    BoundingBox2D,
+    make_bounding_box,
+    make_crs_code,
+    make_epsg_code,
+)
 
 from .s2_multiscale import create_multiscale_from_datatree
 
@@ -43,13 +49,8 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
     )
     if epsg_cpm_260 is not None:
         try:
-            # Handle both integer (32632) and string ("EPSG:32632" or "32632") formats
-            if isinstance(epsg_cpm_260, str):
-                # Extract numeric part from string like "EPSG:32632" or "32632"
-                epsg_code = int(epsg_cpm_260.split(":")[-1])
-            else:
-                # Already an integer
-                epsg_code = int(epsg_cpm_260)
+            # Handles both integer (32632) and string ("EPSG:32632" or "32632") formats
+            epsg_code = make_epsg_code(epsg_cpm_260)
             crs = CRS.from_epsg(epsg_code)
             log.info("Initialized CRS from CPM 2.6.0+ metadata", epsg=epsg_code)
         except Exception as e:
@@ -97,7 +98,7 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
             # Check for proj:epsg attribute
             if "proj:epsg" in var.attrs:
                 try:
-                    epsg = var.attrs["proj:epsg"]
+                    epsg = make_epsg_code(var.attrs["proj:epsg"])
                     crs = CRS.from_epsg(epsg)
                     log.info("Initialized CRS from EPSG code", epsg=epsg)
                 except Exception:
@@ -325,17 +326,17 @@ def simple_root_consolidation(output_path: str, datasets: Mapping[str, object]) 
     zarr.consolidate_metadata(output_path, zarr_format=3)
 
 
-def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
-    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
+def _as_bbox(value: object) -> BoundingBox2D | None:
+    """Return *value* as a validated bounding box, or ``None`` if it is not one.
 
     ``spatial:bbox`` is read from stored metadata, so its type is not known
-    statically; this verifies the shape at runtime rather than asserting it.
+    statically; unlike a bare ``make_bounding_box`` call, the store walker
+    tolerates absent or malformed values by skipping the group.
     """
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
+    try:
+        return make_bounding_box(value)
+    except (TypeError, ValueError):
         return None
-    if not all(isinstance(v, (int, float)) for v in value):
-        return None
-    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
 
 
 def write_store_root_bbox(output_path: str) -> None:
@@ -350,24 +351,27 @@ def write_store_root_bbox(output_path: str) -> None:
 
     root = zarr.open_group(output_path, mode="r+")
 
-    bboxes_4326: list[tuple[float, float, float, float]] = []
+    bboxes_4326: list[BoundingBox2D] = []
 
     def _walk(group: zarr.Group) -> None:
         attrs = dict(group.attrs)
         bbox = attrs.get("spatial:bbox")
-        code = attrs.get("proj:code")
+        raw_code = attrs.get("proj:code")
         # spatial:bbox comes from stored metadata; verify it is a 4-element
         # numeric sequence before use rather than trusting the type.
         corners = _as_bbox(bbox)
         if corners is not None:
             x0, y0, x1, y1 = corners
-            if code and code != "EPSG:4326":
+            # A group with a bbox but no proj:code is treated as already EPSG:4326;
+            # a present-but-malformed code fails loudly rather than being skipped.
+            code = make_crs_code(raw_code) if raw_code is not None else None
+            if code is not None and code != "EPSG:4326":
                 transformer = Transformer.from_crs(code, "EPSG:4326", always_xy=True)
                 xmin, ymin = transformer.transform(x0, y0)
                 xmax, ymax = transformer.transform(x1, y1)
-                bboxes_4326.append((xmin, ymin, xmax, ymax))
+                bboxes_4326.append(BoundingBox2D((xmin, ymin, xmax, ymax)))
             else:
-                bboxes_4326.append((x0, y0, x1, y1))
+                bboxes_4326.append(corners)
         for child in group.groups():
             _walk(child[1])
 

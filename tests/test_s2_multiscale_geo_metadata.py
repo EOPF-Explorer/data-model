@@ -288,10 +288,8 @@ class TestWriteGeoMetadataEdgeCases:
         # Add invalid EPSG code
         ds["test_var"].attrs["proj:epsg"] = "invalid_epsg"
 
-        # Method should raise an exception for invalid CRS (normal behavior)
-        from pyproj.exceptions import CRSError
-
-        with pytest.raises(CRSError):
+        # make_epsg_code rejects the corrupt attr before it reaches pyproj
+        with pytest.raises(TypeError, match="EPSG code"):
             write_geo_metadata(ds)
 
     def test_write_geo_metadata_mixed_crs_variables(
