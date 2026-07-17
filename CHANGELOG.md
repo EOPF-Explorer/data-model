@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.2 (2026-07-17)
+
+## What's Changed
+* ci(deps): bump the actions group with 3 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/185
+* bump zarr conventions; migrate type checking to pyright by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/199
+* fix(conversion): concurrent-safe source opening (native-chunk-aligned reads + atomic CacheStore) for data-pipeline#339 by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/220
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.10.1...v0.10.2
+
 ## 0.10.1 (2026-06-09)
 
 ## What's Changed
