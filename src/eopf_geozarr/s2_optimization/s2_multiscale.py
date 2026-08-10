@@ -46,6 +46,15 @@ log = structlog.get_logger()
 
 MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
+# Default upper bound on chunk dims propagated from the source when copying
+# groups as-is (see the create_original_encoding call site): whole-array
+# source chunks (e.g. cpm_v270 aot/wvp, 10980x10980;
+# EOPF-Explorer/data-pipeline#339) are unusable for tiled serving. The
+# aligned clamp lands on 1830 for the S2 grid sizes — the chunk size the
+# EOPF product spec documents as native S2 tiling (eopf-cpm PSFD 6.7.3,
+# "6x6 chunks").
+MAX_ORIGINAL_CHUNK = 2048
+
 pyramid_levels = {
     0: 10,  # Level 0: 10m (native for b02,b03,b04,b08)
     1: 20,  # Level 1: 20m (native for b05,b06,b07,b11,b12,b8a + all quality)
@@ -337,7 +346,11 @@ def create_multiscale_from_datatree(
                     dataset[data_var].encoding.pop("_FillValue", None)
         else:
             # Non-measurement groups: preserve original encoding
-            encoding = create_original_encoding(dataset)
+            encoding = create_original_encoding(
+                dataset,
+                max_chunk=MAX_ORIGINAL_CHUNK,
+                enable_sharding=enable_sharding,
+            )
 
         ds_out = stream_write_dataset(
             dataset,
@@ -864,8 +877,18 @@ def add_multiscales_metadata_to_parent(
     log.info("Added %s multiscale levels to %s", len(overview_levels), group.path)
 
 
-def create_original_encoding(dataset: xr.Dataset) -> dict[str, XarrayDataArrayEncoding]:
-    """Write a group preserving its original chunking and encoding."""
+def create_original_encoding(
+    dataset: xr.Dataset,
+    *,
+    max_chunk: int,
+    enable_sharding: bool,
+) -> dict[str, XarrayDataArrayEncoding]:
+    """Write a group preserving its original chunking and encoding.
+
+    Source chunk dims larger than ``max_chunk`` are clamped to an aligned
+    size; when ``enable_sharding`` is true, clamped variables get a
+    whole-array shard so each array remains a single storage object.
+    """
     from zarr.codecs import BloscCodec
 
     # Simple encoding that preserves original structure
@@ -880,6 +903,35 @@ def create_original_encoding(dataset: xr.Dataset) -> dict[str, XarrayDataArrayEn
         for key in XARRAY_ENCODING_KEYS - {"compressors", "fill_value"}:
             if key in var_data.encoding:
                 var_encoding[key] = var_data.encoding[key]
+        # Clamp oversized source chunks (e.g. cpm_v270 whole-array aot/wvp)
+        # instead of propagating them into the output store.
+        chunks = var_encoding.get("chunks")
+        if chunks:
+            clamped = tuple(
+                calculate_aligned_chunk_size(dim, max_chunk) if chunk > max_chunk else chunk
+                for dim, chunk in zip(var_data.shape, chunks, strict=True)
+            )
+            if clamped != tuple(chunks):
+                log.info(
+                    "Clamping oversized source chunks for %s: %s -> %s",
+                    var_name,
+                    tuple(chunks),
+                    clamped,
+                )
+                var_encoding["chunks"] = clamped
+                # preferred_chunks hints at the old grid — drop it
+                var_encoding.pop("preferred_chunks", None)
+                if enable_sharding:
+                    # keep one storage object per array (same policy as
+                    # create_measurements_encoding): whole-array shard with
+                    # the clamped chunks as inner tiles
+                    var_encoding["shards"] = calculate_simple_shard_dimensions(
+                        var_data.shape, clamped
+                    )
+                else:
+                    # a source shard shape may no longer be a multiple of the
+                    # clamped chunks
+                    var_encoding.pop("shards", None)
         # Set the zarr-level `fill_value` explicitly rather than letting xarray
         # decide — different xarray versions infer different defaults from the
         # variable's `_FillValue`. See `explicit_fill_value` for the rationale.

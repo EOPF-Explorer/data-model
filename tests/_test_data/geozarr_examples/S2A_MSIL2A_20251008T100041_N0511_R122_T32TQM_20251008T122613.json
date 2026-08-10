@@ -482,8 +482,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            10980,
-                            10980
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -554,8 +554,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            10980,
-                            10980
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -626,8 +626,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            10980,
-                            10980
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -698,8 +698,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            10980,
-                            10980
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -849,8 +849,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -921,8 +921,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -993,8 +993,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -1065,8 +1065,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -1137,8 +1137,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -1209,8 +1209,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -1828,8 +1828,8 @@
                         "name": "regular",
                         "configuration": {
                           "chunk_shape": [
-                            5490,
-                            5490
+                            1830,
+                            1830
                           ]
                         }
                       },
@@ -4114,29 +4114,6 @@
           "zarr_format": 3,
           "node_type": "group",
           "attributes": {
-            "zarr_conventions": [
-              {
-                "uuid": "d35379db-88df-4056-af3a-620245f8e347",
-                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1/schema.json",
-                "spec_url": "https://github.com/zarr-conventions/multiscales/blob/v0.1/README.md",
-                "name": "multiscales",
-                "description": "Multiscale layout of zarr datasets"
-              },
-              {
-                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
-                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
-                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
-                "name": "spatial:",
-                "description": "Spatial coordinate information"
-              },
-              {
-                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
-                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
-                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
-                "name": "proj:",
-                "description": "Coordinate reference system information for geospatial data"
-              }
-            ],
             "multiscales": {
               "layout": [
                 {
@@ -4239,6 +4216,29 @@
               ],
               "resampling_method": "average"
             },
+            "zarr_conventions": [
+              {
+                "uuid": "d35379db-88df-4056-af3a-620245f8e347",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/multiscales/blob/v0.1/README.md",
+                "name": "multiscales",
+                "description": "Multiscale layout of zarr datasets"
+              },
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
             "spatial:dimensions": [
               "y",
               "x"
@@ -4273,7 +4273,6 @@
                   10980,
                   10980
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -4289,7 +4288,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b02": {
@@ -4748,7 +4748,6 @@
                   915,
                   915
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -4765,6 +4764,7 @@
                     "description": "Coordinate reference system information for geospatial data"
                   }
                 ],
+                "proj:code": "EPSG:32632",
                 "grid_mapping": "spatial_ref"
               },
               "members": {
@@ -5838,7 +5838,6 @@
                   5490,
                   5490
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -5854,7 +5853,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b01": {
@@ -6852,7 +6852,6 @@
                   305,
                   305
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -6869,6 +6868,7 @@
                     "description": "Coordinate reference system information for geospatial data"
                   }
                 ],
+                "proj:code": "EPSG:32632",
                 "grid_mapping": "spatial_ref"
               },
               "members": {
@@ -7942,7 +7942,6 @@
                   1830,
                   1830
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -7958,7 +7957,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b01": {
@@ -9033,7 +9033,6 @@
                   152,
                   152
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -9050,6 +9049,7 @@
                     "description": "Coordinate reference system information for geospatial data"
                   }
                 ],
+                "proj:code": "EPSG:32632",
                 "grid_mapping": "spatial_ref"
               },
               "members": {
@@ -10137,7 +10137,6 @@
                   10980,
                   10980
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -10153,7 +10152,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "aot": {
@@ -10194,8 +10194,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -10323,8 +10323,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -10453,7 +10453,6 @@
                   5490,
                   5490
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -10469,7 +10468,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "aot": {
@@ -10510,8 +10510,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -10639,8 +10639,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -10769,7 +10769,6 @@
                   1830,
                   1830
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -10785,7 +10784,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "aot": {
@@ -11092,7 +11092,6 @@
                   10980,
                   10980
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -11108,7 +11107,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b02": {
@@ -11171,8 +11171,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11264,8 +11264,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11357,8 +11357,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11450,8 +11450,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        10980,
-                        10980
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11632,7 +11632,6 @@
                   5490,
                   5490
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -11648,7 +11647,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b05": {
@@ -11711,8 +11711,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11804,8 +11804,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11897,8 +11897,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -11990,8 +11990,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -12083,8 +12083,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -12176,8 +12176,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -12358,7 +12358,6 @@
                   1830,
                   1830
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -12374,7 +12373,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "b01": {
@@ -12812,7 +12812,6 @@
                   5490,
                   5490
                 ],
-                "proj:code": "EPSG:32632",
                 "zarr_conventions": [
                   {
                     "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
@@ -12828,7 +12827,8 @@
                     "name": "proj:",
                     "description": "Coordinate reference system information for geospatial data"
                   }
-                ]
+                ],
+                "proj:code": "EPSG:32632"
               },
               "members": {
                 "band": {
@@ -12900,8 +12900,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },
@@ -12972,8 +12972,8 @@
                     "name": "regular",
                     "configuration": {
                       "chunk_shape": [
-                        5490,
-                        5490
+                        1830,
+                        1830
                       ]
                     }
                   },

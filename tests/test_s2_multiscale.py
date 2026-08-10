@@ -9,6 +9,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
+import dask.array
 import numpy as np
 import pytest
 import xarray as xr
@@ -21,6 +22,7 @@ from zarr.core.dtype import Int16
 from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
+    MAX_ORIGINAL_CHUNK,
     _coarsen_variable,
     add_multiscales_metadata_to_parent,
     calculate_aligned_chunk_size,
@@ -28,6 +30,7 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     create_downsampled_resolution_group,
     create_measurements_encoding,
     create_multiscale_from_datatree,
+    create_original_encoding,
     inject_missing_bands,
 )
 
@@ -235,6 +238,80 @@ def test_create_measurements_encoding_time_chunking(sample_dataset: xr.Dataset) 
             chunks = encoding[str(var_name)].get("chunks")
             assert chunks is not None
             assert chunks[0] == 1  # Time dimension should be chunked to 1
+
+
+def _lazy_var(shape: tuple[int, ...], encoding_chunks: tuple[int, ...]) -> xr.DataArray:
+    """A lazy (dask) variable carrying source zarr chunk metadata in encoding."""
+    data = dask.array.zeros(shape, chunks=encoding_chunks, dtype="f4")
+    var = xr.DataArray(data, dims=["y", "x"])
+    var.encoding["chunks"] = encoding_chunks
+    return var
+
+
+def test_create_original_encoding_clamps_whole_array_chunks() -> None:
+    """v270-era products store quality/atmosphere aot/wvp as ONE whole-array
+    chunk (EOPF-Explorer/data-pipeline#339); the output encoding must not
+    propagate a 10980x10980 (~241 MB raw uint16) chunk. The clamp lands on
+    1830, the EOPF-documented native S2 tiling (eopf-cpm PSFD 6.7.3,
+    "6x6 chunks"). With sharding enabled the clamped
+    chunks become inner tiles of a whole-array shard, so each array is still
+    a single storage object.
+    """
+    encoding_r10m = create_original_encoding(
+        xr.Dataset({"aot": _lazy_var((10980, 10980), (10980, 10980))}),
+        max_chunk=MAX_ORIGINAL_CHUNK,
+        enable_sharding=True,
+    )
+    encoding_r20m = create_original_encoding(
+        xr.Dataset({"wvp": _lazy_var((5490, 5490), (5490, 5490))}),
+        max_chunk=MAX_ORIGINAL_CHUNK,
+        enable_sharding=True,
+    )
+    assert encoding_r10m["aot"].get("chunks") == (1830, 1830)
+    assert encoding_r10m["aot"].get("shards") == (10980, 10980)
+    assert encoding_r20m["wvp"].get("chunks") == (1830, 1830)
+    assert encoding_r20m["wvp"].get("shards") == (5490, 5490)
+
+
+def test_create_original_encoding_preserves_reasonable_chunks() -> None:
+    encoding_scl = create_original_encoding(
+        xr.Dataset({"scl": _lazy_var((5490, 5490), (1830, 1830))}),
+        max_chunk=MAX_ORIGINAL_CHUNK,
+        enable_sharding=True,
+    )
+    encoding_small = create_original_encoding(
+        xr.Dataset({"small": _lazy_var((384, 384), (384, 384))}),
+        max_chunk=MAX_ORIGINAL_CHUNK,
+        enable_sharding=True,
+    )
+    assert encoding_scl["scl"].get("chunks") == (1830, 1830)
+    assert "shards" not in encoding_scl["scl"]
+    assert encoding_small["small"].get("chunks") == (384, 384)
+    assert "shards" not in encoding_small["small"]
+
+
+def test_create_original_encoding_drops_stale_companions_on_clamp() -> None:
+    var = _lazy_var((10980, 10980), (10980, 10980))
+    var.encoding["preferred_chunks"] = {"y": 10980, "x": 10980}
+    var.encoding["shards"] = (10980, 10980)
+    dataset = xr.Dataset({"aot": var})
+    encoding = create_original_encoding(
+        dataset, max_chunk=MAX_ORIGINAL_CHUNK, enable_sharding=False
+    )
+    assert encoding["aot"].get("chunks") == (1830, 1830)
+    assert "preferred_chunks" not in encoding["aot"]
+    assert "shards" not in encoding["aot"]
+
+
+def test_create_original_encoding_clamps_only_spatial_dims_of_3d_vars() -> None:
+    data = dask.array.zeros((1, 10980, 10980), chunks=(1, 10980, 10980), dtype="f4")
+    var = xr.DataArray(data, dims=["time", "y", "x"])
+    var.encoding["chunks"] = (1, 10980, 10980)
+    encoding = create_original_encoding(
+        xr.Dataset({"aot": var}), max_chunk=MAX_ORIGINAL_CHUNK, enable_sharding=True
+    )
+    assert encoding["aot"].get("chunks") == (1, 1830, 1830)
+    assert encoding["aot"].get("shards") == (1, 10980, 10980)
 
 
 def test_calculate_aligned_chunk_size() -> None:
