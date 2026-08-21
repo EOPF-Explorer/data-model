@@ -1,7 +1,7 @@
 """
-GeoZarr-spec 0.4 compliant conversion tools for EOPF datasets.
+GeoZarr compliant conversion tools for EOPF datasets.
 
-This module provides functions to convert EOPF datasets to GeoZarr-spec 0.4 compliant format
+This module provides functions to convert EOPF datasets to GeoZarr format
 while maintaining native projections and using /2 downsampling logic.
 
 Key compliance features:
@@ -69,7 +69,7 @@ def create_geozarr_dataset(
     enable_sharding: bool = False,
 ) -> xr.DataTree:
     """
-    Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
+    Create a GeoZarr-spec compliant dataset from EOPF data.
 
     Parameters
     ----------
@@ -145,6 +145,15 @@ def create_geozarr_dataset(
         enable_sharding,
     )
 
+    # Write the store-root spatial footprint (geozarr minispec, Store Root
+    # section): union of child-group bboxes in EPSG:4326 plus the conventions
+    # declaration. A failure here must not discard the already-written data;
+    # the store simply stays root-metadata-less (and the validator reports it).
+    try:
+        utils.write_store_root_geo_metadata(output_path)
+    except Exception as e:
+        log.warning("Failed to write store-root spatial metadata", error=str(e))
+
     # Consolidate metadata at the root level AFTER all groups are written
     log.info("Consolidating metadata at root level for consistent zarr access...")
     try:
@@ -155,6 +164,24 @@ def create_geozarr_dataset(
         log.warning("Root level consolidation failed", error=str(e))
 
     return dt_geozarr
+
+
+def _crs_candidate_from_attrs(attrs: dict[str, Any]) -> str | None:
+    """Pick a CRS string from a variable's source attributes, if any.
+
+    Prefers the legacy ``proj:epsg`` key, then the geo-proj convention keys
+    ``proj:code`` and ``proj:wkt2`` (which sanitize_array_attrs later removes).
+    """
+    epsg = attrs.get("proj:epsg")
+    if epsg is not None:
+        return f"epsg:{epsg}"
+    code = attrs.get("proj:code")
+    if isinstance(code, str) and code:
+        return code
+    wkt2 = attrs.get("proj:wkt2")
+    if isinstance(wkt2, str) and wkt2:
+        return wkt2
+    return None
 
 
 def setup_datatree_metadata_geozarr_spec_compliant(
@@ -210,6 +237,11 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         for var_name in ds.data_vars:
             log.info("Processing variable / band %s", var_name)
 
+            # Capture the CRS from the source attrs before sanitizing: sanitize
+            # strips the geo-proj convention keys (proj:code/proj:wkt2/...),
+            # which may be the only CRS declaration a source product carries.
+            source_crs = _crs_candidate_from_attrs(dict(ds[var_name].attrs))
+
             # Sanitize source-only and misleading attributes
             is_float = np.issubdtype(ds[var_name].dtype, np.floating)
             ds[var_name].attrs = utils.sanitize_array_attrs(
@@ -233,10 +265,9 @@ def setup_datatree_metadata_geozarr_spec_compliant(
             ds[var_name].attrs["grid_mapping"] = grid_mapping_var_name
 
             # Set CRS if available
-            if "proj:epsg" in ds[var_name].attrs:
-                epsg = ds[var_name].attrs["proj:epsg"]
-                log.info("Setting CRS for variable %s to EPSG %s", var_name, epsg)
-                ds = ds.rio.write_crs(f"epsg:{epsg}")
+            if source_crs is not None:
+                log.info("Setting CRS for variable %s to %s", var_name, source_crs)
+                ds = ds.rio.write_crs(source_crs)
             elif epsg_CPM_260:
                 log.info(
                     "Setting CRS for variable %s to EPSG (CPM 2.6.0 default)",
@@ -487,7 +518,7 @@ def write_geozarr_group(
     # Create encoding for all variables
     encoding = _create_geozarr_encoding(ds, compressor, spatial_chunk, enable_sharding)
 
-    # Write native data directly at the group path (GeoZarr 0.4 layout)
+    # Write native data directly at the group path (GeoZarr multiscales layout)
     native_dataset_group_name = group_name
     native_dataset_path = f"{output_path}/{native_dataset_group_name.lstrip('/')}"
 
@@ -555,7 +586,7 @@ def create_geozarr_compliant_multiscales(
     enable_sharding: bool = False,
 ) -> dict[str, Any]:
     """
-    Create GeoZarr-spec 0.4 compliant multiscales for a group.
+    Create GeoZarr-spec compliant multiscales for a group.
 
     Native data is expected to already be written at ``group_name``.
     Overview sub-groups are written at ``{group_name}/r{scale}``
@@ -670,9 +701,9 @@ def create_geozarr_compliant_multiscales(
             )
         w, h = int(ol["width"]), int(ol["height"])
         scale_level_data["spatial:shape"] = (h, w)
-        spatial_tf = _spatial_transform_for(native_bounds, w, h)
-        if not all(v == 0.0 for v in spatial_tf):
-            scale_level_data["spatial:transform"] = spatial_tf
+        # The minispec requires spatial:transform on every layout entry, so it
+        # is written even when degenerate (e.g. all-zero coordinates).
+        scale_level_data["spatial:transform"] = _spatial_transform_for(native_bounds, w, h)
         layout.append(zcm.ScaleLevel(**scale_level_data))
 
     # Validate + serialize the multiscales block via the project model (which
@@ -779,9 +810,26 @@ def create_geozarr_compliant_multiscales(
 
         log.info("%s created in %s seconds", asset_name, round(proc_time, 2))
 
+        # Each overview level must itself qualify as a GeoZarr dataset
+        # (minispec, Multiscale Dataset > Members): write the spatial + proj
+        # conventions on the overview group.
+        level_attrs = utils.build_convention_attrs(
+            spatial={
+                "spatial:dimensions": ["y", "x"],
+                "spatial:bbox": list(native_bounds),
+                "spatial:shape": [int(height), int(width)],
+                "spatial:transform": list(
+                    _spatial_transform_for(native_bounds, int(width), int(height))
+                ),
+                "spatial:registration": "pixel",
+            },
+            crs=native_crs or None,
+        )
+
         # Consolidate metadata for this overview group
         ov_group_path = fs_utils.normalize_path(f"{output_path}/{overview_group.lstrip('/')}")
         ov_zarr_group = fs_utils.open_zarr_group(ov_group_path, mode="r+")
+        ov_zarr_group.attrs.update(cast("dict[str, JSON]", level_attrs))
         consolidate_metadata(ov_zarr_group.store)
         log.info("✅ Metadata consolidated for overview %s", asset_name)
 
@@ -826,7 +874,9 @@ def calculate_overview_levels(
     current_width = native_width
     current_height = native_height
 
-    while min(current_width, current_height) >= min_dimension:
+    # Level 0 (native resolution) is always present, even when the native grid
+    # is smaller than min_dimension; min_dimension only bounds the overviews.
+    while level == 0 or min(current_width, current_height) >= min_dimension:
         overview_level: dict[str, Any] = {
             "level": level,
             "width": current_width,
@@ -913,6 +963,18 @@ def create_overview_dataset_all_vars(
             "x": (["x"], x_coords, x_attrs),
             "y": (["y"], y_coords, y_attrs),
         }
+
+    # Carry over 1-D non-spatial coordinates (e.g. time) so every data-variable
+    # dimension keeps a matching coordinate variable in the overview group
+    # (required by the minispec's Dataset Members rules).
+    for coord_name, coord in ds.coords.items():
+        if coord_name in ("x", "y") or coord.ndim != 1 or coord.dims[0] != coord_name:
+            continue
+        overview_coords[str(coord_name)] = (
+            [str(coord_name)],
+            coord.values,
+            dict(coord.attrs),
+        )
 
     # Determine standard name based on whether this is Sentinel-1 data
     # TODO: use a better way to determine this than just checking for ds_gcp

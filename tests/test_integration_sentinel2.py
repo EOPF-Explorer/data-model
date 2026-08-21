@@ -27,10 +27,8 @@ from . import (
 )
 
 
-@pytest.fixture
-def sample_sentinel2_datatree() -> xr.DataTree:
-    """
-    Create a sample Sentinel-2 EOPF DataTree structure for testing.
+def build_sample_sentinel2_datatree() -> xr.DataTree:
+    """Build the sample Sentinel-2 EOPF DataTree (importable, non-fixture form).
 
     This mimics the structure from the notebook:
     - Multiple resolution groups (r10m, r20m, r60m)
@@ -219,6 +217,12 @@ def sample_sentinel2_datatree() -> xr.DataTree:
     dt["quality/l1c_quicklook"].attrs = {"description": "L1C quicklook RGB composite"}
 
     return dt
+
+
+@pytest.fixture
+def sample_sentinel2_datatree() -> xr.DataTree:
+    """Create a sample Sentinel-2 EOPF DataTree structure for testing."""
+    return build_sample_sentinel2_datatree()
 
 
 @pytest.fixture

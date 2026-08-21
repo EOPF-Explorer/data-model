@@ -13,6 +13,7 @@ import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
 
+from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.fs_utils import get_storage_options
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
@@ -325,66 +326,13 @@ def simple_root_consolidation(output_path: str, datasets: Mapping[str, object]) 
     zarr.consolidate_metadata(output_path, zarr_format=3)
 
 
-def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
-    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
-
-    ``spatial:bbox`` is read from stored metadata, so its type is not known
-    statically; this verifies the shape at runtime rather than asserting it.
-    """
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
-        return None
-    if not all(isinstance(v, (int, float)) for v in value):
-        return None
-    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
-
-
 def write_store_root_bbox(output_path: str) -> None:
-    """Write `spatial:bbox` and `proj:code` at the store root.
+    """Write the minispec store-root metadata (bbox, CRS, conventions).
 
-    Walks the zarr store, collects every child-group `spatial:bbox` along with
-    its `proj:code`, reprojects each to EPSG:4326 and writes the union plus
-    the CRS code on the root group. The CRS is always declared explicitly per
-    the Store Root section of the minispec — there is no implicit default.
+    Thin wrapper kept for backwards compatibility; the implementation lives in
+    :func:`eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
     """
-    from pyproj import Transformer
-
-    root = zarr.open_group(output_path, mode="r+")
-
-    bboxes_4326: list[tuple[float, float, float, float]] = []
-
-    def _walk(group: zarr.Group) -> None:
-        attrs = dict(group.attrs)
-        bbox = attrs.get("spatial:bbox")
-        code = attrs.get("proj:code")
-        # spatial:bbox comes from stored metadata; verify it is a 4-element
-        # numeric sequence before use rather than trusting the type.
-        corners = _as_bbox(bbox)
-        if corners is not None:
-            x0, y0, x1, y1 = corners
-            if code and code != "EPSG:4326":
-                transformer = Transformer.from_crs(code, "EPSG:4326", always_xy=True)
-                xmin, ymin = transformer.transform(x0, y0)
-                xmax, ymax = transformer.transform(x1, y1)
-                bboxes_4326.append((xmin, ymin, xmax, ymax))
-            else:
-                bboxes_4326.append((x0, y0, x1, y1))
-        for child in group.groups():
-            _walk(child[1])
-
-    for _, child_group in root.groups():
-        _walk(child_group)
-
-    if not bboxes_4326:
-        log.warning("No child-group spatial:bbox found; skipping store-root bbox")
-        return
-
-    xmin = min(b[0] for b in bboxes_4326)
-    ymin = min(b[1] for b in bboxes_4326)
-    xmax = max(b[2] for b in bboxes_4326)
-    ymax = max(b[3] for b in bboxes_4326)
-    root.attrs["spatial:bbox"] = [xmin, ymin, xmax, ymax]
-    root.attrs["proj:code"] = "EPSG:4326"
-    log.info("Wrote store-root spatial:bbox", bbox=[xmin, ymin, xmax, ymax])
+    utils.write_store_root_geo_metadata(output_path)
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:

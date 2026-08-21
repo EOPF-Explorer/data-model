@@ -1,5 +1,5 @@
 site_name: EOPF GeoZarr Data Model
-site_description: Documentation for the EOPF GeoZarr library - converting EOPF datasets to GeoZarr-spec 0.4 compliant format
+site_description: Documentation for the EOPF GeoZarr library - converting EOPF datasets to GeoZarr format
 site_author: Development Seed
 repo_url: https://github.com/eopf-explorer/data-model
 edit_uri: edit/main/docs/

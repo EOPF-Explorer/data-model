@@ -339,6 +339,14 @@ def create_multiscale_from_datatree(
             # Non-measurement groups: preserve original encoding
             encoding = create_original_encoding(dataset)
 
+        # Drop scalar (0-D) coordinates such as a source `band` label: the
+        # minispec's DataArray rules forbid scalar arrays in a GeoZarr dataset.
+        scalar_coords = [name for name, coord in dataset.coords.items() if coord.ndim == 0]
+        if scalar_coords:
+            dataset = dataset.drop_vars(scalar_coords)
+            for name in scalar_coords:
+                encoding.pop(str(name), None)
+
         ds_out = stream_write_dataset(
             dataset,
             path=group_path,
@@ -783,8 +791,9 @@ def add_multiscales_metadata_to_parent(
             "spatial_shape": (height, width),
         }
 
-        # Only add spatial_transform if we have valid transform data
-        if transform is not None and not all(t == 0 for t in transform):
+        # The minispec requires spatial:transform on every layout entry, so it
+        # is kept even when degenerate (e.g. all-zero coordinates).
+        if transform is not None:
             layout_entry["spatial_transform"] = transform
 
         overview_levels.append(layout_entry)
@@ -828,8 +837,9 @@ def add_multiscales_metadata_to_parent(
         scale_level_data["spatial:shape"] = overview_level["spatial_shape"]
         if "spatial_transform" in overview_level:
             spatial_transform = overview_level["spatial_transform"]
-            # Only add spatial_transform if we have valid transform data (not all zeros)
-            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+            # The minispec requires spatial:transform on every layout entry,
+            # so it is written even when degenerate (e.g. all-zero coordinates).
+            if spatial_transform is not None:
                 scale_level_data["spatial:transform"] = spatial_transform
 
         scale_level = zcm.ScaleLevel(**scale_level_data)

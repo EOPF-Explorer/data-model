@@ -19,7 +19,7 @@ dt = xr.open_datatree("sentinel2_l2a.zarr", engine="zarr")
 # Convert to GeoZarr
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="sentinel2_geozarr.zarr"
 )
 
@@ -57,9 +57,9 @@ dt = xr.open_datatree("S2A_MSIL2A_20230615T103031_N0509_R108_T32TQM_20230615T170
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
     groups=[
-        "/measurements/r10m",  # B02, B03, B04, B08
-        "/measurements/r20m",  # B05, B06, B07, B8A, B11, B12
-        "/measurements/r60m"   # B01, B09, B10
+        "/measurements/reflectance/r10m",  # B02, B03, B04, B08
+        "/measurements/reflectance/r20m",  # B05, B06, B07, B8A, B11, B12
+        "/measurements/reflectance/r60m"   # B01, B09, B10
     ],
     output_path="s2_l2a_geozarr.zarr",
     spatial_chunk=4096,
@@ -159,7 +159,7 @@ dt = xr.open_datatree(input_path, engine="zarr")
 # Convert and save to S3
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m", "/measurements/r20m"],
+    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m"],
     output_path=output_path,
     spatial_chunk=2048
 )
@@ -189,7 +189,7 @@ storage_opts = get_s3_storage_options("s3://custom-bucket/output.zarr", **s3_con
 # Convert with custom S3 settings
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="s3://custom-bucket/output.zarr",
     **storage_opts
 )
@@ -217,7 +217,7 @@ try:
     # Process with optimized chunking for Dask
     dt_geozarr = create_geozarr_dataset(
         dt_input=dt,
-        groups=["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"],
+        groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
         output_path="large_geozarr.zarr",
         spatial_chunk=2048,  # Smaller chunks for distributed processing
         max_retries=5
@@ -255,7 +255,7 @@ print(f"Using chunk size: {optimal_chunk}")
 # Process with memory-efficient settings
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="memory_efficient.zarr",
     spatial_chunk=optimal_chunk
 )
@@ -274,7 +274,7 @@ from eopf_geozarr import create_geozarr_dataset
 # Convert dataset
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="enhanced.zarr"
 )
 
@@ -307,7 +307,7 @@ from eopf_geozarr.conversion.utils import validate_existing_band_data
 # Convert dataset
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="validated.zarr"
 )
 
@@ -320,7 +320,7 @@ print(f"Multiscales levels: {len(multiscales)}")
 
 # Validate each resolution level
 for level in ["0", "1", "2"]:
-    group_path = f"/measurements/r10m/{level}"
+    group_path = f"/measurements/reflectance/r10m/{level}"
     if group_path in dt_check.groups:
         ds = dt_check[group_path].ds
         print(f"Level {level}: {dict(ds.dims)}")
@@ -385,7 +385,7 @@ def batch_convert_datasets(input_dir: str, output_dir: str, groups: list):
 batch_convert_datasets(
     input_dir="/data/sentinel2/raw",
     output_dir="/data/sentinel2/geozarr",
-    groups=["/measurements/r10m", "/measurements/r20m"]
+    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m"]
 )
 ```
 
@@ -404,12 +404,12 @@ from eopf_geozarr import create_geozarr_dataset
 # Convert dataset
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="stac_ready.zarr"
 )
 
 # Extract metadata for STAC
-ds = dt_geozarr["/measurements/r10m"].ds
+ds = dt_geozarr["/measurements/reflectance/r10m"].ds
 spatial_ref = ds.get('spatial_ref', ds.get('crs', None))
 
 # Create basic STAC item
@@ -463,7 +463,7 @@ from eopf_geozarr import create_geozarr_dataset
 dt = xr.open_datatree("input.zarr", engine="zarr")
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="notebook_example.zarr"
 )
 
@@ -472,7 +472,7 @@ dt_geozarr = create_geozarr_dataset(
 import ipywidgets as widgets
 
 def plot_band(band_name, level):
-    ds = dt_geozarr[f"/measurements/r10m/{level}"].ds
+    ds = dt_geozarr[f"/measurements/reflectance/r10m/{level}"].ds
     band_data = ds[band_name]
     
     plt.figure(figsize=(10, 8))

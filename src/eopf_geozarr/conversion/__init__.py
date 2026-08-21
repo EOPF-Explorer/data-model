@@ -25,6 +25,7 @@ from .s1_ingest import (
     ingest_s1tiling_acquisition,
     ingest_s1tiling_conditions,
 )
+from .open_source import open_source_datatree
 from .utils import (
     calculate_aligned_chunk_size,
     downsample_2d_array,
@@ -50,6 +51,7 @@ __all__ = [
     "is_s3_path",
     "iterative_copy",
     "open_s3_zarr_group",
+    "open_source_datatree",
     "parse_s3_path",
     "s3_path_exists",
     "setup_datatree_metadata_geozarr_spec_compliant",

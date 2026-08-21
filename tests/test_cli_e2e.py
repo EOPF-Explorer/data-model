@@ -37,6 +37,12 @@ def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
     res = subprocess.run(cmd, capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
 
+    # The converted store must satisfy the GeoZarr minispec.
+    from eopf_geozarr.data_api.geozarr.validation import validate_store
+
+    report = validate_store(str(output_path))
+    assert report.compliant, "\n".join(str(i) for i in report.issues)
+
 
 def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path) -> None:
     """
@@ -124,8 +130,10 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
     )
     # Verify validation output
     validate_output = result_validate.stdout
-    assert "Validation Results:" in validate_output, "Should show validation header"
-    assert "✅" in validate_output, "Should show successful validations"
+    assert "GeoZarr minispec validation: COMPLIANT" in validate_output, (
+        "Should show the minispec validation summary"
+    )
+    assert "✅ Dataset is compliant" in validate_output, "Should report compliance"
 
     # verify exact output group structure
     # this is a sensitive, brittle check

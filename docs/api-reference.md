@@ -24,7 +24,7 @@ def create_geozarr_dataset(
 **Parameters:**
 
 - `dt_input` (xr.DataTree): Input EOPF DataTree to convert
-- `groups` (List[str]): List of group paths to process (e.g., `["/measurements/r10m"]`)
+- `groups` (List[str]): List of group paths to process (e.g., `["/measurements/reflectance/r10m"]`)
 - `output_path` (str): Output path for the GeoZarr dataset (local or S3)
 - `spatial_chunk` (int, optional): Target spatial chunk size. Default: 4096
 - `min_dimension` (int, optional): Minimum dimension size for processing. Default: 256
@@ -45,7 +45,7 @@ from eopf_geozarr import create_geozarr_dataset
 dt = xr.open_datatree("input.zarr", engine="zarr")
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m", "/measurements/r20m"],
+    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m"],
     output_path="output.zarr",
     spatial_chunk=2048
 )
@@ -421,7 +421,7 @@ from eopf_geozarr import create_geozarr_dataset
 dt = xr.open_datatree("input.zarr", engine="zarr")
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="output.zarr"
 )
 ```
@@ -446,7 +446,7 @@ if is_valid:
     # Convert with S3
     dt_geozarr = create_geozarr_dataset(
         dt_input=dt,
-        groups=["/measurements/r10m"],
+        groups=["/measurements/reflectance/r10m"],
         output_path=s3_path,
         **storage_opts
     )
@@ -464,7 +464,7 @@ optimal_chunk = calculate_aligned_chunk_size(width, 4096)
 
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="output.zarr",
     spatial_chunk=optimal_chunk
 )

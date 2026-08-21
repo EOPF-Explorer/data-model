@@ -4,7 +4,7 @@ This document specifies the GeoZarr model used in this repository. It is a "mini
 
 GeoZarr is a set of modular, composable [Zarr conventions](https://geozarr.org/conventions) for storing multidimensional georeferenced grids. The specification is developed by the [OGC GeoZarr Standards Working Group](https://geozarr.org/) and is on track for Architecture Board review in summer 2026 (see [roadmap](https://geozarr.org/roadmap)). All three core conventions are currently at **Proposal** maturity, targeting **Candidate** status (3+ independent implementations) for GeoZarr V1.
 
-> **Evolution note**: Earlier versions of this mini-spec documented a "V0 maximalist" approach based on GeoZarr 0.4 (TileMatrixSet multiscales, mandatory CF conventions, `grid_mapping` 0D arrays). That approach has been superseded by the modular Zarr Conventions described below, which were established at the Zarr Summit in Rome (December 2025) and are the basis of this implementation since v1.0.
+> **Evolution note**: Earlier versions of this mini-spec documented a "V0 maximalist" approach based on an early GeoZarr 0.4 draft (TileMatrixSet multiscales, mandatory CF conventions, `grid_mapping` 0D arrays). That approach has been superseded by the modular Zarr Conventions described below, which were established at the Zarr Summit in Rome (December 2025) and are the basis of this implementation since v1.0.
 
 ## Relationship to Other Documentation
 

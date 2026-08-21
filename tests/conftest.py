@@ -13,6 +13,7 @@ from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 # Paths to example data / metadata
 s1_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_examples").glob("*.json"))
 s2_example_json_paths = tuple(pathlib.Path("tests/_test_data/s2_examples").glob("*.json"))
+s3_example_json_paths = tuple(pathlib.Path("tests/_test_data/s3_examples").glob("*.json"))
 projjson_example_paths = tuple(pathlib.Path("tests/_test_data/projjson_examples").glob("*.json"))
 geoproj_example_paths = tuple(pathlib.Path("tests/_test_data/geoproj_examples").glob("*.json"))
 geozarr_example_paths = tuple(pathlib.Path("tests/_test_data/geozarr_examples").glob("*.json"))
@@ -47,6 +48,12 @@ def create_group_from_json(source_path: pathlib.Path, out_path: pathlib.Path) ->
     # to_zarr is annotated to take a Store but accepts a path-like at runtime.
     g.to_zarr(out_dir, path="")  # type: ignore[arg-type]
     return out_dir
+
+
+@pytest.fixture(params=s3_example_json_paths, ids=get_stem)
+def s3_olci_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> pathlib.Path:
+    """Path to a Zarr group with the layout of a Sentinel-3 OLCI product."""
+    return create_group_from_json(request.param, tmp_path)
 
 
 @pytest.fixture(params=s1_example_json_paths, ids=get_stem)

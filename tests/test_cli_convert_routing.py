@@ -32,6 +32,7 @@ def _convert_args(input_path: str, output_path: str, **overrides: Any) -> argpar
         dask_cluster=False,
         enable_sharding=False,
         no_s2_optimized=False,
+        no_s3_olci_optimized=False,
     )
     for key, value in overrides.items():
         setattr(ns, key, value)
@@ -81,8 +82,13 @@ def converter_spy(monkeypatch: pytest.MonkeyPatch) -> dict[str, dict[str, Any]]:
         calls["generic"] = kwargs
         return xr.DataTree()
 
+    def fake_olci(dt_input: xr.DataTree, **kwargs: Any) -> xr.DataTree:
+        calls["olci"] = {"dt_input": dt_input, **kwargs}
+        return xr.DataTree()
+
     monkeypatch.setattr(cli, "convert_s2_optimized", fake_s2)
     monkeypatch.setattr(cli, "create_geozarr_dataset", fake_generic)
+    monkeypatch.setattr(cli, "convert_olci_optimized", fake_olci)
     return calls
 
 
@@ -117,6 +123,54 @@ def test_convert_command_no_s2_optimized_forces_generic(
     assert "generic" in calls_or_fail(converter_spy)
     assert "s2_optimized" not in converter_spy
     assert converter_spy["generic"]["crs_groups"] == ["/conditions/geometry"]
+
+
+def test_convert_command_routes_olci_with_raw_input(
+    s3_olci_group_example: Path,
+    tmp_path: Path,
+    converter_spy: dict[str, dict[str, Any]],
+) -> None:
+    """Sentinel-3 OLCI inputs are auto-routed to the OLCI converter with raw input.
+
+    convert_olci_optimized requires the source opened with
+    ``mask_and_scale=False``: radiance must arrive packed (uint16 with CF
+    scale_factor/add_offset in .attrs), not CF-decoded to float.
+    """
+    args = _convert_args(str(s3_olci_group_example), str(tmp_path / "out.zarr"), min_dimension=128)
+    cli.convert_command(args)
+
+    assert "olci" in calls_or_fail(converter_spy)
+    assert "s2_optimized" not in converter_spy
+    assert "generic" not in converter_spy
+    assert converter_spy["olci"]["min_dimension"] == 128
+
+    dt_received = converter_spy["olci"]["dt_input"]
+    radiance = next(
+        var
+        for name, var in dt_received["/measurements"].data_vars.items()
+        if str(name).endswith("_radiance")
+    )
+    assert not np.issubdtype(radiance.dtype, np.floating), (
+        "OLCI converter received CF-decoded (mask_and_scale) input; expected raw packed radiance"
+    )
+    assert "scale_factor" in radiance.attrs
+
+
+def test_convert_command_no_s3_olci_optimized_forces_generic(
+    s3_olci_group_example: Path,
+    tmp_path: Path,
+    converter_spy: dict[str, dict[str, Any]],
+) -> None:
+    """--no-s3-olci-optimized sends Sentinel-3 OLCI inputs down the generic path."""
+    args = _convert_args(
+        str(s3_olci_group_example),
+        str(tmp_path / "out.zarr"),
+        no_s3_olci_optimized=True,
+    )
+    cli.convert_command(args)
+
+    assert "generic" in calls_or_fail(converter_spy)
+    assert "olci" not in converter_spy
 
 
 def test_convert_command_routes_non_s2_to_generic(

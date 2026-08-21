@@ -6,6 +6,7 @@ Tests the new simplified approach that uses only xarray and proper metadata cons
 
 import json
 from pathlib import Path
+from typing import cast
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -275,14 +276,110 @@ def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
     root = zarr.open_group(store_path, mode="w")
     a = root.create_group("a")
     a.attrs["spatial:bbox"] = [0.0, 0.0, 1.0, 1.0]
+    a.attrs["proj:code"] = "EPSG:4326"
     b = root.create_group("b")
     b.attrs["spatial:bbox"] = [2.0, 2.0, 3.0, 3.0]
+    b.attrs["proj:code"] = "EPSG:4326"
 
     write_store_root_bbox(str(store_path))
 
     root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
     assert root_attrs["spatial:bbox"] == [0.0, 0.0, 3.0, 3.0]
     assert root_attrs["proj:code"] == "EPSG:4326"
+
+
+def test_write_store_root_bbox_densifies_edges(tmp_path: Path) -> None:
+    """Reprojection uses transform_bounds, not just the two diagonal corners."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    child = root.create_group("m")
+    child.attrs["spatial:bbox"] = [699960.0, 4890240.0, 809760.0, 5000040.0]
+    child.attrs["proj:code"] = "EPSG:32632"
+
+    write_store_root_bbox(str(store_path))
+
+    bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
+    assert isinstance(bbox, list)
+    _xmin, ymin, _xmax, ymax = (float(cast("float", v)) for v in bbox)
+    # Corner-only transformation yields ymin ~44.138 / ymax ~45.086; the
+    # densified bounds extend past both (ymin ~44.0998, ymax ~45.1255).
+    assert ymin < 44.11, bbox
+    assert ymax > 45.11, bbox
+
+
+def test_write_store_root_bbox_resolves_wkt2_only_crs(tmp_path: Path) -> None:
+    """A group carrying only proj:wkt2 is reprojected, not assumed to be degrees."""
+    import zarr
+    from pyproj import CRS
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    child = root.create_group("m")
+    child.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]
+    child.attrs["proj:wkt2"] = CRS.from_epsg(32632).to_wkt()
+
+    write_store_root_bbox(str(store_path))
+
+    bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
+    assert isinstance(bbox, list)
+    assert all(-180.0 <= float(cast("float", v)) <= 180.0 for v in bbox), bbox
+
+
+def test_write_store_root_bbox_skips_group_without_crs(tmp_path: Path) -> None:
+    """A bbox with no resolvable CRS must not be unioned as if it were degrees."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    good = root.create_group("good")
+    good.attrs["spatial:bbox"] = [0.0, 0.0, 1.0, 1.0]
+    good.attrs["proj:code"] = "EPSG:4326"
+    bad = root.create_group("bad")
+    bad.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]  # metres, no CRS
+
+    write_store_root_bbox(str(store_path))
+
+    root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
+    assert root_attrs["spatial:bbox"] == [0.0, 0.0, 1.0, 1.0]
+
+
+def test_write_store_root_bbox_invalid_code_does_not_raise(tmp_path: Path) -> None:
+    """An unresolvable proj:code is skipped with a warning, never raised."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    good = root.create_group("good")
+    good.attrs["spatial:bbox"] = [0.0, 0.0, 1.0, 1.0]
+    good.attrs["proj:code"] = "EPSG:4326"
+    bad = root.create_group("bad")
+    bad.attrs["spatial:bbox"] = [1.0, 1.0, 2.0, 2.0]
+    bad.attrs["proj:code"] = "EPSG:999999"
+
+    write_store_root_bbox(str(store_path))  # must not raise
+
+    root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
+    assert root_attrs["spatial:bbox"] == [0.0, 0.0, 1.0, 1.0]
+
+
+def test_write_store_root_bbox_antimeridian_falls_back_to_full_range(tmp_path: Path) -> None:
+    """A footprint crossing the antimeridian widens the root bbox to +/-180."""
+    import zarr
+
+    store_path = tmp_path / "root.zarr"
+    root = zarr.open_group(store_path, mode="w")
+    child = root.create_group("m")
+    # UTM zone 1 tile column straddling the antimeridian
+    child.attrs["spatial:bbox"] = [299940.0, 6390220.0, 409740.0, 6500020.0]
+    child.attrs["proj:code"] = "EPSG:32601"
+
+    write_store_root_bbox(str(store_path))
+
+    bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
+    assert isinstance(bbox, list)
+    assert bbox == [-180.0, bbox[1], 180.0, bbox[3]], bbox
 
 
 class TestConvenienceFunction:

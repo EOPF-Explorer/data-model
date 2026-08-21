@@ -21,7 +21,7 @@ eopf-geozarr convert input.zarr output.zarr
 That's it! The converter will:
 
 - Analyze your EOPF dataset structure
-- Apply GeoZarr 0.4 specification compliance
+- Apply the GeoZarr conventions
 - Create multiscale overviews
 - Preserve native CRS and scientific accuracy
 
@@ -40,7 +40,7 @@ dt = xr.open_datatree("input.zarr", engine="zarr")
 # Convert to GeoZarr
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"],
+    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
     output_path="output.zarr",
     spatial_chunk=4096,
     min_dimension=256
@@ -71,7 +71,7 @@ eopf-geozarr convert input.zarr s3://my-bucket/output.zarr
 # Both input and output on S3
 dt_geozarr = create_geozarr_dataset(
     dt_input=xr.open_datatree("s3://input-bucket/data.zarr", engine="zarr"),
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="s3://output-bucket/geozarr.zarr"
 )
 ```
@@ -174,7 +174,7 @@ client = Client('scheduler-address:8786')  # Or Client() for local
 # Process with Dask
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m"],
+    groups=["/measurements/reflectance/r10m"],
     output_path="output.zarr",
     spatial_chunk=2048  # Smaller chunks for distributed processing
 )
@@ -186,7 +186,7 @@ client.close()
 
 Your converted dataset now includes:
 
-✅ **GeoZarr 0.4 Compliance** - Full specification adherence  
+✅ **GeoZarr Conventions** - multiscales, geo-proj and spatial  
 ✅ **Native CRS Preservation** - No unnecessary reprojection  
 ✅ **Multiscale Pyramids** - Efficient overview levels  
 ✅ **Optimized Chunking** - Aligned chunks for performance  

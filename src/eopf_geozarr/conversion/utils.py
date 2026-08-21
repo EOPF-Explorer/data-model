@@ -6,8 +6,11 @@ import numpy as np
 import rasterio  # noqa: F401  # Import to enable .rio accessor
 import structlog
 import xarray as xr
+import zarr
 import zarr_cm
 from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, SpatialAttrs
+from zarr_cm import geo_proj as geo_proj_cm
+from zarr_cm import spatial as spatial_cm
 
 log = structlog.get_logger()
 
@@ -117,14 +120,27 @@ def sanitize_array_attrs(
       carried), not in its attributes; callers that need a CF ``_FillValue``
       attribute (e.g. the NaN workaround for xarray issue #11345) must re-add
       it after sanitizing.
+
+      .. warning:: The Sentinel-3 OLCI converter has its own deliberately
+         divergent sanitizer
+         (``s3_olci_optimization.olci_converter._sanitize_olci_array_attrs_keep_fill``)
+         that **preserves** ``_FillValue`` for raw (non-mask-scaled) input.
+         Edits to the strip-list here do not apply there, and vice versa.
     - For decoded float measurement arrays (*is_decoded_float=True*), also
       removes raw-encoding leftovers ``dtype``, ``fill_value``,
       ``valid_min``, ``valid_max`` and rewrites
       ``units: "digital_counts"`` → ``"1"``.
 
+    - Geo-proj *convention* keys (``proj:code``, ``proj:wkt2``,
+      ``proj:projjson``) are always removed: per the minispec they belong on
+      (or are inherited from) the enclosing group, and source products carry
+      them on arrays without the required ``zarr_conventions`` declaration.
+      Legacy external keys such as ``proj:epsg`` are left alone.
+
     CF keys ``scale_factor`` and ``add_offset`` are always preserved.
     """
-    out = {k: v for k, v in attrs.items() if k not in ("_eopf_attrs", "_FillValue")}
+    dropped = {"_eopf_attrs", "_FillValue", *geo_proj_cm.CONVENTION_KEYS}
+    out = {k: v for k, v in attrs.items() if k not in dropped}
     if is_decoded_float:
         for key in ("dtype", "fill_value", "valid_min", "valid_max"):
             out.pop(key, None)
@@ -362,3 +378,138 @@ def compute_overview_gcps(
         # re-assign original dimensions
         .rename_dims(line="azimuth_time", pixel="ground_range")
     )
+
+
+def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
+    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
+
+    ``spatial:bbox`` is read from stored metadata, so its type is not known
+    statically; this verifies the shape at runtime rather than asserting it.
+    """
+    if not isinstance(value, (list, tuple)) or len(value) != 4:
+        return None
+    if not all(isinstance(v, (int, float)) for v in value):
+        return None
+    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+
+
+def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
+    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
+
+    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
+    values are logged and treated as unresolvable rather than raised, since the
+    attributes come from stored metadata.
+    """
+    from pyproj import CRS as PyprojCRS
+
+    code = attrs.get("proj:code")
+    if isinstance(code, str):
+        try:
+            return PyprojCRS.from_user_input(code)
+        except Exception as e:  # malformed stored metadata
+            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
+            return None
+    wkt2 = attrs.get("proj:wkt2")
+    if isinstance(wkt2, str):
+        try:
+            return PyprojCRS.from_wkt(wkt2)
+        except Exception as e:
+            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
+            return None
+    projjson = attrs.get("proj:projjson")
+    if isinstance(projjson, dict):
+        try:
+            return PyprojCRS.from_json_dict(projjson)
+        except Exception as e:
+            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
+            return None
+    return None
+
+
+def write_store_root_geo_metadata(
+    output_path: str, storage_options: dict[str, Any] | None = None
+) -> None:
+    """Write the minispec store-root metadata on the root group.
+
+    Walks the zarr store, collects every child-group `spatial:bbox` along with
+    its CRS (resolved from ``proj:code`` / ``proj:wkt2`` / ``proj:projjson``),
+    reprojects each to EPSG:4326 with edge densification and writes the union
+    plus the CRS code and the matching ``zarr_conventions`` declaration on the
+    root group. Groups whose CRS cannot be resolved are skipped with a warning
+    rather than assumed to be in degrees. The CRS is always declared explicitly
+    per the Store Root section of the minispec — there is no implicit default.
+
+    When *storage_options* is ``None``, the store's options are derived from
+    *output_path* via :func:`eopf_geozarr.conversion.fs_utils.get_storage_options`
+    so remote (e.g. S3) stores honour the configured endpoint and credentials.
+    """
+    from pyproj import Transformer
+
+    from eopf_geozarr.conversion import fs_utils
+
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+
+    root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
+
+    bboxes_4326: list[tuple[float, float, float, float]] = []
+
+    def _walk(group: zarr.Group) -> None:
+        attrs = dict(group.attrs)
+        corners = _as_bbox(attrs.get("spatial:bbox"))
+        if corners is not None:
+            crs = _crs_from_attrs(attrs)
+            if crs is None:
+                if any(k in attrs for k in ("proj:code", "proj:wkt2", "proj:projjson")):
+                    # warning already logged by _crs_from_attrs
+                    pass
+                else:
+                    log.warning(
+                        "Group has spatial:bbox but no proj:* CRS; skipping it "
+                        "for the store-root footprint",
+                        group=group.path,
+                    )
+            elif crs.to_epsg() == 4326:
+                bboxes_4326.append(corners)
+            else:
+                try:
+                    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+                    # transform_bounds densifies the edges, which corner-wise
+                    # transformation misses (projected edges curve in lon/lat).
+                    bboxes_4326.append(transformer.transform_bounds(*corners, densify_pts=21))
+                except Exception as e:  # never abort the write for one group
+                    log.warning(
+                        "Failed to reproject group bbox; skipping it",
+                        group=group.path,
+                        error=str(e),
+                    )
+        for child in group.groups():
+            _walk(child[1])
+
+    for _, child_group in root.groups():
+        _walk(child_group)
+
+    if not bboxes_4326:
+        log.warning("No usable child-group spatial:bbox found; skipping store-root metadata")
+        return
+
+    if any(b[0] > b[2] for b in bboxes_4326):
+        # At least one footprint crosses the antimeridian; a single
+        # [xmin, ymin, xmax, ymax] box cannot represent the union faithfully,
+        # so fall back to the full longitude range.
+        log.warning(
+            "A child bbox crosses the antimeridian; store-root bbox uses the full longitude range"
+        )
+        xmin, xmax = -180.0, 180.0
+    else:
+        xmin = min(b[0] for b in bboxes_4326)
+        xmax = max(b[2] for b in bboxes_4326)
+    ymin = min(b[1] for b in bboxes_4326)
+    ymax = max(b[3] for b in bboxes_4326)
+    root_attrs: dict[str, Any] = {
+        "zarr_conventions": [dict(spatial_cm.CMO), dict(geo_proj_cm.CMO)],
+        "spatial:bbox": [xmin, ymin, xmax, ymax],
+        "proj:code": "EPSG:4326",
+    }
+    root.attrs.update(root_attrs)
+    log.info("Wrote store-root spatial metadata", bbox=[xmin, ymin, xmax, ymax])

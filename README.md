@@ -4,11 +4,13 @@ GeoZarr compliant data model for EOPF (Earth Observation Processing Framework) d
 
 ## Overview
 
-This library provides tools to convert EOPF datasets to GeoZarr-spec 0.4 compliant format while maintaining native projections and using /2 downsampling logic for multiscale support.
+This library provides tools to convert EOPF datasets to GeoZarr format while maintaining native projections and using /2 downsampling logic for multiscale support.
+
+GeoZarr is a set of modular [Zarr conventions](https://geozarr.org/conventions) developed by the OGC GeoZarr Standards Working Group. The conventions are still in development and GeoZarr V1 is not released yet (see the [GeoZarr roadmap](https://geozarr.org/roadmap)). This library therefore targets the current conventions, not a numbered specification release. See the [GeoZarr Mini Spec](docs/geozarr-minispec.md) for the exact subset it implements.
 
 ## Key Features
 
-- **GeoZarr Specification Compliance**: Full compliance with GeoZarr spec 0.4
+- **GeoZarr Conventions**: Implements the `multiscales`, `geo-proj` and `spatial` conventions
 - **Native CRS Preservation**: No reprojection to TMS, maintains original coordinate reference systems
 - **Multiscale Support**: COG-style /2 downsampling with overview levels as children groups
 - **CF Conventions**: Proper CF standard names and grid_mapping attributes
@@ -19,12 +21,12 @@ This library provides tools to convert EOPF datasets to GeoZarr-spec 0.4 complia
 
 ## GeoZarr Compliance Features
 
-- `_ARRAY_DIMENSIONS` attributes on all arrays
-- CF standard names for all variables
-- `grid_mapping` attributes referencing CF grid_mapping variables
-- `GeoTransform` attributes in grid_mapping variables
-- Proper multiscales metadata structure
-- Native CRS tile matrix sets
+- `zarr_conventions` declarations on every node that uses a convention
+- `proj:` and `spatial:` convention attributes on datasets and the store root
+- `multiscales` convention metadata with per-level `spatial:shape` / `spatial:transform`
+- Store-root spatial footprint (`spatial:bbox` + `proj:code` in EPSG:4326)
+- Native CRS preservation
+- CF metadata (`standard_name`, `grid_mapping`) retained for legacy readers
 
 ## Installation
 
@@ -179,7 +181,7 @@ dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
 # Convert directly to S3
 dt_geozarr = create_geozarr_dataset(
     dt_input=dt,
-    groups=["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"],
+    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
     output_path="s3://my-bucket/geozarr-data/output.zarr",
     spatial_chunk=4096,
     min_dimension=256,
@@ -197,7 +199,7 @@ from eopf_geozarr import create_geozarr_dataset
 dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
 
 # Define groups to convert (e.g., resolution groups)
-groups = ["/measurements/r10m", "/measurements/r20m", "/measurements/r60m"]
+groups = ["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"]
 
 # Convert to GeoZarr compliant format
 dt_geozarr = create_geozarr_dataset(
@@ -216,7 +218,7 @@ dt_geozarr = create_geozarr_dataset(
 
 #### `create_geozarr_dataset`
 
-Create a GeoZarr-spec 0.4 compliant dataset from EOPF data.
+Create a GeoZarr compliant dataset from EOPF data.
 
 **Parameters:**
 
@@ -280,6 +282,73 @@ Check if a variable is a grid_mapping variable by looking for references to it.
 
 Validate that a specific band exists and is complete in the dataset.
 
+## Supported Products
+
+### Sentinel-2 MSI
+
+Sentinel-2 MSI (MultiSpectral Instrument) L1C and L2A products are detected
+automatically by `eopf-geozarr convert` and routed to the optimized multiscale
+layout (`convert-s2-optimized`).  The three native resolution groups (10 m, 20 m,
+60 m) are reused as-is and coarser overviews (120 m, 360 m, 720 m) are computed
+via /2 downsampling.
+
+### Sentinel-3 OLCI L1 EFR
+
+Sentinel-3 OLCI (Ocean and Land Colour Instrument) Level-1 EFR (Full Resolution)
+products are detected automatically by `eopf-geozarr convert` and routed to the
+dedicated OLCI converter.  Unlike Sentinel-2, OLCI data starts out on **native
+swath geometry**: measurements are stored on a per-pixel 2-D lat/lon grid.  By
+default the exporter preserves that instrument geometry; pass
+`--output-grid <CRS>` (e.g. `EPSG:4326`) to warp the swath once onto a regular
+grid so the output is a standard, tileable GeoZarr raster.
+
+#### Auto-detection
+
+```bash
+eopf-geozarr convert S3A_OL_1_EFR.zarr output.zarr
+```
+
+#### Dedicated command
+
+```bash
+eopf-geozarr convert-s3-olci-optimized S3A_OL_1_EFR.zarr output.zarr \
+    --spatial-chunk 1024 \
+    --min-dimension 256 \
+    --compression-level 3
+```
+
+Key flags:
+
+- `--spatial-chunk` — target spatial chunk size in pixels (default: 1024)
+- `--compression-level` — Blosc/zstd compression level 1–9 (default: 3)
+- `--min-dimension` — stop generating /2 overview levels once either spatial
+  dimension would drop below this value (default: 256)
+- `--enable-sharding` — accepted but not yet wired into encoding (follow-up task)
+- `--keep-scale-offset` — accepted but not yet wired into encoding (follow-up task)
+- `--output-grid` — `native` (default) preserves the instrument swath geometry; any other value is parsed as a CRS (e.g. `EPSG:4326`) and the swath is warped once onto a regular grid
+
+#### What is converted
+
+- **`/measurements/r0`**: all 21 OLCI radiance bands. By default
+  (`output_grid="native"`) the instrument swath geometry is preserved:
+  raw bands with per-pixel 2-D `latitude`/`longitude`/`altitude` and
+  per-row `time_stamp`, and no projected CRS. With `--output-grid
+  <CRS>` (e.g. `EPSG:4326`) the swath is warped once onto a regular
+  grid with 1-D `y`/`x` coordinates, a `spatial_ref` variable, and
+  `grid_mapping` on every band (per-scan-line `time_stamp` has no home
+  on a regular grid and is dropped; it remains in the source product).
+- **Overview subgroups** (`r2`, `r4`, …): /2 fill-aware block-averaged
+  copies as sibling groups next to `r0`. In native mode overview
+  lat/lon are per-block geodesic centroids; in regridded mode each
+  level carries its own CRS metadata.
+- **`/conditions` and `/quality`**: copied through unmodified.
+
+> **Note:** OLCI support is initial/measurements-focused (v1).  Tie-point grid
+> groups (`conditions/geometry`, `meteorology`, `instrument`) are copied through but
+> not converted to GeoZarr convention.  Encoding wiring for `--enable-sharding`,
+> `--spatial-chunk`, `--compression-level`, and `--keep-scale-offset` is accepted
+> but scheduled as a follow-up task.
+
 ## Architecture
 
 The library is organized into the following modules:
@@ -291,13 +360,23 @@ The library is organized into the following modules:
 
 ## GeoZarr Specification Compliance
 
-This library implements the GeoZarr specification 0.4 with the following key requirements:
+This library implements the GeoZarr conventions as specified in the
+[GeoZarr Mini Spec](docs/geozarr-minispec.md):
 
-1. **Array Dimensions**: All arrays must have `_ARRAY_DIMENSIONS` attributes
-2. **CF Standard Names**: All variables must have CF-compliant `standard_name` attributes
-3. **Grid Mapping**: Data variables must reference CF grid_mapping variables via `grid_mapping` attributes
-4. **Multiscales Structure**: Overview levels are stored as children groups with proper tile matrix metadata
+1. **Convention Declarations**: Every node using a convention declares it in `zarr_conventions`
+2. **Store Root Footprint**: The store root carries `spatial:bbox` and `proj:code` (EPSG:4326)
+3. **Geospatial Datasets**: Groups carry `proj:` (CRS) and `spatial:` (georeferencing) convention attributes
+4. **Multiscales Structure**: Multiscale groups carry a `multiscales.layout` whose entries have `spatial:shape` and `spatial:transform`; each level qualifies as a GeoZarr dataset
 5. **Native CRS**: Coordinate reference systems are preserved without reprojection
+
+Compliance can be checked with the built-in validator:
+
+```bash
+eopf-geozarr validate output.zarr
+```
+
+The validator walks the store and reports every minispec violation with its
+Zarr node path, exiting non-zero when the store is not compliant.
 
 ## Contributing to GeoZarr Specification
 
