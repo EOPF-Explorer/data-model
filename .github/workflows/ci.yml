@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, cpm-geozarr ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, cpm-geozarr ]
   schedule:
     # Weekly run; also triggers the eopf-latest drift check below.
     - cron: '17 6 * * 1'
