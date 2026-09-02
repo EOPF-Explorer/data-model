@@ -219,7 +219,9 @@ class GeoZarrWriter(EOWriter):
                 )
             generic_groups = list(groups)
         resolved_spatial_chunk = (
-            spatial_chunk if spatial_chunk is not None else _DEFAULT_SPATIAL_CHUNK[selected_pipeline]
+            spatial_chunk
+            if spatial_chunk is not None
+            else _DEFAULT_SPATIAL_CHUNK[selected_pipeline]
         )
         output_path = self._prepare_target(filename_or_obj, mode=mode)
         log.info(
