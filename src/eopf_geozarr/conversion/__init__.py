@@ -17,6 +17,7 @@ from .geozarr import (
     iterative_copy,
     setup_datatree_metadata_geozarr_spec_compliant,
 )
+from .open_source import open_source_datatree
 from .s1_ingest import (
     consolidate_s1_store,
     discover_s1tiling_acquisitions,
@@ -25,7 +26,6 @@ from .s1_ingest import (
     ingest_s1tiling_acquisition,
     ingest_s1tiling_conditions,
 )
-from .open_source import open_source_datatree
 from .utils import (
     calculate_aligned_chunk_size,
     downsample_2d_array,
