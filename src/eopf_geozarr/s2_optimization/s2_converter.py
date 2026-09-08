@@ -342,12 +342,19 @@ def simple_root_consolidation(
     if dt_input and dt_input.attrs:
         # this can be used to add multiscale paths to the stac attributes
         # wether we want that or not has to be discussed
-        updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+        # -> For now this data is not added, as we dont want to expose the additional multiscale arrays for users in the stac assets, this comes at the possibility of confusion for users, but we accept that risk
+        # as users wont need the multiscale, but they are just used for visualisation
+        # the code is currently commented out, as this discussion is not 100% final yet and changes might apply
+
+        # updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+        # utils.write_store_root_stac_metadata(
+        #     output_path,
+        #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
+        # )
 
         utils.write_store_root_stac_metadata(
-            # output_path, root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs)
             output_path,
-            root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
+            root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
         )
 
     # consolidate reflectance group metadata

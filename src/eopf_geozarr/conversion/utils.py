@@ -532,6 +532,7 @@ def write_store_root_stac_metadata(
 
     root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
 
+    # prevent the overwriting of attributes in the root node if they are present in the stac metadata.. this is a failsafe for future changes of cpm if the y include zarr metadata
     if not overwrite_root_attrs:
         original_attrs = set(dict(root.attrs).keys())
         new_attrs = set(root_attrs.keys())
