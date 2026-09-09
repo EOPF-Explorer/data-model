@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from math import ceil
 from pathlib import Path
@@ -17,6 +18,7 @@ from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.conversion.s1_ingest import (
     OVERVIEW_CHAIN,
+    WRITER_SCHEMA,
     S1TilingMetadata,
     _normalise_s1tiling_datetime,
     consolidate_s1_store,
@@ -1350,3 +1352,246 @@ class TestPerLevelTimeHeal:
         self._drop_time(s1_store_path, "r10m")
         with pytest.raises(ValueError, match="no backfill source"):
             ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+
+# =============================================================================
+# Post-consolidation append, grid identity, store URIs and the writer stamp
+# =============================================================================
+
+
+class TestAppendAfterConsolidation:
+    """`consolidate_s1_store` writes a block on every orbit group, and `use_consolidated`
+    applies only to the group actually opened. Reading array shapes through a consolidated
+    root therefore returned the pre-consolidation length, so every post-consolidation append
+    targeted the same time index."""
+
+    @staticmethod
+    def _paths(d: Path, stamp: str) -> tuple[Path, Path, Path]:
+        return (
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif",
+        )
+
+    def test_append_after_consolidate_does_not_overwrite_slice(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """append, consolidate, append -> 2 distinct slices, not 1 overwritten in place."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+
+        assert ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending") == 0
+        consolidate_s1_store(s1_store_path, "ascending")
+        assert ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending") == 1
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        r10m = _group(_group(root, "ascending"), "r10m")
+        assert _array(r10m, "vv").shape[0] == 2
+        times = np.asarray(_array(r10m, "time")[:])
+        assert len(set(times.tolist())) == 2, f"expected 2 distinct timestamps, got {times}"
+
+    def test_append_strips_stale_consolidated_metadata(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A stale block is worse than none: it reports pre-append shapes as authoritative."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        consolidate_s1_store(s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending")
+
+        for rel in ("zarr.json", "ascending/zarr.json"):
+            meta = json.loads((s1_store_path / rel).read_text())
+            assert "consolidated_metadata" not in meta, f"stale block left in {rel}"
+
+    def test_consolidate_covers_orbit_created_after_last_consolidation(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Enumerating orbits through a stale root block silently skipped the newest orbit."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        consolidate_s1_store(s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "descending")
+        consolidate_s1_store(s1_store_path, "descending")
+
+        for orbit in ("ascending", "descending"):
+            meta = json.loads((s1_store_path / orbit / "zarr.json").read_text())
+            assert "consolidated_metadata" in meta, f"{orbit} was not consolidated"
+
+    def test_ragged_cube_raises_instead_of_writing_1970(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """A crash inside the per-level write loop leaves r10m longer than a coarser level. The
+        next append then wrote NaN fill at the gap with `time == 0` (1970) and exited 0."""
+        a1 = self._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = self._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending")
+
+        # Simulate the interrupted append: advance r10m only, leaving r20m one slice short.
+        root = zarr.open_group(str(s1_store_path), mode="r+", zarr_format=3, use_consolidated=False)
+        r10m = _group(_group(root, "ascending"), "r10m")
+        for name in ("vv", "vh", "border_mask"):
+            arr = _array(r10m, name)
+            n, h, w = arr.shape
+            arr.resize((n + 1, h, w))
+        _array(r10m, "time").resize((3,))
+
+        with pytest.raises(ValueError, match="half-built"):
+            ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+
+class TestGridIdentityOnAppend:
+    """Two adjacent MGRS tiles in one UTM zone share a CRS and a shape and differ only in
+    origin, so a CRS+shape check passed both and served slice 1's pixels 100 km away."""
+
+    @staticmethod
+    def _shifted_tile(d: Path, stamp: str, tags: dict[str, str]) -> tuple[Path, Path, Path]:
+        """Write an acquisition on the same CRS and shape but a 100 km-shifted origin."""
+        rng = np.random.default_rng(7)
+        shifted = from_bounds(XMIN + 100000.0, YMIN, XMAX + 100000.0, YMAX, SIZE, SIZE)
+        out = []
+        for pol in ("vv", "vh"):
+            data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
+            p = d / f"s1a_33TQM_{pol}_ASC_037_{stamp}_GammaNaughtRTC.tif"
+            _create_synthetic_geotiff(p, data, transform=shifted, tags=tags)
+            out.append(p)
+        mask = np.ones((SIZE, SIZE), dtype=np.uint8)
+        m = d / f"s1a_33TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif"
+        _create_synthetic_geotiff(m, mask, transform=shifted, tags=tags)
+        return out[0], out[1], m
+
+    def test_shifted_origin_rejected_on_same_orbit_append(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+        foreign = self._shifted_tile(s1_geotiff_dir, "20230127t061235", ACQ2_TAGS)
+        with pytest.raises(ValueError, match="different grid"):
+            ingest_s1tiling_acquisition(*foreign, s1_store_path, "ascending")
+
+    def test_shifted_origin_rejected_on_new_orbit_branch(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """The new-orbit branch built the group straight from the incoming metadata with no
+        comparison at all, poisoning the whole orbit group rather than one slice."""
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+        foreign = self._shifted_tile(s1_geotiff_dir, "20230127t061235", ACQ2_TAGS)
+        with pytest.raises(ValueError, match="different grid"):
+            ingest_s1tiling_acquisition(*foreign, s1_store_path, "descending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        assert "descending" not in root, "the rejected tile still created an orbit group"
+
+
+class TestStoreUriHandling:
+    """`Path("s3://bucket/x.zarr")` collapses to `PosixPath("s3:/bucket/x.zarr")`, whose
+    `.exists()` is always False, so the create branch wrote a LocalStore under `./s3:/...`,
+    logged success and exited 0 with nothing in S3."""
+
+    def test_s3_uri_reaches_the_store_layer_intact(
+        self, s1_geotiff_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The URI must arrive at the store layer as `s3://...`, never collapsed to `s3:/...`.
+
+        Intercepts at `create_s1_store` so the assertion is on the path handling alone, with no
+        S3 credentials, no network and no dependence on how a real S3 failure surfaces.
+        """
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        monkeypatch.chdir(tmp_path)
+
+        seen: list[str] = []
+
+        class _Stop(Exception):
+            pass
+
+        def _capture(store_path: str | Path, orbit_direction: str, metadata: object) -> None:
+            seen.append(str(store_path))
+            raise _Stop
+
+        monkeypatch.setattr(
+            "eopf_geozarr.conversion.s1_ingest.create_s1_store", _capture, raising=True
+        )
+        monkeypatch.setattr(
+            "eopf_geozarr.conversion.s1_ingest.fs_utils.path_exists",
+            lambda *_a, **_k: False,
+            raising=True,
+        )
+
+        with pytest.raises(_Stop):
+            ingest_s1tiling_acquisition(*a1, "s3://no-such-bucket/cube.zarr", "ascending")
+
+        assert seen == ["s3://no-such-bucket/cube.zarr"], seen
+        assert not (tmp_path / "s3:").exists(), "wrote a LocalStore under ./s3:/"
+
+
+class TestWriterSchemaStamp:
+    """The stamp lets a later release tell layout generations apart and refuse to mix them."""
+
+    def test_new_store_is_stamped(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        assert root.attrs["eopf:writer_schema"] == WRITER_SCHEMA
+
+    def test_root_is_complete_at_creation(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
+        """`spatial:bbox` has no default in the root model, so a never-consolidated store
+        failed root validation outright."""
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        attrs = dict(root.attrs)
+        assert "zarr_conventions" in attrs
+        assert attrs["proj:code"] == CRS
+        bbox = attrs["spatial:bbox"]
+        assert isinstance(bbox, list)
+        assert len(bbox) == 4
+
+    def test_unstamped_store_still_accepts_appends(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Generation 2 is layout-compatible with earlier stores, so an append to a store
+        written by <=0.10.2 must warn, not refuse -- refusing would brick the existing archive."""
+        a1 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230115t061234")
+        a2 = TestAppendAfterConsolidation._paths(s1_geotiff_dir, "20230127t061235")
+        ingest_s1tiling_acquisition(*a1, s1_store_path, "ascending")
+
+        # Strip the stamp on disk, the way a store written by <=0.10.2 actually looks.
+        meta_path = s1_store_path / "zarr.json"
+        meta = json.loads(meta_path.read_text())
+        del meta["attributes"]["eopf:writer_schema"]
+        meta_path.write_text(json.dumps(meta, indent=2))
+
+        assert ingest_s1tiling_acquisition(*a2, s1_store_path, "ascending") == 1
+
+
+class TestIntegerConditionGeotiff:
+    """`.filled(np.nan)` on an integer-dtype masked array raises, so an integer condition
+    GeoTIFF aborted the whole ingest. NaN is only a legal fill once the array is float."""
+
+    def test_integer_dtype_condition_is_ingested(
+        self, s1_store_with_acquisition: Path, tmp_path: Path
+    ) -> None:
+        rng = np.random.default_rng(101)
+        data = rng.integers(0, 90, (SIZE, SIZE), dtype=np.int16)
+        path = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+        _create_synthetic_geotiff(path, data, nodata=0)
+
+        ingest_s1tiling_conditions(
+            store_path=s1_store_with_acquisition,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=path,
+        )
+
+        root = zarr.open_group(
+            str(s1_store_with_acquisition), mode="r", zarr_format=3, use_consolidated=False
+        )
+        arr = _array(_group(_group(root, "ascending"), "conditions"), "gamma_area_037")
+        assert arr.dtype == np.float32
+        # The declared nodata (0) must have become NaN, not stayed 0.
+        values = np.asarray(arr[:])
+        assert np.isnan(values).any(), "declared nodata did not become NaN"

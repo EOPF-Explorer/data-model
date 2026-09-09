@@ -15,6 +15,7 @@ Public API:
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from math import ceil
@@ -37,6 +38,7 @@ from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
+from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
@@ -83,6 +85,22 @@ GEO_PROJ_UUID = geo_proj.UUID
 SPATIAL_UUID = spatial_cm.UUID
 
 ZARR_CONVENTIONS = [multiscales_cm.CMO, geo_proj.CMO, spatial_cm.CMO]
+
+# Generation stamp for the on-disk layout, written to the root as `eopf:writer_schema`.
+#
+# 1 (implicit, unstamped) = stores written by eopf-geozarr <= 0.10.2.
+# 2 = this writer: complete root attributes and per-group convention declarations.
+#
+# Bump this whenever a change alters array geometry, coordinate values or array names, so that a
+# reader can tell generations apart. `_open_store_for_write` compares against it. The comparison
+# only *warns* today because generation 2 is layout-compatible with generation 1 -- it adds
+# metadata and changes nothing about array geometry, so appending a generation-2 orbit group to a
+# generation-1 store is safe and the conformance migration heals the metadata. The pending chunk
+# and coordinate changes (fix-plan F6/F10/F12/B1) are NOT layout-compatible; the release that
+# lands them must bump this to 3 and turn the warning into a hard refusal, otherwise one cube can
+# carry an ascending group with cell-centre coordinates and a descending group with edge
+# coordinates under a single STAC item.
+WRITER_SCHEMA: Final[int] = 2
 
 # Overview chain: (level_name, parent_name, downsample_factor)
 OVERVIEW_CHAIN = [
@@ -457,6 +475,131 @@ def _create_band_arrays(level_group: zarr.Group, level_h: int, level_w: int) -> 
             band.attrs.update(cast("dict", BACKSCATTER_CF_ATTRS))
 
 
+def _open_store_for_write(store_path: str) -> zarr.Group:
+    """Open a cube root for writing, ignoring any consolidated metadata block.
+
+    ``use_consolidated=False`` is required for *membership* to be correct: an orbit group created
+    since the last consolidation is otherwise invisible, so a second-orbit append silently lands
+    in the wrong place and `consolidate_s1_store` skips the new group entirely.
+
+    Note this fixes membership only. Array *shapes* resolve through the enclosing orbit group's
+    own consolidated block, so a caller that needs a true shape must also open that orbit with
+    `_open_orbit_for_write` -- the root flag alone leaves shapes stale.
+    """
+    root = zarr.open_group(
+        store_path,
+        mode="r+",
+        zarr_format=3,
+        use_consolidated=False,
+        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
+    )
+    stamp = root.attrs.get("eopf:writer_schema")
+    if not isinstance(stamp, int) or stamp < WRITER_SCHEMA:
+        log.warning(
+            "Store predates this writer generation",
+            store_path=store_path,
+            store_schema=stamp,
+            writer_schema=WRITER_SCHEMA,
+            detail=(
+                "generation 2 is layout-compatible with earlier stores, so the append proceeds; "
+                "run the conformance migration to bring root and group metadata up to date"
+            ),
+        )
+    return root
+
+
+def _open_orbit_for_write(store_path: str, orbit_direction: str) -> zarr.Group:
+    """Open one orbit group for writing, ignoring its consolidated metadata block.
+
+    `consolidate_s1_store` writes a block on every orbit group, and `use_consolidated` applies
+    only to the group actually opened -- so array shapes read through the root stay stale after a
+    consolidation even when the root's own block is bypassed. Reading a stale shape makes every
+    post-consolidation append target the same time index.
+    """
+    return zarr.open_group(
+        f"{store_path}/{orbit_direction}",
+        mode="r+",
+        zarr_format=3,
+        use_consolidated=False,
+        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
+    )
+
+
+def _strip_consolidated_metadata(store_path: str, orbit_direction: str) -> None:
+    """Drop the consolidated block from the root and one orbit group after a write.
+
+    Hygiene for external readers: a stale block is worse than none, because it reports the
+    pre-append shapes with no indication it is out of date. The write path itself never relies on
+    this having run -- it always opens with ``use_consolidated=False`` -- since an append that
+    crashes mid-way leaves the block in place.
+    """
+    fs = fs_utils.get_filesystem(store_path)
+    for group_path in (store_path, f"{store_path}/{orbit_direction}"):
+        meta_path = f"{group_path}/zarr.json"
+        try:
+            if not fs.exists(meta_path):
+                continue
+            meta = json.loads(fs.cat_file(meta_path))
+            if "consolidated_metadata" not in meta:
+                continue
+            del meta["consolidated_metadata"]
+            fs.pipe_file(meta_path, json.dumps(meta, indent=2).encode())
+        except (OSError, ValueError) as exc:
+            log.warning("Could not strip consolidated metadata", path=meta_path, error=str(exc))
+
+
+def _assert_grid_matches(root: zarr.Group, metadata: S1TilingMetadata) -> None:
+    """Raise unless an incoming GeoTIFF sits on exactly the grid the store already holds.
+
+    Compares ``proj:code`` and, against any orbit group already present, the native
+    ``spatial:shape`` and all six terms of ``spatial:transform``.
+
+    The transform is the load-bearing comparison. Two adjacent MGRS tiles in the same UTM zone
+    share a CRS and a shape and differ only in origin, so a CRS+shape check passes them both and
+    slice 1's pixels are served 100 km from where the item says they are, with every downstream
+    signal still looking valid. `build_s1_rtc_stac_item` then unions the per-orbit bboxes while
+    deriving `grid:code` from the filename, producing a two-tile footprint under one MGRS code.
+
+    Called on both the new-orbit and the append branch: the new-orbit branch writes ``proj:code``,
+    the multiscales layout and ``spatial:bbox`` straight from the incoming metadata with no
+    comparison at all, so a wrong tile there poisons the whole orbit group.
+    """
+    store_crs = root.attrs.get("proj:code")
+    for orbit_name, orbit_group in root.groups():
+        attrs = dict(orbit_group.attrs)
+        store_crs = attrs.get("proj:code", store_crs)
+        if store_crs is not None and store_crs != metadata.crs:
+            raise ValueError(f"CRS mismatch: store has {store_crs}, GeoTIFF has {metadata.crs}")
+
+        multiscales = attrs.get("multiscales")
+        layout = multiscales.get("layout", []) if isinstance(multiscales, dict) else []
+        if not (isinstance(layout, list) and layout and isinstance(layout[0], dict)):
+            continue
+        native = layout[0]
+
+        store_shape = native.get("spatial:shape")
+        if isinstance(store_shape, list):
+            incoming_shape = [int(v) for v in metadata.shape]
+            if [int(v) for v in cast("list[float]", store_shape)] != incoming_shape:
+                raise ValueError(
+                    f"Shape mismatch against orbit '{orbit_name}': store has {store_shape}, "
+                    f"GeoTIFF has {incoming_shape}"
+                )
+
+        store_transform = native.get("spatial:transform")
+        if not isinstance(store_transform, list):
+            continue
+        incoming_transform = [float(v) for v in metadata.spatial_transform]
+        if [float(v) for v in cast("list[float]", store_transform)] != incoming_transform:
+            raise ValueError(
+                f"Grid mismatch against orbit '{orbit_name}': the GeoTIFF is on a different grid "
+                f"than the store. Store transform {store_transform}, GeoTIFF transform "
+                f"{incoming_transform}. Same CRS and shape with a different origin means a "
+                "different MGRS tile -- ingest it into its own store."
+            )
+        return
+
+
 def _build_orbit_group(
     root: zarr.Group, orbit_direction: str, metadata: S1TilingMetadata
 ) -> zarr.Group:
@@ -539,12 +682,35 @@ def create_s1_store(
 
     Returns the root group.
     """
-    root = zarr.open_group(str(store_path), mode="w-", zarr_format=3)
+    store_path = fs_utils.normalize_path(str(store_path))
+    root = zarr.open_group(
+        store_path,
+        mode="w-",
+        zarr_format=3,
+        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
+    )
+    # Write a COMPLETE root at creation, not a partial one refined at consolidation.
+    # `GeoZarrStoreAttrs.bbox` (alias `spatial:bbox`) has no default, so a store that is never
+    # consolidated fails root validation outright. The minispec does not require EPSG:4326 here
+    # -- `proj:code` only has to match `^[A-Z]+:[0-9]+$` and `spatial:bbox` only has to be
+    # correctly ordered -- and the native CRS and bounds are both already in hand. The
+    # `write_store_root_geo_metadata` call in `consolidate_s1_store` later overwrites
+    # conventions, bbox and `proj:code` together in a single `attrs.update`, and rebuilds the
+    # bbox union from the orbit groups rather than from the root's own value, so the two can
+    # never disagree half-way.
+    root.attrs.update(
+        {
+            "zarr_conventions": ZARR_CONVENTIONS,
+            "proj:code": metadata.crs,
+            "spatial:bbox": list(metadata.bounds),
+            "eopf:writer_schema": WRITER_SCHEMA,
+        }
+    )
     _build_orbit_group(root, orbit_direction, metadata)
 
     log.info(
         "Created S1 store",
-        store_path=str(store_path),
+        store_path=store_path,
         orbit_direction=orbit_direction,
         crs=metadata.crs,
         native_shape=metadata.shape,
@@ -626,7 +792,10 @@ def ingest_s1tiling_acquisition(
     vv_path = _coerce_input_path(vv_path)
     vh_path = _coerce_input_path(vh_path)
     border_mask_path = _coerce_input_path(border_mask_path)
-    store_path = Path(store_path)
+    # Never `Path()` the store URI: `Path("s3://bucket/x.zarr")` collapses to
+    # `PosixPath("s3:/bucket/x.zarr")`, whose `.exists()` is always False, so the create branch
+    # wrote a LocalStore under `./s3:/bucket/...`, logged success and exited 0 with nothing in S3.
+    store_path = fs_utils.normalize_path(str(store_path))
 
     for p in [vv_path, vh_path, border_mask_path]:
         if not _input_path_exists(p):
@@ -641,35 +810,22 @@ def ingest_s1tiling_acquisition(
         orbit_direction=orbit_direction,
     )
 
-    # Create-or-open store
-    if not store_path.exists():
+    # Create-or-open store. Probe `<store>/zarr.json` rather than the prefix itself: on object
+    # storage a "directory" exists only implicitly, so a prefix test is unreliable.
+    if not fs_utils.path_exists(f"{store_path}/zarr.json"):
         root = create_s1_store(store_path, orbit_direction, meta)
     else:
-        root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
+        root = _open_store_for_write(store_path)
+        # Check the grid on BOTH branches. The new-orbit branch below calls `_build_orbit_group`,
+        # which writes `proj:code`, the multiscales layout and `spatial:bbox` straight from the
+        # incoming metadata without comparing anything.
+        _assert_grid_matches(root, meta)
         if orbit_direction not in root:
             # Create the new orbit group in the existing store (same builder as a fresh
             # store, so per-level metadata — incl. `proj:code` — stays consistent).
             _build_orbit_group(root, orbit_direction, meta)
-        else:
-            # Validate consistency on append
-            orbit_group = _child_group(root, orbit_direction)
-            attrs = dict(orbit_group.attrs)
-            store_crs = attrs.get("proj:code")
-            if store_crs != meta.crs:
-                raise ValueError(f"CRS mismatch: store has {store_crs}, GeoTIFF has {meta.crs}")
-            multiscales = attrs.get("multiscales")
-            store_layout = multiscales.get("layout", []) if isinstance(multiscales, dict) else []
-            if isinstance(store_layout, list) and store_layout:
-                native_entry = store_layout[0]
-                store_shape = (
-                    native_entry.get("spatial:shape") if isinstance(native_entry, dict) else None
-                )
-                if store_shape != meta.shape:
-                    raise ValueError(
-                        f"Shape mismatch: store has {store_shape}, GeoTIFF has {meta.shape}"
-                    )
 
-    orbit = _child_group(root, orbit_direction)
+    orbit = _open_orbit_for_write(store_path, orbit_direction)
 
     # Read GeoTIFF pixel data
     with _rasterio_env(vv_path):
@@ -721,20 +877,49 @@ def ingest_s1tiling_acquisition(
     # timestamps are preserved), or raise if the cube is inconsistent in a way a backfill cannot fix.
     if "time" in r10m:
         ref_time = np.asarray(_child_array(r10m, "time")[:])
+        ref_len = ref_time.shape[0]
+
+        # Assert the cube is square BEFORE writing anything. A transport or OOM failure inside the
+        # per-level write loop below leaves r10m at N+1 while a coarser level is still at N; the
+        # next append then reads `current_size` from r10m, writes the new slice at index N+1 on the
+        # short level and leaves index N as NaN fill with `time[N] == 0` -- 1970 -- and exits 0.
+        # This check must cover the levels that DO carry `time`, which is precisely the set the
+        # heal loop's `continue` skips, so it cannot live inside that loop.
+        ragged = []
+        for level_name in data_by_level:
+            level = _child_group(orbit, level_name)
+            lengths = {
+                array_name: _child_array(level, array_name).shape[0]
+                for array_name in ("vv", "vh", "border_mask")
+                if array_name in level
+            }
+            if "time" in level:
+                lengths["time"] = _child_array(level, "time").shape[0]
+            if any(length != ref_len for length in lengths.values()):
+                ragged.append(f"{level_name}={lengths}")
+        for coord_name in ("absolute_orbit", "relative_orbit", "platform"):
+            if coord_name in r10m:
+                coord_len = _child_array(r10m, coord_name).shape[0]
+                if coord_len != ref_len:
+                    ragged.append(f"r10m/{coord_name}={coord_len}")
+        if ragged:
+            raise ValueError(
+                f"Cannot append to {orbit_direction}: the cube is half-built -- these arrays "
+                f"disagree with r10m/time ({ref_len} slice(s)): {'; '.join(ragged)}. A previous "
+                "append failed part-way through, so `time` cannot be safely backfilled; re-run "
+                "that append to completion or wipe + reingest, but do not append on top."
+            )
+
+        # Every level is now known to be the same length as r10m/time, so any level missing `time`
+        # is healable by backfilling from r10m -- the length check that used to live here is
+        # subsumed by the ragged check above.
         healed = []
         for level_name in data_by_level:
             level = _child_group(orbit, level_name)
             if level_name == "r10m" or "time" in level:
                 continue
-            level_len = _child_array(level, "vv").shape[0]
-            if level_len != ref_time.shape[0]:
-                raise ValueError(
-                    f"Cannot append to {orbit_direction}/{level_name}: it has {level_len} slice(s) "
-                    f"but r10m/time has {ref_time.shape[0]}; the cube is half-built and `time` cannot "
-                    "be safely backfilled (wipe + reingest)"
-                )
             _create_time_coordinate_array(level)
-            _child_array(level, "time").resize((ref_time.shape[0],))
+            _child_array(level, "time").resize((ref_len,))
             _child_array(level, "time")[:] = ref_time
             healed.append(level_name)
         if healed:
@@ -769,6 +954,10 @@ def ingest_s1tiling_acquisition(
     _child_array(r10m, "relative_orbit")[current_size] = meta.relative_orbit
     _child_array(r10m, "platform")[current_size] = meta.platform
 
+    # Drop the now-stale consolidated block so external readers list the hierarchy instead of
+    # trusting pre-append shapes. The write path does not depend on this having run.
+    _strip_consolidated_metadata(store_path, orbit_direction)
+
     log.info(
         "Zarr write complete",
         time_index=current_size,
@@ -789,19 +978,23 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
     caches array shapes and will become stale if called mid-ingestion.
 
     Consolidates *every* orbit group present, not just ``orbit_direction``: the
-    pipeline ingests acquisitions one orbit at a time after stripping all
-    consolidated metadata (so ``time`` can resize), so consolidating only the
+    pipeline ingests acquisitions one orbit at a time, so consolidating only the
     passed orbit would leave the other orbit's group unconsolidated on disk
     (readers opening that orbit standalone then fall back to a listing).
     ``orbit_direction`` is retained for logging / caller compatibility.
+
+    Enumerates orbits through a root opened with ``use_consolidated=False``: an orbit group
+    created since the last consolidation is absent from a stale root block, so consolidating
+    through it would silently skip the newest orbit.
     """
-    root = zarr.open_group(str(store_path), mode="r", zarr_format=3)
+    store_path = fs_utils.normalize_path(str(store_path))
+    root = _open_store_for_write(store_path)
     for orbit_name, _ in root.groups():
-        zarr.consolidate_metadata(str(store_path), path=orbit_name, zarr_format=3)
-    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+        zarr.consolidate_metadata(store_path, path=orbit_name, zarr_format=3)
+    zarr.consolidate_metadata(store_path, zarr_format=3)
     log.info(
         "Metadata consolidated",
-        store_path=str(store_path),
+        store_path=store_path,
         orbit_direction=orbit_direction,
     )
 
@@ -996,13 +1189,13 @@ def ingest_s1tiling_conditions(
     if not condition_inputs:
         raise ValueError("At least one condition path must be provided")
 
-    store_path = Path(store_path)
-    if not store_path.exists():
+    store_path = fs_utils.normalize_path(str(store_path))
+    if not fs_utils.path_exists(f"{store_path}/zarr.json"):
         raise ValueError(f"Store does not exist: {store_path}")
 
     orbit_suffix = f"{relative_orbit:03d}"
 
-    root = zarr.open_group(str(store_path), mode="r+", zarr_format=3)
+    root = _open_store_for_write(store_path)
     if orbit_direction not in root:
         raise ValueError(
             f"Orbit direction '{orbit_direction}' not found in store. "
@@ -1047,7 +1240,10 @@ def ingest_s1tiling_conditions(
             # nodata → NaN via the GeoTIFF's declared nodata (border_mask is N/A for static
             # conditions), so out-of-coverage pixels mask transparent like vv/vh. A no-op when
             # the GeoTIFF declares no nodata.
-            data = src.read(1, masked=True).filled(np.nan).astype(np.float32)
+            # Cast to float32 BEFORE filling: `.filled(np.nan)` on an integer-dtype masked array
+            # raises, so an integer condition GeoTIFF aborted the whole ingest. NaN is only a
+            # legal fill value once the array is floating point.
+            data = src.read(1, masked=True).astype(np.float32).filled(np.nan)
 
         h, w = data.shape
 
