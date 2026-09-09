@@ -11,6 +11,7 @@ import pyproj
 import pystac
 import zarr
 
+from eopf_geozarr.conversion import fs_utils
 from eopf_geozarr.types import BoundingBox2D, CRSCode, make_bounding_box, make_crs_code
 
 SAR_EXT = "https://stac-extensions.github.io/sar/v1.0.0/schema.json"
@@ -96,19 +97,26 @@ def _bbox_to_geometry(bbox: BoundingBox2D) -> dict[str, object]:
 
 
 def _open_root(zarr_store: str) -> zarr.Group:
-    """Open the cube root, preferring consolidated metadata.
+    """Open the cube root read-only, using consolidated metadata when it is present.
 
-    A cube grown by appending a time-slice to an *existing same-orbit* group can end up without root
-    consolidated metadata (re-consolidating an append on the S3 store is unreliable). The builder must
-    not require it — fall back to reading the hierarchy directly, exactly as titiler does. See the
-    data-model issue on the S1 RTC consolidated-metadata regression.
+    A cube mid-ingest normally has no root consolidated block: `ingest_s1tiling_acquisition`
+    strips it after every append so external readers cannot act on a stale one. The builder must
+    therefore read the hierarchy directly when the block is absent, exactly as titiler does.
+
+    ``mode="r"`` is load-bearing. ``zarr.open_consolidated`` is an alias for ``open_group``, whose
+    default is ``mode="a"``, so the previous implementation *created* a store at any path that did
+    not resolve — ``generate-stac-s1 --store s3://bucket/typo.zarr`` wrote into the bucket before
+    failing. ``use_consolidated=None`` is zarr's documented use-if-present-else-list mode, which
+    removes the need to discriminate a missing consolidated block from a missing store by
+    exception type (both surface as ``ValueError`` on zarr 3.2.0).
     """
-    try:
-        return zarr.open_consolidated(zarr_store, zarr_format=3)
-    except ValueError as exc:
-        if "consolidated metadata" not in str(exc).lower():
-            raise
-        return zarr.open_group(zarr_store, mode="r", zarr_format=3)
+    return zarr.open_group(
+        zarr_store,
+        mode="r",
+        zarr_format=3,
+        use_consolidated=None,
+        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(zarr_store)),
+    )
 
 
 class _OrbitInfo(NamedTuple):

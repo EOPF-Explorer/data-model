@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 import pytest
 import zarr
 
-from eopf_geozarr.stac.s1_rtc import build_s1_rtc_stac_item
+from eopf_geozarr.stac.s1_rtc import _open_root, build_s1_rtc_stac_item
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
 if TYPE_CHECKING:
@@ -357,3 +357,31 @@ def test_render_uses_ascending_when_preferred(tmp_path: Path) -> None:
 
     item = build_s1_rtc_stac_item(str(store_path), "sentinel-1-grd-rtc-staging")
     assert item.properties["renders"]["rgb"]["expression"].startswith("/ascending:vv")
+
+
+def test_open_root_never_creates_a_store(tmp_path: Path) -> None:
+    """A read-only STAC build must not write.
+
+    `zarr.open_consolidated` is an alias for `open_group`, whose default is `mode="a"`, so
+    `generate-stac-s1 --store s3://bucket/typo.zarr` created a store at the typo'd path --
+    writing into the production bucket -- before failing.
+    """
+    missing = tmp_path / "typo.zarr"
+
+    with pytest.raises(FileNotFoundError):
+        _open_root(str(missing))
+
+    assert not missing.exists(), "opening a nonexistent store created it on disk"
+    assert list(tmp_path.iterdir()) == [], f"left files behind: {list(tmp_path.iterdir())}"
+
+
+def test_open_root_reads_both_consolidated_and_unconsolidated(tmp_path: Path) -> None:
+    """The unconsolidated path is permanent, not transitional: appends now strip the block."""
+    store_path = tmp_path / "cube.zarr"
+    group = zarr.open_group(str(store_path), mode="w", zarr_format=3)
+    group.create_array("marker", shape=(1,), dtype="int32")
+
+    assert "marker" in dict(_open_root(str(store_path)).members())
+
+    zarr.consolidate_metadata(str(store_path), zarr_format=3)
+    assert "marker" in dict(_open_root(str(store_path)).members())
