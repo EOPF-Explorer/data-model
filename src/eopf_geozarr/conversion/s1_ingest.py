@@ -475,6 +475,23 @@ def _create_band_arrays(level_group: zarr.Group, level_h: int, level_w: int) -> 
             band.attrs.update(cast("dict", BACKSCATTER_CF_ATTRS))
 
 
+def _open_for_write(group_path: str, credentials_for: str) -> zarr.Group:
+    """Open a group read-write, ignoring any consolidated block.
+
+    ``credentials_for`` is the store URI the storage options are derived from, which is not
+    ``group_path`` when opening a subgroup.
+    """
+    return zarr.open_group(
+        group_path,
+        mode="r+",
+        zarr_format=3,
+        use_consolidated=False,
+        storage_options=cast(
+            "dict[str, object] | None", fs_utils.get_storage_options(credentials_for)
+        ),
+    )
+
+
 def _open_store_for_write(store_path: str) -> zarr.Group:
     """Open a cube root for writing, ignoring any consolidated metadata block.
 
@@ -486,13 +503,7 @@ def _open_store_for_write(store_path: str) -> zarr.Group:
     own consolidated block, so a caller that needs a true shape must also open that orbit with
     `_open_orbit_for_write` -- the root flag alone leaves shapes stale.
     """
-    root = zarr.open_group(
-        store_path,
-        mode="r+",
-        zarr_format=3,
-        use_consolidated=False,
-        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
-    )
+    root = _open_for_write(store_path, store_path)
     stamp = root.attrs.get("eopf:writer_schema")
     if not isinstance(stamp, int) or stamp < WRITER_SCHEMA:
         log.warning(
@@ -516,13 +527,7 @@ def _open_orbit_for_write(store_path: str, orbit_direction: str) -> zarr.Group:
     consolidation even when the root's own block is bypassed. Reading a stale shape makes every
     post-consolidation append target the same time index.
     """
-    return zarr.open_group(
-        f"{store_path}/{orbit_direction}",
-        mode="r+",
-        zarr_format=3,
-        use_consolidated=False,
-        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
-    )
+    return _open_for_write(f"{store_path}/{orbit_direction}", store_path)
 
 
 def _strip_consolidated_metadata(store_path: str, orbit_direction: str) -> None:
@@ -597,7 +602,7 @@ def _assert_grid_matches(root: zarr.Group, metadata: S1TilingMetadata) -> None:
         # transform and the value round-tripped through the store's JSON. An exact comparison
         # would risk rejecting every legitimate append across the existing archive to catch a
         # difference that cannot occur in practice.
-        pixel = abs(stored_transform[0]) or 1.0
+        pixel = abs(stored_transform[0])
         if len(stored_transform) != len(incoming_transform) or not all(
             isclose(a, b, rel_tol=1e-9, abs_tol=pixel * 1e-3)
             for a, b in zip(stored_transform, incoming_transform, strict=True)
