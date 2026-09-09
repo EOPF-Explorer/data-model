@@ -787,6 +787,7 @@ def ingest_s1tiling_acquisition(
     border_mask_path: str | Path,
     store_path: str | Path,
     orbit_direction: str,
+    allow_out_of_order: bool = False,
 ) -> int:
     """Ingest one S1Tiling acquisition into a GeoZarr V3 store.
 
@@ -805,6 +806,11 @@ def ingest_s1tiling_acquisition(
         Path to the output Zarr V3 store.
     orbit_direction : str
         Orbit direction group name (e.g. "ascending", "descending").
+    allow_out_of_order : bool, default False
+        Accept an acquisition older than (or equal to) the cube's last slice, writing a
+        non-monotonic time axis. The default refuses: `.sel(time=slice(...))` raises on such a
+        cube, so accepting one silently makes it unqueryable by time. Set this only to recover a
+        cube whose ordering is already broken.
 
     Returns
     -------
@@ -953,6 +959,36 @@ def ingest_s1tiling_acquisition(
             healed.append(level_name)
         if healed:
             log.info("Healed missing per-level `time`", levels=healed)
+
+        # Keep the time axis monotonic. `.sel(time=slice(...))` raises on a non-monotonic index,
+        # so a cube that accepts an out-of-order append is silently unqueryable by time
+        # afterwards. This is the only place the invariant can be enforced:
+        # `discover_s1tiling_acquisitions` now returns acquisitions chronologically, but the real
+        # caller iterates that list and other callers never go through discovery at all.
+        #
+        # Checked AFTER the ragged assertion above: on a half-built cube the last timestamp is
+        # not a reliable thing to compare against, and raggedness is the more fundamental fault.
+        #
+        # An equal timestamp is rejected as a duplicate. The append is positional, so re-ingesting
+        # the same acquisition adds a second slice carrying the same instant rather than replacing
+        # the first.
+        if current_size > 0:
+            last_ns = int(ref_time[current_size - 1])
+            if int(dt_ns) <= last_ns:
+                # `np.datetime64` takes a plain int but rejects np.int64 (numpy 2.4), and `dt_ns`
+                # is np.int64 — without the cast this formatting raises instead of reporting.
+                previous = np.datetime64(last_ns, "ns")
+                incoming = np.datetime64(int(dt_ns), "ns")
+                relation = "duplicates" if int(dt_ns) == last_ns else "precedes"
+                message = (
+                    f"Out-of-order append to {orbit_direction}: incoming acquisition {incoming} "
+                    f"{relation} the last slice already in the cube ({previous}). Ingest "
+                    "acquisitions chronologically, or pass allow_out_of_order=True to accept a "
+                    "non-monotonic time axis (`.sel(time=slice(...))` then raises on this cube)."
+                )
+                if not allow_out_of_order:
+                    raise ValueError(message)
+                log.warning("Appending out of order", detail=message)
     elif current_size > 0:
         raise ValueError(
             f"Cannot append to {orbit_direction}: r10m has {current_size} slice(s) but no `time` "
@@ -1017,6 +1053,22 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
     through it would silently skip the newest orbit.
     """
     store_path = fs_utils.normalize_path(str(store_path))
+
+    # Refine the root to the same geographic form S2 and OLCI publish: `proj:code = EPSG:4326`
+    # and a lon/lat `spatial:bbox` covering every orbit group. `create_s1_store` writes a
+    # complete root in the native UTM CRS so that a never-consolidated store still validates;
+    # this replaces it once the orbit groups exist and their extents are known.
+    #
+    # The union is rebuilt from the child groups and never reads the root's own bbox, and all
+    # three keys are replaced in a single `attrs.update`, so the pair cannot go half-updated.
+    # It reprojects with `transform_bounds(..., densify_pts=21)` rather than transforming the
+    # corners, which also avoids the near-global bbox a corner-only conversion produces in UTM
+    # zones 1 and 60. `eopf:writer_schema` survives because this is an update, not a replace.
+    utils.write_store_root_geo_metadata(
+        store_path,
+        storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
+    )
+
     root = _open_store_for_write(store_path)
     for orbit_name, _ in root.groups():
         zarr.consolidate_metadata(store_path, path=orbit_name, zarr_format=3)
@@ -1149,7 +1201,11 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
             groups[key][pol] = f
 
     acquisitions = []
-    for key, acq in sorted(groups.items()):
+    # Order by acquisition time FIRST. The key is (platform, tile, orbit_dir, rel_orbit,
+    # acq_stamp), so sorting it verbatim lets `platform` dominate the timestamp: a mixed
+    # S1A/S1C archive comes back as all the S1A dates then all the S1C dates, and ingesting in
+    # that order writes a non-monotonic time axis on which `.sel(time=slice(...))` raises.
+    for key, acq in sorted(groups.items(), key=lambda item: (item[1]["acq_stamp"], item[0])):
         missing = [k for k in ("vv", "vh", "vv_mask", "vh_mask") if k not in acq]
         if missing:
             log.warning(

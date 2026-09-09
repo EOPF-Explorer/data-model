@@ -6,7 +6,7 @@ import json
 import os
 from math import ceil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 import numpy as np
@@ -1209,11 +1209,18 @@ class TestTimeCFDatetime:
         self, s1_geotiff_dir: Path, s1_store_path: Path
     ) -> None:
         """Ingest LATER acq first then EARLIER → non-monotonic axis; exact datetime `.sel` still
-        returns the right physical slice at both the native and a coarse level (the 31TEH case)."""
+        returns the right physical slice at both the native and a coarse level (the 31TEH case).
+
+        Building this cube now requires `allow_out_of_order=True` — the ingest refuses to create a
+        non-monotonic axis by default. The escape hatch is exactly what recovering an already-broken
+        cube like 31TEH needs, so this exercises both it and the ordering-independence of exact
+        `.sel`."""
         vv2, vh2, mask2 = self._paths(s1_geotiff_dir, "20230127t061235")  # 2023-01-27 (later)
         vv1, vh1, mask1 = self._paths(s1_geotiff_dir, "20230115t061234")  # 2023-01-15 (earlier)
         ingest_s1tiling_acquisition(vv2, vh2, mask2, s1_store_path, "ascending")  # -> index 0
-        ingest_s1tiling_acquisition(vv1, vh1, mask1, s1_store_path, "ascending")  # -> index 1
+        ingest_s1tiling_acquisition(
+            vv1, vh1, mask1, s1_store_path, "ascending", allow_out_of_order=True
+        )  # -> index 1
 
         dt = xr.open_datatree(
             str(s1_store_path), engine="zarr", decode_times=True, consolidated=False
@@ -1715,3 +1722,131 @@ class TestMinispecConformance:
                 relative_orbit=110,
                 gamma_area_path=other,
             )
+
+
+class TestTimeAxisOrdering:
+    """A non-monotonic time axis makes `.sel(time=slice(...))` raise, so a cube that accepts an
+    out-of-order append is silently unqueryable by time afterwards."""
+
+    @staticmethod
+    def _paths(d: Path, stamp: str) -> tuple[Path, Path, Path]:
+        return (
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vh_ASC_037_{stamp}_GammaNaughtRTC.tif",
+            d / f"s1a_32TQM_vv_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif",
+        )
+
+    def test_out_of_order_append_raises(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
+        later = self._paths(s1_geotiff_dir, "20230127t061235")
+        earlier = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*later, s1_store_path, "ascending")
+
+        with pytest.raises(ValueError, match="Out-of-order append"):
+            ingest_s1tiling_acquisition(*earlier, s1_store_path, "ascending")
+
+    def test_out_of_order_append_writes_nothing(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """The refusal must come before any array is resized, or it leaves a ragged cube."""
+        later = self._paths(s1_geotiff_dir, "20230127t061235")
+        earlier = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*later, s1_store_path, "ascending")
+
+        with pytest.raises(ValueError, match="Out-of-order append"):
+            ingest_s1tiling_acquisition(*earlier, s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        r10m = _group(_group(root, "ascending"), "r10m")
+        assert _array(r10m, "vv").shape[0] == 1
+        assert _array(r10m, "time").shape[0] == 1
+
+    def test_escape_hatch_allows_the_append(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """`allow_out_of_order=True` is how an already-broken cube gets recovered."""
+        later = self._paths(s1_geotiff_dir, "20230127t061235")
+        earlier = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*later, s1_store_path, "ascending")
+        assert (
+            ingest_s1tiling_acquisition(
+                *earlier, s1_store_path, "ascending", allow_out_of_order=True
+            )
+            == 1
+        )
+
+    def test_duplicate_timestamp_is_rejected(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """The append is positional: re-ingesting the same acquisition would add a second slice
+        carrying the same instant rather than replacing the first."""
+        acq = self._paths(s1_geotiff_dir, "20230115t061234")
+        ingest_s1tiling_acquisition(*acq, s1_store_path, "ascending")
+
+        with pytest.raises(ValueError, match="duplicates"):
+            ingest_s1tiling_acquisition(*acq, s1_store_path, "ascending")
+
+    def test_discovery_is_chronological_across_platforms(self, tmp_path: Path) -> None:
+        """The group key is (platform, tile, orbit_dir, rel_orbit, acq_stamp), so sorting it
+        verbatim let `platform` dominate the timestamp: a mixed S1A/S1C archive came back as all
+        the S1A dates followed by all the S1C dates."""
+        rng = np.random.default_rng(3)
+        stamps = [
+            ("s1a", "20250210t061234"),
+            ("s1c", "20250115t061234"),
+            ("s1a", "20250305t061234"),
+            ("s1c", "20250127t061234"),
+        ]
+        for platform, stamp in stamps:
+            tags = dict(ACQ1_TAGS)
+            tags["FLYING_UNIT_CODE"] = platform.upper()
+            tags["ACQUISITION_DATETIME"] = f"{stamp[0:4]}:{stamp[4:6]}:{stamp[6:8]}T06:12:34Z"
+            for pol in ("vv", "vh"):
+                data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
+                _create_synthetic_geotiff(
+                    tmp_path / f"{platform}_32TQM_{pol}_ASC_037_{stamp}_GammaNaughtRTC.tif",
+                    data,
+                    tags=tags,
+                )
+                _create_synthetic_geotiff(
+                    tmp_path
+                    / f"{platform}_32TQM_{pol}_ASC_037_{stamp}_GammaNaughtRTC_BorderMask.tif",
+                    np.ones((SIZE, SIZE), dtype=np.uint8),
+                    tags=tags,
+                )
+
+        discovered = [a["acq_stamp"] for a in discover_s1tiling_acquisitions(tmp_path)]
+        assert discovered == sorted(discovered), f"not chronological: {discovered}"
+        assert discovered == [
+            "20250115t061234",
+            "20250127t061234",
+            "20250210t061234",
+            "20250305t061234",
+        ]
+
+
+class TestStoreRootGeographicMetadata:
+    """After consolidation the root is published in the same geographic form as S2 and OLCI."""
+
+    def test_root_is_geographic_after_consolidation(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        vv = s1_geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        vh = s1_geotiff_dir / "s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        mask = s1_geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif"
+        ingest_s1tiling_acquisition(vv, vh, mask, s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        assert dict(root.attrs)["proj:code"] == CRS, "native CRS expected before consolidation"
+
+        consolidate_s1_store(s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        attrs = dict(root.attrs)
+        assert attrs["proj:code"] == "EPSG:4326"
+        bbox = attrs["spatial:bbox"]
+        assert isinstance(bbox, list)
+        lon, lat = float(cast("float", bbox[0])), float(cast("float", bbox[1]))
+        assert -180.0 <= lon <= 180.0, bbox
+        assert -90.0 <= lat <= 90.0, bbox
+        # The writer stamp must survive the rewrite (it is an update, not a replace).
+        assert attrs["eopf:writer_schema"] == WRITER_SCHEMA
