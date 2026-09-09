@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from pathlib import Path
 from typing import NamedTuple, cast
 
@@ -19,10 +20,23 @@ SAT_EXT = "https://stac-extensions.github.io/sat/v1.0.0/schema.json"
 PROJ_EXT = "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
 RENDER_EXT = "https://stac-extensions.github.io/render/v1.0.0/schema.json"
 DATACUBE_EXT = "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
-TIMESTAMPS_EXT = "https://stac-extensions.github.io/timestamps/v1.1.0/schema.json"
 GRID_EXT = "https://stac-extensions.github.io/grid/v1.1.0/schema.json"
+# No TIMESTAMPS_EXT: `created`/`updated` are STAC *Common Metadata*, present in the core Item spec.
+# The timestamps extension only adds `published`/`expires`/`unpublished`, none of which this builder
+# emits, so declaring it was inert — a validator downloaded a schema that constrained nothing.
 
 ZARR_MEDIA_TYPE = "application/vnd.zarr; version=3"
+
+# MGRS tile id as written by S1Tiling / the Sentinel-2 grid: two-digit UTM zone (01-60), latitude
+# band, then the 100 km square column/row letters. `I` and `O` are excluded throughout (they read as
+# 1/0), and row letters stop at V. Anchored, because the id becomes both the STAC item id and the
+# queryable `grid:code` — see `_tile_id_from_store`.
+_MGRS_TILE_RE = re.compile(r"^(0[1-9]|[1-5][0-9]|60)[C-HJ-NP-X][A-HJ-NP-Z][A-HJ-NP-V]$")
+
+# Store-name prefixes the tile id may hide behind. "s1-rtc-" is the current one; "s1-grd-rtc-" is
+# what #246 reverts to once titiler-eopf#108 lands. Accepting both means that rename does not turn
+# every store into a hard build failure the day it happens (see `_tile_id_from_store`).
+_STORE_PREFIXES = ("s1-rtc-", "s1-grd-rtc-")
 
 _ORBIT_PREFERENCE = ("ascending", "descending")
 # Short suffix for orbit-keyed asset names (gamma0-rtc-backscatter-asc / -desc).
@@ -51,14 +65,87 @@ def _rgb_render(orbit: str) -> dict[str, object]:
     vv = f"/{orbit}:vv"
     vh = f"/{orbit}:vh"
     return {
+        # `assets` is the ONE required field of a Render Object (render v1.0.0,
+        # `definitions/fields.required`). Omitting it made every emitted item fail the extension it
+        # declared — `'assets' is a required property` — so `generate-stac-s1 | stac-validator`
+        # failed and a validating STAC API refused the item. It names the orbit-keyed γ⁰ asset this
+        # composite reads from, which is exactly the asset built below.
+        "assets": [f"gamma0-rtc-backscatter-{_ORBIT_SHORT[orbit]}"],
         "title": "VV, VH, VV/VH composite",
         "expression": f"{vv};{vh};({vv})/({vh})",
         # Per-band linear stretch: VV/VH are low-valued gamma0; the VV/VH ratio spans ~1-15.
         # One shared pair saturated the ratio band (purple wash) and dropped low-cross-pol water.
         "rescale": [[0.0, 0.4], [0.0, 0.1], [1.0, 15.0]],
         "bidx": [1],
+        # Not a render-extension field, but the schema sets `additionalProperties: true` on the
+        # Render Object, so it validates. titiler reads it to size the tiles it renders from this
+        # config; dropping it would silently fall back to titiler's default tile size.
         "tilesize": 256,
     }
+
+
+def _providers() -> list[dict[str, object]]:
+    """Attribution for the γ⁰ RTC product, copied down from the collection block.
+
+    A STAC API search returns bare items, without the collection that would otherwise supply this,
+    so an item that omits `providers` loses its attribution entirely for every consumer that does
+    not follow the collection link. Kept in sync by hand with the collection templates
+    (`stac/sentinel-1-grd-rtc*.json` in data-pipeline), which stay the source of truth — the
+    collection is registered by the operator, not by this builder.
+
+    Returned fresh per call: the dicts land in `item.properties` and must not be shared between
+    items (mutating one item's providers would rewrite every other item's).
+    """
+    return [
+        {
+            "name": "European Commission",
+            "roles": ["licensor"],
+            "url": "https://commission.europa.eu/",
+        },
+        {
+            "name": "ESA",
+            "roles": ["producer", "processor"],
+            "url": "https://sentinel.esa.int/web/sentinel/missions/sentinel-1",
+        },
+        {
+            "name": "EOPF Sentinel Zarr Samples Service",
+            "roles": ["host", "processor"],
+            "url": "https://zarr.eopf.copernicus.eu/",
+        },
+    ]
+
+
+def _tile_id_from_store(zarr_store: str) -> str:
+    """Derive (and validate) the MGRS tile id from the store name.
+
+    The store is written as ``s1-rtc-{tile}.zarr`` so its basename equals the item id, which
+    titiler-eopf reconstructs as the render path (it ignores the asset href) — see the TEMPORARY
+    note on #246 in :func:`build_s1_rtc_stac_item`.
+
+    Stripping the prefix/suffix and *trusting* the remainder silently minted malformed ids from any
+    other store name: ``cube.zarr`` produced item id ``s1-rtc-cube`` and ``grid:code`` ``MGRS-cube``,
+    ``s1-rtc-.zarr`` produced ``s1-rtc-`` / ``MGRS-``, and (before ``s1-grd-rtc-`` was accepted here)
+    ``s1-grd-rtc-31TCH.zarr`` produced ``s1-rtc-s1-grd-rtc-31TCH`` / ``MGRS-s1-grd-rtc-31TCH``. None
+    of these fail anywhere downstream: they register cleanly and poison the catalogue, because
+    ``grid:code`` is the field tile-filtered searches and the cube↔acquisition cross-links join on.
+    Validate instead, and fail the build where the mistake is still cheap to fix.
+
+    Raises
+    ------
+    ValueError
+        If the store name does not carry a well-formed MGRS tile id.
+    """
+    name = Path(zarr_store).name
+    tile_id = name.removesuffix(".zarr")
+    for prefix in _STORE_PREFIXES:
+        tile_id = tile_id.removeprefix(prefix)
+    if not _MGRS_TILE_RE.match(tile_id):
+        raise ValueError(
+            f"Cannot derive an MGRS tile id from store name {name!r} (got {tile_id!r}). "
+            f"Expected a store named {{{'|'.join(_STORE_PREFIXES)}}}<MGRS tile>.zarr, "
+            "e.g. s1-rtc-31TCH.zarr."
+        )
+    return tile_id
 
 
 def _gamma0_bands() -> list[dict[str, object]]:
@@ -76,24 +163,83 @@ def _gamma0_bands() -> list[dict[str, object]]:
 
 
 def _utm_to_wgs84(proj_code: CRSCode, utm_bbox: BoundingBox2D) -> BoundingBox2D:
-    """Convert UTM (xmin, ymin, xmax, ymax) to WGS84 (west, south, east, north)."""
-    xmin, ymin, xmax, ymax = utm_bbox
+    """Convert UTM (xmin, ymin, xmax, ymax) to WGS84 (west, south, east, north).
+
+    Transforming only the four corners is wrong twice over. It understates the footprint everywhere
+    (projected edges curve in lon/lat, so the extreme lat/lon is mid-edge, not at a corner), and in
+    UTM zones 1 and 60 it produces a near-global box: tile 01VCK at 300000-409800E in EPSG:32601
+    corner-transforms to ``(-178.41, 54.11, 179.94, 55.13)`` — 358.4 degrees wide, spanning almost
+    the whole planet — because the west edge lands just *east* of the antimeridian and the east edge
+    just *west* of it, and min/max then straddle the wrap instead of the tile.
+
+    ``Transformer.transform_bounds(..., densify_pts=21)`` fixes both: it samples along the edges and
+    returns the antimeridian-crossing box ``(179.87, 54.11, -178.38, 55.13)``, where ``west > east``
+    — the representation STAC and GeoJSON (RFC 7946 §5.2) prescribe for a crossing bbox.
+    Callers must therefore not assume ``west <= east``; see ``_union_wgs84`` and
+    ``_bbox_to_geometry``, which both handle the crossing case.
+
+    Duplicated (deliberately, in the densification only) from
+    :func:`eopf_geozarr.conversion.utils.write_store_root_geo_metadata`, which reprojects the
+    store-root footprint the same way. Not extracted into a shared helper: the shared part is the
+    one ``transform_bounds`` call, and the two call sites want *opposite* crossing behaviour — the
+    store-root writer widens a crossing union to the full longitude range, while a STAC item must
+    keep the narrow crossing box so spatial search stays selective.
+    """
     transformer = pyproj.Transformer.from_crs(proj_code, "EPSG:4326", always_xy=True)
-    xs = [xmin, xmax, xmin, xmax]
-    ys = [ymin, ymin, ymax, ymax]
-    lons, lats = transformer.transform(xs, ys)
-    return BoundingBox2D((min(lons), min(lats), max(lons), max(lats)))
+    return BoundingBox2D(transformer.transform_bounds(*utm_bbox, densify_pts=21))
+
+
+def _union_wgs84(bboxes: list[BoundingBox2D]) -> BoundingBox2D:
+    """Union WGS84 bboxes, keeping an antimeridian crossing narrow rather than wrapping the globe.
+
+    A plain ``min(west)/max(east)`` is only correct while no input crosses the antimeridian; on a
+    crossing box (``west > east``, see :func:`_utm_to_wgs84`) it inverts the box straight back into
+    the 358-degree monster the densification just removed. Instead every box is unwrapped into one
+    continuous frame anchored on the first box's west edge — a crossing box gets ``east += 360``,
+    and a box a whole turn away from the anchor is shifted by 360 so the two are comparable — then
+    the union is folded back into [-180, 180], keeping ``west > east`` if it still crosses.
+    """
+    anchor = bboxes[0][0]
+    spans: list[tuple[float, float]] = []
+    for west_i, _south, east_i, _north in bboxes:
+        if east_i < west_i:
+            east_i += 360.0
+        offset = 360.0 * round((anchor - west_i) / 360.0)
+        spans.append((west_i + offset, east_i + offset))
+
+    west = min(s[0] for s in spans)
+    east = max(s[1] for s in spans)
+    if east > 180.0:
+        east -= 360.0
+    if west > 180.0:
+        west -= 360.0
+    elif west < -180.0:
+        west += 360.0
+    return BoundingBox2D((west, min(b[1] for b in bboxes), east, max(b[3] for b in bboxes)))
 
 
 def _bbox_to_geometry(bbox: BoundingBox2D) -> dict[str, object]:
-    """A closed rectangular Polygon for a WGS84 [west, south, east, north] bbox."""
+    """A closed rectangular Polygon for a WGS84 [west, south, east, north] bbox.
+
+    A bbox that crosses the antimeridian (``west > east``) becomes a two-part MultiPolygon split at
+    ±180: a single ring from ``west`` to ``east`` would run the *long* way round the globe, drawing
+    a footprint covering everything except the tile. GeoJSON (RFC 7946 §3.1.9) requires the split.
+    """
     west, south, east, north = bbox
-    return {
-        "type": "Polygon",
-        "coordinates": [
-            [[west, south], [east, south], [east, north], [west, north], [west, south]]
-        ],
-    }
+    if west > east:
+        # Drop a part with no width. An edge landing exactly on ±180 makes one half of the split
+        # degenerate, and a zero-area ring is rejected by geometry stacks that check validity
+        # (PostGIS ST_IsValid, shapely-based ingest) even though RFC 7946 does not forbid it.
+        parts = [[_ring(w, south, e, north)] for w, e in ((west, 180.0), (-180.0, east)) if w != e]
+        if len(parts) == 1:
+            return {"type": "Polygon", "coordinates": parts[0]}
+        return {"type": "MultiPolygon", "coordinates": parts}
+    return {"type": "Polygon", "coordinates": [_ring(west, south, east, north)]}
+
+
+def _ring(west: float, south: float, east: float, north: float) -> list[list[float]]:
+    """A closed counter-clockwise rectangular ring."""
+    return [[west, south], [east, south], [east, north], [west, north], [west, south]]
 
 
 def _open_root(zarr_store: str) -> zarr.Group:
@@ -117,6 +263,48 @@ def _open_root(zarr_store: str) -> zarr.Group:
         use_consolidated=None,
         storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(zarr_store)),
     )
+
+
+def _orbit_numbers(r10m: zarr.Group, name: str) -> list[int | None]:
+    """Per-acquisition ``absolute_orbit`` / ``relative_orbit`` values from an r10m group.
+
+    ``s1_ingest.py`` writes both as int32 coordinates on the ``time`` axis at native resolution
+    only. Read best-effort — the same posture the r10m ``spatial:*`` attrs get above — so minimal
+    and pre-#216 stores that predate these coordinates still build an item, just without the
+    ``sat:*_orbit`` fields.
+    """
+    if name not in r10m:
+        return []
+    # `0` means "not recorded", never orbit zero. Both arrays are created with `fill_value=0`, and
+    # the append resizes all three metadata coordinates before writing them, so a torn append
+    # leaves a correctly-shaped slice holding 0 — and there is a known upstream bug putting 0 on
+    # some live slices. The sat extension declares both fields `{"type": "integer", "minimum": 1}`,
+    # so emitting a 0 makes a validating STAC API reject the item outright. Map it to None here
+    # rather than dropping it, so the per-slice zip below stays aligned with `time`.
+    return [
+        int(v) if int(v) > 0 else None for v in np.asarray(cast("zarr.Array", r10m[name])).tolist()
+    ]
+
+
+def _single(values: list[int | None], expected: int) -> int | None:
+    """The one distinct value in *values*, or ``None`` unless all *expected* slices agree.
+
+    ``sat:relative_orbit`` / ``sat:absolute_orbit`` are single-valued STAC fields, so a cube can only
+    carry them when its acquisitions agree. In practice a single-orbit tile cube shares one relative
+    orbit (one track) and so gets the field, while absolute orbit is unique per acquisition and so is
+    dropped from any multi-acquisition cube — the per-acquisition items are where it is exact.
+
+    ``expected`` is the cube's total slice count, and requiring it guards a subtler case than
+    disagreement: values are pooled only from orbit groups that actually carry the coordinate, so a
+    dual-orbit cube with one group written before these coordinates existed would otherwise pool
+    just the other group's values and confidently assert one track for acquisitions from *both*
+    orbit directions. A `None` anywhere (an unrecorded slice) likewise means the cube cannot claim
+    a single value.
+    """
+    if len(values) != expected or any(v is None for v in values):
+        return None
+    distinct = set(values)
+    return distinct.pop() if len(distinct) == 1 else None
 
 
 class _OrbitInfo(NamedTuple):
@@ -146,16 +334,20 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     Raises
     ------
     ValueError
-        If the store contains no acquisitions.
+        If the store contains no acquisitions, or its name carries no valid MGRS tile id.
     """
     # TEMPORARY (#246): the store is written as s1-rtc-{tile}.zarr so its filename equals
     # the item id, which titiler-eopf reconstructs as the render path (it ignores the asset
-    # href). Revert this prefix to "s1-grd-rtc-" when titiler-eopf#108 lands.
-    tile_id = Path(zarr_store).name.removeprefix("s1-rtc-").removesuffix(".zarr")
+    # href). `_STORE_PREFIXES` accepts both this name and the "s1-grd-rtc-" one it reverts to
+    # once titiler-eopf#108 lands; drop the stale entry then.
+    tile_id = _tile_id_from_store(zarr_store)
 
     root = _open_root(zarr_store)
 
     all_times_ns: list[int] = []
+    # Per-acquisition orbit numbers, pooled across orbit groups; see the single-value guard below.
+    all_absolute_orbits: list[int | None] = []
+    all_relative_orbits: list[int | None] = []
     wgs84_bboxes: list[BoundingBox2D] = []
     # Per present orbit, in preference order: the metadata needed for assets, projection and datacube.
     present: list[_OrbitInfo] = []
@@ -177,6 +369,8 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # minimal/legacy stores without them still build (just without those projection refinements).
         r10m_attrs = dict(r10m.attrs)
         all_times_ns.extend(times)
+        all_absolute_orbits.extend(_orbit_numbers(r10m, "absolute_orbit"))
+        all_relative_orbits.extend(_orbit_numbers(r10m, "relative_orbit"))
         wgs84_bboxes.append(_utm_to_wgs84(proj_code, utm_bbox))
         present.append(
             _OrbitInfo(
@@ -195,12 +389,8 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     start_dt = dt.datetime.fromtimestamp(min(all_times_ns) / 1e9, tz=dt.UTC)
     end_dt = dt.datetime.fromtimestamp(max(all_times_ns) / 1e9, tz=dt.UTC)
 
-    # WGS84 bbox union across all present orbit directions
-    west = min(b[0] for b in wgs84_bboxes)
-    south = min(b[1] for b in wgs84_bboxes)
-    east = max(b[2] for b in wgs84_bboxes)
-    north = max(b[3] for b in wgs84_bboxes)
-    wgs84_bbox = BoundingBox2D((west, south, east, north))
+    # WGS84 bbox union across all present orbit directions (antimeridian-aware — see _union_wgs84)
+    wgs84_bbox = _union_wgs84(wgs84_bboxes)
 
     geometry = _bbox_to_geometry(wgs84_bbox)
 
@@ -211,6 +401,7 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     preferred_proj_code = preferred.proj_code
     preferred_bbox = preferred.utm_bbox
 
+    build_time = dt.datetime.now(tz=dt.UTC).isoformat()
     properties: dict[str, object] = {
         "start_datetime": start_dt.isoformat(),
         "end_datetime": end_dt.isoformat(),
@@ -219,10 +410,16 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
             "Radiometric-terrain-corrected (RTC) γ⁰ backscatter datacube from Sentinel-1 GRD, "
             "reprojected onto the Sentinel-2 MGRS/UTM grid."
         ),
-        # `updated` (timestamps extension) tracks this metadata build. `created` is intentionally
-        # omitted: it means the item's creation instant, which the store does not record — using an
-        # acquisition time would misuse the field, and a build-time value would churn on every append.
-        "updated": dt.datetime.now(tz=dt.UTC).isoformat(),
+        # STAC Common Metadata (NOT the timestamps extension — that only adds published/expires/
+        # unpublished, which this builder never sets). Both mark this metadata build: `created` is
+        # required by the S1 RTC collection, and the store records no separate item-creation instant,
+        # so build time is the only honest value available. It does churn when a cube is rebuilt
+        # after an append; that is the accepted cost of emitting the field at all.
+        "created": build_time,
+        "updated": build_time,
+        # Attribution, copied down from the collection block: a STAC API search returns items
+        # without their collection, so an item that omits `providers` has no attribution at all.
+        "providers": _providers(),
         # Identity invariants (constant across the cube; platform is per-acquisition so omitted here —
         # a cube can mix S1A and S1C).
         "constellation": "sentinel-1",
@@ -240,21 +437,30 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # Grid extension: the Sentinel-2 MGRS tile this cube is gridded onto — a queryable tile id
         # (enables tile-filtering the acquisitions collection and cube↔acquisition cross-links).
         "grid:code": f"MGRS-{tile_id}",
-        # Render extension: dual-pol RGB composite for previews/tiles (defaults to the preferred orbit)
-        "renders": {"rgb": _rgb_render(preferred_orbit)},
     }
     if preferred.shape is not None:
         properties["proj:shape"] = preferred.shape
     if preferred.transform is not None:
         properties["proj:transform"] = preferred.transform
 
-    stac_extensions = [SAR_EXT, PROJ_EXT, RENDER_EXT, DATACUBE_EXT, TIMESTAMPS_EXT, GRID_EXT]
+    stac_extensions = [SAR_EXT, PROJ_EXT, RENDER_EXT, DATACUBE_EXT, GRID_EXT]
 
-    # sat:orbit_state is single-valued, so it's only meaningful when the cube holds a single orbit. A
-    # dual-orbit cube would mislabel half its slices — omit it there (per-acquisition items, which are
-    # single-orbit, carry the real value). Only declare the SAT extension when the field is set.
+    # Every sat:* field is single-valued, so each is set only where the cube actually agrees on it,
+    # and the SAT extension is declared only if at least one landed.
+    #   - sat:orbit_state: a dual-orbit cube would mislabel half its slices, so omit it there.
+    #   - sat:relative_orbit: constant while the tile is covered by one track (the usual case).
+    #   - sat:absolute_orbit: unique per acquisition, so a multi-acquisition cube drops it.
+    # The per-acquisition items are single-orbit and single-slice, so they carry all three exactly.
     if len(present) == 1:
         properties["sat:orbit_state"] = preferred_orbit
+    for field, values in (
+        ("sat:relative_orbit", all_relative_orbits),
+        ("sat:absolute_orbit", all_absolute_orbits),
+    ):
+        single = _single(values, len(all_times_ns))
+        if single is not None:
+            properties[field] = single
+    if any(k.startswith("sat:") for k in properties):
         stac_extensions.append(SAT_EXT)
 
     # Datacube extension. The time axis is irregularly sampled, so it lists its discrete `values` (the
@@ -262,7 +468,14 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     # and the list stays modest (bounded by the tile's acquisitions). The regular x/y axes instead carry
     # extent + step (their element count is derivable, and the exact pixel count is in proj:shape);
     # enumerating their ~10⁴ coordinates would not scale.
-    epsg = pyproj.CRS.from_user_input(preferred_proj_code).to_epsg()
+    # `to_epsg()` returns None for any CRS with no EPSG match — a WKT2/PROJJSON `proj:code`, or a
+    # custom projection — and that None flowed straight into `reference_system`, emitting a literal
+    # `null` that tells a reader nothing about the grid. datacube v2.2.0 accepts an EPSG integer, a
+    # WKT2 string or a PROJJSON object there, so fall back to WKT2 rather than to null.
+    preferred_crs = pyproj.CRS.from_user_input(preferred_proj_code)
+    epsg_or_wkt: object = preferred_crs.to_epsg()
+    if epsg_or_wkt is None:
+        epsg_or_wkt = preferred_crs.to_wkt()
     xmin, ymin, xmax, ymax = preferred_bbox
     time_values = [
         dt.datetime.fromtimestamp(t / 1e9, tz=dt.UTC).isoformat() for t in sorted(set(all_times_ns))
@@ -285,13 +498,13 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         "type": "spatial",
         "axis": "x",
         "extent": [xmin, xmax],
-        "reference_system": epsg,
+        "reference_system": epsg_or_wkt,
     }
     y_dim: dict[str, object] = {
         "type": "spatial",
         "axis": "y",
         "extent": [ymin, ymax],
-        "reference_system": epsg,
+        "reference_system": epsg_or_wkt,
     }
     if preferred.transform is not None:
         transform = cast("list[float]", preferred.transform)
@@ -313,6 +526,13 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         properties=properties,
         stac_extensions=stac_extensions,
         collection=collection_id,
+        # `renders` belongs at the ITEM ROOT, not in `properties`. The render v1.0.0 Item branch
+        # is `required: ["type", "assets", "renders"]` against the item object itself, and the
+        # extension's own examples/item-landsat8.json puts it at the root — only its README's
+        # "Item Properties" table says otherwise, and that contradicts both. Emitting it under
+        # `properties` made every item fail the extension it declared, with the misleading
+        # message "'renders' is a required property".
+        extra_fields={"renders": {"rgb": _rgb_render(preferred_orbit)}},
     )
 
     store_str = str(zarr_store)
@@ -468,12 +688,13 @@ def build_s1_rtc_per_acquisition_items(
     Raises
     ------
     ValueError
-        If the store has no acquisitions, or ``orbit`` is not present in the store.
+        If the store has no acquisitions, ``orbit`` is not present in the store, or the store name
+        carries no valid MGRS tile id.
     """
     if orbit not in _ORBIT_PREFERENCE:
         raise ValueError(f"orbit must be one of {_ORBIT_PREFERENCE}, got {orbit!r}")
 
-    tile_id = Path(zarr_store).name.removeprefix("s1-rtc-").removesuffix(".zarr")
+    tile_id = _tile_id_from_store(zarr_store)
 
     root = _open_root(zarr_store)
     if orbit not in root:
@@ -483,6 +704,27 @@ def build_s1_rtc_per_acquisition_items(
     platforms = np.array(cast("zarr.Array", r10m["platform"])).tolist()
     if not times_ns:
         raise ValueError(f"No acquisitions found for orbit {orbit!r} in: {zarr_store}")
+
+    # Per-slice orbit numbers. Unlike the cube item, a per-acquisition item is single-valued by
+    # construction, so it always carries both when the store records them. `None` per slice when the
+    # coordinates are absent (pre-#216 stores) — see `_orbit_numbers`.
+    absolute_orbits = _orbit_numbers(r10m, "absolute_orbit") or [None] * len(times_ns)
+    relative_orbits = _orbit_numbers(r10m, "relative_orbit") or [None] * len(times_ns)
+
+    # A half-completed resize can leave a metadata coordinate shorter than `time`. Say so, rather
+    # than letting the `zip(..., strict=True)` below fail with "zip() argument 4 is shorter than
+    # arguments 1-3", which names neither the store nor the array.
+    for name, values in (
+        ("platform", platforms),
+        ("absolute_orbit", absolute_orbits),
+        ("relative_orbit", relative_orbits),
+    ):
+        if len(values) != len(times_ns):
+            raise ValueError(
+                f"Cannot build per-acquisition items for {orbit!r} in {zarr_store}: "
+                f"r10m/{name} has {len(values)} entries but r10m/time has {len(times_ns)}. "
+                "The cube is half-built -- re-run the interrupted append or wipe + reingest."
+            )
 
     base = build_s1_rtc_stac_item(zarr_store, collection_id)
     base_dict = base.to_dict(include_self_link=False)
@@ -506,7 +748,9 @@ def build_s1_rtc_per_acquisition_items(
     orbit_geometry = _bbox_to_geometry(orbit_wgs84_bbox)
 
     items: list[pystac.Item] = []
-    for t_ns, platform in zip(times_ns, platforms, strict=True):
+    for t_ns, platform, abs_orbit, rel_orbit in zip(
+        times_ns, platforms, absolute_orbits, relative_orbits, strict=True
+    ):
         when = dt.datetime.fromtimestamp(t_ns / 1e9, tz=dt.UTC)
         item_dict = {**base_dict}
         item_dict["id"] = acquisition_id(tile_id, when)
@@ -521,6 +765,20 @@ def build_s1_rtc_per_acquisition_items(
         props["datetime"] = when.isoformat()
         props["sat:orbit_state"] = orbit
         props["proj:bbox"] = list(orbit_utm_bbox)
+        # Own attribution objects per item: the base's list would otherwise be shared by reference
+        # across every item built from this cube (see `_providers`).
+        props["providers"] = _providers()
+        # Override, never inherit: the cube's single-valued sat:*_orbit (if any) describes the whole
+        # cube. Pop when this orbit group records no orbit numbers, so a value the *other* orbit
+        # contributed to the base cannot leak onto these items.
+        for field, value in (
+            ("sat:absolute_orbit", abs_orbit),
+            ("sat:relative_orbit", rel_orbit),
+        ):
+            if value is None:
+                props.pop(field, None)
+            else:
+                props[field] = value
         # Per-acquisition title carries the datetime + orbit so sibling scenes are distinguishable
         # (the inherited cube title "… — tile {id}" is identical across all acquisitions).
         props["title"] = (
@@ -534,8 +792,11 @@ def build_s1_rtc_per_acquisition_items(
         normalized = _normalize_platform(platform)
         if normalized:
             props["platform"] = normalized
-        props["renders"] = {"rgb": _rgb_render(orbit)}
         item_dict["properties"] = props
+        # At the item ROOT, not in properties — see the note on the cube item's `extra_fields`.
+        # The base item is cloned per acquisition, so this also overrides whatever orbit the cube
+        # chose as preferred.
+        item_dict["renders"] = {"rgb": _rgb_render(orbit)}
 
         # Drop the datacube ext (a single acquisition is not a cube). Ensure the SAT ext is declared:
         # a per-acq item always sets sat:orbit_state, but a dual-orbit cube base omits both.
