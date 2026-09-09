@@ -5,7 +5,9 @@ from __future__ import annotations
 import io
 import urllib
 import urllib.request
+import warnings
 from dataclasses import dataclass
+from http.client import HTTPException
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -131,7 +133,20 @@ CF_STANDARD_NAME_URL = (
 try:
     CF_STANDARD_NAMES = get_cf_standard_names(url=CF_STANDARD_NAME_URL)
     DO_CF_NAME_VALIDATION = True
-except URLError:
+except (URLError, HTTPException, TimeoutError) as _cf_exc:
+    # A truncated response raises http.client.IncompleteRead, which is an HTTPException and not a
+    # URLError, so catching URLError alone let a flaky download break `import eopf_geozarr` for
+    # every mission. CF name validation is an optional check: degrade to "off", never to a crash.
+    #
+    # Warn rather than degrade silently. With validation off, `check_standard_name` accepts
+    # anything, so a caller that believes it is validating is not -- the failure has to be visible
+    # in the log or it will be mistaken for a passing check.
+    warnings.warn(
+        f"Could not fetch the CF standard name table ({type(_cf_exc).__name__}: {_cf_exc}); "
+        "CF standard-name validation is DISABLED for this process.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
     CF_STANDARD_NAMES = ()
     DO_CF_NAME_VALIDATION = False
 
