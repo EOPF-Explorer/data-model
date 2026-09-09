@@ -6,6 +6,7 @@ import json
 import os
 from math import ceil
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import numpy as np
@@ -31,6 +32,9 @@ from eopf_geozarr.conversion.s1_ingest import (
     parse_s1tiling_filename,
 )
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 # =============================================================================
 # Constants
@@ -1595,3 +1599,119 @@ class TestIntegerConditionGeotiff:
         # The declared nodata (0) must have become NaN, not stayed 0.
         values = np.asarray(arr[:])
         assert np.isnan(values).any(), "declared nodata did not become NaN"
+
+
+# =============================================================================
+# GeoZarr minispec conformance (WS2a)
+# =============================================================================
+
+
+class TestMinispecConformance:
+    """The writer must produce stores the project's own validator accepts.
+
+    Live cubes report 86 issues per store today. The causes are structural, not incidental:
+    a subgroup never inherits `zarr_conventions` (the validator passes inherited convention
+    UUIDs only to a group's direct child *arrays*), so every level group and the conditions
+    group has to declare its own; and the conditions group had no 1-D coordinate arrays at all.
+    """
+
+    @staticmethod
+    def _declared_conventions(attrs: Mapping[str, Any]) -> set[str]:
+        """Collect the `name` of every declared convention (attrs are untyped JSON)."""
+        conventions = attrs["zarr_conventions"]
+        assert isinstance(conventions, list)
+        names = set()
+        for conv in conventions:
+            assert isinstance(conv, dict)
+            names.add(conv["name"])
+        return names
+
+    @staticmethod
+    def _build(geotiff_dir: Path, store_path: Path) -> None:
+        vv = geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        vh = geotiff_dir / "s1a_32TQM_vh_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        mask = geotiff_dir / "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC_BorderMask.tif"
+        ingest_s1tiling_acquisition(vv, vh, mask, store_path, "ascending")
+
+        rng = np.random.default_rng(99)
+        gamma = geotiff_dir / "GAMMA_AREA_32TQM_037.tif"
+        _create_synthetic_geotiff(gamma, rng.uniform(0.5, 2.0, (SIZE, SIZE)).astype(np.float32))
+        ingest_s1tiling_conditions(
+            store_path=store_path,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=gamma,
+        )
+        consolidate_s1_store(store_path, "ascending")
+
+    def test_store_root_is_compliant(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
+        from eopf_geozarr.data_api.geozarr.validation import validate_store
+
+        self._build(s1_geotiff_dir, s1_store_path)
+        report = validate_store(str(s1_store_path))
+        assert report.compliant, "\n".join(str(i) for i in report.issues)
+
+    def test_orbit_group_href_is_compliant(self, s1_geotiff_dir: Path, s1_store_path: Path) -> None:
+        """STAC data assets point at the orbit groups, so each must validate standalone."""
+        from eopf_geozarr.data_api.geozarr.validation import validate_store
+
+        self._build(s1_geotiff_dir, s1_store_path)
+        report = validate_store(f"{s1_store_path}/ascending")
+        assert report.compliant, "\n".join(str(i) for i in report.issues)
+
+    def test_level_groups_declare_their_own_conventions(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        self._build(s1_geotiff_dir, s1_store_path)
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        orbit = _group(root, "ascending")
+        for level_name, _, _ in OVERVIEW_CHAIN:
+            attrs = dict(_group(orbit, level_name).attrs)
+            declared = self._declared_conventions(attrs)
+            assert "spatial:" in declared, f"{level_name} does not declare the spatial convention"
+            assert "proj:" in declared, f"{level_name} does not declare the geo-proj convention"
+            assert attrs["spatial:dimensions"] == ["y", "x"], level_name
+
+    def test_conditions_group_has_coordinate_arrays(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Without 1-D x/y the group opens with no coordinates and rioxarray infers an
+        identity transform — the georeferencing is absent, not merely undeclared."""
+        self._build(s1_geotiff_dir, s1_store_path)
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        conditions = _group(_group(root, "ascending"), "conditions")
+
+        arrays = set(conditions.array_keys())
+        assert {"x", "y"} <= arrays, f"conditions group has no coordinate arrays: {sorted(arrays)}"
+
+        declared = self._declared_conventions(dict(conditions.attrs))
+        assert "spatial:" in declared
+        assert "proj:" in declared
+
+        # x/y must describe the grid the group's own attrs record.
+        transform = dict(conditions.attrs)["spatial:transform"]
+        assert isinstance(transform, list)
+        assert float(np.asarray(_array(conditions, "x")[:])[0]) == transform[2]
+        assert float(np.asarray(_array(conditions, "y")[:])[0]) == transform[5]
+
+    def test_conditions_rejects_a_raster_on_a_different_grid(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Every condition raster in one orbit shares a single x/y pair, so a raster on
+        another grid would be stored under coordinates that do not describe it."""
+        self._build(s1_geotiff_dir, s1_store_path)
+
+        rng = np.random.default_rng(7)
+        shifted = from_bounds(XMIN + 100000.0, YMIN, XMAX + 100000.0, YMAX, SIZE, SIZE)
+        other = s1_geotiff_dir / "GAMMA_AREA_32TQM_110.tif"
+        _create_synthetic_geotiff(
+            other, rng.uniform(0.5, 2.0, (SIZE, SIZE)).astype(np.float32), transform=shifted
+        )
+
+        with pytest.raises(ValueError, match="grid mismatch"):
+            ingest_s1tiling_conditions(
+                store_path=s1_store_path,
+                orbit_direction="ascending",
+                relative_orbit=110,
+                gamma_area_path=other,
+            )

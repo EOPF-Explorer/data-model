@@ -38,12 +38,14 @@ from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
-from eopf_geozarr.conversion import fs_utils
+from eopf_geozarr.conversion import fs_utils, utils
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
+
+    from zarr.core.common import JSON
 
     from eopf_geozarr.data_api.geozarr.types import S1BackscatterAttrsJSON, S1TimeCoordAttrsJSON
     from eopf_geozarr.types import BoundingBox2D, CRSCode
@@ -647,13 +649,21 @@ def _build_orbit_group(
         level_h, level_w = level_entry["spatial:shape"]
 
         level_group = orbit_group.create_group(level_name)
-        level_group.attrs.update(
-            {
+        # A level group must declare its OWN conventions. The validator passes inherited
+        # convention UUIDs down only to a group's direct child *arrays*, never to a child group
+        # (`validation._walk`), so a subgroup can never inherit them from the orbit group — it
+        # was writing `spatial:*` and `proj:*` keys while declaring neither convention, which is
+        # 6 of the store's validation issues per level. `spatial:dimensions` is likewise required
+        # and was absent; `build_convention_attrs` refuses to build without it.
+        level_attrs = utils.build_convention_attrs(
+            spatial={
+                "spatial:dimensions": ["y", "x"],
                 "spatial:shape": [level_h, level_w],
                 "spatial:transform": level_entry["spatial:transform"],
-                "proj:code": metadata.crs,
-            }
+            },
+            crs=PyprojCRS.from_user_input(metadata.crs),
         )
+        level_group.attrs.update(cast("dict[str, JSON]", level_attrs))
 
         _create_band_arrays(level_group, level_h, level_w)
 
@@ -709,11 +719,14 @@ def create_s1_store(
     # `GeoZarrStoreAttrs.bbox` (alias `spatial:bbox`) has no default, so a store that is never
     # consolidated fails root validation outright. The minispec does not require EPSG:4326 here
     # -- `proj:code` only has to match `^[A-Z]+:[0-9]+$` and `spatial:bbox` only has to be
-    # correctly ordered -- and the native CRS and bounds are both already in hand. The
-    # `write_store_root_geo_metadata` call in `consolidate_s1_store` later overwrites
-    # conventions, bbox and `proj:code` together in a single `attrs.update`, and rebuilds the
-    # bbox union from the orbit groups rather than from the root's own value, so the two can
-    # never disagree half-way.
+    # correctly ordered -- and the native CRS and bounds are both already in hand, so the root
+    # is written in the native UTM CRS.
+    #
+    # Note this store's root is NOT passed through `utils.write_store_root_geo_metadata`, which
+    # the S2 and OLCI paths call. That helper rewrites `proj:code` to EPSG:4326 and replaces the
+    # bbox with a reprojected lon/lat union of the child groups. Adopting it here would change
+    # the root's CRS semantics for every reader, so it is a deliberate behaviour decision rather
+    # than part of making the store minispec-compliant -- the native-CRS root already validates.
     root.attrs.update(
         {
             "zarr_conventions": ZARR_CONVENTIONS,
@@ -1236,17 +1249,57 @@ def ingest_s1tiling_conditions(
     # Create or open conditions group
     if "conditions" not in orbit:
         conditions = orbit.create_group("conditions")
-        conditions.attrs.update(
-            {
-                "proj:code": ref_crs,
+        # Declare the conventions this group's own attributes use. A subgroup never inherits
+        # them: the validator hands inherited convention UUIDs only to a group's direct child
+        # *arrays*, so `conditions` writing `spatial:*` and `proj:*` while declaring neither is
+        # two of the store's validation issues.
+        conditions_attrs = utils.build_convention_attrs(
+            spatial={
                 "spatial:dimensions": ["y", "x"],
                 "spatial:transform": ref_transform,
                 "spatial:shape": ref_shape,
-            }
+            },
+            crs=PyprojCRS.from_user_input(ref_crs),
         )
+        conditions.attrs.update(cast("dict[str, JSON]", conditions_attrs))
+        # 1-D `x`/`y` so the condition rasters are georeferenced at all. Without them the group
+        # opens with "dimensions without coordinates" and rioxarray infers an identity transform
+        # -- the georeferencing is simply absent, and the validator reports one issue per
+        # dimension per condition array. Created once, from the same reference grid the group's
+        # attributes record; the guard matters because this function is called once per orbit
+        # into a shared conditions group.
+        _create_spatial_coordinate_arrays(conditions, ref_shape[0], ref_shape[1], ref_transform)
         log.info("Created conditions group", orbit_direction=orbit_direction)
     else:
         conditions = _child_group(orbit, "conditions")
+        # The group's grid is fixed by whichever file created it, and every later orbit shares
+        # one `x`/`y` pair. A condition raster on a different grid would therefore be written
+        # under coordinates that do not describe it -- silently mis-georeferenced rather than
+        # merely mislabelled, and the group stops opening at all once the shapes diverge
+        # ("conflicting sizes for dimension 'y'"). Reject it instead.
+        existing = dict(conditions.attrs)
+        existing_shape = existing.get("spatial:shape")
+        if isinstance(existing_shape, list) and [
+            int(v) for v in cast("list[float]", existing_shape)
+        ] != [int(v) for v in ref_shape]:
+            raise ValueError(
+                f"Conditions grid mismatch in {orbit_direction}: the group was created with "
+                f"shape {existing_shape} but this GeoTIFF is {ref_shape}. All condition rasters "
+                "in one orbit must share a grid -- they are stored against a single x/y pair."
+            )
+        existing_transform = existing.get("spatial:transform")
+        if isinstance(existing_transform, list):
+            stored = [float(v) for v in cast("list[float]", existing_transform)]
+            pixel = abs(stored[0])
+            if not all(
+                isclose(a, float(b), rel_tol=1e-9, abs_tol=pixel * 1e-3)
+                for a, b in zip(stored, ref_transform, strict=False)
+            ):
+                raise ValueError(
+                    f"Conditions grid mismatch in {orbit_direction}: the group was created with "
+                    f"transform {existing_transform} but this GeoTIFF has {ref_transform}. All "
+                    "condition rasters in one orbit must share a grid."
+                )
 
     # Write each condition array
     for label, cond_path in condition_inputs:
