@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from math import ceil
+from math import ceil, isclose
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
@@ -590,7 +590,18 @@ def _assert_grid_matches(root: zarr.Group, metadata: S1TilingMetadata) -> None:
         if not isinstance(store_transform, list):
             continue
         incoming_transform = [float(v) for v in metadata.spatial_transform]
-        if [float(v) for v in cast("list[float]", store_transform)] != incoming_transform:
+        stored_transform = [float(v) for v in cast("list[float]", store_transform)]
+        # Compare with a sub-pixel tolerance rather than exactly. The real failure mode is an
+        # adjacent MGRS tile, whose origin is ~100 km away -- five orders of magnitude outside
+        # any tolerance -- so nothing is lost by allowing float drift between rasterio's computed
+        # transform and the value round-tripped through the store's JSON. An exact comparison
+        # would risk rejecting every legitimate append across the existing archive to catch a
+        # difference that cannot occur in practice.
+        pixel = abs(stored_transform[0]) or 1.0
+        if len(stored_transform) != len(incoming_transform) or not all(
+            isclose(a, b, rel_tol=1e-9, abs_tol=pixel * 1e-3)
+            for a, b in zip(stored_transform, incoming_transform, strict=True)
+        ):
             raise ValueError(
                 f"Grid mismatch against orbit '{orbit_name}': the GeoTIFF is on a different grid "
                 f"than the store. Store transform {store_transform}, GeoTIFF transform "
