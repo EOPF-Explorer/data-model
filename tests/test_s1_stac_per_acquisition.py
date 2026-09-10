@@ -338,6 +338,30 @@ def test_render_object_names_the_run_orbit_asset(tmp_path: Path) -> None:
     assert all(name in item.assets for name in rgb["assets"])
 
 
+def test_properties_render_mirror_carries_the_run_orbit_not_the_cube_preference(
+    tmp_path: Path,
+) -> None:
+    """The `properties.renders` compatibility mirror must be re-pointed per acquisition.
+
+    `props` is inherited from the cube base, whose render names the *preferred* orbit — ascending
+    when both are present. A per-acquisition item built for descending that copied the base's
+    mirror unchanged would carry the ascending render in `properties` and the descending one at
+    the root: the two disagree, and the consumers still reading `properties` (which is the entire
+    reason the mirror exists) would get the wrong orbit. That is the exact defect the mirror is
+    meant to prevent, reintroduced one level down.
+    """
+    store = _make_acq_cube(
+        tmp_path, {"ascending": [(T_EARLY, "S1A")], "descending": [(T_EARLY, "S1A")]}
+    )
+    item = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+    item_dict = item.to_dict(include_self_link=False)
+
+    assert item_dict["properties"]["renders"] == item_dict["renders"]
+    mirrored = item_dict["properties"]["renders"]["rgb"]
+    assert mirrored["assets"] == ["gamma0-rtc-backscatter-desc"]
+    assert mirrored["expression"].startswith("/descending:vv")
+
+
 def test_sat_orbit_numbers_are_per_slice(tmp_path: Path) -> None:
     """A per-acquisition item is single-valued by construction, so it carries BOTH orbit numbers —
     the absolute orbit that a multi-slice cube has to drop included."""

@@ -458,8 +458,14 @@ def test_render_objects_carry_the_required_assets_field(tmp_path: Path) -> None:
     item_dict = item.to_dict(include_self_link=False)
 
     assert "renders" in item_dict, "render v1.0.0 requires `renders` at the item root"
-    assert "renders" not in item_dict["properties"], (
-        "`renders` under properties does not satisfy the render extension"
+    # `properties.renders` is a deliberate COMPATIBILITY MIRROR, not the location the extension
+    # reads: three data-pipeline consumers still fetch the old path, and one of them
+    # (`register_per_acquisition.py:132`) subscripts it directly, so dropping it outright would
+    # raise KeyError there the moment the data-model pin bumps. The root copy is authoritative;
+    # this asserts the mirror exists and cannot drift from it. Delete both the mirror and this
+    # assertion once those consumers read the root.
+    assert item_dict["properties"]["renders"] == item_dict["renders"], (
+        "the properties mirror must agree with the authoritative root `renders`"
     )
 
     for render in item_dict["renders"].values():

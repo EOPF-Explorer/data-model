@@ -402,6 +402,9 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
     preferred_bbox = preferred.utm_bbox
 
     build_time = dt.datetime.now(tz=dt.UTC).isoformat()
+    # Built once and shared by the item root and the `properties` mirror below, so the two cannot
+    # drift apart. Nothing mutates a render config after construction.
+    cube_render = {"rgb": _rgb_render(preferred_orbit)}
     properties: dict[str, object] = {
         "start_datetime": start_dt.isoformat(),
         "end_datetime": end_dt.isoformat(),
@@ -437,6 +440,12 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # Grid extension: the Sentinel-2 MGRS tile this cube is gridded onto — a queryable tile id
         # (enables tile-filtering the acquisitions collection and cube↔acquisition cross-links).
         "grid:code": f"MGRS-{tile_id}",
+        # COMPATIBILITY MIRROR (remove once data-pipeline is updated -- see the note on
+        # `extra_fields` below). The authoritative copy is the one at the item root; this
+        # duplicate exists only so pinned consumers that read `properties.renders` keep working
+        # across the relocation. Both are built from the same `_rgb_render(preferred_orbit)`
+        # call, so they cannot disagree.
+        "renders": cube_render,
     }
     if preferred.shape is not None:
         properties["proj:shape"] = preferred.shape
@@ -532,7 +541,15 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # "Item Properties" table says otherwise, and that contradicts both. Emitting it under
         # `properties` made every item fail the extension it declared, with the misleading
         # message "'renders' is a required property".
-        extra_fields={"renders": {"rgb": _rgb_render(preferred_orbit)}},
+        #
+        # It is ALSO mirrored into `properties` above, deliberately and temporarily. Three
+        # data-pipeline consumers read the old location — `register_per_acquisition.py:132`
+        # (`d["properties"]["renders"]["rgb"]`, a hard KeyError), `register_v1_s1_rtc.py:57` and
+        # `register_v1.py:191` (both `.get`, so they silently lose the render config, which turns
+        # `_reorient_item_to_orbit` into a no-op and ships the wrong orbit's render on every
+        # dual-orbit cube). Moving `renders` without the mirror breaks them the moment the
+        # data-model pin bumps. Drop the mirror once those three read the root.
+        extra_fields={"renders": cube_render},
     )
 
     store_str = str(zarr_store)
@@ -792,11 +809,17 @@ def build_s1_rtc_per_acquisition_items(
         normalized = _normalize_platform(platform)
         if normalized:
             props["platform"] = normalized
-        item_dict["properties"] = props
         # At the item ROOT, not in properties — see the note on the cube item's `extra_fields`.
         # The base item is cloned per acquisition, so this also overrides whatever orbit the cube
-        # chose as preferred.
-        item_dict["renders"] = {"rgb": _rgb_render(orbit)}
+        # chose as preferred. Both copies MUST be overwritten: `props` is inherited from the cube
+        # base, so leaving the mirror alone would leave the *preferred* orbit's render sitting in
+        # `properties` while the root carried this item's — exactly the disagreement the mirror
+        # exists to avoid. Build once and share the object between the two: they are the same
+        # render config, and nothing mutates an item after this loop.
+        render = {"rgb": _rgb_render(orbit)}
+        props["renders"] = render
+        item_dict["properties"] = props
+        item_dict["renders"] = render
 
         # Drop the datacube ext (a single acquisition is not a cube). Ensure the SAT ext is declared:
         # a per-acq item always sets sat:orbit_state, but a dual-orbit cube base omits both.
