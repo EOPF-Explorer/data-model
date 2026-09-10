@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.0 (2026-09-10)
+
+## What's Changed
+* fix(docs): update documentation to reflect GeoZarr conventions by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/230
+* feat: Sentinel-3 OLCI GeoZarr export by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/212
+* feat: GeoZarr minispec validator, compliant converter output, and doc fixes - #7 by @d-v-b in https://github.com/EOPF-Explorer/data-model/pull/237
+* deps: bump Python dependencies and pinned GitHub Actions by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/264
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.10.2...v0.11.0
+
 ## 0.10.2 (2026-07-17)
 
 ## What's Changed
