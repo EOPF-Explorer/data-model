@@ -102,6 +102,13 @@ ZARR_CONVENTIONS = [multiscales_cm.CMO, geo_proj.CMO, spatial_cm.CMO]
 # lands them must bump this to 3 and turn the warning into a hard refusal, otherwise one cube can
 # carry an ascending group with cell-centre coordinates and a descending group with edge
 # coordinates under a single STAC item.
+#
+# It covers LAYOUT, not pixel semantics, and it is written ONLY at store creation (`create_s1_store`)
+# -- never on append. So it cannot mark a cube whose time slices carry mixed semantics: bumping it
+# would stamp the cubes built fresh under the new writer (uniformly new, not mixed) and leave every
+# cube that actually becomes mixed by appending unstamped. Exactly inverted. The F11 overview-mask
+# rule change (`nearest` -> block-`max`) therefore deliberately does NOT bump it; the conformance
+# migration rewrites the affected overviews from r10m, which is idempotent and needs no marker.
 WRITER_SCHEMA: Final[int] = 2
 
 # Overview chain: (level_name, parent_name, downsample_factor)
@@ -546,6 +553,13 @@ def _create_band_arrays(level_group: zarr.Group, level_h: int, level_w: int) -> 
             # cast: zarr's `attrs.update` is typed for its JSON union, which a TypedDict
             # (invariant) doesn't satisfy structurally; the values are JSON-safe.
             band.attrs.update(cast("dict", BACKSCATTER_CF_ATTRS))
+        else:
+            # The orbit group declares `multiscales.resampling_method: "average"`, which is true
+            # for vv/vh and has never been true for the mask -- it was `nearest` before F11 and is
+            # block-`max` after. Declare the real rule on the array itself rather than leaving the
+            # group-level claim silently wrong. Its ABSENCE on a legacy cube correctly reads as
+            # "unknown", which is more than the writer stamp could ever say (see WRITER_SCHEMA).
+            band.attrs.update({"resampling_method": "max"})
 
 
 def _open_for_write(group_path: str, credentials_for: str) -> zarr.Group:

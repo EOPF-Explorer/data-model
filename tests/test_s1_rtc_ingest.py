@@ -1960,6 +1960,16 @@ class TestOverviewBorderMask:
                 f"{level_name}: {int(erased.sum())} pixel(s) of real backscatter would be erased "
                 "by a mask that calls them invalid"
             )
+            # This fixture DOES satisfy the r10m precondition (vv is NaN exactly where mask is 0),
+            # and given that precondition the two are identical at every level -- block-max and
+            # nanmean agree because a block is valid iff any source pixel was. That equivalence is
+            # what makes `slice_coverages` meaningful: it reads the mask at r720m and calls the
+            # result "the fraction of the preview image that renders as data". Pinning it here is
+            # what stops that claim silently becoming false.
+            assert np.array_equal(level_mask != 0, np.isfinite(level_vv)), (
+                f"{level_name}: mask and averaged backscatter diverged despite agreeing at r10m; "
+                "slice_coverages' preview-fill claim depends on them matching"
+            )
 
 
 # =============================================================================

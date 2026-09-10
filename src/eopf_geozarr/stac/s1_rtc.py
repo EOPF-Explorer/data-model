@@ -377,13 +377,18 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
 # Per-acquisition item construction (one queryable item per cube `time` slice)
 # ============================================================================
 
-# Default the cube preview to the most recent acquisition covering most of the tile, so a browser shows
-# fresh near-full data rather than the oldest slice.
+# Default the cube preview to the most recent acquisition that fills most of the preview FRAME, so a
+# browser shows fresh near-full data rather than the oldest slice. Not 80% of the tile's native valid
+# area -- see `slice_coverages` for why the two differ and why the frame is the right quantity here.
 COVERAGE_THRESHOLD = 0.80
 
 
 class Slice(NamedTuple):
-    """One cube time slice: its orbit group, acquisition instant, and tile coverage fraction (0..1)."""
+    """One cube time slice: its orbit group, acquisition instant, and preview-frame fill (0..1).
+
+    ``coverage`` is the fraction of the r720m preview image that renders as data -- NOT the native
+    valid-data fraction, which it over-estimates. See :func:`slice_coverages`.
+    """
 
     orbit: str
     dt: dt.datetime
@@ -393,9 +398,13 @@ class Slice(NamedTuple):
 def pick_slice(slices: list[Slice]) -> Slice | None:
     """Choose the slice the cube preview should default to.
 
-    The most recent acquisition with coverage strictly above ``COVERAGE_THRESHOLD``; if none clears it,
-    the highest-coverage slice (ties broken by most recent). Spans both orbit groups. Returns ``None``
-    for an empty cube.
+    The most recent acquisition filling more than ``COVERAGE_THRESHOLD`` of the preview frame; if
+    none clears it, the fullest slice (ties broken by most recent). Spans both orbit groups. Returns
+    ``None`` for an empty cube.
+
+    Note the two regimes: once any slice clears the gate, selection is purely by recency and the
+    fill number stops mattering; below the gate it is purely relative, where a bias shared by all
+    slices largely cancels. Only a slice sitting just under the gate is sensitive to the exact value.
     """
     if not slices:
         return None
@@ -406,11 +415,29 @@ def pick_slice(slices: list[Slice]) -> Slice | None:
 
 
 def slice_coverages(zarr_store: str) -> list[Slice]:
-    """Per-slice tile coverage from the cube, across both orbit groups.
+    """Per-slice PREVIEW-FRAME FILL from the cube, across both orbit groups.
 
-    Reads ``border_mask`` at the cheap ``r720m`` overview only (~150x150). Coverage is the fraction of
-    **valid** pixels; the S1Tiling border mask is stored with ``fill_value=0`` for the border, so valid
-    = non-zero. ``time`` is raw int64 ns (as :func:`build_s1_rtc_stac_item` reads it) -> UTC datetime.
+    Reads ``border_mask`` at the cheap ``r720m`` overview only (~150x150). The value is the fraction
+    of **valid** pixels there; the S1Tiling border mask stores ``0`` for the border, so valid =
+    non-zero. ``time`` is raw int64 ns (as :func:`build_s1_rtc_stac_item` reads it) -> UTC datetime.
+
+    What this number IS: the fraction of the preview image that renders as data. Overview masks are
+    built with block-max while vv/vh are block-averaged with ``nanmean``, and those agree exactly --
+    ``(mask != 0) == isfinite(vv)`` is array-identical at every overview level, verified in
+    ``test_mask_agrees_with_backscatter_at_every_level``. So this is precisely the right input for
+    the only decision it feeds: which slice the cube thumbnail should default to.
+
+    What it is NOT: a data-quality metric, and not the native valid-data fraction, which it
+    OVER-ESTIMATES. A block counts valid if any one of its native pixels is, and r720m is a 72x
+    reduction (5184 pixels per block), so interior no-data holes narrower than a block are filled in
+    and the swath edge is rounded outward. Measured on a solid swath edge the effect is small
+    (0.8749 native -> 0.8783 here); on a mask with fine interior holes it is not. Do not reuse this
+    as a STAC field or a quality gate, and do not "fix" it by reading a finer level -- that would
+    cost 36x the bytes and move the metric away from the quantity the decision actually needs.
+
+    Speckle cannot arise upstream: S1Tiling's ``SmoothBorderMask`` applies a binary morphological
+    opening with a ball of radius 5, so the valid set is a union of ~110 m disks. The residual
+    fine-grained invalidity is interior radar-shadow holes, which the opening preserves.
     """
     root = _open_root(zarr_store)
     out: list[Slice] = []
