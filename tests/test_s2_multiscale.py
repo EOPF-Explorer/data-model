@@ -100,13 +100,14 @@ def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_
     assert isinstance(derived_level, Mapping)
     transform = derived_level["spatial:transform"]
     assert isinstance(transform, Sequence)
+    # Origin is the outer pixel edge, half of the 120 m pixel outside the first centre.
     assert tuple(transform) == (
         120.0,
         0.0,
-        600030.0,
+        599970.0,
         0.0,
         -120.0,
-        4899990.0,
+        4900050.0,
     )
 
 

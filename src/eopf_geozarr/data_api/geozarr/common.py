@@ -6,6 +6,7 @@ import io
 import urllib
 import urllib.request
 from dataclasses import dataclass
+from http.client import HTTPException
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -131,7 +132,9 @@ CF_STANDARD_NAME_URL = (
 try:
     CF_STANDARD_NAMES = get_cf_standard_names(url=CF_STANDARD_NAME_URL)
     DO_CF_NAME_VALIDATION = True
-except URLError:
+except (URLError, HTTPException, OSError):
+    # A truncated response raises IncompleteRead, not URLError, and this runs at
+    # import time — an unhandled one makes `import eopf_geozarr` fail outright.
     CF_STANDARD_NAMES = ()
     DO_CF_NAME_VALIDATION = False
 
