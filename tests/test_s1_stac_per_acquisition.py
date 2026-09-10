@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -25,9 +25,6 @@ from eopf_geozarr.stac.s1_rtc import (
 )
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 CRS = make_crs_code("EPSG:32631")
 UTM_BBOX = make_bounding_box([300000.0, 4900000.0, 400000.0, 5000000.0])
 
@@ -35,6 +32,9 @@ UTM_BBOX = make_bounding_box([300000.0, 4900000.0, 400000.0, 5000000.0])
 # datetime follows its own slice, not its list position.
 T_LATER = int(dt.datetime(2026, 6, 7, 5, 52, 48, tzinfo=dt.UTC).timestamp() * 1e9)
 T_EARLY = int(dt.datetime(2026, 6, 5, 6, 9, 7, tzinfo=dt.UTC).timestamp() * 1e9)
+
+# (first absolute orbit, relative orbit) per orbit direction, written by ``_make_acq_cube``.
+_ORBIT_NUMBERS = {"ascending": (58011, 37), "descending": (57050, 110)}
 
 
 # =============================================================================
@@ -136,6 +136,8 @@ def test_slice_coverages_times_are_utc_datetimes(tmp_path: Path) -> None:
 
 
 def test_slice_coverages_skips_missing_orbit(tmp_path: Path) -> None:
+    # The store name is descriptive, not a real cube name: `slice_coverages` reads coverage only and
+    # never derives a tile id from it, so it is not subject to the MGRS validation the builders do.
     store = str(tmp_path / "s1-rtc-asc-only.zarr")
     root = zarr.open_group(store, mode="w", zarr_format=3)
     _write_r720m(root, "ascending", [np.ones((4, 4))], [7])
@@ -148,9 +150,16 @@ def test_slice_coverages_skips_missing_orbit(tmp_path: Path) -> None:
 
 
 def _make_acq_cube(
-    tmp_path: Path, orbits: dict[str, list[tuple[int, str]]], tile_id: str = "31TCH"
+    tmp_path: Path,
+    orbits: dict[str, list[tuple[int, str]]],
+    tile_id: str = "31TCH",
+    orbit_numbers: bool = True,
 ) -> str:
-    """A cube with r10m time/platform (+ tiny data arrays) per orbit — enough to build per-acq items."""
+    """A cube with r10m time/platform (+ tiny data arrays) per orbit — enough to build per-acq items.
+
+    ``orbit_numbers=False`` omits the int32 absolute/relative orbit coordinates, mirroring a store
+    written before ``s1_ingest`` recorded them.
+    """
     store = str(tmp_path / f"s1-rtc-{tile_id}.zarr")
     root = zarr.open_group(store, mode="w", zarr_format=3)
     ny = nx = 4
@@ -171,6 +180,16 @@ def _make_acq_cube(
         r10m.create_array("platform", shape=platforms.shape, dtype="<U4", chunks=(512,))[:] = (
             platforms
         )
+        if orbit_numbers:
+            # int32 `time` coords as s1_ingest.py writes them: a track per orbit direction, and an
+            # absolute orbit unique per acquisition.
+            base_abs, rel = _ORBIT_NUMBERS[orbit]
+            r10m.create_array("absolute_orbit", shape=(nt,), dtype="int32", chunks=(512,))[:] = (
+                np.array([base_abs + i for i in range(nt)], dtype="int32")
+            )
+            r10m.create_array("relative_orbit", shape=(nt,), dtype="int32", chunks=(512,))[:] = (
+                np.full(nt, rel, dtype="int32")
+            )
         for name, dtype in (("vv", "float32"), ("vh", "float32"), ("border_mask", "uint8")):
             r10m.create_array(name, shape=(nt, ny, nx), dtype=dtype, chunks=(1, ny, nx))[:] = 0
     zarr.consolidate_metadata(store, zarr_format=3)
@@ -215,7 +234,9 @@ def test_reorients_orbit_metadata_and_keeps_only_run_orbit_asset(tmp_path: Path)
     assert item.properties["sat:orbit_state"] == "descending"
     # SAT ext must be declared even though the dual-orbit cube base omitted it.
     assert "https://stac-extensions.github.io/sat/v1.0.0/schema.json" in item.stac_extensions
-    assert item.properties["renders"]["rgb"]["expression"].startswith("/descending:vv")
+    assert item.to_dict(include_self_link=False)["renders"]["rgb"]["expression"].startswith(
+        "/descending:vv"
+    )
     assert "gamma0-rtc-backscatter-desc" in item.assets
     assert "gamma0-rtc-backscatter-asc" not in item.assets
     assert "border-mask-asc" not in item.assets
@@ -224,14 +245,18 @@ def test_reorients_orbit_metadata_and_keeps_only_run_orbit_asset(tmp_path: Path)
 
 def test_per_slice_platform_and_no_datacube(tmp_path: Path) -> None:
     """Each item gets its own slice's platform (normalized to the STAC convention); a single
-    acquisition is not a datacube, and `created` is not set."""
+    acquisition is not a datacube.
+
+    `created` used to be asserted absent here; the collection requires it, and it is inherited from
+    the cube base as the metadata build time (STAC Common Metadata, not the timestamps extension).
+    """
     store = _make_acq_cube(tmp_path, {"descending": [(T_LATER, "s1a"), (T_EARLY, "s1c")]})
     items = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")
     assert [i.properties["platform"] for i in items] == ["sentinel-1a", "sentinel-1c"]
     for item in items:
         assert "cube:dimensions" not in item.properties
         assert DATACUBE_EXT not in item.stac_extensions
-        assert "created" not in item.properties
+        assert dt.datetime.fromisoformat(item.properties["created"])
 
 
 def test_grid_code_inherited_from_cube(tmp_path: Path) -> None:
@@ -294,3 +319,130 @@ def test_datetime_follows_slice_not_physical_position(tmp_path: Path) -> None:
     assert items[0].properties["datetime"] == "2026-06-07T05:52:48+00:00"
     assert items[1].properties["datetime"] == "2026-06-05T06:09:07+00:00"
     assert items[0].id == "s1-rtc-31TCH-20260607t055248"
+
+
+def test_render_object_names_the_run_orbit_asset(tmp_path: Path) -> None:
+    """`assets` is the one REQUIRED field of a Render Object (render v1.0.0), and on a per-acq item
+    it must name the run orbit's γ⁰ asset — the only γ⁰ asset the item still has.
+
+    Without it every emitted item failed the render extension it declared, so `stac-validator` (and
+    a validating STAC API) rejected it.
+    """
+    store = _make_acq_cube(
+        tmp_path, {"ascending": [(T_EARLY, "S1A")], "descending": [(T_EARLY, "S1A")]}
+    )
+    item = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+
+    rgb = item.to_dict(include_self_link=False)["renders"]["rgb"]
+    assert rgb["assets"] == ["gamma0-rtc-backscatter-desc"]
+    assert all(name in item.assets for name in rgb["assets"])
+
+
+def test_properties_render_mirror_carries_the_run_orbit_not_the_cube_preference(
+    tmp_path: Path,
+) -> None:
+    """The `properties.renders` compatibility mirror must be re-pointed per acquisition.
+
+    `props` is inherited from the cube base, whose render names the *preferred* orbit — ascending
+    when both are present. A per-acquisition item built for descending that copied the base's
+    mirror unchanged would carry the ascending render in `properties` and the descending one at
+    the root: the two disagree, and the consumers still reading `properties` (which is the entire
+    reason the mirror exists) would get the wrong orbit. That is the exact defect the mirror is
+    meant to prevent, reintroduced one level down.
+    """
+    store = _make_acq_cube(
+        tmp_path, {"ascending": [(T_EARLY, "S1A")], "descending": [(T_EARLY, "S1A")]}
+    )
+    item = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+    item_dict = item.to_dict(include_self_link=False)
+
+    assert item_dict["properties"]["renders"] == item_dict["renders"]
+    mirrored = item_dict["properties"]["renders"]["rgb"]
+    assert mirrored["assets"] == ["gamma0-rtc-backscatter-desc"]
+    assert mirrored["expression"].startswith("/descending:vv")
+
+
+def test_sat_orbit_numbers_are_per_slice(tmp_path: Path) -> None:
+    """A per-acquisition item is single-valued by construction, so it carries BOTH orbit numbers —
+    the absolute orbit that a multi-slice cube has to drop included."""
+    store = _make_acq_cube(tmp_path, {"descending": [(T_LATER, "S1A"), (T_EARLY, "S1A")]})
+    items = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")
+
+    assert [i.properties["sat:absolute_orbit"] for i in items] == [57050, 57051]
+    assert [i.properties["sat:relative_orbit"] for i in items] == [110, 110]
+    assert all(
+        "https://stac-extensions.github.io/sat/v1.0.0/schema.json" in i.stac_extensions
+        for i in items
+    )
+
+
+def test_sat_orbit_numbers_absent_when_the_store_has_none(tmp_path: Path) -> None:
+    """A pre-#216 store without the orbit coordinates must still build items, without the fields."""
+    store = _make_acq_cube(tmp_path, {"descending": [(T_EARLY, "S1A")]}, orbit_numbers=False)
+    item = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+
+    assert "sat:absolute_orbit" not in item.properties
+    assert "sat:relative_orbit" not in item.properties
+    assert item.properties["sat:orbit_state"] == "descending"  # still single-orbit by construction
+
+
+def test_sat_orbit_numbers_do_not_leak_from_the_other_orbit(tmp_path: Path) -> None:
+    """The cube base's single-valued sat:*_orbit must never survive onto an orbit that records none.
+
+    Only the ascending group carries orbit coordinates here, so the base cube emits its values; the
+    descending items must drop them rather than inherit another track's orbit numbers.
+    """
+    store = str(tmp_path / "s1-rtc-31TCH.zarr")
+    root = zarr.open_group(store, mode="w", zarr_format=3)
+    ny = nx = 4
+    for orbit in ("ascending", "descending"):
+        og = root.create_group(orbit)
+        og.attrs.update({"proj:code": CRS, "spatial:bbox": UTM_BBOX})
+        r10m = og.create_group("r10m")
+        r10m.create_array("time", shape=(1,), dtype="int64", chunks=(512,))[:] = [T_EARLY]
+        r10m.create_array("platform", shape=(1,), dtype="<U4", chunks=(512,))[:] = ["S1A"]
+        if orbit == "ascending":
+            r10m.create_array("absolute_orbit", shape=(1,), dtype="int32", chunks=(512,))[:] = [
+                58011
+            ]
+            r10m.create_array("relative_orbit", shape=(1,), dtype="int32", chunks=(512,))[:] = [37]
+        for name, dtype in (("vv", "float32"), ("vh", "float32"), ("border_mask", "uint8")):
+            r10m.create_array(name, shape=(1, ny, nx), dtype=dtype, chunks=(1, ny, nx))[:] = 0
+    zarr.consolidate_metadata(store, zarr_format=3)
+
+    desc = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")[0]
+    assert "sat:absolute_orbit" not in desc.properties
+    assert "sat:relative_orbit" not in desc.properties
+
+    asc = build_s1_rtc_per_acquisition_items(store, orbit="ascending", collection_id="acq")[0]
+    assert asc.properties["sat:absolute_orbit"] == 58011
+
+
+def test_each_item_gets_its_own_providers_block(tmp_path: Path) -> None:
+    """Attribution is copied down from the collection onto every item (a STAC API search returns
+    items without their collection), and each item owns its objects rather than sharing the cube's.
+    """
+    store = _make_acq_cube(tmp_path, {"descending": [(T_LATER, "S1A"), (T_EARLY, "S1A")]})
+    items = build_s1_rtc_per_acquisition_items(store, orbit="descending", collection_id="acq")
+
+    for item in items:
+        assert {p["name"] for p in item.properties["providers"]} == {
+            "European Commission",
+            "ESA",
+            "EOPF Sentinel Zarr Samples Service",
+        }
+    # Distinct objects: editing one item's providers must not rewrite its siblings'.
+    first, second = (i.properties["providers"] for i in items)
+    assert first is not second
+    assert first[0] is not second[0]
+
+
+def test_malformed_store_name_raises_before_any_item_is_built(tmp_path: Path) -> None:
+    """The per-acquisition builder derives the same tile id, so it must reject the same names —
+    otherwise it mints ids like `s1-rtc-cube-20260605t060907` with a `MGRS-cube` grid code."""
+    store = _make_acq_cube(tmp_path, {"descending": [(T_EARLY, "S1A")]})
+    renamed = Path(store).with_name("cube.zarr")
+    Path(store).rename(renamed)
+
+    with pytest.raises(ValueError, match="MGRS tile id"):
+        build_s1_rtc_per_acquisition_items(str(renamed), orbit="descending", collection_id="acq")

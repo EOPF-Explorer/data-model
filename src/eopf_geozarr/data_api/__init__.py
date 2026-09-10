@@ -4,6 +4,7 @@ The Sentinel-2 models in this package are zarr-integrated, extending pydantic-za
 GroupSpec and ArraySpec classes for direct reading/writing of zarr stores.
 """
 
+from eopf_geozarr.data_api.s1_rtc import S1RtcRoot
 from eopf_geozarr.data_api.s2 import (
     ALL_BAND_NAMES,
     NATIVE_BANDS,
@@ -34,6 +35,7 @@ __all__ = [
     "QualityDataName",
     "ResolutionLevel",
     # Models
+    "S1RtcRoot",
     "Sentinel2BandInfo",
     "Sentinel2ConditionsGroup",
     "Sentinel2CoordinateArray",
