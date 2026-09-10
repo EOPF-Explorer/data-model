@@ -15,8 +15,11 @@ Public API:
 
 from __future__ import annotations
 
+import base64
+import datetime as dt
 import json
 import re
+import struct
 from dataclasses import dataclass
 from math import ceil, isclose
 from pathlib import Path
@@ -28,11 +31,7 @@ import structlog
 import zarr
 import zarr.codecs
 from pyproj import CRS as PyprojCRS
-
-# `FillValueCoder` is xarray's internal CF fill-value encoder: the canonical way to produce
-# the base64 `_FillValue` xarray reads back under `use_zarr_fill_value_as_mask` (xarray
-# #11345); the S2 path relies on the same mechanism. Internal API — revisit if xarray moves it.
-from xarray.backends.zarr import FillValueCoder
+from rasterio.errors import RasterioIOError
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
@@ -43,6 +42,7 @@ from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from contextlib import AbstractContextManager
 
     from zarr.core.common import JSON
@@ -129,6 +129,16 @@ S1TILING_FILENAME_PATTERN = re.compile(
     r"(?P<mask>_BorderMask)?\.tif$"
 )
 
+# The orbit-direction group name each short filename code maps to. Discovery reads the short
+# form out of the filename; the store, the ingester and STAC all speak the long form.
+ORBIT_DIR_TO_GROUP: Final = {"ASC": "ascending", "DES": "descending"}
+# The long forms `ingest_s1tiling_acquisition` accepts, derived so the two cannot drift.
+VALID_ORBIT_DIRECTIONS: Final = tuple(ORBIT_DIR_TO_GROUP.values())
+
+# The bundle keys the ingester actually reads. `vh_mask` is discovered and returned for
+# completeness but never consumed, so requiring it would condemn ingestable bundles.
+REQUIRED_ACQUISITION_KEYS: Final = ("vv", "vh", "vv_mask")
+
 # S1Tiling conditions filename patterns
 # e.g. GAMMA_AREA_31TCH_008.tif or GAMMA_AREA_s1a_31TCH_ASC_008.tif
 S1TILING_GAMMA_AREA_PATTERN = re.compile(
@@ -168,18 +178,53 @@ class S1TilingMetadata:
 # =============================================================================
 
 
-def _normalise_s1tiling_datetime(dt_str: str) -> str:
-    """Normalise S1Tiling datetime format to ISO 8601.
+def _normalise_s1tiling_datetime(dt_str: str, source: str | Path | None = None) -> str:
+    """Normalise an S1Tiling ``ACQUISITION_DATETIME`` tag to ISO 8601.
 
-    Input:  "2025:02:10T06:09:20Z" (S1Tiling uses colons in date part)
+    Input:  "2025:02:10T06:09:20Z" (S1Tiling uses colons in the date part)
     Output: "2025-02-10T06:09:20"
+
+    Also accepts the space-separated form ("2025:02:10 06:09:20"), which real S1Tiling output
+    does emit -- GDAL writes it that way when the tag round-trips through a TIFF `DateTime`.
+
+    Anything else RAISES here, naming the raw tag and the file it came from. Previously an
+    unrecognised form was passed through untouched and only failed ~560 lines later inside
+    `np.datetime64(...)`, from a traceback that named neither the tag nor the GeoTIFF -- after
+    the ingest had already opened and read the rasters.
+
+    Raises
+    ------
+    ValueError
+        If the normalised value is not a valid ISO 8601 datetime.
     """
-    dt_normalised = dt_str.replace("Z", "")
-    parts = dt_normalised.split("T")
-    if len(parts) == 2:
-        date_part = parts[0].replace(":", "-")
-        dt_normalised = f"{date_part}T{parts[1]}"
-    return dt_normalised
+    # ' ' is the RFC 3339 / TIFF DateTime separator for the same value, so fold it to 'T' first.
+    # The date part uses ':' as its separator and the time part legitimately does too, so only
+    # the field before the separator is rewritten.
+    dt_normalised = dt_str.strip().removesuffix("Z").replace(" ", "T", 1)
+    date_part, sep, time_part = dt_normalised.partition("T")
+    if sep:
+        dt_normalised = f"{date_part.replace(':', '-')}T{time_part}"
+
+    # Return what the parser produced, NOT the input string. `fromisoformat` is a different
+    # parser from the `np.datetime64` that ultimately consumes this value, and merely *checking*
+    # with one while passing the other the raw text blesses forms the two disagree about:
+    #   '20230115'        -> np.datetime64 reads dtype datetime64[Y], the YEAR 20230115, which
+    #                        lands in the store as 2206-09-06 with no error and then makes the
+    #                        out-of-order guard reject every later append to that orbit.
+    #   '20230115T061234' -> fromisoformat accepts, np.datetime64 raises -- the late failure this
+    #                        function exists to prevent.
+    # Canonicalising through `.isoformat()` leaves exactly one spelling, which both parsers agree
+    # on, so the gate and the consumer can no longer diverge.
+    try:
+        parsed = dt.datetime.fromisoformat(dt_normalised)
+    except ValueError as exc:
+        where = f" in {source}" if source is not None else ""
+        raise ValueError(
+            f"Unparseable ACQUISITION_DATETIME{where}: {dt_str!r} "
+            f"(normalised to {dt_normalised!r}). Expected an S1Tiling stamp such as "
+            "'2025:02:10T06:09:20Z' or '2025:02:10 06:09:20'."
+        ) from exc
+    return parsed.isoformat()
 
 
 def extract_geotiff_metadata(path: str | Path) -> S1TilingMetadata:
@@ -208,7 +253,7 @@ def extract_geotiff_metadata(path: str | Path) -> S1TilingMetadata:
             raise ValueError(f"GeoTIFF {path} missing required tags: {missing}")
 
         dt_raw = tags["ACQUISITION_DATETIME"]
-        dt_normalised = _normalise_s1tiling_datetime(dt_raw)
+        dt_normalised = _normalise_s1tiling_datetime(dt_raw, source=path)
 
         metadata = S1TilingMetadata(
             crs=make_crs_code(str(src.crs)),
@@ -312,8 +357,14 @@ def _create_spatial_coordinate_arrays(
     level_h: int,
     level_w: int,
     level_transform: list[float],
+    only: Sequence[str] | None = None,
 ) -> None:
-    """Create 1D x and y spatial coordinate arrays at a resolution level."""
+    """Create 1D x and y spatial coordinate arrays at a resolution level.
+
+    ``only`` restricts creation to the named coordinates, for backfilling a group that already
+    carries one of them -- recreating an existing coordinate raises ``ContainsArrayError``.
+    """
+    wanted = ("x", "y") if only is None else tuple(only)
     pixel_w = level_transform[0]  # a: pixel width
     x_origin = level_transform[2]  # c: x origin (left edge)
     pixel_h = level_transform[4]  # e: pixel height (negative)
@@ -326,6 +377,13 @@ def _create_spatial_coordinate_arrays(
         y_origin, y_origin + level_h * pixel_h, level_h, endpoint=False, dtype="float64"
     )
 
+    if "x" in wanted:
+        _create_x_coordinate(level_group, x_coords, level_w)
+    if "y" in wanted:
+        _create_y_coordinate(level_group, y_coords, level_h)
+
+
+def _create_x_coordinate(level_group: zarr.Group, x_coords: np.ndarray, level_w: int) -> None:
     x_arr = level_group.create_array(
         "x",
         data=x_coords,
@@ -342,6 +400,8 @@ def _create_spatial_coordinate_arrays(
         }
     )
 
+
+def _create_y_coordinate(level_group: zarr.Group, y_coords: np.ndarray, level_h: int) -> None:
     y_arr = level_group.create_array(
         "y",
         data=y_coords,
@@ -373,11 +433,22 @@ TIME_CF_ATTRS: Final[S1TimeCoordAttrsJSON] = {
 # CF `_FillValue` for the float32 arrays, mirroring the S1 GRD converter (geozarr.py)
 # and S2 (data-model #172). This is what lets xarray mask NaN nodata via
 # `use_zarr_fill_value_as_mask=True` despite xarray #11345 — the zarr-level `fill_value`
-# field alone is not surfaced through xarray's encoding. We encode it with
-# `FillValueCoder` so the stored attribute matches the base64 form S2 writes
-# (`AAAAAAAA+H8=`). The S2 path gets this for free via `to_zarr`; this store is written
-# zarr-direct, so the attribute must be set explicitly.
-FLOAT32_NAN_FILL_VALUE = FillValueCoder.encode(np.nan, np.dtype("float32"))
+# field alone is not surfaced through xarray's encoding. The stored attribute must match the
+# base64 form S2 writes; the S2 path gets it for free via `to_zarr`, but this store is written
+# zarr-direct, so the attribute is set explicitly.
+# CF `_FillValue` for the float32 arrays: the base64 IEEE-754 NaN bit pattern, which is what
+# lets xarray mask NaN nodata via `use_zarr_fill_value_as_mask=True` despite xarray #11345 (the
+# zarr-level `fill_value` field alone is not surfaced through xarray's encoding). The S2 path
+# gets this for free via `to_zarr`; this store is written zarr-direct, so it is set explicitly.
+#
+# Encoded with the stdlib rather than xarray's `FillValueCoder`. That encoder is PRIVATE
+# (`xarray.backends.zarr`), and importing it at module scope meant any xarray reorganisation
+# raised from `import eopf_geozarr` itself, taking down the S2 and OLCI paths that never touch
+# S1. Guarding the import only covered the rename case -- a signature or return-type change
+# still raised at module scope, since the value is needed at import time either way. Eight bytes
+# of `struct` cannot break. `test_float32_nan_fill_value_matches_xarray` keeps the two pinned
+# together, so if xarray ever encodes it differently that surfaces as a CI failure here.
+FLOAT32_NAN_FILL_VALUE: Final = base64.b64encode(struct.pack("<d", float("nan"))).decode()
 # CF metadata for the backscatter bands (vv/vh).
 BACKSCATTER_CF_ATTRS: S1BackscatterAttrsJSON = {
     "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
@@ -755,8 +826,12 @@ def create_s1_store(
 def _downsample_2d(data: np.ndarray, factor: int, method: str = "average") -> np.ndarray:
     """Downsample a 2D array by the given integer factor.
 
-    For average method, handles non-divisible sizes via edge padding.
-    For nearest method, uses stride-based subsampling.
+    ``average`` block-means, ``max`` block-maxes, and both handle non-divisible sizes via edge
+    padding on the same ``ceil(h / factor)`` grid -- so a mask downsampled with ``max`` stays
+    aligned with backscatter downsampled with ``average``, pixel for pixel.
+
+    ``nearest`` is stride-based subsampling. It is NOT valid for the border mask: see the
+    overview loop, which uses ``max``.
     """
     h, w = data.shape
     new_h = ceil(h / factor)
@@ -765,12 +840,20 @@ def _downsample_2d(data: np.ndarray, factor: int, method: str = "average") -> np
     if method == "nearest":
         return data[::factor, ::factor][:new_h, :new_w]
 
-    # Average: block mean with edge padding for non-divisible sizes
+    # Block reduction with edge padding for non-divisible sizes. Edge padding replicates real
+    # border values, so it can never invent validity the source did not have.
     pad_h = new_h * factor - h
     pad_w = new_w * factor - w
     padded = np.pad(data, ((0, pad_h), (0, pad_w)), mode="edge") if pad_h > 0 or pad_w > 0 else data
 
     reshaped = padded.reshape(new_h, factor, new_w, factor)
+    if method == "max":
+        return reshaped.max(axis=(1, 3)).astype(data.dtype)
+    if method != "average":
+        # Anything unrecognised used to fall through to the block mean, which for the uint8 mask
+        # silently reproduces the exact defect this branch exists to fix: a block of [1,0,0,0]
+        # means 0.25 and truncates to 0, marking real data invalid. A typo must not do that.
+        raise ValueError(f"Unknown downsample method {method!r}: expected average, max or nearest")
     if np.issubdtype(data.dtype, np.floating):
         return np.nanmean(reshaped, axis=(1, 3)).astype(data.dtype)
     return reshaped.mean(axis=(1, 3)).astype(data.dtype)
@@ -822,8 +905,21 @@ def ingest_s1tiling_acquisition(
     FileNotFoundError
         If any of the input GeoTIFF paths do not exist.
     ValueError
-        If the GeoTIFF CRS or shape does not match the existing store.
+        If ``orbit_direction`` is not one of ``VALID_ORBIT_DIRECTIONS``, or if the GeoTIFF CRS
+        or shape does not match the existing store.
     """
+    # FIRST, before any path coercion or I/O. The only previous guard was argparse `choices`,
+    # and no CLI command consumes discovery -- so the library path IS the production path. A
+    # caller passing discovery's short `orbit_dir` ("ASC") reached `create_group(orbit_direction)`
+    # unchecked and built `<store>/ASC/`, which STAC only reported as `No acquisitions found`
+    # after the whole multi-hour ingest had completed. Fail in the first second instead.
+    if orbit_direction not in VALID_ORBIT_DIRECTIONS:
+        raise ValueError(
+            f"orbit_direction must be one of {list(VALID_ORBIT_DIRECTIONS)}, "
+            f"got {orbit_direction!r}. Discovery exposes this as `orbit_direction`; "
+            "`orbit_dir` is the short filename form (ASC/DES) and is not accepted here."
+        )
+
     vv_path = _coerce_input_path(vv_path)
     vh_path = _coerce_input_path(vh_path)
     border_mask_path = _coerce_input_path(border_mask_path)
@@ -897,7 +993,17 @@ def ingest_s1tiling_acquisition(
     for level_name, _, factor in OVERVIEW_CHAIN[1:]:
         prev_vv = _downsample_2d(prev_vv, factor, "average")
         prev_vh = _downsample_2d(prev_vh, factor, "average")
-        prev_mask = _downsample_2d(prev_mask, factor, "nearest")
+        # `max`, NOT `nearest`. The mask is documented as the authoritative valid-data mask and
+        # STAC advertises it with `nodata: 0`, but subsampling it while vv/vh were block-averaged
+        # broke that: on a diagonal swath edge, 60 pixels at r20m (20 at r60m, 10 at r120m) had
+        # `border_mask == 0` over finite `vv`, so applying the mask at preview zoom erased a band
+        # of real data. Block-max over the same padded grid guarantees the direction that
+        # matters -- `isfinite(vv) => mask != 0` -- by construction: a block's vv is finite iff
+        # some source pixel was finite, and every such pixel has `mask != 0`, so the block's max
+        # mask is non-zero. NOT the converse: real γ⁰ can be NaN inside the swath (a dropout with
+        # `border_mask == 1`), where the two already disagree at r10m and no downsampling rule
+        # can repair it. Do not "restore" a bidirectional invariant here; real data violates it.
+        prev_mask = _downsample_2d(prev_mask, factor, "max")
         data_by_level[level_name] = (prev_vv, prev_vh, prev_mask)
 
     log.info("Overviews generated", levels=len(data_by_level))
@@ -1152,28 +1258,102 @@ def _acq_stamp_from_geotiff(path: str | Path) -> str:
     return f"{date_part.replace('-', '')}t{time_part.replace(':', '')}"
 
 
-def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
+def _bundle_key(parsed: dict) -> tuple:
+    """The grouping key WITHOUT the stamp -- identifies one acquisition's files."""
+    return (parsed["platform"], parsed["tile"], parsed["orbit_dir"], parsed["rel_orbit"])
+
+
+def _resolve_masked_stamps(parsed_files: list[tuple[str | Path, dict]]) -> dict[tuple, str]:
+    """Resolve the real acquisition stamp for each masked multi-frame bundle, once per bundle.
+
+    Multi-frame products mask the filename time (`...txxxxxx`), so the real stamp has to come
+    from a GeoTIFF's ACQUISITION_DATETIME tag (#183).
+
+    Resolved PER BUNDLE, trying each file until one carries the tag, because `acq_stamp` is part
+    of the grouping key. Resolving per file split one acquisition in two as soon as a single file
+    failed: derived `_BorderMask` products commonly carry no ACQUISITION_DATETIME, so vv/vh keyed
+    under the resolved stamp and the masks under the masked one -- two half-bundles that the
+    `skip_incomplete` default then discarded, so discovery returned `[]` with every file present
+    on disk and the ingest loop reported success having written nothing. Any sibling's stamp is
+    authoritative: they are the same acquisition, which is exactly what the rest of the key says.
+
+    A bundle absent from the result is one where no file carried a usable tag.
+    """
+    resolved: dict[tuple, str] = {}
+    failures: dict[tuple, list[str]] = {}
+    for path, parsed in parsed_files:
+        if "x" not in parsed["acq_stamp"]:
+            continue
+        bundle = (*_bundle_key(parsed), parsed["acq_stamp"])
+        if bundle in resolved:
+            continue
+        try:
+            resolved[bundle] = _acq_stamp_from_geotiff(path)
+        except (ValueError, KeyError, RasterioIOError) as exc:
+            failures.setdefault(bundle, []).append(f"{path}: {exc}")
+
+    for bundle, errors in failures.items():
+        if bundle in resolved:
+            continue
+        # A GeoTIFF with missing or unparseable tags used to raise straight out of discovery, so
+        # ONE bad file aborted an entire archive -- while an unparseable *filename* is silently
+        # skipped. Report the whole bundle at once and let the caller mark it incomplete.
+        log.warning(
+            "No file in this bundle carries a usable ACQUISITION_DATETIME; "
+            "it cannot be stamped and is marked incomplete",
+            bundle=bundle,
+            errors=errors,
+        )
+    return resolved
+
+
+def discover_s1tiling_acquisitions(
+    input_dir: str | Path, skip_incomplete: bool = True
+) -> list[dict]:
     """Discover and group S1Tiling GeoTIFF files into acquisition bundles.
 
     Returns a list of dicts, each with keys:
-        platform, tile, orbit_dir, rel_orbit, acq_stamp, vv, vh, vv_mask, vh_mask
+        platform, tile, orbit_dir, orbit_direction, rel_orbit, acq_stamp, complete,
+        vv, vh, vv_mask, vh_mask
 
-    Logs warnings for incomplete acquisitions (missing polarisation or mask files).
+    ``orbit_direction`` is the long form the ingester accepts; ``orbit_dir`` keeps the short
+    ``ASC``/``DES`` form that filename reconstruction needs.
+
+    Parameters
+    ----------
+    skip_incomplete : bool, default True
+        Drop bundles that cannot actually be ingested. Previously every bundle was returned
+        regardless, so a VV-only acquisition reached `ingest_s1tiling_acquisition` and died on
+        `KeyError: 'vh'` -- after the warning that should have prevented it. Pass ``False`` to
+        get them all back and triage yourself; each carries ``complete``.
+
+    Notes
+    -----
+    Completeness means the keys the ingester actually reads: ``vv``, ``vh`` and ``vv_mask``.
+    ``vh_mask`` is discovered and returned but never consumed -- requiring it wrongly condemned
+    perfectly ingestable bundles.
     """
     files = _list_tifs(input_dir)
     groups: dict[tuple, dict] = {}
 
+    parsed_files = []
     for f in files:
         parsed = parse_s1tiling_filename(Path(str(f)).name)
-        if parsed is None:
-            continue
+        if parsed is not None:
+            parsed_files.append((f, parsed))
 
+    masked_stamps = _resolve_masked_stamps(parsed_files)
+
+    for f, parsed in parsed_files:
         acq_stamp = parsed["acq_stamp"]
+        unstamped = False
         if "x" in acq_stamp:
-            # Multi-frame product: the filename time is masked (…txxxxxx); resolve the real
-            # stamp from the GeoTIFF ACQUISITION_DATETIME tag so grouping + downstream STAC
-            # datetime are correct (#183).
-            acq_stamp = _acq_stamp_from_geotiff(f)
+            bundle = (*_bundle_key(parsed), acq_stamp)
+            resolved = masked_stamps.get(bundle)
+            if resolved is None:
+                unstamped = True
+            else:
+                acq_stamp = resolved
 
         key = (
             parsed["platform"],
@@ -1187,10 +1367,19 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
             groups[key] = {
                 "platform": parsed["platform"],
                 "tile": parsed["tile"],
+                # Short form ("ASC"/"DES"), kept because filename reconstruction needs it.
                 "orbit_dir": parsed["orbit_dir"],
+                # Long form ("ascending"/"descending") -- the zarr group name, and the ONLY
+                # value `ingest_s1tiling_acquisition` accepts. Discovery used to emit the short
+                # form alone, so a caller passing `acq["orbit_dir"]` straight through built
+                # `<store>/ASC/` and STAC then failed with `No acquisitions found` after a
+                # multi-hour ingest.
+                "orbit_direction": ORBIT_DIR_TO_GROUP[parsed["orbit_dir"]],
                 "rel_orbit": parsed["rel_orbit"],
                 "acq_stamp": acq_stamp,
             }
+        if unstamped:
+            groups[key]["_unstamped"] = True
 
         pol = parsed["pol"]
         is_mask = parsed["is_mask"]
@@ -1205,17 +1394,31 @@ def discover_s1tiling_acquisitions(input_dir: str | Path) -> list[dict]:
     # acq_stamp), so sorting it verbatim lets `platform` dominate the timestamp: a mixed
     # S1A/S1C archive comes back as all the S1A dates then all the S1C dates, and ingesting in
     # that order writes a non-monotonic time axis on which `.sel(time=slice(...))` raises.
+    skipped = 0
     for key, acq in sorted(groups.items(), key=lambda item: (item[1]["acq_stamp"], item[0])):
-        missing = [k for k in ("vv", "vh", "vv_mask", "vh_mask") if k not in acq]
-        if missing:
+        # Only the keys the ingester reads. `vh_mask` is returned but never consumed.
+        missing = [k for k in REQUIRED_ACQUISITION_KEYS if k not in acq]
+        unstamped = acq.pop("_unstamped", False)
+        acq["complete"] = not missing and not unstamped
+        if not acq["complete"]:
             log.warning(
                 "Incomplete acquisition",
                 key=key,
                 missing=missing,
+                unstamped=unstamped,
+                skipped=skip_incomplete,
             )
+            if skip_incomplete:
+                skipped += 1
+                continue
         acquisitions.append(acq)
 
-    log.info("Discovered acquisitions", count=len(acquisitions), input_dir=str(input_dir))
+    log.info(
+        "Discovered acquisitions",
+        count=len(acquisitions),
+        skipped=skipped,
+        input_dir=str(input_dir),
+    )
     return acquisitions
 
 
@@ -1287,7 +1490,14 @@ def ingest_s1tiling_conditions(
             "Ingest at least one acquisition first."
         )
 
-    orbit = _child_group(root, orbit_direction)
+    # Open the ORBIT with its own consolidated block bypassed, not as a child of `root`.
+    # `_open_store_for_write` only fixes membership at the root; every membership test below --
+    # `"conditions" not in orbit`, and the x/y test in the else branch -- resolves through the
+    # orbit group, whose stale block still lists the pre-consolidation members. Reading those
+    # answers a question about disk from a snapshot: the conditions group looks absent (so
+    # `create_group` raises `ContainsGroupError`), or its coordinates look absent when they are
+    # present (so a "repair" tries to recreate them and raises `ContainsArrayError`).
+    orbit = _open_orbit_for_write(store_path, orbit_direction)
 
     # Read reference metadata from the first condition file
     _ref_label, ref_path = condition_inputs[0]
@@ -1357,6 +1567,40 @@ def ingest_s1tiling_conditions(
                     "condition rasters in one orbit must share a grid."
                 )
 
+        # Heal a conditions group written before this function created x/y -- AFTER the grid
+        # checks above, so a mismatched raster raises instead of writing coordinates that do not
+        # describe it. `_add_grid_mapping` below already runs unconditionally, so re-running
+        # `ingest-s1-conditions` restored `spatial_ref`; x/y were only ever created on the branch
+        # above, so an older group could not be repaired at all and the data model (which now
+        # requires them) rejected the store with no route back short of a full reingest.
+        #
+        # Per-coordinate, not both-or-nothing: a run interrupted between the two writes leaves
+        # `x` present and `y` absent, and recreating the pair would raise `ContainsArrayError`
+        # on `x` -- turning a half-repaired store into an unrepairable one.
+        #
+        # Only when the group's recorded grid was actually checked above. Both guards are
+        # conditional on the `spatial:*` attrs being well-formed, so a group missing them
+        # validates nothing -- and a group missing its coordinates is exactly the population
+        # most likely to also be missing its attrs. Backfilling there would write x/y from this
+        # call's raster against arrays of an unrelated size (a 5490-long pair over 10980 arrays),
+        # which is the silent mis-georeferencing the guard above exists to reject. Refuse instead.
+        missing_coords = [name for name in ("x", "y") if name not in conditions]
+        if missing_coords and not isinstance(existing.get("spatial:shape"), list):
+            raise ValueError(
+                f"Conditions group in {orbit_direction} is missing {missing_coords} and records "
+                "no 'spatial:shape', so its grid cannot be verified against this GeoTIFF. "
+                "Refusing to guess: delete the conditions group and re-run ingest-s1-conditions."
+            )
+        if missing_coords:
+            log.info(
+                "Backfilling conditions coordinates",
+                orbit_direction=orbit_direction,
+                missing=missing_coords,
+            )
+            _create_spatial_coordinate_arrays(
+                conditions, ref_shape[0], ref_shape[1], ref_transform, only=missing_coords
+            )
+
     # Write each condition array
     for label, cond_path in condition_inputs:
         array_name = f"{label}_{orbit_suffix}"
@@ -1407,6 +1651,14 @@ def ingest_s1tiling_conditions(
             )
 
     _add_grid_mapping(conditions, ref_crs)
+
+    # Drop the now-stale consolidated blocks, exactly as the acquisition path does. Without this
+    # the repair above is INVISIBLE: `stac._open_root`, xarray and TiTiler all read the
+    # consolidated view, which still lists the pre-repair members -- so a store whose x/y were
+    # just restored keeps being rejected, and the next conditions call reads "x is absent" from
+    # the same stale block and raises `ContainsArrayError` over the array on disk. Writing new
+    # condition arrays makes the block stale on its own, repair or no repair.
+    _strip_consolidated_metadata(store_path, orbit_direction)
 
     log.info(
         "Conditions ingestion complete",

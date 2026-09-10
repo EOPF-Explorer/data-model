@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 from math import ceil
@@ -18,9 +19,12 @@ from rasterio.transform import Affine, from_bounds
 from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.conversion.s1_ingest import (
+    FLOAT32_NAN_FILL_VALUE,
     OVERVIEW_CHAIN,
     WRITER_SCHEMA,
     S1TilingMetadata,
+    _create_spatial_coordinate_arrays,
+    _downsample_2d,
     _normalise_s1tiling_datetime,
     consolidate_s1_store,
     create_s1_store,
@@ -737,17 +741,44 @@ class TestDiscoverAcquisitions:
             assert "vv_mask" in acq
             assert "vh_mask" in acq
 
-    def test_warns_on_incomplete(self, tmp_path: Path) -> None:
-        # Create only VV (no VH, no masks)
+    def test_incomplete_is_skipped_by_default(self, tmp_path: Path) -> None:
+        """A bundle the ingester cannot consume must not be returned.
+
+        It used to be: `acquisitions.append(acq)` ran unconditionally after the warning, so a
+        VV-only bundle reached `ingest_s1tiling_acquisition` and died on `KeyError: 'vh'` --
+        the warning that should have prevented it having already been logged and ignored.
+        """
         data = np.ones((SIZE, SIZE), dtype=np.float32)
         fname = "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
         _create_synthetic_geotiff(tmp_path / fname, data, tags=ACQ1_TAGS)
 
-        acqs = discover_s1tiling_acquisitions(tmp_path)
+        assert discover_s1tiling_acquisitions(tmp_path) == []
+
+    def test_incomplete_is_returned_and_flagged_when_asked_for(self, tmp_path: Path) -> None:
+        """`skip_incomplete=False` returns the bundle, flagged, for callers that triage."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        fname = "s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif"
+        _create_synthetic_geotiff(tmp_path / fname, data, tags=ACQ1_TAGS)
+
+        acqs = discover_s1tiling_acquisitions(tmp_path, skip_incomplete=False)
         assert len(acqs) == 1
-        # Should be missing vh, vv_mask, vh_mask
+        assert acqs[0]["complete"] is False
         missing = [k for k in ("vh", "vv_mask", "vh_mask") if k not in acqs[0]]
         assert len(missing) == 3
+
+    def test_missing_only_vh_mask_is_complete(self, tmp_path: Path) -> None:
+        """`vh_mask` is discovered but never consumed, so requiring it condemned good bundles."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        stem = "s1a_32TQM_{pol}_ASC_037_20230115t061234_GammaNaughtRTC{mask}.tif"
+        for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+            _create_synthetic_geotiff(
+                tmp_path / stem.format(pol=pol, mask=mask), data, tags=ACQ1_TAGS
+            )
+
+        acqs = discover_s1tiling_acquisitions(tmp_path)
+        assert len(acqs) == 1
+        assert acqs[0]["complete"] is True
+        assert "vh_mask" not in acqs[0]
 
     def test_skips_non_matching(self, tmp_path: Path) -> None:
         data = np.ones((SIZE, SIZE), dtype=np.float32)
@@ -1850,3 +1881,416 @@ class TestStoreRootGeographicMetadata:
         assert -90.0 <= lat <= 90.0, bbox
         # The writer stamp must survive the rewrite (it is an update, not a replace).
         assert attrs["eopf:writer_schema"] == WRITER_SCHEMA
+
+
+# =============================================================================
+# F11 — the overview border mask must agree with the averaged backscatter
+# =============================================================================
+
+
+class TestOverviewBorderMask:
+    """The mask is documented as the authoritative valid-data mask and STAC advertises it with
+    `nodata: 0`, so a mask pixel that says "invalid" over finite backscatter erases real data at
+    preview zoom. Subsampling the mask while block-averaging vv/vh broke exactly that.
+    """
+
+    def test_max_branch_matches_an_explicit_block_reference(self) -> None:
+        """Block-max over the edge-padded grid, verified against a hand-computed reference.
+
+        Pinned directly because the end-to-end invariant below cannot distinguish block-max from
+        subsampling whenever the factor is 1 -- both then return the same pixels.
+        """
+        data = np.array(
+            [[0, 0, 1, 0], [0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0]],
+            dtype=np.uint8,
+        )
+        # 2x2 blocks: [0,0/0,0]=0  [1,0/0,0]=1  [0,1/0,0]=1  [0,0/0,0]=0
+        assert np.array_equal(
+            _downsample_2d(data, 2, "max"), np.array([[0, 1], [1, 0]], dtype=np.uint8)
+        )
+        # Subsampling takes data[::2, ::2], which misses the valid pixel at [2][1] entirely:
+        # its block is valid but the sampled corner is not. That lower-left 0 over finite
+        # averaged backscatter is precisely the defect.
+        assert np.array_equal(
+            _downsample_2d(data, 2, "nearest"), np.array([[0, 1], [0, 0]], dtype=np.uint8)
+        )
+
+    def test_max_edge_pads_on_a_non_divisible_size(self) -> None:
+        """Non-divisible sizes use the same ceil grid and edge padding as `average`, so mask and
+        backscatter levels stay aligned pixel for pixel."""
+        data = np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]], dtype=np.uint8)
+        out = _downsample_2d(data, 2, "max")
+        assert out.shape == _downsample_2d(data.astype(np.float32), 2, "average").shape
+        # Edge padding replicates the real border column/row -- it cannot invent validity.
+        assert np.array_equal(out, np.array([[0, 1], [1, 0]], dtype=np.uint8))
+
+    def test_mask_agrees_with_backscatter_at_every_level(self, tmp_path: Path) -> None:
+        """End-to-end on a diagonal swath edge, the case that reproduced the defect.
+
+        60 pixels at r20m (20 at r60m, 10 at r120m) previously had `border_mask == 0` over
+        finite `vv`.
+        """
+        rows, cols = np.mgrid[0:SIZE, 0:SIZE]
+        inside = rows + cols > SIZE // 2  # diagonal swath edge
+        vv = np.where(inside, 0.1, np.nan).astype(np.float32)
+        vh = np.where(inside, 0.05, np.nan).astype(np.float32)
+        mask = inside.astype(np.uint8)
+
+        store = tmp_path / "s1-rtc-32TQM.zarr"
+        for name, arr in (("vv", vv), ("vh", vh), ("mask", mask)):
+            _create_synthetic_geotiff(tmp_path / f"{name}.tif", arr, tags=ACQ1_TAGS)
+        ingest_s1tiling_acquisition(
+            tmp_path / "vv.tif", tmp_path / "vh.tif", tmp_path / "mask.tif", store, "ascending"
+        )
+        consolidate_s1_store(store, "ascending")
+
+        root = zarr.open_group(str(store), mode="r", zarr_format=3)
+        for level_name, _, _ in OVERVIEW_CHAIN:
+            level = _group(_group(root, "ascending"), level_name)
+            level_vv = np.asarray(_array(level, "vv"))[0]
+            level_mask = np.asarray(_array(level, "border_mask"))[0]
+            assert level_mask.shape == level_vv.shape, level_name
+            # One-directional: `isfinite(vv) => mask != 0`. Equality holds on THIS fixture, which
+            # ties vv and mask together by construction, but it is not what the code guarantees --
+            # real γ⁰ can be NaN inside the swath. Asserting equality here would be asserting a
+            # false statement that happens to hold on synthetic data; see
+            # `test_nan_inside_the_swath_keeps_the_invariant_one_directional`.
+            erased = np.isfinite(level_vv) & (level_mask == 0)
+            assert not erased.any(), (
+                f"{level_name}: {int(erased.sum())} pixel(s) of real backscatter would be erased "
+                "by a mask that calls them invalid"
+            )
+
+
+# =============================================================================
+# F15 — discovery and ingest must agree on the orbit value
+# =============================================================================
+
+
+class TestOrbitDirectionContract:
+    def test_discovery_emits_both_the_short_and_long_orbit_forms(self, tmp_path: Path) -> None:
+        """`orbit_direction` is the group name the ingester takes; `orbit_dir` stays the short
+        filename form, which filename reconstruction still needs."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        for short, expected in (("ASC", "ascending"), ("DES", "descending")):
+            case_dir = tmp_path / short
+            case_dir.mkdir()
+            stem = "s1a_32TQM_{pol}_" + short + "_037_20230115t061234_GammaNaughtRTC{mask}.tif"
+            for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+                _create_synthetic_geotiff(
+                    case_dir / stem.format(pol=pol, mask=mask), data, tags=ACQ1_TAGS
+                )
+            (acq,) = discover_s1tiling_acquisitions(case_dir)
+            assert acq["orbit_dir"] == short
+            assert acq["orbit_direction"] == expected
+
+    def test_short_form_raises_before_any_geotiff_is_opened(self, tmp_path: Path) -> None:
+        """The paths do not exist, so reaching I/O would raise FileNotFoundError instead.
+
+        This ordering is the whole point: the old code only failed once STAC ran, after a
+        multi-hour ingest had already written `<store>/ASC/`.
+        """
+        missing = tmp_path / "nope.tif"
+        with pytest.raises(ValueError, match="orbit_direction must be one of"):
+            ingest_s1tiling_acquisition(missing, missing, missing, tmp_path / "s.zarr", "ASC")
+
+    def test_discovered_orbit_direction_is_accepted_by_the_ingester(self, tmp_path: Path) -> None:
+        """The contract, end to end: what discovery emits is what ingest takes."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        stem = "s1a_32TQM_{pol}_DES_037_20230115t061234_GammaNaughtRTC{mask}.tif"
+        for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+            _create_synthetic_geotiff(
+                tmp_path / stem.format(pol=pol, mask=mask), data, tags=ACQ1_TAGS
+            )
+        (acq,) = discover_s1tiling_acquisitions(tmp_path)
+
+        store = tmp_path / "s1-rtc-32TQM.zarr"
+        ingest_s1tiling_acquisition(
+            acq["vv"], acq["vh"], acq["vv_mask"], store, acq["orbit_direction"]
+        )
+        assert (store / "descending").exists()
+
+
+# =============================================================================
+# B3 / B7 / B8 — below-cap findings
+# =============================================================================
+
+
+def test_untagged_geotiff_does_not_abort_the_whole_discovery(tmp_path: Path) -> None:
+    """B3: one bad file used to raise out of discovery, losing every other bundle in the archive
+    -- while an unparseable *filename* was silently skipped."""
+    data = np.ones((SIZE, SIZE), dtype=np.float32)
+    # A masked multi-frame stamp forces the tag lookup, and the tags are absent.
+    for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+        _create_synthetic_geotiff(
+            tmp_path / f"s1a_32TQM_{pol}_ASC_037_20230115txxxxxx_GammaNaughtRTC{mask}.tif", data
+        )
+    # A complete, well-tagged bundle that must survive the bad one.
+    for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+        _create_synthetic_geotiff(
+            tmp_path / f"s1a_32TQM_{pol}_ASC_037_20230115t061234_GammaNaughtRTC{mask}.tif",
+            data,
+            tags=ACQ1_TAGS,
+        )
+
+    acqs = discover_s1tiling_acquisitions(tmp_path)
+
+    assert [a["acq_stamp"] for a in acqs] == ["20230115t061234"]
+    flagged = discover_s1tiling_acquisitions(tmp_path, skip_incomplete=False)
+    assert [a["complete"] for a in flagged].count(False) == 1
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("2023:01:15T06:12:34Z", "2023-01-15T06:12:34"),
+        ("2023:01:15T06:12:34", "2023-01-15T06:12:34"),
+        # The space-separated form real S1Tiling output emits via GDAL's TIFF DateTime.
+        ("2023:01:15 06:12:34", "2023-01-15T06:12:34"),
+    ],
+)
+def test_normalise_datetime_accepts_the_real_forms(raw: str, expected: str) -> None:
+    assert _normalise_s1tiling_datetime(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "not-a-date", "2023:13:45T99:99:99Z", "2023:01:15T25:00:00Z"])
+def test_normalise_datetime_raises_naming_the_tag_and_file(raw: str) -> None:
+    """B7: an unrecognised form used to pass through untouched and fail ~560 lines later inside
+    `np.datetime64`, from a traceback naming neither the tag nor the GeoTIFF."""
+    with pytest.raises(ValueError, match="Unparseable ACQUISITION_DATETIME") as excinfo:
+        _normalise_s1tiling_datetime(raw, source="/archive/bad.tif")
+    assert repr(raw) in str(excinfo.value)
+    assert "/archive/bad.tif" in str(excinfo.value)
+
+
+def test_float32_nan_fill_value_matches_xarray() -> None:
+    """B8: the stdlib-encoded `_FillValue` must stay equal to what xarray's encoder produces.
+
+    `FillValueCoder` lives in `xarray.backends.zarr` and is not public API. It used to be
+    imported at module scope, so any xarray reorganisation raised from `import eopf_geozarr`
+    itself -- taking down the S2 and OLCI paths, which never touch S1. The value is now eight
+    bytes of `struct`, which cannot break; this test is the drift alarm that keeps the two
+    pinned together, so if xarray ever encodes it differently CI says so rather than every
+    store we write carrying a `_FillValue` xarray no longer recognises.
+    """
+    from xarray.backends.zarr import FillValueCoder
+
+    assert FillValueCoder.encode(np.nan, np.dtype("float32")) == FLOAT32_NAN_FILL_VALUE
+    # Pin the literal too: a change to either side must be a deliberate, visible edit.
+    assert FLOAT32_NAN_FILL_VALUE == "AAAAAAAA+H8="
+
+
+class TestConditionsRepairOnAConsolidatedStore:
+    """Every shipped store is consolidated, so that is the shape the repair must handle.
+
+    The first version of this repair passed a test that never consolidated and read the
+    conditions group *directly*. Both choices hid the bug: membership was answered from the
+    orbit group's stale consolidated block, so the repair wrote `x` to disk while every reader
+    that goes through the consolidated view still saw it missing -- and the next ordinary
+    conditions call read "x is absent" from that same block and raised `ContainsArrayError`
+    over the array already on disk.
+    """
+
+    @staticmethod
+    def _store_with_legacy_conditions(tmp_path: Path) -> Path:
+        """A consolidated store whose conditions group has no x/y -- the pre-#216 shape."""
+        data = np.ones((SIZE, SIZE), dtype=np.float32)
+        store = tmp_path / "s1-rtc-32TQM.zarr"
+        for name in ("vv", "vh", "mask"):
+            _create_synthetic_geotiff(tmp_path / f"{name}.tif", data, tags=ACQ1_TAGS)
+        ingest_s1tiling_acquisition(
+            tmp_path / "vv.tif", tmp_path / "vh.tif", tmp_path / "mask.tif", store, "ascending"
+        )
+        gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+        _create_synthetic_geotiff(gamma, data)
+        ingest_s1tiling_conditions(
+            store_path=store,
+            orbit_direction="ascending",
+            relative_orbit=37,
+            gamma_area_path=gamma,
+        )
+        orbit = zarr.open_group(str(store / "ascending"), mode="r+", zarr_format=3)
+        conditions = _group(orbit, "conditions")
+        for coord in ("x", "y"):
+            conditions.__delitem__(coord)
+        # THE POINT: consolidate after the deletion, so the block is what a reader sees.
+        consolidate_s1_store(store, "ascending")
+        return store
+
+    def test_repair_is_visible_through_the_consolidated_view(self, tmp_path: Path) -> None:
+        """The repair must reach the view STAC, xarray and TiTiler actually read."""
+        store = self._store_with_legacy_conditions(tmp_path)
+        gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+
+        ingest_s1tiling_conditions(
+            store_path=store,
+            orbit_direction="ascending",
+            relative_orbit=8,
+            gamma_area_path=gamma,
+        )
+
+        # Read the way every consumer does: through the root, consolidated block honoured.
+        root = zarr.open_group(str(store), mode="r", zarr_format=3)
+        conditions = _group(_group(root, "ascending"), "conditions")
+        members = set(conditions)
+        for coord in ("x", "y", "spatial_ref"):
+            assert coord in members, f"{coord} is missing from the consolidated view: {members}"
+        assert "gamma_area_008" in members, "the newly written raster is absent from the view"
+
+    def test_repaired_store_accepts_a_further_conditions_call(self, tmp_path: Path) -> None:
+        """The repair must not brick the next ordinary call.
+
+        Membership resolved from a stale block said `x` was absent while it existed on disk, so
+        recreating it raised `ContainsArrayError` -- reaching an unrepairable state by the
+        ordinary path, not a torn-write edge case.
+        """
+        store = self._store_with_legacy_conditions(tmp_path)
+        gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+
+        for relative_orbit in (8, 9):
+            ingest_s1tiling_conditions(
+                store_path=store,
+                orbit_direction="ascending",
+                relative_orbit=relative_orbit,
+                gamma_area_path=gamma,
+            )
+
+        root = zarr.open_group(str(store), mode="r", zarr_format=3)
+        conditions = _group(_group(root, "ascending"), "conditions")
+        assert {"gamma_area_008", "gamma_area_009", "x", "y"} <= set(conditions)
+
+    def test_every_condition_array_gets_its_grid_mapping(self, tmp_path: Path) -> None:
+        """A raster created during the same call must not miss `grid_mapping`.
+
+        `_add_grid_mapping` enumerates `group.arrays()`; resolved through a stale block that
+        enumeration omitted the array just written, so `gamma_area_008` shipped with no CRS
+        while its sibling on the identical grid had one -- silently, with no error or warning.
+        rioxarray and TiTiler resolve the CRS through `grid_mapping` -> `spatial_ref`.
+        """
+        store = self._store_with_legacy_conditions(tmp_path)
+        gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+
+        ingest_s1tiling_conditions(
+            store_path=store,
+            orbit_direction="ascending",
+            relative_orbit=8,
+            gamma_area_path=gamma,
+        )
+
+        root = zarr.open_group(str(store), mode="r", zarr_format=3)
+        conditions = _group(_group(root, "ascending"), "conditions")
+        for name in ("gamma_area_037", "gamma_area_008"):
+            attrs = dict(_array(conditions, name).attrs)
+            assert attrs.get("grid_mapping") == "spatial_ref", (
+                f"{name} has no grid_mapping, so it opens with no CRS: {sorted(attrs)}"
+            )
+
+    def test_half_repaired_group_is_completed_not_rejected(self, tmp_path: Path) -> None:
+        """Only the missing coordinate is created.
+
+        A run interrupted between the two writes leaves `x` present and `y` absent; recreating
+        the pair would raise `ContainsArrayError` on `x`, turning a half-repaired store into an
+        unrepairable one.
+        """
+        store = self._store_with_legacy_conditions(tmp_path)
+        gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
+        orbit = zarr.open_group(
+            str(store / "ascending"), mode="r+", zarr_format=3, use_consolidated=False
+        )
+        conditions = _group(orbit, "conditions")
+        _create_spatial_coordinate_arrays(
+            conditions, SIZE, SIZE, [10.0, 0.0, XMIN, 0.0, -10.0, YMAX], only=["x"]
+        )
+        assert "x" in conditions
+        assert "y" not in conditions
+
+        ingest_s1tiling_conditions(
+            store_path=store,
+            orbit_direction="ascending",
+            relative_orbit=8,
+            gamma_area_path=gamma,
+        )
+
+        root = zarr.open_group(str(store), mode="r", zarr_format=3)
+        healed = _group(_group(root, "ascending"), "conditions")
+        assert {"x", "y"} <= set(healed)
+        # The backfilled coordinate must describe the real grid, not merely exist.
+        assert np.asarray(_array(healed, "y"))[0] == pytest.approx(YMAX)
+        assert np.asarray(_array(healed, "x"))[0] == pytest.approx(XMIN)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # The gate (`fromisoformat`) and the consumer (`np.datetime64`) are different parsers.
+        # Validating with one while passing the other the RAW text blessed forms they disagree
+        # about, so the normaliser must return the parser's own canonical spelling.
+        #
+        # `np.datetime64("20230115")` is dtype datetime64[Y] -- the YEAR 20230115 -- which lands
+        # in the store as 2206-09-06 with no error, and then makes the out-of-order guard reject
+        # every later append to that orbit. Permanently poisoned, silently.
+        ("20230115", "2023-01-15T00:00:00"),
+        # `np.datetime64` raises on these, after the rasters have been read -- the exact late
+        # failure this function exists to prevent.
+        ("20230115T061234", "2023-01-15T06:12:34"),
+        ("2023-W03-1", "2023-01-16T00:00:00"),
+    ],
+)
+def test_normalise_datetime_returns_a_form_numpy_reads_identically(raw: str, expected: str) -> None:
+    """Whatever the gate accepts must mean the same thing to `np.datetime64`."""
+    normalised = _normalise_s1tiling_datetime(raw)
+    assert normalised == expected
+    # The real invariant: the stored instant equals what the gate parsed.
+    assert np.datetime64(normalised) == np.datetime64(dt.datetime.fromisoformat(raw).isoformat())
+    assert np.datetime64(normalised).dtype != np.dtype("datetime64[Y]")
+
+
+def test_downsample_rejects_an_unknown_method() -> None:
+    """An unrecognised method used to fall through to the block mean, which for the uint8 mask
+    silently reproduces the defect F11 fixes: a block of [1,0,0,0] means 0.25 and truncates to 0.
+    """
+    data = np.array([[1, 0], [0, 0]], dtype=np.uint8)
+    assert _downsample_2d(data, 2, "max")[0, 0] == 1
+    with pytest.raises(ValueError, match="Unknown downsample method"):
+        _downsample_2d(data, 2, "Max")
+
+
+def test_masked_multiframe_bundle_survives_an_untagged_sibling(tmp_path: Path) -> None:
+    """Derived `_BorderMask` products commonly carry no ACQUISITION_DATETIME.
+
+    Resolving the stamp per FILE keyed vv/vh under the resolved stamp and the masks under the
+    masked one, splitting one acquisition into two half-bundles that `skip_incomplete` then
+    discarded -- so discovery returned `[]` with every file present on disk, and an operator's
+    ingest loop reported success having written nothing.
+    """
+    data = np.ones((SIZE, SIZE), dtype=np.float32)
+    stem = "s1a_32TQM_{pol}_ASC_037_20230115txxxxxx_GammaNaughtRTC{mask}.tif"
+    # vv/vh carry the tag; both masks do not, exactly as S1Tiling emits them.
+    for pol, mask, tags in (
+        ("vv", "", ACQ1_TAGS),
+        ("vh", "", ACQ1_TAGS),
+        ("vv", "_BorderMask", None),
+        ("vh", "_BorderMask", None),
+    ):
+        _create_synthetic_geotiff(tmp_path / stem.format(pol=pol, mask=mask), data, tags=tags)
+
+    acqs = discover_s1tiling_acquisitions(tmp_path)
+
+    assert len(acqs) == 1, f"the bundle was split: {[a['acq_stamp'] for a in acqs]}"
+    acq = acqs[0]
+    assert acq["complete"] is True
+    assert acq["acq_stamp"] == "20230115t061234", "the sibling's tag must stamp the whole bundle"
+    assert {"vv", "vh", "vv_mask", "vh_mask"} <= set(acq)
+
+
+def test_bundle_with_no_usable_tag_anywhere_is_reported_once(tmp_path: Path) -> None:
+    """When NO file carries the tag the bundle is unstampable -- flagged, not split."""
+    data = np.ones((SIZE, SIZE), dtype=np.float32)
+    stem = "s1a_32TQM_{pol}_ASC_037_20230115txxxxxx_GammaNaughtRTC{mask}.tif"
+    for pol, mask in (("vv", ""), ("vh", ""), ("vv", "_BorderMask")):
+        _create_synthetic_geotiff(tmp_path / stem.format(pol=pol, mask=mask), data)
+
+    assert discover_s1tiling_acquisitions(tmp_path) == []
+    flagged = discover_s1tiling_acquisitions(tmp_path, skip_incomplete=False)
+    assert len(flagged) == 1, "an unstampable bundle must stay one bundle"
+    assert flagged[0]["complete"] is False
