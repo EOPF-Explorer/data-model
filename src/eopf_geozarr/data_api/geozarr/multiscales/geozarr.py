@@ -72,7 +72,9 @@ class MultiscaleGroupAttrs(BaseModel):
         """
         if self.zarr_conventions is not MISSING:
             self._zcm_multiscales = zcm.Multiscales(
-                layout=self.multiscales.layout,
+                # ``layout`` is typed ``... | MISSING`` here but zcm.Multiscales requires it;
+                # pydantic validates the value at runtime.
+                layout=self.multiscales.layout,  # pyright: ignore[reportArgumentType]
                 resampling_method=self.multiscales.resampling_method,
             )
         if self.multiscales.tile_matrix_limits is not MISSING:
@@ -82,7 +84,7 @@ class MultiscaleGroupAttrs(BaseModel):
                 # constrains it to the ``ResamplingMethod`` literal; pydantic validates the
                 # value at runtime.
                 resampling_method=self.multiscales.resampling_method,  # pyright: ignore[reportArgumentType]
-                tile_matrix_set=self.multiscales.tile_matrix_set,
+                tile_matrix_set=self.multiscales.tile_matrix_set,  # pyright: ignore[reportArgumentType]
             )
         if self._tms_multiscales is None and self._zcm_multiscales is None:
             raise ValueError("Either ZCM multiscales or TMS multiscales must be present")
