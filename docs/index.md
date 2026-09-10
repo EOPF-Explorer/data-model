@@ -15,6 +15,7 @@ Welcome to the EOPF GeoZarr library documentation. This library provides tools t
 - **[API Reference](api-reference.md)** - Complete Python API documentation
 - **[Examples](examples.md)** - Practical examples for common use cases
 - **[Architecture](architecture.md)** - Technical architecture and design principles
+  - **[STAC Integration and Zarr URL Resolution](architecture.md#stac-integration-and-zarr-url-resolution)** - How to unambiguously parse Zarr group/array URLs from STAC assets using the `rel: store` link
 - **[GeoZarr Mini Spec](geozarr-minispec.md)** - Implementation-specific GeoZarr specification
 
 ### Support
