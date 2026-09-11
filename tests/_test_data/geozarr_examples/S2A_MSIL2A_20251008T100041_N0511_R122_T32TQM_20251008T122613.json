@@ -35,7 +35,41 @@
         "geometry": {
           "zarr_format": 3,
           "node_type": "group",
-          "attributes": {},
+          "attributes": {
+            "grid_mapping": "spatial_ref",
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:registration": "pixel",
+            "spatial:bbox": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "spatial:shape": [
+              23,
+              23
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32632"
+          },
           "members": {
             "angle": {
               "zarr_format": 3,
@@ -160,6 +194,7 @@
               "node_type": "array",
               "attributes": {
                 "unit": "deg",
+                "grid_mapping": "spatial_ref",
                 "_FillValue": "AAAAAAAA+H8="
               },
               "shape": [
@@ -209,6 +244,7 @@
               "node_type": "array",
               "attributes": {
                 "unit": "deg",
+                "grid_mapping": "spatial_ref",
                 "_FillValue": "AAAAAAAA+H8="
               },
               "shape": [
@@ -256,10 +292,59 @@
                 "angle"
               ]
             },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984",
+                "projected_crs_name": "WGS 84 / UTM zone 32N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 9.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
             "sun_angles": {
               "zarr_format": 3,
               "node_type": "array",
               "attributes": {
+                "grid_mapping": "spatial_ref",
                 "_FillValue": "AAAAAAAA+H8="
               },
               "shape": [
@@ -314,6 +399,7 @@
               "zarr_format": 3,
               "node_type": "array",
               "attributes": {
+                "grid_mapping": "spatial_ref",
                 "_FillValue": "AAAAAAAA+H8="
               },
               "shape": [
@@ -457,7 +543,41 @@
                 "r10m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      10980,
+                      10980
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "b02": {
                       "zarr_format": 3,
@@ -486,7 +606,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         10980,
@@ -557,7 +678,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         10980,
@@ -628,7 +750,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         10980,
@@ -699,7 +822,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         10980,
@@ -742,6 +866,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -820,7 +992,41 @@
                 "r20m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      5490,
+                      5490
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "b05": {
                       "zarr_format": 3,
@@ -849,7 +1055,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -920,7 +1127,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -991,7 +1199,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -1062,7 +1271,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -1133,7 +1343,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -1204,7 +1415,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -1247,6 +1459,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -1325,7 +1585,41 @@
                 "r60m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      1830,
+                      1830
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "b01": {
                       "zarr_format": 3,
@@ -1354,7 +1648,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         1830,
@@ -1425,7 +1720,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         1830,
@@ -1496,7 +1792,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         1830,
@@ -1539,6 +1836,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -1624,7 +1969,41 @@
                 "r60m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      1830,
+                      1830
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "b00": {
                       "zarr_format": 3,
@@ -1663,7 +2042,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         1830,
@@ -1706,6 +2086,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -1791,7 +2219,41 @@
                 "r20m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      5490,
+                      5490
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "scl": {
                       "zarr_format": 3,
@@ -1818,7 +2280,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         5490,
@@ -1861,6 +2324,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -1939,7 +2450,41 @@
                 "r60m": {
                   "zarr_format": 3,
                   "node_type": "group",
-                  "attributes": {},
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:bbox": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "spatial:shape": [
+                      1830,
+                      1830
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                        "name": "spatial:",
+                        "description": "Spatial coordinate information"
+                      },
+                      {
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                        "name": "proj:",
+                        "description": "Coordinate reference system information for geospatial data"
+                      }
+                    ],
+                    "proj:code": "EPSG:32632"
+                  },
                   "members": {
                     "scl": {
                       "zarr_format": 3,
@@ -1966,7 +2511,8 @@
                           0.0,
                           0.0,
                           1.0
-                        ]
+                        ],
+                        "grid_mapping": "spatial_ref"
                       },
                       "shape": [
                         1830,
@@ -2009,6 +2555,54 @@
                         "y",
                         "x"
                       ]
+                    },
+                    "spatial_ref": {
+                      "zarr_format": 3,
+                      "node_type": "array",
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "inverse_flattening": 298.257223563,
+                        "reference_ellipsoid_name": "WGS 84",
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "geographic_crs_name": "WGS 84",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "grid_mapping_name": "transverse_mercator",
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "shape": [],
+                      "data_type": "int64",
+                      "chunk_grid": {
+                        "name": "regular",
+                        "configuration": {
+                          "chunk_shape": []
+                        }
+                      },
+                      "chunk_key_encoding": {
+                        "name": "default",
+                        "configuration": {
+                          "separator": "/"
+                        }
+                      },
+                      "fill_value": 0,
+                      "codecs": [
+                        {
+                          "name": "bytes",
+                          "configuration": {
+                            "endian": "little"
+                          }
+                        }
+                      ],
+                      "storage_transformers": [],
+                      "dimension_names": null
                     },
                     "x": {
                       "zarr_format": 3,
@@ -4269,13 +4863,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -6349,13 +6936,6 @@
                       "name": "bytes",
                       "configuration": {
                         "endian": "little"
-                      }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
                       }
                     }
                   ],
@@ -8507,13 +9087,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -9839,13 +10412,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -10153,13 +10719,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -10466,13 +11025,6 @@
                       "name": "bytes",
                       "configuration": {
                         "endian": "little"
-                      }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
                       }
                     }
                   ],
@@ -11082,13 +11634,6 @@
                       "name": "bytes",
                       "configuration": {
                         "endian": "little"
-                      }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
                       }
                     }
                   ],
@@ -11803,13 +12348,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -12247,13 +12785,6 @@
                       "configuration": {
                         "endian": "little"
                       }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
-                      }
                     }
                   ],
                   "storage_transformers": [],
@@ -12563,13 +13094,6 @@
                       "name": "bytes",
                       "configuration": {
                         "endian": "little"
-                      }
-                    },
-                    {
-                      "name": "zstd",
-                      "configuration": {
-                        "level": 0,
-                        "checksum": false
                       }
                     }
                   ],
