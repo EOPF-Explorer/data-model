@@ -187,7 +187,7 @@ def determine_variable_type(
         return "reflectance"
 
     # Quality data
-    if var_name in ["scl"]:  # Scene Classification Layer
+    if var_name == "scl":  # Scene Classification Layer
         return "classification"
 
     if var_name in ["cld", "snw"]:  # Probability data

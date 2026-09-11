@@ -101,7 +101,7 @@ def create_geozarr_dataset(
     compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0)
 
     if enable_sharding:
-        log.info("🔧 Zarr sharding enabled for spatial dimensions")
+        log.info("Zarr sharding enabled for spatial dimensions")
 
     if _is_sentinel1(dt_input):
         if gcp_group is None:
@@ -159,7 +159,7 @@ def create_geozarr_dataset(
     try:
         zarr_group = fs_utils.open_zarr_group(output_path, mode="r+")
         consolidate_metadata(zarr_group.store)
-        log.info("✅ Root level metadata consolidation completed")
+        log.info("Root level metadata consolidation completed")
     except Exception as e:
         log.warning("Root level consolidation failed", error=str(e))
 
@@ -231,7 +231,7 @@ def setup_datatree_metadata_geozarr_spec_compliant(
         if _is_sentinel1(dt) and ds_gcp is not None:
             log.info("Applying Sentinel-1 reprojection for group %s", key)
             ds = reproject_sentinel1_with_gcps(ds, ds_gcp, target_crs="EPSG:4326")
-            log.info("✅ Reprojection complete")
+            log.info("Reprojection complete")
 
         # Process all variables in the group
         for var_name in ds.data_vars:
@@ -571,7 +571,7 @@ def write_geozarr_group(
     group_path = fs_utils.normalize_path(f"{output_path}/{group_name.lstrip('/')}")
     zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
-    log.info("✅ Metadata consolidated")
+    log.info("Metadata consolidated")
 
     return dt
 
@@ -831,12 +831,12 @@ def create_geozarr_compliant_multiscales(
         ov_zarr_group = fs_utils.open_zarr_group(ov_group_path, mode="r+")
         ov_zarr_group.attrs.update(cast("dict[str, JSON]", level_attrs))
         consolidate_metadata(ov_zarr_group.store)
-        log.info("✅ Metadata consolidated for overview %s", asset_name)
+        log.info("Metadata consolidated for overview %s", asset_name)
 
         previous_level_ds = overview_ds
 
     log.info(
-        "✅ Created GeoZarr-compliant overview levels using pyramid approach",
+        "Created GeoZarr-compliant overview levels using pyramid approach",
         count=len(overview_levels),
     )
 
@@ -1102,7 +1102,7 @@ def write_dataset_band_by_band_with_validation(
             log.debug("Target not found, skipping removal", target_path=target_path)
         except Exception as cleanup_error:
             log.info(
-                "    ⚠️ Failed to remove",
+                "    Failed to remove",
                 target_path=target_path,
                 error=str(cleanup_error),
             )
@@ -1115,12 +1115,12 @@ def write_dataset_band_by_band_with_validation(
             if utils.validate_existing_band_data(existing_dataset, str(var), ds):
                 ds.drop_vars(str(var))
                 ds[var] = existing_dataset[var]
-                log.info("✅ Band %s already exists and is valid, skipping.", var)
+                log.info("Band %s already exists and is valid, skipping.", var)
                 skipped_vars.append(var)
                 successful_vars.append(var)
                 continue
             # Remove invalid existing variable using filesystem-agnostic method
-            log.info("    🧹 Removing invalid existing variable", var=var)
+            log.info("    Removing invalid existing variable", var=var)
             cleanup_prefix(f"{group_name.lstrip('/')}/{var}")
 
         log.info("  Writing data variable", var=var)
@@ -1186,7 +1186,7 @@ def write_dataset_band_by_band_with_validation(
                     storage_options=store_storage_options,  # pyright: ignore[reportArgumentType]
                 )
 
-                log.info("    ✅ Successfully wrote", var=var)
+                log.info("    Successfully wrote", var=var)
                 successful_vars.append(var)
                 success = True
                 if existing_dataset is None:
@@ -1211,7 +1211,7 @@ def write_dataset_band_by_band_with_validation(
                     cleanup_prefix(target_prefix)
                 if attempt < max_retries - 1:
                     log.warning(
-                        "    ⚠️  Attempt failed, retrying in 2 seconds",
+                        "    Attempt failed, retrying in 2 seconds",
                         attempt=attempt + 1,
                         var=var,
                         error=str(e),
@@ -1219,7 +1219,7 @@ def write_dataset_band_by_band_with_validation(
                     time.sleep(2)
                 else:
                     log.exception(
-                        "    ❌ Failed to write variable after max retries",
+                        "    Failed to write variable after max retries",
                         var=var,
                         max_retries=max_retries,
                         error=str(e),
@@ -1235,17 +1235,17 @@ def write_dataset_band_by_band_with_validation(
     zarr_group = fs_utils.open_zarr_group(group_path, mode="r+")
     consolidate_metadata(zarr_group.store)
 
-    log.info("✅ Metadata consolidated for %s variables", len(successful_vars))
+    log.info("Metadata consolidated for %s variables", len(successful_vars))
 
     # Report results
     if failed_vars:
         log.error(
-            "❌ Failed to write %s variables in %s: %s", len(failed_vars), group_name, failed_vars
+            "Failed to write %s variables in %s: %s", len(failed_vars), group_name, failed_vars
         )
-        log.info("✅ Successfully wrote %s new variables", len(successful_vars) - len(skipped_vars))
+        log.info("Successfully wrote %s new variables", len(successful_vars) - len(skipped_vars))
         log.info("Skipped %s existing valid variables: %s", len(skipped_vars), skipped_vars)
         return False, ds
-    log.info("✅ Successfully processed %s variables in %s", len(successful_vars), group_name)
+    log.info("Successfully processed %s variables in %s", len(successful_vars), group_name)
     if skipped_vars:
         log.info("Wrote %s new variables", len(successful_vars) - len(skipped_vars))
         log.info("Skipped %s existing valid variables", len(skipped_vars))
@@ -1543,7 +1543,7 @@ def _create_geozarr_encoding(
                     shard_x = _calculate_shard_dimension(data_shape[1], chunks[1])  # type: ignore[misc]
                     shards = (shard_y, shard_x)
                     log.info(
-                        "  🔧 Sharding config",
+                        "  Sharding config",
                         var=var,
                         data_shape=data_shape,
                         chunks=chunks,
@@ -1553,7 +1553,7 @@ def _create_geozarr_encoding(
                     # For 1D data, use the full dimension
                     shards = (next(iter(data_shape)),)
                     log.info(
-                        "  🔧 Sharding config",
+                        "  Sharding config",
                         var=var,
                         data_shape=data_shape,
                         chunks=chunks,
@@ -1564,7 +1564,7 @@ def _create_geozarr_encoding(
                 for i, (shard_dim, chunk_dim) in enumerate(zip(shards, chunks, strict=False)):
                     if shard_dim % chunk_dim != 0:
                         log.warning(
-                            "  ⚠️  Warning: Shard dimension not evenly divisible by chunk dimension",
+                            "  Shard dimension not evenly divisible by chunk dimension",
                             shard_dim=shard_dim,
                             chunk_dim=chunk_dim,
                             axis=i,

@@ -76,11 +76,11 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> "Client | No
         # client = Client()  # set up local cluster
 
         if verbose:
-            log.info("🚀 Dask cluster started", client=str(client))
+            log.info("Dask cluster started", client=str(client))
             log.info("   Dashboard", dashboard=client.dashboard_link)
             log.info("   Workers", worker_count=len(client.scheduler_info()["workers"]))
         else:
-            log.info("🚀 Dask cluster started for parallel processing")
+            log.info("Dask cluster started for parallel processing")
 
     except ImportError:
         log.exception(
@@ -97,9 +97,11 @@ def setup_dask_cluster(enable_dask: bool, verbose: bool = False) -> "Client | No
 def _is_sentinel2_input(dt: xr.DataTree) -> bool:
     """Best-effort Sentinel-2 detection that never breaks the generic path.
 
-    ``is_sentinel2_dataset`` validates against a Zarr v2 model and can raise on
-    unrelated inputs (e.g. plain Zarr v3 stores); any failure here simply means
-    "not a recognised Sentinel-2 product", so fall back to the generic converter.
+    ``is_sentinel2_dataset`` validates Zarr V2 stores against a full pydantic
+    model and Zarr V3 stores against a lighter structural check (see
+    ``_is_sentinel2_dataset_v3``); either path can still raise on unrelated
+    inputs, and any failure here simply means "not a recognised Sentinel-2
+    product", so fall back to the generic converter.
     """
     try:
         return is_sentinel2_dataset(get_zarr_group(dt))
@@ -159,13 +161,13 @@ def convert_command(args: argparse.Namespace) -> None:
         output_path_str = args.output_path
         if is_s3_path(output_path_str):
             # S3 path - validate S3 access
-            log.info("🔍 Validating S3 access...")
+            log.info("Validating S3 access...")
             success, error_msg = validate_s3_access(output_path_str)
             if not success:
                 msg = (
-                    f"❌ Error: Cannot access S3 path {output_path_str}"
+                    f"Error: Cannot access S3 path {output_path_str}"
                     f"Reason: {error_msg}"
-                    "💡 S3 Configuration Help:"
+                    "S3 Configuration Help:"
                     "   Make sure you have S3 credentials configured:"
                     "   - Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
                     "   - Set AWS_DEFAULT_REGION (default: us-east-1)"
@@ -176,10 +178,10 @@ def convert_command(args: argparse.Namespace) -> None:
                 log.error(msg)
                 if args.verbose:
                     creds_info = get_s3_credentials_info()
-                    log.info("🔧 Current AWS configuration: %s", creds_info.items())
+                    log.info("Current AWS configuration: %s", creds_info.items())
                 sys.exit(1)
 
-            log.info("✅ S3 access validated successfully")
+            log.info("S3 access validated successfully")
             output_path = output_path_str
         else:
             # Local path - create directory if it doesn't exist
@@ -288,7 +290,7 @@ def convert_command(args: argparse.Namespace) -> None:
                 enable_sharding=args.enable_sharding,
             )
 
-        log.info("✅ Successfully converted EOPF dataset to GeoZarr format")
+        log.info("Successfully converted EOPF dataset to GeoZarr format")
         log.info("Output saved to %s", output_path)
 
         if args.verbose:
@@ -299,7 +301,7 @@ def convert_command(args: argparse.Namespace) -> None:
                 log.info("Converted dataset (single group)")
 
     except Exception as e:
-        log.info("❌ Error during conversion", error=str(e))
+        log.info("Error during conversion", error=str(e))
         if args.verbose:
             import traceback
 
@@ -312,7 +314,7 @@ def convert_command(args: argparse.Namespace) -> None:
                 if hasattr(dask_client, "close"):
                     dask_client.close()
                 if args.verbose:
-                    log.info("🔄 Dask cluster closed")
+                    log.info("Dask cluster closed")
             except Exception as e:
                 if args.verbose:
                     log.warning("Error closing dask cluster", error=str(e))
@@ -361,7 +363,7 @@ def info_command(args: argparse.Namespace) -> None:
             log.info(str(dt))
 
     except Exception as e:
-        log.info("❌ Error reading dataset", error=str(e))
+        log.info("Error reading dataset", error=str(e))
         if args.verbose:
             import traceback
 
@@ -509,7 +511,6 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
         <div class="tree-node" style="margin-left: {level * 20}px;">
             <details class="tree-details" {"open" if level < 2 else ""}>
                 <summary class="tree-summary">
-                    <span class="tree-icon">{"📁" if children_count > 0 else "📄"}</span>
                     <span class="tree-name">{node_name}</span>
                     <span class="tree-info">({summary})</span>
                 </summary>
@@ -602,10 +603,6 @@ def _generate_optimized_tree_html(dt: xr.DataTree) -> str:
 
             .tree-summary:hover {{
                 background: linear-gradient(90deg, #f1f3f4 0%, #f6f8fa 100%);
-            }}
-
-            .tree-icon {{
-                font-size: 16px;
             }}
 
             .tree-name {{
@@ -1005,7 +1002,7 @@ def _generate_html_output(
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
 
-        log.info("✅ HTML visualization generated", output_file=str(output_file))
+        log.info("HTML visualization generated", output_file=str(output_file))
 
         if verbose:
             log.info("   File size", file_size_kb=round(output_file.stat().st_size / 1024, 1))
@@ -1016,14 +1013,14 @@ def _generate_html_output(
             import webbrowser
 
             webbrowser.open(f"file://{output_file.absolute()}")
-            log.info("🌐 Opening in default browser...")
+            log.info("Opening in default browser...")
         except Exception as e:
             if verbose:
                 log.info("   Note: Could not auto-open browser", error=str(e))
             log.info("   You can open the file manually", path=str(output_file.absolute()))
 
     except Exception as e:
-        log.info("❌ Error generating HTML output", error=str(e))
+        log.info("Error generating HTML output", error=str(e))
         if verbose:
             import traceback
 
@@ -1069,7 +1066,7 @@ def validate_command(args: argparse.Namespace) -> None:
             storage_options=cast("dict[str, Any] | None", storage_options),
         )
     except Exception as e:
-        log.info("❌ Error validating dataset", error=str(e))
+        log.info("Error validating dataset", error=str(e))
         if args.verbose:
             import traceback
 
@@ -1080,14 +1077,14 @@ def validate_command(args: argparse.Namespace) -> None:
     if report.issues:
         log.info("\nIssues:")
         for issue in report.issues:
-            log.info("  ❌ %s", str(issue))
-        log.info("\n❌ Dataset is NOT compliant with the GeoZarr minispec")
+            log.info("  %s", str(issue))
+        log.info("\nDataset is NOT compliant with the GeoZarr minispec")
         sys.exit(1)
 
     if args.verbose:
         for path, node_roles in sorted(report.roles.items()):
-            log.info("  ✅ %s (%s)", path, ", ".join(node_roles))
-    log.info("\n✅ Dataset is compliant with the GeoZarr minispec")
+            log.info("  %s (%s)", path, ", ".join(node_roles))
+    log.info("\nDataset is compliant with the GeoZarr minispec")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -1305,10 +1302,9 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
             compression_level=args.compression_level,
             validate_output=not args.skip_validation,
             keep_scale_offset=args.keep_scale_offset,
-            experimental_scale_offset_codec=args.experimental_scale_offset_codec,
         )
 
-        log.info("✅ S2 optimization completed", output_path=args.output_path)
+        log.info("S2 optimization completed", output_path=args.output_path)
     finally:
         # Clean up dask client if it was created
         if dask_client is not None:
@@ -1316,7 +1312,7 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
                 if hasattr(dask_client, "close"):
                     dask_client.close()
                 if args.verbose:
-                    log.info("🔄 Dask cluster closed")
+                    log.info("Dask cluster closed")
             except Exception as e:
                 if args.verbose:
                     log.warning("Error closing dask cluster", error=str(e))

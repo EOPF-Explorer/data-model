@@ -111,7 +111,6 @@ class GeoZarrWriter(EOWriter):
         min_dimension: int = 256,
         compression_level: int = 3,
         keep_scale_offset: bool = False,
-        experimental_scale_offset_codec: bool = False,
         validate_output: bool = False,
         output_grid: str = "native",
         **kwargs: Any,
@@ -171,9 +170,6 @@ class GeoZarrWriter(EOWriter):
         keep_scale_offset
             S2 optimized pipeline only: preserve CF scale/offset encoding
             instead of decoding to float.
-        experimental_scale_offset_codec
-            S2 optimized pipeline only: push CF scale/offset into the zarr
-            codec pipeline.
         validate_output
             S2 optimized pipeline only: run output validation after writing.
         output_grid
@@ -241,7 +237,6 @@ class GeoZarrWriter(EOWriter):
                 compression_level=compression_level,
                 validate_output=validate_output,
                 keep_scale_offset=keep_scale_offset,
-                experimental_scale_offset_codec=experimental_scale_offset_codec,
                 max_retries=max_retries,
             )
 
@@ -293,7 +288,6 @@ class GeoZarrWriter(EOWriter):
             "min_dimension",
             "compression_level",
             "keep_scale_offset",
-            "experimental_scale_offset_codec",
             "validate_output",
             "output_grid",
         )

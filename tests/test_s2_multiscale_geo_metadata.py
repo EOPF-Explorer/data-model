@@ -15,7 +15,8 @@ from zarr_cm import geo_proj
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
-    create_measurements_encoding,
+    _rechunk_ds,
+    create_uniform_encoding,
     stream_write_dataset,
     write_geo_metadata,
 )
@@ -161,15 +162,17 @@ class TestWriteGeoMetadata:
         assert np.array_equal(sample_dataset_with_crs["b02"].values, original_b02_data)
 
     def test_write_geo_metadata_empty_dataset(self) -> None:
-        """Test _write_geo_metadata with empty dataset."""
+        """An empty dataset has no data variable to detect a CRS from, so
+        `write_geo_metadata` must no-op rather than raise or write metadata
+        for a CRS it never found."""
+
+        # addition of writing geo metadata to empty dataset should be empty
 
         empty_ds = xr.Dataset({}, coords={})
 
-        # Call the method - should handle gracefully
         write_geo_metadata(empty_ds)
 
-        # Verify method doesn't fail with empty dataset
-        # This tests robustness
+        assert empty_ds.attrs == {}
 
     def test_write_geo_metadata_rio_write_crs_called(
         self, sample_dataset_with_crs: xr.Dataset
@@ -225,8 +228,10 @@ class TestWriteGeoMetadata:
         ds = xr.Dataset(data_vars, coords=coords)
         ds = ds.rio.write_crs("EPSG:32632")
 
+        ds = _rechunk_ds(ds, spatial_chunk=1024)
+
         # Create encoding for the dataset
-        encoding = create_measurements_encoding(ds, spatial_chunk=1024, enable_sharding=True)
+        encoding = create_uniform_encoding(ds, spatial_chunk=1024, enable_sharding=True)
 
         # Call _stream_write_dataset (which should call _write_geo_metadata internally)
         # Use a measurements path to trigger geo metadata writing

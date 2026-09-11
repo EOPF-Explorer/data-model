@@ -142,7 +142,7 @@ class MockSentinel1L1GRDBuilder:
 
 def test_titiler_compatibility(tmp_path: Path) -> None:
     """Test that reprojected Sentinel-1 data is compatible with titiler-eopf operations."""
-    print("🧪 Testing titiler-eopf compatibility with reprojected Sentinel-1 data...")
+    print("Testing titiler-eopf compatibility with reprojected Sentinel-1 data...")
 
     # Create sample data
     builder = MockSentinel1L1GRDBuilder("20170508T164830_0025_A094_8604_01B54C")
@@ -151,7 +151,7 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
     output_path = tmp_path / "test_s1_reprojected.zarr"
 
     # Convert to GeoZarr with reprojection
-    print("📊 Converting Sentinel-1 data with reprojection...")
+    print("Converting Sentinel-1 data with reprojection...")
     create_geozarr_dataset(
         sample_datatree,
         groups=["measurements"],
@@ -171,7 +171,7 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
     measurements_root = output_path / polarization_group / "measurements"
 
     # Validate base level (native, written at the group root)
-    print("✅ Validating base level data...")
+    print("Validating base level data...")
     ds_measurements = xr.open_dataset(str(measurements_root), engine="zarr", zarr_format=3)
     grd = ds_measurements.grd
 
@@ -201,7 +201,7 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
         )
 
     # Test spatial operations that titiler-eopf would perform
-    print("🔍 Testing spatial operations (similar to titiler-eopf)...")
+    print("Testing spatial operations (similar to titiler-eopf)...")
 
     # Test 1: Bounding box selection (clip_bbox equivalent)
     x_min, x_max = ds_measurements.x.min().values, ds_measurements.x.max().values
@@ -235,7 +235,7 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
     print(f"   - Point value at center ({center_x:.3f}, {center_y:.3f}): {point_value.values}")
 
     # Validate overview levels
-    print("✅ Validating overview levels...")
+    print("Validating overview levels...")
     r2_path = measurements_root / "r2"
     assert r2_path.exists(), f"Missing overview r2 at {r2_path}"
 
@@ -273,11 +273,11 @@ def test_titiler_compatibility(tmp_path: Path) -> None:
     )
     print(f"   - Overview spatial subset shape: {overview_subset.grd.shape}")
 
-    print("🎉 All titiler-eopf compatibility tests passed!")
-    print("\n📋 Summary:")
-    print("   ✅ Data reprojected from radar geometry to EPSG:4326")
-    print("   ✅ Standard x/y coordinates available for spatial indexing")
-    print("   ✅ Bounding box selection works (clip_bbox equivalent)")
-    print("   ✅ Point selection works (spatial indexing)")
-    print("   ✅ Overview levels maintain spatial structure")
-    print("   ✅ All spatial operations that titiler-eopf needs are supported")
+    print("All titiler-eopf compatibility tests passed!")
+    print("\nSummary:")
+    print("   Data reprojected from radar geometry to EPSG:4326")
+    print("   Standard x/y coordinates available for spatial indexing")
+    print("   Bounding box selection works (clip_bbox equivalent)")
+    print("   Point selection works (spatial indexing)")
+    print("   Overview levels maintain spatial structure")
+    print("   All spatial operations that titiler-eopf needs are supported")

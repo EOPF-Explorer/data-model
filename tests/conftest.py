@@ -20,9 +20,8 @@ geozarr_example_paths = tuple(pathlib.Path("tests/_test_data/geozarr_examples").
 zcm_multiscales_example_paths = tuple(
     pathlib.Path("tests/_test_data/zcm_multiscales_examples").glob("*.json")
 )
-optimized_geozarr_example_paths = tuple(
-    pathlib.Path("tests/_test_data/optimized_geozarr_examples").glob("*.json")
-)
+
+v3_s2_example_json_paths = tuple(pathlib.Path("tests/_test_data/v3_s2_examples").glob("*.json"))
 
 
 def read_json(path: pathlib.Path) -> dict[str, object]:
@@ -38,7 +37,9 @@ def get_stem(p: pathlib.Path) -> str:
     return p.stem
 
 
-def create_group_from_json(source_path: pathlib.Path, out_path: pathlib.Path) -> pathlib.Path:
+def create_zarrv2_group_from_json(
+    source_path: pathlib.Path, out_path: pathlib.Path
+) -> pathlib.Path:
     """
     Create a Zarr V2 group from a JSON model
     """
@@ -49,10 +50,23 @@ def create_group_from_json(source_path: pathlib.Path, out_path: pathlib.Path) ->
     return out_dir
 
 
+def create_zarrv3_group_from_json(
+    source_path: pathlib.Path, out_path: pathlib.Path
+) -> pathlib.Path:
+    """
+    Create a Zarr V3 group from a JSON model
+    """
+    out_dir = out_path / (source_path.stem + ".zarr")
+    g: GroupSpecV3 = GroupSpecV3.model_validate(read_json(source_path))
+    # to_zarr is annotated to take a Store but accepts a path-like at runtime.
+    g.to_zarr(out_dir, path="")  # type: ignore[arg-type]
+    return out_dir
+
+
 @pytest.fixture(params=s3_example_json_paths, ids=get_stem)
 def s3_olci_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> pathlib.Path:
     """Path to a Zarr group with the layout of a Sentinel-3 OLCI product."""
-    return create_group_from_json(request.param, tmp_path)
+    return create_zarrv2_group_from_json(request.param, tmp_path)
 
 
 @pytest.fixture(params=s1_example_json_paths, ids=get_stem)
@@ -61,16 +75,16 @@ def s1_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> 
     A fixture that returns the path to a Zarr group with the same layout as a sentinel 1
     product
     """
-    return create_group_from_json(request.param, tmp_path)
+    return create_zarrv2_group_from_json(request.param, tmp_path)
 
 
-@pytest.fixture(params=s2_example_json_paths, ids=get_stem)
+@pytest.fixture(params=v3_s2_example_json_paths, ids=get_stem)
 def s2_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> pathlib.Path:
     """
     A fixture that returns the path to a Zarr group with the same layout as a sentinel 2
     product
     """
-    return create_group_from_json(request.param, tmp_path)
+    return create_zarrv3_group_from_json(request.param, tmp_path)
 
 
 @pytest.fixture(params=s1_example_json_paths, ids=get_stem)
@@ -82,28 +96,8 @@ def s1_json_example(request: pytest.FixtureRequest) -> dict[str, object]:
     return read_json(source_path)
 
 
-@pytest.fixture(params=s2_example_json_paths, ids=get_stem)
-def s2_json_example(request: pytest.FixtureRequest) -> dict[str, object]:
-    """
-    A fixture that returns the JSON model of a Sentinel 2 Zarr group
-    """
-    source_path: pathlib.Path = request.param
-    return read_json(source_path)
-
-
 @pytest.fixture(params=geozarr_example_paths, ids=get_stem)
 def s2_geozarr_group_example(request: pytest.FixtureRequest) -> zarr.Group:
-    """
-    Return a memory-backed Zarr V3 Group based on a sentinel 2 product converted to geozarr
-    """
-    source_path: pathlib.Path = request.param
-    store: dict[str, bytes] = {}
-    # to_zarr is annotated to take a Store but accepts a dict-backed store at runtime.
-    return GroupSpecV3.model_validate(read_json(source_path)).to_zarr(store, path="")  # type: ignore[arg-type]
-
-
-@pytest.fixture(params=optimized_geozarr_example_paths, ids=get_stem)
-def s2_optimized_geozarr_group_example(request: pytest.FixtureRequest) -> zarr.Group:
     """
     Return a memory-backed Zarr V3 Group based on a sentinel 2 product converted to geozarr
     """
@@ -201,7 +195,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
 
     # Open the native resolution dataset (written at the group root)
     group_path = str(output_path / group.lstrip("/"))
-    ds = xr.open_dataset(group_path, engine="zarr", zarr_format=3)
+    ds = xr.open_dataset(group_path, engine="zarr", zarr_format=3, decode_coords="all")
 
     print(f"  Variables: {list(ds.data_vars)}")
     print(f"  Coordinates: {list(ds.coords)}")
@@ -215,7 +209,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
             assert ds[var_name].attrs["_ARRAY_DIMENSIONS"] == list(ds[var_name].dims), (
                 f"Incorrect _ARRAY_DIMENSIONS for {var_name} in {group}"
             )
-            print(f"    ✅ _ARRAY_DIMENSIONS: {ds[var_name].attrs['_ARRAY_DIMENSIONS']}")
+            print(f"    _ARRAY_DIMENSIONS: {ds[var_name].attrs['_ARRAY_DIMENSIONS']}")
 
     # Check coordinates
     for coord_name in ds.coords:
@@ -224,7 +218,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
                 f"Missing _ARRAY_DIMENSIONS for coordinate {coord_name} in {group}"
             )
             print(
-                f"    ✅ {coord_name} _ARRAY_DIMENSIONS: {ds[coord_name].attrs['_ARRAY_DIMENSIONS']}"
+                f"    {coord_name} _ARRAY_DIMENSIONS: {ds[coord_name].attrs['_ARRAY_DIMENSIONS']}"
             )
 
     # Check 2: CF standard names (required by GeoZarr spec)
@@ -236,7 +230,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
             assert ds[var_name].attrs["standard_name"] == "toa_bidirectional_reflectance", (
                 f"Incorrect standard_name for {var_name} in {group}"
             )
-            print(f"    ✅ standard_name: {ds[var_name].attrs['standard_name']}")
+            print(f"    standard_name: {ds[var_name].attrs['standard_name']}")
 
     # Check 3: Grid mapping attributes (required by GeoZarr spec)
     for var_name in ds.data_vars:
@@ -247,7 +241,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
             assert ds[var_name].attrs["grid_mapping"] == "spatial_ref", (
                 f"Incorrect grid_mapping for {var_name} in {group}"
             )
-            print(f"    ✅ grid_mapping: {ds[var_name].attrs['grid_mapping']}")
+            print(f"    grid_mapping: {ds[var_name].attrs['grid_mapping']}")
 
     # Check 4: Spatial reference variable (as in notebook)
     assert "spatial_ref" in ds, f"Missing spatial_ref variable in {group}"
@@ -257,19 +251,19 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
     assert ds["spatial_ref"].attrs["_ARRAY_DIMENSIONS"] == [], (
         f"Incorrect _ARRAY_DIMENSIONS for spatial_ref in {group}"
     )
-    print(f"    ✅ spatial_ref _ARRAY_DIMENSIONS: {ds['spatial_ref'].attrs['_ARRAY_DIMENSIONS']}")
+    print(f"    spatial_ref _ARRAY_DIMENSIONS: {ds['spatial_ref'].attrs['_ARRAY_DIMENSIONS']}")
 
     # Check 5: GeoTransform attribute (from notebook verification)
     if "GeoTransform" in ds["spatial_ref"].attrs:
-        print(f"    ✅ GeoTransform: {ds['spatial_ref'].attrs['GeoTransform']}")
+        print(f"    GeoTransform: {ds['spatial_ref'].attrs['GeoTransform']}")
     else:
-        print("    ⚠️  Missing GeoTransform attribute")
+        print("    Missing GeoTransform attribute")
 
     # Check 6: CRS information (from notebook verification)
     if "crs_wkt" in ds["spatial_ref"].attrs:
-        print("    ✅ CRS WKT present")
+        print("    CRS WKT present")
     else:
-        print("    ⚠️  Missing CRS WKT")
+        print("    Missing CRS WKT")
 
     # Check 7: Coordinate standard names (from notebook verification)
     for coord in ["x", "y"]:
@@ -278,7 +272,7 @@ def _verify_geozarr_spec_compliance(output_path: pathlib.Path, group: str) -> No
             assert ds[coord].attrs["standard_name"] == expected_name, (
                 f"Incorrect standard_name for {coord} coordinate in {group}"
             )
-            print(f"    ✅ {coord} standard_name: {ds[coord].attrs['standard_name']}")
+            print(f"    {coord} standard_name: {ds[coord].attrs['standard_name']}")
 
     ds.close()
 
@@ -304,7 +298,7 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
     )
 
     # Native resolution dataset lives at the group root.
-    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3)
+    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3, decode_coords="all")
     native_size = min(ds_native.sizes["y"], ds_native.sizes["x"])
     ds_native.close()
 
@@ -318,7 +312,7 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
 
     # Walk levels in factor order: native (1), r2, r4, …
     level_shapes: dict[int, tuple[int, int]] = {}
-    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3)
+    ds_native = xr.open_dataset(str(group_path), engine="zarr", zarr_format=3, decode_coords="all")
     assert len(ds_native.data_vars) > 0, f"No data variables in {group_path}"
     assert "x" in ds_native.dims, f"Missing 'x' dimension in {group_path}"
     assert "y" in ds_native.dims, f"Missing 'y' dimension in {group_path}"
@@ -328,7 +322,7 @@ def _verify_multiscale_structure(output_path: pathlib.Path, group: str) -> None:
 
     for ov_dir in sorted(overview_dirs, key=lambda x: int(x.name[1:])):
         factor = int(ov_dir.name[1:])
-        ds = xr.open_dataset(str(ov_dir), engine="zarr", zarr_format=3)
+        ds = xr.open_dataset(str(ov_dir), engine="zarr", zarr_format=3, decode_coords="all")
         assert len(ds.data_vars) > 0, f"No data variables in {ov_dir}"
         assert "x" in ds.dims, f"Missing 'x' dimension in {ov_dir}"
         assert "y" in ds.dims, f"Missing 'y' dimension in {ov_dir}"
@@ -361,7 +355,7 @@ def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> Non
     rgb_groups = []
     for group in groups:
         group_path_str = str(output_path / group.lstrip("/"))
-        ds = xr.open_dataset(group_path_str, engine="zarr", zarr_format=3)
+        ds = xr.open_dataset(group_path_str, engine="zarr", zarr_format=3, decode_coords="all")
 
         # Check for RGB bands (b04=red, b03=green, b02=blue for Sentinel-2)
         has_rgb = all(band in ds.data_vars for band in ["b04", "b03", "b02"])
@@ -389,7 +383,7 @@ def _verify_rgb_data_access(output_path: pathlib.Path, groups: list[str]) -> Non
         )
 
         for label, level_path in targets:
-            ds = xr.open_dataset(str(level_path), engine="zarr", zarr_format=3)
+            ds = xr.open_dataset(str(level_path), engine="zarr", zarr_format=3, decode_coords="all")
 
             red_data = ds["b04"].values
             green_data = ds["b03"].values

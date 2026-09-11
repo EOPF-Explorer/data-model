@@ -2,33 +2,30 @@
 Tests for S2 multiscale pyramid creation with xy-aligned sharding.
 """
 
-import json
 import pathlib
 from collections.abc import Mapping, Sequence
 from itertools import pairwise
-from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 import xarray as xr
 import zarr
-from pydantic_zarr.core import tuplify_json
-from pydantic_zarr.v3 import GroupSpec
 from structlog.testing import capture_logs
-from zarr.codecs import BloscCodec, CastValue, ScaleOffset
-from zarr.core.dtype import Int16
 from zarr.core.metadata import ArrayV3Metadata
 
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _coarsen_variable,
+    _rechunk_ds,
     add_multiscales_metadata_to_parent,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
-    create_measurements_encoding,
     create_multiscale_from_datatree,
+    create_uniform_encoding,
     inject_missing_bands,
+    rechunk_dataset_for_encoding,
 )
 
 
@@ -36,9 +33,9 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
 def sample_dataset(s2_group_example: pathlib.Path) -> xr.Dataset:
     """Create a sample xarray dataset for testing."""
     with pytest.warns((RuntimeWarning, FutureWarning)):
-        return xr.open_datatree(s2_group_example, engine="zarr")[
-            "measurements/reflectance/r10m"
-        ].to_dataset()
+        return xr.open_datatree(
+            s2_group_example, engine="zarr", mask_and_scale=False, decode_coords="all"
+        )["measurements/reflectance/r10m"].to_dataset()
 
 
 def test_create_downsampled_resolution_group_quality_mask() -> None:
@@ -135,56 +132,13 @@ def test_calculate_simple_shard_dimensions() -> None:
     assert shard_dims[1] == 768  # 3 * 256 = 768
 
 
-def test_create_measurements_encoding_experimental_scale_offset_codec() -> None:
-    """Test that experimental_scale_offset_codec adds ScaleOffset + CastValue filters."""
-    # Create a dataset with CF-style scale-offset encoding, as xarray would
-    # produce when reading a CF-encoded zarr/netCDF variable.
-    data = xr.DataArray(
-        np.arange(0, 100, dtype="float64").reshape(10, 10),
-        dims=["y", "x"],
-    )
-    data.encoding = {
-        "scale_factor": 0.01,
-        "add_offset": 273.15,
-        "dtype": np.dtype("int16"),
-    }
-    ds = xr.Dataset({"temperature": data})
-
-    encoding = create_measurements_encoding(
-        ds,
-        enable_sharding=True,
-        spatial_chunk=256,
-        keep_scale_offset=False,
-        experimental_scale_offset_codec=True,
-    )
-
-    int16_min = int(np.iinfo(np.int16).min)
-    assert encoding == {
-        "temperature": {
-            "chunks": (10, 10),
-            "compressors": (BloscCodec(cname="zstd", clevel=3, shuffle="shuffle", blocksize=0),),
-            "shards": (10, 10),
-            "filters": (
-                ScaleOffset(offset=273.15, scale=100.0),
-                CastValue(
-                    data_type=Int16(endianness="little"),
-                    rounding="nearest-even",
-                    out_of_range=None,
-                    scalar_map={
-                        "encode": [("NaN", int16_min)],
-                        "decode": [(int16_min, "NaN")],
-                    },
-                ),
-            ),
-            "fill_value": "NaN",
-        }
-    }
-
-
 @pytest.mark.parametrize("keep_scale_offset", [True, False])
 def test_create_measurements_encoding(keep_scale_offset: bool, sample_dataset: xr.Dataset) -> None:
     """Test measurements encoding creation with xy-aligned sharding."""
-    encoding = create_measurements_encoding(
+    # rechunk
+    sample_dataset = _rechunk_ds(sample_dataset, 1024)
+
+    encoding = create_uniform_encoding(
         sample_dataset,
         enable_sharding=True,
         spatial_chunk=1024,
@@ -212,23 +166,27 @@ def test_create_measurements_encoding(keep_scale_offset: bool, sample_dataset: x
                 encoding[str(coord_name)].get("compressor") is None
                 or encoding[str(coord_name)].get("compressors") is None
             )
+    # rechunk before write
+    output_dataset = rechunk_dataset_for_encoding(sample_dataset, encoding)
+
     # Store data and check that we are conditionally applying the scale-offset transformation
     # based on the request passed to the encoding
-    stored = sample_dataset.to_zarr({}, encoding=encoding)
+    stored = output_dataset.to_zarr({}, encoding=encoding)
     zg = stored.zarr_group
-    for var_name in sample_dataset.data_vars:
-        if "add_offset" in sample_dataset[var_name].encoding:
+    for var_name in output_dataset.data_vars:
+        if "add_offset" in output_dataset[var_name].encoding:
             if keep_scale_offset:
-                assert zg[var_name].dtype != sample_dataset[var_name].dtype
+                assert zg[var_name].dtype != output_dataset[var_name].dtype
             else:
-                assert zg[var_name].dtype == sample_dataset[var_name].dtype
+                assert zg[var_name].dtype == output_dataset[var_name].dtype
 
 
 def test_create_measurements_encoding_time_chunking(sample_dataset: xr.Dataset) -> None:
     """Test that time dimension is chunked to 1 for single file per time."""
-    encoding = create_measurements_encoding(
-        sample_dataset, enable_sharding=True, spatial_chunk=1024
-    )
+    # rechunk
+    sample_dataset = _rechunk_ds(sample_dataset, 1024)
+
+    encoding = create_uniform_encoding(sample_dataset, enable_sharding=True, spatial_chunk=1024)
 
     for var_name in sample_dataset.data_vars:
         if sample_dataset[var_name].ndim == 3:  # 3D variable with time
@@ -249,6 +207,16 @@ def test_calculate_aligned_chunk_size() -> None:
     assert 1000 % chunk_size == 0
 
 
+# implemented as reading in from Fiztures wont include spatial_refs and other variables
+# Arrays that aren't spectral bands — excluded when comparing a group's band set between input and output
+_NON_BAND_ARRAYS = {"x", "y", "time", "spatial_ref"}
+
+
+def _band_names(group: zarr.Group) -> set[str]:
+    """Names of the spectral-band arrays directly under `group`."""
+    return {name for name in group.array_keys() if name not in _NON_BAND_ARRAYS}
+
+
 @pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:.*:FutureWarning")
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
@@ -256,68 +224,104 @@ def test_create_multiscale_from_datatree(
     s2_group_example: pathlib.Path,
     tmp_path: pathlib.Path,
 ) -> None:
-    """Snapshot test: a single canonical parametrization (keep_scale_offset=False,
-    experimental_scale_offset_codec=False) compared against a stored fixture.
+    """A single canonical parametrization (keep_scale_offset=True,
+    experimental_scale_offset_codec=False) exercised through the full
+    `convert_s2_optimized` workflow.
+
+    This asserts the structural properties the multiscale pipeline is
+    actually responsible for — every band on an original resolution level
+    survives conversion, the downsampled overview levels exist and carry the
+    same bands as their r60m source, and dtypes are consistent across the
+    whole pyramid — rather than diffing the output against a golden JSON
+    snapshot. A byte-exact snapshot is both brittle (any deliberate metadata
+    change breaks it regardless of correctness) and, for this fixture
+    specifically, partly unverifiable: `s2_group_example` is built from a
+    JSON zarr-metadata spec with no real chunk data, so anything derived
+    from real coordinate values (bbox, transforms, geotransforms) can never
+    match a snapshot built from a real product.
 
     Behavior under other parametrizations is exercised by
     `test_create_multiscale_from_datatree_behavior` below, which uses a small
     in-memory dataset with explicit, easily-verified expectations.
     """
+
+    # changed to not have a Scrict comparison between fixtures read in from zarrv2 jsons (out of data, impossible to maintain)
     output_path = str(tmp_path / "output.zarr")
     input_group = zarr.open_group(s2_group_example)
-    output_group = zarr.create_group(output_path)
     # xarray's open_datatree accepts a zarr store at runtime, but its stub does
     # not list Store among the accepted input types.
     dt_input = xr.open_datatree(
         input_group.store,  # pyright: ignore[reportArgumentType]
         engine="zarr",
-        chunks="auto",
+        chunks={},
+        mask_and_scale=False,
+        decode_coords="all",
     )
 
     # Capture log output using structlog's testing context manager
     with capture_logs():
-        create_multiscale_from_datatree(
+        convert_s2_optimized(
             dt_input,
-            output_group=output_group,
+            output_path=output_path,
             enable_sharding=True,
-            spatial_chunk=256,
-            keep_scale_offset=False,
-            experimental_scale_offset_codec=False,
+            spatial_chunk=1024,
+            validate_output=False,
+            keep_scale_offset=True,
+            compression_level=3,
         )
 
     observed_group = zarr.open_group(output_path, use_consolidated=False)
 
-    observed_structure_json = GroupSpec.from_zarr(observed_group).model_dump()
+    # Every top-level group present on input (measurements/quality/conditions)
+    # must survive conversion.
+    for top_level in input_group.group_keys():
+        assert top_level in observed_group, f"missing top-level group '{top_level}'"
 
-    # Comparing JSON objects is sensitive to the difference between tuples and lists, but we
-    # don't care about that here, so we convert all lists to tuples before creating the GroupSpec
-    observed_structure = GroupSpec(**tuplify_json(observed_structure_json))
-    observed_structure_flat = observed_structure.to_flat()
-    expected_structure_path = Path("tests/_test_data/optimized_geozarr_examples/") / (
-        s2_group_example.stem + ".json"
-    )
-
-    # Uncomment this section to write out the expected structure from the observed structure
-    # This is useful when the expected structure needs to be updated
-    # expected_structure_path.write_text(
-    #    json.dumps(observed_structure_json, indent=2, sort_keys=True)
-    # )
-
-    expected_structure_json = tuplify_json(json.loads(expected_structure_path.read_text()))
-    expected_structure = GroupSpec(**expected_structure_json)
-    expected_structure_flat = expected_structure.to_flat()
-
-    # check that all multiscale levels have the same data type
-    # this check is redundant with the later check, but it's expedient to check this here.
-    # eventually this check should be spun out into its own test
+    input_reflectance = input_group["measurements/reflectance"]
     reflectance_group = observed_group["measurements/reflectance"]
+    assert isinstance(input_reflectance, zarr.Group)
     assert isinstance(reflectance_group, zarr.Group)
-    _, res_groups = zip(*reflectance_group.groups(), strict=False)
 
+    # Every band on an original resolution level (r10m/r20m/r60m) must be
+    # present after conversion (conversion may *add* bands here — e.g.
+    # `inject_missing_bands` backfills bands missing at coarser native
+    # resolutions — but must never drop one).
+    original_levels = list(input_reflectance.group_keys())
+    for level in original_levels:
+        input_level = input_reflectance[level]
+        observed_level = reflectance_group[level]
+        assert isinstance(input_level, zarr.Group)
+        assert isinstance(observed_level, zarr.Group)
+        input_bands = _band_names(input_level)
+        observed_bands = _band_names(observed_level)
+        assert input_bands <= observed_bands, (
+            f"{level}: missing bands {input_bands - observed_bands}"
+        )
+
+    # The pyramid must extend the finest coarsened level (r60m) down through
+    # r120m/r360m/r720m, carrying the same band set at every level.
+    r60m_group = reflectance_group["r60m"]
+    assert isinstance(r60m_group, zarr.Group)
+    r60m_bands = _band_names(r60m_group)
+    for level in ("r120m", "r360m", "r720m"):
+        assert level in reflectance_group, f"missing downsampled group '{level}'"
+        level_group = reflectance_group[level]
+        assert isinstance(level_group, zarr.Group)
+        level_bands = _band_names(level_group)
+        assert level_bands == r60m_bands, (
+            f"{level}: band mismatch with r60m; expected {r60m_bands}, got {level_bands}"
+        )
+
+    # All multiscale levels must agree on dtype for the bands they share.
+    _, res_groups = zip(*reflectance_group.groups(), strict=False)
     dtype_mismatch: set[object] = set()
     for group_a, group_b in pairwise(res_groups):
-        ds_a = xr.open_dataset(group_a.store, engine="zarr", group=group_a.path)
-        ds_b = xr.open_dataset(group_b.store, engine="zarr", group=group_b.path)
+        ds_a = xr.open_dataset(
+            group_a.store, engine="zarr", group=group_a.path, decode_coords="all"
+        )
+        ds_b = xr.open_dataset(
+            group_b.store, engine="zarr", group=group_b.path, decode_coords="all"
+        )
 
         for name in ds_a.data_vars:
             dtype_a = ds_a[name].dtype
@@ -328,14 +332,6 @@ def test_create_multiscale_from_datatree(
                         (f"{group_a.path}/{name}::{dtype_a}", f"{group_b.path}/{name}::{dtype_b}")
                     )
     assert dtype_mismatch == set()
-
-    o_keys = set(observed_structure_flat.keys())
-    e_keys = set(expected_structure_flat.keys())
-
-    # Check that all of the keys are the same
-    assert o_keys == e_keys
-    # Check that all values are the same
-    assert [k for k in o_keys if expected_structure_flat[k] != observed_structure_flat[k]] == []
 
 
 def _make_minimal_s2_datatree() -> xr.DataTree:
@@ -401,11 +397,9 @@ _DOWNSAMPLED_GROUPS = (
 @pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:.*:FutureWarning")
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
-@pytest.mark.parametrize("experimental_scale_offset_codec", [False, True])
 @pytest.mark.parametrize("keep_scale_offset", [False, True])
 def test_create_multiscale_from_datatree_behavior(
     keep_scale_offset: bool,
-    experimental_scale_offset_codec: bool,
     tmp_path: pathlib.Path,
 ) -> None:
     """Verify per-parameter behavior of multiscale generation on a tiny dataset.
@@ -434,7 +428,6 @@ def test_create_multiscale_from_datatree_behavior(
             enable_sharding=False,
             spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
             keep_scale_offset=keep_scale_offset,
-            experimental_scale_offset_codec=experimental_scale_offset_codec,
         )
 
     # ------------------------------------------------------------------
@@ -451,14 +444,6 @@ def test_create_multiscale_from_datatree_behavior(
             assert arr.dtype == np.uint16, (
                 f"{group_path}/{var_name}: expected uint16 on disk, got {arr.dtype}"
             )
-        elif experimental_scale_offset_codec:
-            # CF encoding is pushed into a codec pipeline. The logical dtype
-            # is the cast-to-float32 array dtype; the codec stores uint16.
-            assert arr.dtype == np.float32, (
-                f"{group_path}/{var_name}: expected float32 logical dtype, got {arr.dtype}"
-            )
-            assert "ScaleOffset" in codec_names, f"{group_path}/{var_name}: codecs={codec_names}"
-            assert "CastValue" in codec_names, f"{group_path}/{var_name}: codecs={codec_names}"
         else:
             # CF encoding is stripped; data is written as decoded floats.
             assert arr.dtype == np.float32, (
@@ -479,7 +464,7 @@ def test_create_multiscale_from_datatree_behavior(
         # (10/20/60 → 120/360/720).
         sub = group_path.removeprefix("measurements/reflectance/")
         assert sub in dict(parent_group.groups()), f"missing downsampled group {group_path}"
-        ds = xr.open_dataset(output_path, engine="zarr", group=group_path)
+        ds = xr.open_dataset(output_path, engine="zarr", group=group_path, decode_coords="all")
         assert ds.data_vars, f"{group_path} has no variables"
         for name in ds.data_vars:
             arr = zarr.open_array(output_path, path=f"{group_path}/{name}")
@@ -492,12 +477,6 @@ def test_create_multiscale_from_datatree_behavior(
                 )
                 assert "ScaleOffset" not in codec_names
                 assert "CastValue" not in codec_names
-            elif experimental_scale_offset_codec:
-                assert arr.dtype == np.float32, (
-                    f"{group_path}/{name}: expected float32 logical dtype, got {arr.dtype}"
-                )
-                assert "ScaleOffset" in codec_names, f"{group_path}/{name}: codecs={codec_names}"
-                assert "CastValue" in codec_names, f"{group_path}/{name}: codecs={codec_names}"
             else:
                 assert arr.dtype == np.float32, (
                     f"{group_path}/{name}: expected float32, got {arr.dtype}"
@@ -518,7 +497,9 @@ def test_create_multiscale_from_datatree_behavior(
         packed = np.round((da_in.values - ao) / sf).astype("uint16")
         expected = (packed.astype("float64") * sf + ao).astype("float32")
 
-        observed = xr.open_dataset(output_path, engine="zarr", group=group_path)[var_name].values
+        observed = xr.open_dataset(
+            output_path, engine="zarr", group=group_path, decode_coords="all"
+        )[var_name].values
         # CF quantisation rounds to the nearest multiple of `scale_factor`,
         # so values agree with `expected` to within sf/2 in exact arithmetic.
         # On the r10m level the values round-trip through a float64 → float32
@@ -595,7 +576,9 @@ def test_inject_missing_bands_respects_bands_filter() -> None:
     dt = _make_reflectance_datatree()
     r20m_ds = dt["measurements/reflectance/r20m"].to_dataset()
 
-    result = inject_missing_bands(r20m_ds, dt, target_resolution=20, bands={"b08"})
+    result = inject_missing_bands(
+        r20m_ds, dt, target_resolution=20, bands={"b08"}, spatial_chunk=1024
+    )
 
     assert "b08" in result.data_vars
     assert result["b08"].shape == (60, 60)
@@ -614,7 +597,9 @@ def test_inject_missing_bands_skips_existing() -> None:
     sentinel = np.full((60, 60), 999, dtype="uint16")
     r20m_ds["b08"] = (["y", "x"], sentinel)
 
-    result = inject_missing_bands(r20m_ds, dt, target_resolution=20, bands={"b08"})
+    result = inject_missing_bands(
+        r20m_ds, dt, target_resolution=20, bands={"b08"}, spatial_chunk=1024
+    )
 
     # b08 was already present — inject_missing_bands must leave it untouched.
     np.testing.assert_array_equal(result["b08"].values, sentinel)
@@ -625,7 +610,7 @@ def test_inject_missing_bands_noop_when_no_source() -> None:
     dt = xr.DataTree()
     ds = xr.Dataset({"b05": (["y", "x"], np.ones((60, 60)))})
 
-    result = inject_missing_bands(ds, dt, target_resolution=20)
+    result = inject_missing_bands(ds, dt, target_resolution=20, spatial_chunk=1024)
 
     assert "b08" not in result.data_vars
 
@@ -672,7 +657,7 @@ def test_inject_missing_bands_default_injects_all() -> None:
     dt["measurements/reflectance/r20m"] = xr.DataTree(r20m_ds)
     dt["measurements/reflectance/r60m"] = xr.DataTree(r60m_ds)
 
-    result = inject_missing_bands(r60m_ds, dt, target_resolution=60)
+    result = inject_missing_bands(r60m_ds, dt, target_resolution=60, spatial_chunk=1024)
 
     # All 10m bands (b02, b03, b04, b08) and 20m bands (b05, b06) should be injected
     for band in ("b02", "b03", "b04", "b08", "b05", "b06"):

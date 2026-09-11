@@ -39,13 +39,14 @@ def test_validate_s2_input_rejects_non_s2_zarr_backed_tree(tmp_path: Path) -> No
         _validate_s2_input(backed)
 
 
-def test_validate_s2_input_skips_zarr_v3_backed_tree(tmp_path: Path) -> None:
-    """Zarr-v3-backed trees skip validation (the S2 model only reads Zarr v2)."""
-    store = tmp_path / "v3.zarr"
+def test_validate_s2_input_rejects_non_s2_zarr_v3_backed_tree(tmp_path: Path) -> None:
+    """Zarr-v3-backed trees that are not Sentinel-2 products are still rejected."""
+    store = tmp_path / "not_s2_v3.zarr"
     source = xr.DataTree(xr.Dataset({"var": (["y", "x"], np.zeros((4, 4)))}))
     source.to_zarr(store, zarr_format=3, consolidated=False)
     backed = xr.open_datatree(store, engine="zarr")
-    _validate_s2_input(backed)  # must not raise
+    with pytest.raises(ValueError, match="not a Sentinel-2 product"):
+        _validate_s2_input(backed)
 
 
 @pytest.fixture
@@ -75,21 +76,6 @@ def mock_s2_dataset() -> xr.DataTree:
     dt.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
     return dt
-
-
-class TestS2FunctionalAPI:
-    """Test the S2 functional API."""
-
-    def test_is_sentinel2_dataset_placeholder(self) -> None:
-        """Placeholder test for is_sentinel2_dataset.
-
-        The actual is_sentinel2_dataset function uses complex pydantic validation
-        that requires a fully structured zarr group matching Sentinel1Root or
-        Sentinel2Root models. Testing this would require creating a complete
-        mock sentinel dataset, which is better done in integration tests.
-        """
-        # This test is kept as a placeholder to maintain test structure
-        assert True
 
 
 class TestCRSInitialization:
@@ -251,7 +237,7 @@ def test_simple_root_consolidation_success(tmp_path: Path) -> None:
         for k, v in datasets.items()
     ]
 
-    simple_root_consolidation(str(tmp_path / "test.zarr"), datasets=datasets)
+    simple_root_consolidation(output_path=str(tmp_path / "test.zarr"), datasets=datasets)
 
     root_z_meta = json.loads((tmp_path / "test.zarr/zarr.json").read_text())
     reflectance_zmeta = json.loads(

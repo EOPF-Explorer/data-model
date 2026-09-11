@@ -29,7 +29,7 @@ from eopf.store.writer_registry import EOWriterRegistry
 
 from eopf_geozarr.cpm.writer import ENGINE_NAME, GeoZarrWriter, get_cli_command
 
-from .conftest import create_group_from_json, s2_example_json_paths
+from .conftest import create_zarrv2_group_from_json, s2_example_json_paths
 from .test_olci_integration import build_synthetic_olci
 
 
@@ -52,7 +52,7 @@ def test_get_cli_command_builds_click_command() -> None:
 
 def test_write_s2_end_to_end(tmp_path: pathlib.Path) -> None:
     """A zarr-backed S2 tree written via CPM's dispatcher yields the flat pyramid."""
-    source = create_group_from_json(s2_example_json_paths[0], tmp_path / "source")
+    source = create_zarrv2_group_from_json(s2_example_json_paths[0], tmp_path / "source")
     dtree = xr.open_datatree(source, engine="zarr", chunks="auto")
     target = tmp_path / "output.zarr"
 
@@ -159,7 +159,7 @@ def test_cli_convert_geozarr_end_to_end(tmp_path: pathlib.Path) -> None:
     CLI, the click option wiring, convert()'s reader dispatch (cpm_zarr source),
     and the geozarr engine selected by name.
     """
-    source = create_group_from_json(s2_example_json_paths[0], tmp_path / "source")
+    source = create_zarrv2_group_from_json(s2_example_json_paths[0], tmp_path / "source")
     target = tmp_path / "out.zarr"
     # The eopf console script installed next to the current interpreter.
     eopf_cli = pathlib.Path(sys.executable).parent / "eopf"
