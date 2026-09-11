@@ -1,6 +1,42 @@
 """Types and constants for the GeoZarr data API."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NewType, NotRequired, TypedDict
+
+CRSCode = NewType("CRSCode", str)
+"""A CRS identifier accepted by pyproj, e.g. ``"EPSG:32631"`` (the GeoZarr ``proj:code`` value)."""
+
+BoundingBox2D = NewType("BoundingBox2D", tuple[float, float, float, float])
+"""A ``(xmin, ymin, xmax, ymax)`` bounding box, tagged so it cannot be confused with
+other float sequences (e.g. an affine transform)."""
+
+
+def make_crs_code(value: object) -> CRSCode:
+    """Validate an untyped value (e.g. a zarr attribute) as a CRS code string.
+
+    Validation is intentionally light (non-empty string): pyproj's
+    ``CRS.from_user_input`` raises ``CRSError`` downstream on values it cannot parse.
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise TypeError(f"CRS code must be a non-empty string, got {value!r}")
+    return CRSCode(value)
+
+
+def make_bounding_box(value: object) -> BoundingBox2D:
+    """Validate an untyped value (e.g. a zarr attribute) as a 4-number bounding box.
+
+    Accepts a list or tuple (zarr attrs serialize tuples to JSON arrays and read back
+    lists) and returns a float 4-tuple.
+    """
+    if not isinstance(value, list | tuple):
+        raise TypeError(f"Bounding box must be a sequence, got {type(value).__name__}")
+    if len(value) != 4:
+        raise ValueError(f"Bounding box must have exactly 4 values, got {len(value)}")
+    coords: list[float] = []
+    for v in value:
+        if isinstance(v, bool) or not isinstance(v, int | float):
+            raise TypeError(f"Bounding box values must be numbers, got {v!r}")
+        coords.append(float(v))
+    return BoundingBox2D((coords[0], coords[1], coords[2], coords[3]))
 
 
 class XarrayEncodingJSON(TypedDict):

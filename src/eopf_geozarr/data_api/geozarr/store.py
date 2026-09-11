@@ -27,9 +27,7 @@ from eopf_geozarr.data_api.geozarr.common import is_none
 from eopf_geozarr.data_api.geozarr.multiscales import MultiscaleMeta
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import MultiscaleGroupAttrs
 from eopf_geozarr.data_api.geozarr.multiscales.zcm import ScaleLevel
-from eopf_geozarr.data_api.geozarr.projjson import (
-    ProjJSON,  # noqa: TC001  (runtime use by pydantic)
-)
+from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
 
 
 def declared_convention_uuids(

@@ -60,6 +60,31 @@ class StandardYCoordAttrsJSON(TypedDict):
     _ARRAY_DIMENSIONS: list[Literal["y"]]
 
 
+class S1BackscatterAttrsJSON(TypedDict):
+    """CF attributes for the Sentinel-1 RTC backscatter bands (vv/vh).
+
+    ``_FillValue`` is the ``FillValueCoder``-encoded base64 NaN that lets xarray mask
+    nodata under ``use_zarr_fill_value_as_mask`` despite xarray #11345 (data-model #172).
+    """
+
+    standard_name: Literal["surface_backwards_scattering_coefficient_of_radar_wave"]
+    units: Literal["1"]
+    _FillValue: str
+
+
+class S1TimeCoordAttrsJSON(TypedDict):
+    """CF datetime-encoding attrs for the S1 RTC ``time`` coordinate.
+
+    Lets xarray / TiTiler's ``open_datatree(decode_times=True)`` decode the int64-ns
+    axis to datetime64, enabling per-acquisition selection by exact datetime
+    (data-model #192).
+    """
+
+    units: Literal["nanoseconds since 1970-01-01"]
+    calendar: Literal["proleptic_gregorian"]
+    standard_name: Literal["time"]
+
+
 class TileMatrixJSON(TypedDict):
     id: str
     scaleDenominator: float

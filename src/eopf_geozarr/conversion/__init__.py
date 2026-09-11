@@ -18,6 +18,14 @@ from .geozarr import (
     setup_datatree_metadata_geozarr_spec_compliant,
 )
 from .open_source import open_source_datatree
+from .s1_ingest import (
+    consolidate_s1_store,
+    discover_s1tiling_acquisitions,
+    discover_s1tiling_conditions,
+    extract_geotiff_metadata,
+    ingest_s1tiling_acquisition,
+    ingest_s1tiling_conditions,
+)
 from .utils import (
     calculate_aligned_chunk_size,
     downsample_2d_array,
@@ -30,9 +38,15 @@ __all__ = [
     "calculate_aligned_chunk_size",
     "calculate_overview_levels",
     "consolidate_metadata",
+    "consolidate_s1_store",
     "create_geozarr_dataset",
+    "discover_s1tiling_acquisitions",
+    "discover_s1tiling_conditions",
     "downsample_2d_array",
+    "extract_geotiff_metadata",
     "get_s3_credentials_info",
+    "ingest_s1tiling_acquisition",
+    "ingest_s1tiling_conditions",
     "is_grid_mapping_variable",
     "is_s3_path",
     "iterative_copy",

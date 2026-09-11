@@ -1090,6 +1090,74 @@ def validate_command(args: argparse.Namespace) -> None:
     log.info("\n✅ Dataset is compliant with the GeoZarr minispec")
 
 
+# =============================================================================
+# S1 Ingestion Commands
+# =============================================================================
+
+
+def ingest_s1_command(args: argparse.Namespace) -> None:
+    """Ingest a single S1Tiling acquisition into a GeoZarr V3 store."""
+    from .conversion.s1_ingest import ingest_s1tiling_acquisition
+
+    try:
+        idx = ingest_s1tiling_acquisition(
+            vv_path=args.vv,
+            vh_path=args.vh,
+            border_mask_path=args.mask,
+            store_path=args.store,
+            orbit_direction=args.orbit_dir,
+        )
+        log.info("✅ Acquisition ingested", time_index=idx, store=args.store)
+    except Exception as e:
+        log.exception("❌ Error ingesting acquisition", error=str(e))
+        sys.exit(1)
+
+
+def ingest_s1_conditions_command(args: argparse.Namespace) -> None:
+    """Ingest S1Tiling condition arrays into a GeoZarr V3 store."""
+    from .conversion.s1_ingest import ingest_s1tiling_conditions
+
+    try:
+        ingest_s1tiling_conditions(
+            store_path=args.store,
+            orbit_direction=args.orbit_dir,
+            relative_orbit=args.relative_orbit,
+            gamma_area_path=getattr(args, "gamma_area", None),
+            lia_path=getattr(args, "lia", None),
+            incidence_angle_path=getattr(args, "incidence_angle", None),
+        )
+        log.info("✅ Conditions ingested", store=args.store, orbit_dir=args.orbit_dir)
+    except Exception as e:
+        log.exception("❌ Error ingesting conditions", error=str(e))
+        sys.exit(1)
+
+
+def consolidate_s1_command(args: argparse.Namespace) -> None:
+    """Consolidate metadata for an S1 GeoZarr store."""
+    from .conversion.s1_ingest import consolidate_s1_store
+
+    try:
+        consolidate_s1_store(args.store, args.orbit_dir)
+        log.info("✅ Metadata consolidated", store=args.store)
+    except Exception as e:
+        log.exception("❌ Error consolidating metadata", error=str(e))
+        sys.exit(1)
+
+
+def generate_stac_s1_command(args: argparse.Namespace) -> None:
+    """Build and print a STAC item for an S1 GRD RTC Zarr store."""
+    import json
+
+    from .stac.s1_rtc import build_s1_rtc_stac_item
+
+    try:
+        item = build_s1_rtc_stac_item(args.store, args.collection)
+        print(json.dumps(item.to_dict(), indent=2))
+    except Exception as e:
+        log.exception("❌ Error generating STAC item", error=str(e))
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create the argument parser for the CLI.
@@ -1233,7 +1301,91 @@ def create_parser() -> argparse.ArgumentParser:
     add_s2_optimization_commands(subparsers)
     add_s3_olci_optimization_commands(subparsers)
 
+    # Add S1 ingestion commands
+    add_s1_ingestion_commands(subparsers)
+    add_s1_stac_commands(subparsers)
+
     return parser
+
+
+def add_s1_ingestion_commands(subparsers: argparse._SubParsersAction) -> None:
+    """Add S1 GRD RTC ingestion commands to CLI parser."""
+
+    # ingest-s1: single acquisition
+    s1_parser = subparsers.add_parser(
+        "ingest-s1", help="Ingest a single S1Tiling acquisition into a GeoZarr V3 store"
+    )
+    s1_parser.add_argument("--vv", type=str, required=True, help="Path to VV GeoTIFF")
+    s1_parser.add_argument("--vh", type=str, required=True, help="Path to VH GeoTIFF")
+    s1_parser.add_argument("--mask", type=str, required=True, help="Path to border mask GeoTIFF")
+    s1_parser.add_argument("--store", type=str, required=True, help="Path to output Zarr V3 store")
+    s1_parser.add_argument(
+        "--orbit-dir",
+        type=str,
+        required=True,
+        choices=["ascending", "descending"],
+        help="Orbit direction",
+    )
+    s1_parser.set_defaults(func=ingest_s1_command)
+
+    # ingest-s1-conditions: condition arrays
+    cond_parser = subparsers.add_parser(
+        "ingest-s1-conditions",
+        help="Ingest S1Tiling condition arrays (gamma_area, LIA) into a GeoZarr V3 store",
+    )
+    cond_parser.add_argument(
+        "--store", type=str, required=True, help="Path to existing Zarr V3 store"
+    )
+    cond_parser.add_argument(
+        "--orbit-dir",
+        type=str,
+        required=True,
+        choices=["ascending", "descending"],
+        help="Orbit direction",
+    )
+    cond_parser.add_argument(
+        "--relative-orbit", type=int, required=True, help="Relative orbit number (e.g. 37)"
+    )
+    cond_parser.add_argument(
+        "--gamma-area", type=str, default=None, help="Path to gamma area GeoTIFF"
+    )
+    cond_parser.add_argument("--lia", type=str, default=None, help="Path to LIA GeoTIFF")
+    cond_parser.add_argument(
+        "--incidence-angle", type=str, default=None, help="Path to incidence angle GeoTIFF"
+    )
+    cond_parser.set_defaults(func=ingest_s1_conditions_command)
+
+    # consolidate-s1: metadata consolidation
+    cons_parser = subparsers.add_parser(
+        "consolidate-s1", help="Consolidate metadata for an S1 GeoZarr V3 store"
+    )
+    cons_parser.add_argument("--store", type=str, required=True, help="Path to Zarr V3 store")
+    cons_parser.add_argument(
+        "--orbit-dir",
+        type=str,
+        required=True,
+        choices=["ascending", "descending"],
+        help="Orbit direction",
+    )
+    cons_parser.set_defaults(func=consolidate_s1_command)
+
+
+def add_s1_stac_commands(subparsers: argparse._SubParsersAction) -> None:
+    """Add S1 GRD RTC STAC builder command to CLI parser."""
+    stac_parser = subparsers.add_parser(
+        "generate-stac-s1",
+        help="Build and print a STAC item for an S1 GRD RTC Zarr store",
+    )
+    stac_parser.add_argument(
+        "--store", type=str, required=True, help="Path or s3:// URI to the Zarr store"
+    )
+    stac_parser.add_argument(
+        "--collection",
+        type=str,
+        default="sentinel-1-grd-rtc-staging",
+        help="STAC collection ID (default: sentinel-1-grd-rtc-staging)",
+    )
+    stac_parser.set_defaults(func=generate_stac_s1_command)
 
 
 def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None:
