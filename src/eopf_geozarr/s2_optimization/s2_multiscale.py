@@ -616,42 +616,6 @@ def create_uniform_encoding(
         # would otherwise strip it.
         inject_nan_fillvalue = False
 
-        # if experimental_scale_offset_codec and not keep_scale_offset:
-        #     # THIS didnt work when previously tested
-
-        #     # Push CF scale-offset into the zarr codec pipeline instead of
-        #     # decoding to float. The data stays as packed integers on disk,
-        #     # but zarr transparently decodes on read.
-        #     scale_factor = var_data.encoding.get("scale_factor")
-        #     add_offset = var_data.encoding.get("add_offset")
-        #     packed_dtype = var_data.encoding.get("dtype")
-
-        #     if scale_factor is not None and add_offset is not None and packed_dtype is not None:
-        #         from eopf_geozarr.codecs.scale_offset import scale_offset_from_cf
-
-        #         so_codec = scale_offset_from_cf(
-        #             scale_factor=float(scale_factor), add_offset=float(add_offset)
-        #         )
-        #         packed_np_dtype = np.dtype(packed_dtype)
-        #         source_fill = var_data.encoding.get("_FillValue")
-        #         if source_fill is not None:
-        #             nan_sentinel = int(source_fill)
-        #         else:
-        #             nan_sentinel = int(np.iinfo(packed_np_dtype).min)
-        #         cv_codec = CastValue(
-        #             data_type=packed_np_dtype.name,
-        #             rounding="nearest-even",
-        #             scalar_map={
-        #                 "encode": [("NaN", nan_sentinel)],
-        #                 "decode": [(nan_sentinel, "NaN")],
-        #             },
-        #         )
-        #         var_encoding["filters"] = (so_codec, cv_codec)
-
-        #     keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue", "filters"}
-        #     var_encoding["fill_value"] = "NaN"
-        #     inject_nan_fillvalue = True
-        # elif not keep_scale_offset:
         if not keep_scale_offset:
             # When stripping scale/offset, also strip _FillValue since the original
             # _FillValue is in raw integer units and meaningless for decoded float data.
@@ -662,9 +626,19 @@ def create_uniform_encoding(
             # Not stripping scale/offset: pick an explicit zarr-level fill_value
             # rather than letting xarray infer one differently across versions.
             keep_keys = keep_keys - {"fill_value"}
+
+            # get the fill value and detect if its int or Nan/None -> UnSet differentiates between nan/None and actually not set
             fv = utils.explicit_fill_value(var_data)
             if fv is not utils.UNSET:
+                # gets triggered for s1?
                 var_encoding["fill_value"] = fv
+            else:
+                # We need to pass _FillValue in the encoding to allow decode_cf to read it..
+                # either this, or it gets removed from everywhere else during the sanitize_array_attrs() call
+                if "fill_value" in var_data.attrs and "_FillValue" not in var_encoding:
+                    var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+                else:
+                    pass
 
         for key in keep_keys:
             if key in var_data.encoding:
