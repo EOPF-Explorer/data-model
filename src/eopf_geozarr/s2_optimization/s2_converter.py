@@ -352,6 +352,30 @@ def simple_root_consolidation(
         #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
         # )
 
+        # addition of measurements as its own stac asset in root -> will needto be verified and tested
+        # likely triggErs addtionial modifications in eopf-stac
+        root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
+        # Reference the pyramid root group, not the individual levels. That
+        # group carries the `multiscales` attribute, and the
+        # `profile=multiscales` media-type parameter tells a consumer to look
+        # for it there and resolve the levels from the convention itself.
+        stac = root_attrs.get("stac_discovery")
+        if stac is not None:
+            reflectance_asset: dict[str, Any] = {
+                "href": "/measurements/reflectance",
+                "type": "application/vnd.zarr; version=3; profile=multiscales",
+                "title": "Surface Reflectance",
+                "roles": ["data", "reflectance"],
+                "gsd": 10,
+            }
+            crs = initialize_crs_from_dataset(dt_input)
+            if crs is not None and crs.to_epsg() is not None:
+                reflectance_asset["proj:code"] = f"EPSG:{crs.to_epsg()}"
+            base = datasets.get("/measurements/reflectance/r10m")
+            if isinstance(base, xr.Dataset):
+                reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+            stac.setdefault("assets", {})["reflectance"] = reflectance_asset
+
         utils.write_store_root_stac_metadata(
             output_path,
             root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
