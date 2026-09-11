@@ -440,11 +440,14 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # Grid extension: the Sentinel-2 MGRS tile this cube is gridded onto — a queryable tile id
         # (enables tile-filtering the acquisitions collection and cube↔acquisition cross-links).
         "grid:code": f"MGRS-{tile_id}",
-        # COMPATIBILITY MIRROR (remove once data-pipeline is updated -- see the note on
-        # `extra_fields` below). The authoritative copy is the one at the item root; this
-        # duplicate exists only so pinned consumers that read `properties.renders` keep working
-        # across the relocation. Both are built from the same `_rgb_render(preferred_orbit)`
-        # call, so they cannot disagree.
+        # BOTH COPIES ARE LOAD-BEARING -- do NOT delete this one. `renders` belongs at the item
+        # root (see the note on `extra_fields` below), but the STAC API this feeds drops root-level
+        # keys it does not model: its `Item-Input` write schema declares exactly ten root fields
+        # and no `additionalProperties`, while `ItemProperties` and `Asset` in the same OpenAPI
+        # document do allow extras. A registered item is therefore expected to come back with
+        # `properties.renders` and nothing at the root, making this the copy a consumer reading a
+        # render config back OUT of the catalogue gets. Both are built from the same
+        # `_rgb_render(preferred_orbit)` call, so they cannot disagree.
         "renders": cube_render,
     }
     if preferred.shape is not None:
@@ -542,13 +545,21 @@ def build_s1_rtc_stac_item(zarr_store: str, collection_id: str) -> pystac.Item:
         # `properties` made every item fail the extension it declared, with the misleading
         # message "'renders' is a required property".
         #
-        # It is ALSO mirrored into `properties` above, deliberately and temporarily. Three
-        # data-pipeline consumers read the old location — `register_per_acquisition.py:132`
-        # (`d["properties"]["renders"]["rgb"]`, a hard KeyError), `register_v1_s1_rtc.py:57` and
-        # `register_v1.py:191` (both `.get`, so they silently lose the render config, which turns
-        # `_reorient_item_to_orbit` into a no-op and ships the wrong orbit's render on every
-        # dual-orbit cube). Moving `renders` without the mirror breaks them the moment the
-        # data-model pin bumps. Drop the mirror once those three read the root.
+        # It is ALSO mirrored into `properties` above, and that mirror is NOT temporary. The
+        # deployed STAC API models the write body as `Item-Input`, whose ten root fields do not
+        # include `renders` and which sets no `additionalProperties` -- while `ItemProperties` and
+        # `Asset` in the same OpenAPI document do allow extras. Pydantic drops what it does not
+        # model, so a POST/PUT is expected to keep only `properties.renders` and an item read back
+        # from the catalogue will carry that copy alone. (Basis: the deployed API's published
+        # OpenAPI, plus an offline repro through `stac_pydantic.Item`. NOT yet confirmed against a
+        # real POST -- no item carrying a root copy has been registered, so the fact that live
+        # items show only `properties.renders` is not evidence either way.)
+        #
+        # Hence both: the root copy is what makes the item satisfy the extension it declares, the
+        # mirror is what is expected to survive registration. Deleting the mirror would silently
+        # remove every render/viewer/tilejson/thumbnail link the pipeline derives, and would make
+        # `register_per_acquisition` raise outright. Consumers should read the root first and fall
+        # back to `properties` -- EOPF-Explorer/data-pipeline#413 does.
         extra_fields={"renders": cube_render},
     )
 
