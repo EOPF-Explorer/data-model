@@ -19,7 +19,6 @@ from typing import (
     TypeGuard,
     TypeVar,
 )
-from urllib.error import URLError
 
 from cf_xarray.utils import parse_cf_standard_name_table
 from pydantic import AfterValidator, BaseModel, Field, model_validator
@@ -133,10 +132,13 @@ CF_STANDARD_NAME_URL = (
 try:
     CF_STANDARD_NAMES = get_cf_standard_names(url=CF_STANDARD_NAME_URL)
     DO_CF_NAME_VALIDATION = True
-except (URLError, HTTPException, TimeoutError) as _cf_exc:
-    # A truncated response raises http.client.IncompleteRead, which is an HTTPException and not a
-    # URLError, so catching URLError alone let a flaky download break `import eopf_geozarr` for
-    # every mission. CF name validation is an optional check: degrade to "off", never to a crash.
+except (OSError, HTTPException) as _cf_exc:
+    # This runs at import time, so an uncaught failure here breaks `import eopf_geozarr` for every
+    # mission. A truncated response raises http.client.IncompleteRead, which is an HTTPException
+    # and not a URLError; URLError, TimeoutError, ConnectionResetError and ssl.SSLError are all
+    # OSError subclasses. CF name validation is an optional check: degrade to "off", never to a
+    # crash. (A cleanly truncated body still raises ElementTree.ParseError, which is neither -- see
+    # issue #265.)
     #
     # Warn rather than degrade silently. With validation off, `check_standard_name` accepts
     # anything, so a caller that believes it is validating is not -- the failure has to be visible
