@@ -356,7 +356,7 @@ def simple_root_consolidation(
         # )
 
         # addition of measurements as its own stac asset in root -> will needto be verified and tested
-        # likely triggErs addtionial modifications in eopf-stac
+        # likely triggErs addtionial modifications in eopf-stac -> cannot be tested here as eopf-stac is out of scope from this repo
         root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
         # Reference the pyramid root group, not the individual levels. That
         # group carries the `multiscales` attribute, and the

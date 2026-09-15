@@ -456,5 +456,44 @@ class TestConvenienceFunction:
         assert call_kwargs["spatial_chunk"] == 512
 
 
+def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -> None:
+    from pyproj import CRS
+
+    # initialise an empty dataset to mimic the process and write to tmp
+    r10m = xr.Dataset(coords={"y": np.arange(10), "x": np.arange(20)})
+    r10m.to_zarr(
+        str(tmp_path / "test.zarr/measurements/reflectance/r10m"),
+        mode="a",
+        zarr_format=3,
+        consolidated=False,
+    )
+    datasets = {"/measurements/reflectance/r10m": r10m}
+
+    # adding dummy data to dt_input to mimic input reference dtreee
+    dt_input = xr.DataTree(xr.Dataset({"dummy": (["y"], np.zeros(10))}))
+    dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
+
+    # test execution of func
+    simple_root_consolidation(
+        output_path=str(tmp_path / "test.zarr"),
+        datasets=datasets,
+        dt_input=dt_input,
+        crs=CRS.from_epsg(32632),
+    )
+
+    # read in the consolidated dTree root to cross-check with expected outcome
+    root_attrs = json.loads((tmp_path / "test.zarr/zarr.json").read_text())["attributes"]
+    asset = root_attrs["stac_discovery"]["assets"]["reflectance"]
+    assert asset == {
+        "href": "/measurements/reflectance",
+        "type": "application/vnd.zarr; version=3; profile=multiscales",
+        "title": "Surface Reflectance",
+        "roles": ["data", "reflectance"],
+        "gsd": 10,
+        "proj:code": "EPSG:32632",
+        "proj:shape": [10, 20],
+    }
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
