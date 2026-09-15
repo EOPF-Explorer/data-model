@@ -269,7 +269,7 @@ def convert_s2_optimized(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(output_path, datasets, dt_input)
+    simple_root_consolidation(output_path, datasets, dt_input, crs=crs)
 
     # Step 4: Validation
     if validate_output:
@@ -290,7 +290,10 @@ def convert_s2_optimized(
 
 
 def simple_root_consolidation(
-    output_path: str, datasets: Mapping[str, object], dt_input: xr.DataTree | None = None
+    output_path: str,
+    datasets: Mapping[str, object],
+    dt_input: xr.DataTree | None = None,
+    crs: CRS | None = None,
 ) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
     # create missing intermediary groups (/conditions, /quality, etc.)
@@ -368,12 +371,14 @@ def simple_root_consolidation(
                 "roles": ["data", "reflectance"],
                 "gsd": 10,
             }
-            crs = initialize_crs_from_dataset(dt_input)
+
             if crs is not None and crs.to_epsg() is not None:
-                reflectance_asset["proj:code"] = f"EPSG:{crs.to_epsg()}"
+                reflectance_asset.update(utils.proj_attrs_for_crs(crs))
+
             base = datasets.get("/measurements/reflectance/r10m")
             if isinstance(base, xr.Dataset):
                 reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
             stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 
         utils.write_store_root_stac_metadata(
