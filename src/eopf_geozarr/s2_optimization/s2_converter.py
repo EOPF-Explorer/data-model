@@ -269,7 +269,7 @@ def convert_s2_optimized(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(output_path, datasets, dt_input)
+    simple_root_consolidation(output_path, datasets, dt_input, crs=crs)
 
     # Step 4: Validation
     if validate_output:
@@ -290,7 +290,10 @@ def convert_s2_optimized(
 
 
 def simple_root_consolidation(
-    output_path: str, datasets: Mapping[str, object], dt_input: xr.DataTree | None = None
+    output_path: str,
+    datasets: Mapping[str, object],
+    dt_input: xr.DataTree | None = None,
+    crs: CRS | None = None,
 ) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
     # create missing intermediary groups (/conditions, /quality, etc.)
@@ -351,6 +354,32 @@ def simple_root_consolidation(
         #     output_path,
         #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
         # )
+
+        # addition of measurements as its own stac asset in root -> will needto be verified and tested
+        # likely triggErs addtionial modifications in eopf-stac -> cannot be tested here as eopf-stac is out of scope from this repo
+        root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
+        # Reference the pyramid root group, not the individual levels. That
+        # group carries the `multiscales` attribute, and the
+        # `profile=multiscales` media-type parameter tells a consumer to look
+        # for it there and resolve the levels from the convention itself.
+        stac = root_attrs.get("stac_discovery")
+        if stac is not None:
+            reflectance_asset: dict[str, Any] = {
+                "href": "/measurements/reflectance",
+                "type": "application/vnd.zarr; version=3; profile=multiscales",
+                "title": "Surface Reflectance",
+                "roles": ["data", "reflectance"],
+                "gsd": 10,
+            }
+
+            if crs is not None and crs.to_epsg() is not None:
+                reflectance_asset.update(utils.proj_attrs_for_crs(crs))
+
+            base = datasets.get("/measurements/reflectance/r10m")
+            if isinstance(base, xr.Dataset):
+                reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
+            stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 
         utils.write_store_root_stac_metadata(
             output_path,
