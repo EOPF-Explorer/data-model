@@ -16,6 +16,8 @@ from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     create_measurements_encoding,
+    create_original_encoding,
+    needs_geo_metadata,
     stream_write_dataset,
     write_geo_metadata,
 )
@@ -265,7 +267,9 @@ class TestWriteGeoMetadata:
         with patch.object(ds.rio, "transform", stale_transform):
             write_geo_metadata(ds)
 
-        assert ds.attrs["spatial:transform"] == [120.0, 0.0, 600030.0, 0.0, -120.0, 4899990.0]
+        # Origin is the outer pixel edge: half of the 120 m pixel outside the first centre.
+        assert ds.attrs["spatial:transform"] == [120.0, 0.0, 599970.0, 0.0, -120.0, 4900050.0]
+        assert ds.attrs["spatial:bbox"] == [599970.0, 4899690.0, 600330.0, 4900050.0]
 
 
 class TestWriteGeoMetadataEdgeCases:
@@ -416,3 +420,115 @@ class TestWriteGeoMetadataEdgeCases:
 
         # Verify zarr_conventions was not added since no CRS was available
         assert "zarr_conventions" not in sample_dataset_no_crs.attrs
+
+
+class TestNeedsGeoMetadata:
+    """Test which groups are stamped with geographic metadata."""
+
+    @staticmethod
+    def _gridded(dims: tuple[str, str]) -> xr.Dataset:
+        """A tiny 2-D dataset on the named dimensions."""
+        y_dim, x_dim = dims
+        return xr.Dataset(
+            {"var": ([y_dim, x_dim], np.zeros((4, 4)))},
+            coords={y_dim: (([y_dim]), np.arange(4.0)), x_dim: (([x_dim]), np.arange(4.0))},
+        )
+
+    def test_projected_grid_needs_geo_metadata(self) -> None:
+        """A group gridded on x/y is in the product CRS."""
+        assert needs_geo_metadata(self._gridded(("y", "x")))
+
+    def test_lat_lon_grid_is_skipped(self) -> None:
+        """Meteorology is on latitude/longitude and must not get the product CRS."""
+        assert not needs_geo_metadata(self._gridded(("latitude", "longitude")))
+
+    def test_non_raster_group_is_skipped(self) -> None:
+        """A group with no raster dims at all is skipped."""
+        assert not needs_geo_metadata(xr.Dataset({"var": (["angle"], np.zeros(3))}))
+
+    def test_extra_dims_still_need_geo_metadata(self) -> None:
+        """Angle grids are multi-dimensional but still live on the x/y grid."""
+        ds = xr.Dataset(
+            {"sun_angles": (["angle", "y", "x"], np.zeros((2, 4, 4)))},
+            coords={"y": np.arange(4.0), "x": np.arange(4.0)},
+        )
+        assert needs_geo_metadata(ds)
+
+    def test_classification_mask_is_readable_after_write(self, tmp_path: Path) -> None:
+        """A written SCL group carries the CRS, grid_mapping and spatial_ref a reader needs."""
+        # A 20 m grid, so the expected pixel edges below are exact.
+        coords = {
+            "x": (["x"], 499980.0 + np.arange(100) * 20.0),
+            "y": (["y"], 5800020.0 - np.arange(100) * 20.0),
+        }
+        data_vars = {"scl": (["y", "x"], np.zeros((100, 100), dtype="uint8"))}
+
+        ds = xr.Dataset(data_vars, coords=coords)
+        ds = ds.rio.write_crs("EPSG:32632")
+
+        # Masks are not a measurement group, so the converter builds their encoding here.
+        encoding = create_original_encoding(ds)
+
+        dataset_path = "/conditions/mask/l2a_classification/r20m"
+        stream_write_dataset(
+            ds,
+            path=dataset_path,
+            group=zarr.create_group(tmp_path),
+            encoding=encoding,
+            enable_sharding=True,
+        )
+
+        written_ds = xr.open_dataset(
+            tmp_path, engine="zarr", chunks={}, decode_coords="all", group=dataset_path
+        )
+
+        assert written_ds.rio.crs is not None
+        assert written_ds.rio.crs.to_epsg() == 32632
+        assert "spatial_ref" in written_ds.coords
+        assert "proj:code" in written_ds.attrs or "proj:wkt2" in written_ds.attrs
+
+        # Directed values, not just key presence: the footprint covers the pixel
+        # edges and agrees with the transform origin.
+        assert written_ds.attrs["spatial:bbox"] == [499970.0, 5798030.0, 501970.0, 5800030.0]
+        assert written_ds.attrs["spatial:transform"] == [
+            20.0,
+            0.0,
+            499970.0,
+            0.0,
+            -20.0,
+            5800030.0,
+        ]
+        assert written_ds.attrs["spatial:shape"] == [100, 100]
+
+        # `decode_coords="all"` consumes the attribute on read, so check the store:
+        # a reader that opens the group as a DataTree needs it there.
+        written_group = zarr.open_group(tmp_path, path=dataset_path, mode="r")
+        assert written_group["scl"].attrs["grid_mapping"] == "spatial_ref"
+
+    def test_lat_lon_group_is_left_alone(self, tmp_path: Path) -> None:
+        """A meteorology group on a lat/lon grid must not be stamped with the product CRS."""
+        coords = {
+            "longitude": (["longitude"], np.linspace(10.0, 11.0, 8)),
+            "latitude": (["latitude"], np.linspace(45.0, 46.0, 8)),
+        }
+        data_vars = {"aod550": (["latitude", "longitude"], np.zeros((8, 8)))}
+
+        ds = xr.Dataset(data_vars, coords=coords)
+        encoding = create_original_encoding(ds)
+
+        dataset_path = "/conditions/meteorology/cams"
+        stream_write_dataset(
+            ds,
+            path=dataset_path,
+            group=zarr.create_group(tmp_path),
+            encoding=encoding,
+            enable_sharding=True,
+        )
+
+        written_ds = xr.open_dataset(
+            tmp_path, engine="zarr", chunks={}, decode_coords="all", group=dataset_path
+        )
+
+        assert written_ds.rio.crs is None
+        assert "spatial_ref" not in written_ds.coords
+        assert not [k for k in written_ds.attrs if k.startswith(("spatial:", "proj:"))]

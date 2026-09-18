@@ -63,6 +63,13 @@ def get_grid_spacing(ds: xr.DataArray, coords: tuple[Hashable, ...]) -> tuple[fl
     return tuple(np.abs(ds.coords[coord][0].data - ds.coords[coord][1].data) for coord in coords)
 
 
+def _half_pixel(coords: np.ndarray) -> float:
+    """Half the grid spacing of a coordinate array, or 0.0 when it has no spacing."""
+    if len(coords) < 2:
+        return 0.0
+    return float(np.abs(coords[1] - coords[0])) / 2
+
+
 def _transform_from_coordinates(
     dataset: xr.Dataset,
 ) -> tuple[float, float, float, float, float, float] | None:
@@ -77,8 +84,11 @@ def _transform_from_coordinates(
 
     pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
     pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
-    x_min = float(x_coords.min())
-    y_max = float(y_coords.max())
+    # Coordinates label pixel centres, but an affine transform maps pixel *edges*,
+    # so the origin sits half a pixel outside the first centre. Without this the
+    # transform can never agree with rioxarray's and is half a cell off.
+    x_min = float(x_coords.min()) - pixel_size_x / 2
+    y_max = float(y_coords.max()) + pixel_size_y / 2
     return (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
 
 
@@ -1050,7 +1060,8 @@ def stream_write_dataset(
 
     Args:
         dataset: Dataset to write
-        dataset_path: Output path for dataset
+        path: Group path to write the dataset to
+        group: Destination zarr group
         encoding: Encoding dictionary for variables
         enable_sharding: Enable Zarr v3 sharding
         crs: Coordinate Reference System for geographic metadata
@@ -1080,11 +1091,13 @@ def stream_write_dataset(
     # Rechunk dataset to align with encoding
     dataset = rechunk_dataset_for_encoding(dataset, encoding)
 
-    # Add the geo metadata before writing for
-    # - /measurements/ groups
-    # - /quality/ groups
-    if "/measurements/" in path or "/quality/" in path:
+    # Add the geo metadata before writing for the groups on a projected grid
+    if needs_geo_metadata(dataset):
         write_geo_metadata(dataset, crs=crs)
+        # `spatial_ref` did not exist when the encoding was built; write it like the
+        # sibling coordinates rather than falling back to xarray's compressed default.
+        if "spatial_ref" in dataset.coords and "spatial_ref" not in encoding:
+            encoding["spatial_ref"] = {"compressors": None}
 
     # Sanitize NaN values in dataset attributes before writing
     dataset = sanitize_dataset_attributes(dataset)
@@ -1140,6 +1153,23 @@ def stream_write_dataset(
     return dataset
 
 
+def needs_geo_metadata(dataset: xr.Dataset) -> bool:
+    """
+    Whether a group is on the product's projected grid and should carry geo metadata.
+
+    Decided from the data itself rather than from a list of group names: a group
+    gridded on x/y is in the product CRS, while /conditions/meteorology is on
+    latitude/longitude and must not be stamped with it.
+
+    Args:
+        dataset: Dataset about to be written
+
+    Returns:
+        True if geographic metadata should be written for this group
+    """
+    return {"x", "y"} <= set(dataset.dims)
+
+
 def write_geo_metadata(
     dataset: xr.Dataset,
     grid_mapping_var_name: str = "spatial_ref",
@@ -1189,8 +1219,14 @@ def write_geo_metadata(
         if "x" in dataset.coords and "y" in dataset.coords:
             x_coords = dataset.coords["x"].values
             y_coords = dataset.coords["y"].values
-            x_min, x_max = float(x_coords.min()), float(x_coords.max())
-            y_min, y_max = float(y_coords.min()), float(y_coords.max())
+            # `spatial:registration` below declares "pixel", so the bbox covers the
+            # pixel edges. Coordinates are centres, hence the half-pixel outset —
+            # without it the footprint is a half-pixel narrower than the raster and
+            # disagrees with the arrays' own `proj:bbox`.
+            half_x = _half_pixel(x_coords)
+            half_y = _half_pixel(y_coords)
+            x_min, x_max = float(x_coords.min()) - half_x, float(x_coords.max()) + half_x
+            y_min, y_max = float(y_coords.min()) - half_y, float(y_coords.max()) + half_y
             spatial_data["spatial:bbox"] = [x_min, y_min, x_max, y_max]
 
             spatial_transform = _preferred_spatial_transform(dataset)
@@ -1199,12 +1235,13 @@ def write_geo_metadata(
             if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
                 spatial_data["spatial:transform"] = list(spatial_transform)
 
-            # Add spatial shape if data variables exist
-            if dataset.data_vars:
-                first_var = next(iter(dataset.data_vars.values()))
-                if first_var.ndim >= 2:
-                    height, width = first_var.shape[-2:]
-                    spatial_data["spatial:shape"] = [height, width]
+            # Shape comes from the raster dims themselves: the first data variable
+            # need not be 2-D, nor have (y, x) as its trailing dims.
+            if "y" in dataset.sizes and "x" in dataset.sizes:
+                spatial_data["spatial:shape"] = [
+                    int(dataset.sizes["y"]),
+                    int(dataset.sizes["x"]),
+                ]
 
         # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
         dataset.attrs.update(utils.build_convention_attrs(spatial=spatial_data, crs=crs))
