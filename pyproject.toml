@@ -43,6 +43,7 @@ dependencies = [
     "s3fs>=2024.6.0",
     "boto3>=1.34.0",
     "pyproj>=3.7.0",
+    "pystac>=1.8.0",
     "structlog>=25.5.0",
 ]
 
@@ -157,6 +158,9 @@ ignore = [
     "TRY003",  # Long exception messages outside class - common pattern
 ]
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
 [tool.pyright]
 include = ["src", "tests"]
 pythonVersion = "3.12"
@@ -212,7 +216,7 @@ constraint-dependencies = [
     "urllib3>=2.7.0",
     "requests>=2.33.0",
     "cryptography>=46.0.6",
-    "tornado>=6.5.7",
+    "tornado>=6.5.8",
     "msgpack>=1.2.1",
     "filelock>=3.20.3",
     "virtualenv>=20.36.1",
