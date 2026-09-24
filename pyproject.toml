@@ -47,6 +47,12 @@ dependencies = [
     "structlog>=25.5.0",
 ]
 
+[project.optional-dependencies]
+# The eopf-cpm integration (eopf_geozarr.cpm): registers the "geozarr" writer
+# engine in CPM's writer registry and the `eopf convert-geozarr` CLI command.
+# eopf 3.x requires Python >= 3.13, so the extra is empty on older interpreters.
+cpm = ["eopf>=3.0.0; python_version >= '3.13'"]
+
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
@@ -89,6 +95,11 @@ Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
 
 [project.scripts]
 eopf-geozarr = "eopf_geozarr.cli:main"
+
+# Discovered by eopf-cpm's CLI (an entry-point-driven click group): adds the
+# `eopf convert-geozarr` subcommand when eopf-geozarr is installed next to eopf.
+[project.entry-points."eopf.cli"]
+convert-geozarr = "eopf_geozarr.cpm:get_cli_command"
 
 # Note: setuptools_scm configuration disabled in favor of release-please managed versioning
 # [tool.setuptools_scm]

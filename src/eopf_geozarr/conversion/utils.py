@@ -513,3 +513,33 @@ def write_store_root_geo_metadata(
     }
     root.attrs.update(root_attrs)
     log.info("Wrote store-root spatial metadata", bbox=[xmin, ymin, xmax, ymax])
+
+
+def write_store_root_stac_metadata(
+    output_path: str,
+    root_attrs: dict[str, dict[str, Any]],
+    storage_options: dict[str, Any] | None = None,
+    overwrite_root_attrs: bool = False,
+) -> None:
+    """
+    Adds root metadata passed in root_attrs to the new zarr store. This usually includes the stac metadata sstore in the root of the input zarr store.
+    Also check if metadta is already present in root -> ioverruled and overwritten by specifing rhe overwrite_root_attrs=True
+    """
+    from eopf_geozarr.conversion import fs_utils
+
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+
+    root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
+
+    # prevent the overwriting of attributes in the root node if they are present in the stac metadata.. this is a failsafe for future changes of cpm if the y include zarr metadata
+    if not overwrite_root_attrs:
+        original_attrs = set(dict(root.attrs).keys())
+        new_attrs = set(root_attrs.keys())
+        for int_attr in original_attrs.intersection(new_attrs):
+            root_attrs.pop(int_attr)
+
+    root.attrs.update(root_attrs)
+    log.info(
+        "Updated root metadata attributes for STAC ingestion", root_attrs=list(root_attrs.keys())
+    )

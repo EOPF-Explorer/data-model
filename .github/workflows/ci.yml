@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, cpm-geozarr ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, cpm-geozarr ]
+  schedule:
+    # Weekly run; also triggers the eopf-latest drift check below.
+    - cron: '17 6 * * 1'
 
 permissions:
   contents: read
@@ -85,3 +88,50 @@ jobs:
           ~/.local/share/uv
           .venv
         key: uv-main-${{ hashFiles('uv.lock') }}
+
+  test-cpm:
+    # Integration tests against eopf-cpm (the `cpm` extra; eopf requires
+    # Python >= 3.13). The eopf version is pinned by uv.lock, so PR runs are
+    # deterministic; upstream drift is caught by test-cpm-latest below.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        persist-credentials: false
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      with:
+        version: "0.8.4"
+        python-version: "3.13"
+        enable-cache: true
+
+    - name: Install dependencies
+      run: uv sync --extra cpm --group test
+
+    - name: Run CPM integration tests
+      run: uv run pytest tests/test_cpm_writer.py tests/test_cpm_routing.py -v --tb=short
+
+  test-cpm-latest:
+    # Weekly drift check against the newest published eopf release: the
+    # writer plugin depends on CPM internals (writer registry, staging, CLI
+    # entry-point loading), so a new eopf release can break the contract
+    # without any change on our side.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        persist-credentials: false
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      with:
+        version: "0.8.4"
+        python-version: "3.13"
+        enable-cache: true
+
+    - name: Run CPM integration tests against latest eopf
+      run: >
+        uv run --extra cpm --group test --upgrade-package eopf
+        pytest tests/test_cpm_writer.py tests/test_cpm_routing.py -v --tb=short

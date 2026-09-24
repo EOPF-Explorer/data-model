@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING
-
 import numpy as np
 import pytest
 from pydantic_zarr.core import tuplify_json
@@ -24,9 +21,6 @@ from eopf_geozarr.data_api.geozarr.multiscales.zcm import (
 )
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V2
 from eopf_geozarr.data_api.geozarr.v2 import DataArray as DataArray_V3
-
-if TYPE_CHECKING:
-    import zarr
 
 
 @pytest.mark.parametrize(
@@ -79,16 +73,25 @@ def test_check_standard_name_invalid() -> None:
         check_standard_name("invalid_standard_name")
 
 
-def test_multiscales_round_trip(s2_optimized_geozarr_group_example: zarr.Group) -> None:
+def test_multiscales_round_trip() -> None:
     """
+    removing dependcy from GroupSpec_V3 model
+
     Ensure that we can round-trip multiscale metadata through the `Multiscales` model.
+
+    Round-trip fidelity is a property of the model's field definitions, not
+    of any particular converted product, so a minimal hand-built `layout`
+    (one native level, one derived overview) is enough to exercise it —
+    `ScaleLevel` only requires `asset`, and `Multiscales` only requires
+    `layout`.
     """
-    source_untyped: AnyGroupSpec_V3 = GroupSpec_V3.from_zarr(s2_optimized_geozarr_group_example)
-    flat = source_untyped.to_flat()
-    attributes = flat["/measurements/reflectance"].attributes
-    assert isinstance(attributes, Mapping)
-    meta = attributes["multiscales"]
-    assert isinstance(meta, Mapping)
+    meta: dict[str, object] = {
+        "layout": (
+            {"asset": "."},
+            {"asset": "r2", "derived_from": ".", "resampling_method": "average"},
+        ),
+        "resampling_method": "average",
+    }
     # pull out the multiscales keys, ignore extra
     submodel = tuplify_json({k: meta[k] for k in ZCMMultiscales.model_fields if k in meta})
     assert ZCMMultiscales(**submodel).model_dump() == submodel
