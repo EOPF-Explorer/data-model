@@ -77,9 +77,33 @@ def _transform_from_coordinates(
 
     pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
     pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
-    x_min = float(x_coords.min())
-    y_max = float(y_coords.max())
+    # Coordinates are pixel centres; the transform origin is the outer pixel edge.
+    x_min = float(x_coords.min()) - pixel_size_x / 2
+    y_max = float(y_coords.max()) + pixel_size_y / 2
     return (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
+
+
+def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
+    """Outer pixel edges ``[xmin, ymin, xmax, ymax]`` of the dataset's x/y grid.
+
+    Falls back to the coordinate extent when the grid has fewer than two pixels
+    along an axis, because the pixel size is then unknown.
+    """
+    transform = _transform_from_coordinates(dataset)
+    if transform is None:
+        x_coords = dataset.coords["x"].values
+        y_coords = dataset.coords["y"].values
+        return [
+            float(x_coords.min()),
+            float(y_coords.min()),
+            float(x_coords.max()),
+            float(y_coords.max()),
+        ]
+
+    pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = transform
+    x_max = x_min + dataset.sizes["x"] * pixel_size_x
+    y_min = y_max + dataset.sizes["y"] * neg_pixel_size_y
+    return [x_min, y_min, x_max, y_max]
 
 
 def _rio_transform_matches_coordinates(
@@ -677,14 +701,7 @@ def add_multiscales_metadata_to_parent(
         )
         return
 
-    x_coords = first_dataset.x.values
-    y_coords = first_dataset.y.values
-    native_bounds = (
-        float(x_coords.min()),
-        float(y_coords.min()),
-        float(x_coords.max()),
-        float(y_coords.max()),
-    )
+    native_bounds = _bbox_from_coordinates(first_dataset)
 
     # Create overview_levels structure following the multiscales v1.0 specification
     overview_levels: list[OverviewLevelJSON] = []
@@ -1187,11 +1204,7 @@ def write_geo_metadata(
 
         # Calculate and add spatial bbox if coordinates are available
         if "x" in dataset.coords and "y" in dataset.coords:
-            x_coords = dataset.coords["x"].values
-            y_coords = dataset.coords["y"].values
-            x_min, x_max = float(x_coords.min()), float(x_coords.max())
-            y_min, y_max = float(y_coords.min()), float(y_coords.max())
-            spatial_data["spatial:bbox"] = [x_min, y_min, x_max, y_max]
+            spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
 
             spatial_transform = _preferred_spatial_transform(dataset)
 
