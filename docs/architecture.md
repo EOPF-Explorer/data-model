@@ -202,36 +202,45 @@ output.zarr/
 
 ## STAC Integration and Zarr URL Resolution
 
-### Every Zarr Path is openable by client
+### Every Zarr Group Path Can Be Opened by a Client
 
-Zarr is a **key/value store protocol**, not a file format. Crucially for clients, this means that **any Zarr group path is itself a valid store entry point**. A URL like:
+Zarr is a **key/value store protocol**, not a file format. For clients, this means that **any Zarr group path is itself a valid store entry point**. A URL like:
 
 ```
-s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance/r10m
+s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance
 ```
 
-is not a path that needs to be split or reverse-parsed to find some "real" store root. It *is* the store. The Zarr spec defines the existence of a node by whether `{path}/zarr.json` resolves to valid metadata — and any valid group path satisfies this. Clients like xarray, zarr-python, GDAL, and OpenLayers should therefore **open the asset href directly as a Zarr store**, without needing to know anything about the hierarchy above it.
+is not a path that needs to be split or reverse-parsed to find some "real" store root. It *is* the store. The Zarr spec defines the existence of a node by whether `{path}/zarr.json` resolves to valid metadata. Clients like xarray, zarr-python, GDAL, and OpenLayers should therefore **open the asset href directly as a Zarr store**, without needing to know anything about the hierarchy above it.
 
 ```python
 import xarray as xr
 
 # Open the asset href directly — no splitting or parsing needed
-asset_href = "s3://bucket/S2A_MSIL2A.zarr/measurements/reflectance/r10m"
-ds = xr.open_dataset(asset_href, engine="zarr")
+asset_href = "s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance"
+dt = xr.open_datatree(asset_href, engine="zarr")
+r10m = dt["r10m"].to_dataset()
 ```
 
 This is the fundamental principle: **the STAC asset href is the URL to open, and it works as a complete, self-contained Zarr store**.
 
+### Asset Hrefs Point to the Multiscales Root
+
+For multiscale data, the STAC asset href points to the **group that carries the `multiscales` metadata** (the multiscales root), not to one of its resolution levels. For Sentinel-2 L2A, this is `measurements/reflectance`, and the levels (`r10m`, `r20m`, `r60m`, `r120m`, `r360m`, `r720m`) are its children.
+
+This lets clients that support multiscales discover all available levels from the asset href, and select the level that fits the current view. Clients do not need a separate `group` option to find the multiscales below the asset href (see [openlayers/openlayers#17378](https://github.com/openlayers/openlayers/pull/17378)).
+
 ### Consolidated Metadata Enables Standalone Group Access
 
-A Zarr group becomes fully self-contained for clients when it carries [consolidated metadata](https://zarr.readthedocs.io/en/main/user-guide/consolidated_metadata.html). Consolidated metadata embeds the metadata of all descendant nodes inside the group's own `zarr.json` (Zarr v3) or `.zmetadata` (Zarr v2), so a client can discover the entire sub-hierarchy structure in a single request — no traversal, no requests to parent groups.
+A Zarr group becomes fully self-contained for clients when it carries [consolidated metadata](https://zarr.readthedocs.io/en/main/user-guide/consolidated_metadata.html). Consolidated metadata embeds the metadata of all descendant nodes inside the group's own `zarr.json` (Zarr v3) or `.zmetadata` (Zarr v2). A client can thus discover the entire sub-hierarchy in a single request, with no traversal and no requests to parent groups.
 
-All EOPF-produced Zarr groups pointed to by STAC assets **MUST** have consolidated metadata. This is indicated in the STAC asset using the [Zarr STAC Extension](https://github.com/stac-extensions/zarr) field `zarr:consolidated: true`.
+All EOPF-produced Zarr groups pointed to by STAC assets **MUST** have consolidated metadata. The multiscales root carries it, so the metadata of all its resolution levels is available in one request. The resolution-level groups (e.g. `r10m`) do not carry their own consolidated metadata, which is one more reason not to use them as asset hrefs.
+
+This is indicated in the STAC asset using the [Zarr STAC Extension](https://github.com/stac-extensions/zarr) field `zarr:consolidated: true`.
 
 ```json
 "assets": {
   "reflectance": {
-    "href": "s3://bucket/S2A_MSIL2A.zarr/measurements/reflectance/r10m",
+    "href": "s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance",
     "type": "application/vnd.zarr; version=3",
     "zarr:consolidated": true,
     "zarr:node_type": "group",
@@ -239,8 +248,6 @@ All EOPF-produced Zarr groups pointed to by STAC assets **MUST** have consolidat
   }
 }
 ```
-
-With consolidated metadata present, a client opening `asset_href` directly has everything it needs to work with the group and its children — without any knowledge of the parent hierarchy.
 
 ### Role of the `rel: store` Link
 
@@ -261,17 +268,16 @@ Its purpose is **navigation and discovery**, not URL parsing:
 
 - It lets clients traverse or inspect the **full Zarr hierarchy** above the asset group (siblings, parent groups, global attributes).
 - It provides a single stable reference to the underlying storage location, useful for tools that need to know where the data lives (e.g., to construct pre-signed URLs, or list all groups in a store).
-- It allows a client to verify that all assets in the STAC object share coverage under the same store.
+- It allows a client to verify that all assets in the STAC object belong to the same store.
 
 !!! note
-    Opening the `rel: store` href directly is equivalent to opening the top-level Zarr root — useful for exploring the complete dataset structure, but **not required** for using any individual asset.
+    Opening the `rel: store` href directly is equivalent to opening the top-level Zarr root. This is useful to explore the complete dataset structure, but it is **not required** to use any individual asset.
 
 ### URL Naming Constraint
 
 Group names, array names, and any intermediate path segments **MUST NOT** end with `.zarr`. The `.zarr` suffix SHOULD appear at most once in a full URL — only at the store root level — as a human-readable convention. This avoids confusion when reading URLs, even though no client should rely on this suffix for parsing.
 
 ```
-✅  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance/r10m
 ✅  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance
 ❌  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements.zarr/reflectance
 ```
@@ -281,26 +287,29 @@ Group names, array names, and any intermediate path segments **MUST NOT** end wi
 For a Sentinel-2 L2A EOPF product, the store and asset relationship looks like this:
 
 ```
-rel: store  →  s3://bucket/S2A_MSIL2A_20251008T100041.zarr   (top-level root)
+rel: store  →  s3://bucket/S2A_MSIL2A_20251008T100041.zarr   (top-level root, consolidated)
                 │
                 └── measurements/
-                    └── reflectance/    ← asset href (open this directly as a store)
-                        ├── r10m/       ← sub-group: open directly, or path-join with band name
-                        │   ├── b02     ← array: asset_href + "/" + band_name
+                    └── reflectance/    ← asset href: multiscales root, consolidated
+                        ├── r10m/       ← resolution level (listed in the multiscales layout)
+                        │   ├── b02     ← array: asset_href + "/r10m/" + band_name
                         │   ├── b03
                         │   └── b04
                         ├── r20m/
-                        └── r60m/
+                        ├── r60m/
+                        ├── r120m/      ← overview levels
+                        ├── r360m/
+                        └── r720m/
 ```
 
-The band `name` field in the STAC `bands` array is designed so that `asset_href + "/" + band_name` constructs the correct full Zarr array URL:
+A client reads the `multiscales` layout from the asset href, selects a level, and joins the level and band name to the asset href to get the full Zarr array URL:
 
 ```python
 import zarr
 
-asset_href = "s3://bucket/S2A_MSIL2A.zarr/measurements/reflectance/r10m"
-band_name   = "b04"
-red_band    = zarr.open_array(asset_href + "/" + band_name, mode="r")
+asset_href = "s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance"
+reflectance = zarr.open_group(asset_href, mode="r")
+red_band = reflectance["r10m/b04"]  # same as asset_href + "/r10m/b04"
 ```
 
 ### Related Specifications
