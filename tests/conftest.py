@@ -22,6 +22,7 @@ zcm_multiscales_example_paths = tuple(
 )
 
 v3_s2_example_json_paths = tuple(pathlib.Path("tests/_test_data/v3_s2_examples").glob("*.json"))
+s1_rtc_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_rtc_examples").glob("*.json"))
 
 
 def read_json(path: pathlib.Path) -> dict[str, object]:
@@ -91,6 +92,15 @@ def s2_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> 
 def s1_json_example(request: pytest.FixtureRequest) -> dict[str, object]:
     """
     A fixture that returns the JSON model of a Sentinel 1 Zarr group
+    """
+    source_path: pathlib.Path = request.param
+    return read_json(source_path)
+
+
+@pytest.fixture(params=s1_rtc_example_json_paths, ids=get_stem)
+def s1_rtc_json_example(request: pytest.FixtureRequest) -> dict[str, object]:
+    """
+    A fixture that returns the JSON model of a Sentinel-1 GRD RTC GeoZarr V3 store
     """
     source_path: pathlib.Path = request.param
     return read_json(source_path)

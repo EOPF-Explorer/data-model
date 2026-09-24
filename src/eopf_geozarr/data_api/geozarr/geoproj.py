@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 from zarr_cm import geo_proj
 
 from eopf_geozarr.data_api.geozarr.common import is_none
-from eopf_geozarr.data_api.geozarr.projjson import ProjJSON  # noqa: TC001
+from eopf_geozarr.data_api.geozarr.projjson import ProjJSON
 
 PROJ_UUID = geo_proj.UUID
 

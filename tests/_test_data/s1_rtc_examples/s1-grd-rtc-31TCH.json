@@ -1,0 +1,3690 @@
+{
+  "zarr_format": 3,
+  "node_type": "group",
+  "attributes": {
+    "zarr_conventions": [
+      {
+        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+        "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+        "name": "spatial:",
+        "description": "Spatial coordinate information"
+      },
+      {
+        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+        "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+        "name": "proj:",
+        "description": "Coordinate reference system information for geospatial data"
+      }
+    ],
+    "proj:code": "EPSG:4326",
+    "spatial:bbox": [
+      2.9999999999999916,
+      45.05617579675385,
+      3.1373963412819053,
+      45.153477183356024
+    ],
+    "eopf:writer_schema": 2
+  },
+  "members": {
+    "descending": {
+      "zarr_format": 3,
+      "node_type": "group",
+      "attributes": {
+        "zarr_conventions": [
+          {
+            "uuid": "d35379db-88df-4056-af3a-620245f8e347",
+            "schema_url": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1/schema.json",
+            "spec_url": "https://github.com/zarr-conventions/multiscales/blob/v0.1/README.md",
+            "name": "multiscales",
+            "description": "Multiscale layout of zarr datasets"
+          },
+          {
+            "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+            "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+            "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+            "name": "proj:",
+            "description": "Coordinate reference system information for geospatial data"
+          },
+          {
+            "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+            "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+            "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+            "name": "spatial:",
+            "description": "Spatial coordinate information"
+          }
+        ],
+        "multiscales": {
+          "layout": [
+            {
+              "asset": "r10m",
+              "spatial:shape": [
+                1080,
+                1080
+              ],
+              "spatial:transform": [
+                10.0,
+                0.0,
+                500000.0,
+                0.0,
+                -10.0,
+                5000000.0
+              ],
+              "transform": {
+                "scale": [
+                  1.0,
+                  1.0
+                ]
+              }
+            },
+            {
+              "asset": "r20m",
+              "spatial:shape": [
+                540,
+                540
+              ],
+              "spatial:transform": [
+                20.0,
+                0.0,
+                500000.0,
+                0.0,
+                -20.0,
+                5000000.0
+              ],
+              "derived_from": "r10m",
+              "transform": {
+                "scale": [
+                  2.0,
+                  2.0
+                ],
+                "translation": [
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            {
+              "asset": "r60m",
+              "spatial:shape": [
+                180,
+                180
+              ],
+              "spatial:transform": [
+                60.0,
+                0.0,
+                500000.0,
+                0.0,
+                -60.0,
+                5000000.0
+              ],
+              "derived_from": "r20m",
+              "transform": {
+                "scale": [
+                  3.0,
+                  3.0
+                ],
+                "translation": [
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            {
+              "asset": "r120m",
+              "spatial:shape": [
+                90,
+                90
+              ],
+              "spatial:transform": [
+                120.0,
+                0.0,
+                500000.0,
+                0.0,
+                -120.0,
+                5000000.0
+              ],
+              "derived_from": "r60m",
+              "transform": {
+                "scale": [
+                  2.0,
+                  2.0
+                ],
+                "translation": [
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            {
+              "asset": "r360m",
+              "spatial:shape": [
+                30,
+                30
+              ],
+              "spatial:transform": [
+                360.0,
+                0.0,
+                500000.0,
+                0.0,
+                -360.0,
+                5000000.0
+              ],
+              "derived_from": "r120m",
+              "transform": {
+                "scale": [
+                  3.0,
+                  3.0
+                ],
+                "translation": [
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            {
+              "asset": "r720m",
+              "spatial:shape": [
+                15,
+                15
+              ],
+              "spatial:transform": [
+                720.0,
+                0.0,
+                500000.0,
+                0.0,
+                -720.0,
+                5000000.0
+              ],
+              "derived_from": "r360m",
+              "transform": {
+                "scale": [
+                  2.0,
+                  2.0
+                ],
+                "translation": [
+                  0.0,
+                  0.0
+                ]
+              }
+            }
+          ],
+          "resampling_method": "average"
+        },
+        "proj:code": "EPSG:32631",
+        "spatial:dimensions": [
+          "y",
+          "x"
+        ],
+        "spatial:bbox": [
+          500000.0,
+          4989200.0,
+          510800.0,
+          5000000.0
+        ]
+      },
+      "members": {
+        "conditions": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:transform": [
+              10.0,
+              0.0,
+              500000.0,
+              0.0,
+              -10.0,
+              5000000.0
+            ],
+            "spatial:shape": [
+              1080,
+              1080
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "gamma_area_008": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                1080,
+                1080
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y",
+                "x"
+              ]
+            },
+            "gamma_area_037": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                1080,
+                1080
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y",
+                "x"
+              ]
+            },
+            "gamma_area_110": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                1080,
+                1080
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                1080
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                1080
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r10m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              1080,
+              1080
+            ],
+            "spatial:transform": [
+              10.0,
+              0.0,
+              500000.0,
+              0.0,
+              -10.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "absolute_orbit": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {},
+              "shape": [
+                3
+              ],
+              "data_type": "int32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                1080,
+                1080
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "platform": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {},
+              "shape": [
+                3
+              ],
+              "data_type": {
+                "name": "fixed_length_utf32",
+                "configuration": {
+                  "length_bytes": 16
+                }
+              },
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "relative_orbit": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {},
+              "shape": [
+                3
+              ],
+              "data_type": "int32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                1080,
+                1080
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                1080,
+                1080
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    1080,
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      360,
+                      360
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                1080
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                1080
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1080
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r120m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              90,
+              90
+            ],
+            "spatial:transform": [
+              120.0,
+              0.0,
+              500000.0,
+              0.0,
+              -120.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                90,
+                90
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    90,
+                    90
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      90,
+                      90
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                90,
+                90
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    90,
+                    90
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      90,
+                      90
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                90,
+                90
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    90,
+                    90
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      90,
+                      90
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                90
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    90
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                90
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    90
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r20m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              540,
+              540
+            ],
+            "spatial:transform": [
+              20.0,
+              0.0,
+              500000.0,
+              0.0,
+              -20.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                540,
+                540
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    540,
+                    540
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      270,
+                      270
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                540,
+                540
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    540,
+                    540
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      270,
+                      270
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                540,
+                540
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    540,
+                    540
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      270,
+                      270
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                540
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    540
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                540
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    540
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r360m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              30,
+              30
+            ],
+            "spatial:transform": [
+              360.0,
+              0.0,
+              500000.0,
+              0.0,
+              -360.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                30,
+                30
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    30,
+                    30
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      30,
+                      30
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                30,
+                30
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    30,
+                    30
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      30,
+                      30
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                30,
+                30
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    30,
+                    30
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      30,
+                      30
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                30
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    30
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                30
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    30
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r60m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              180,
+              180
+            ],
+            "spatial:transform": [
+              60.0,
+              0.0,
+              500000.0,
+              0.0,
+              -60.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                180,
+                180
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    180,
+                    180
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      180,
+                      180
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                180,
+                180
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    180,
+                    180
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      180,
+                      180
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                180,
+                180
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    180,
+                    180
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      180,
+                      180
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                180
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    180
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                180
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    180
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        },
+        "r720m": {
+          "zarr_format": 3,
+          "node_type": "group",
+          "attributes": {
+            "spatial:dimensions": [
+              "y",
+              "x"
+            ],
+            "spatial:shape": [
+              15,
+              15
+            ],
+            "spatial:transform": [
+              720.0,
+              0.0,
+              500000.0,
+              0.0,
+              -720.0,
+              5000000.0
+            ],
+            "zarr_conventions": [
+              {
+                "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/54d81b7ced0376e63ee10f34db31db7d08dcc28d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/spatial/blob/54d81b7ced0376e63ee10f34db31db7d08dcc28d/README.md",
+                "name": "spatial:",
+                "description": "Spatial coordinate information"
+              },
+              {
+                "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+                "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/5ca5b2f92e5c7245f957d9128b289ee535f0720d/schema.json",
+                "spec_url": "https://github.com/zarr-conventions/proj/blob/5ca5b2f92e5c7245f957d9128b289ee535f0720d/README.md",
+                "name": "proj:",
+                "description": "Coordinate reference system information for geospatial data"
+              }
+            ],
+            "proj:code": "EPSG:32631"
+          },
+          "members": {
+            "border_mask": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                15,
+                15
+              ],
+              "data_type": "uint8",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    15,
+                    15
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      15,
+                      15
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes"
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 1,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "bitshuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "spatial_ref": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "crs_wkt": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "semi_major_axis": 6378137.0,
+                "semi_minor_axis": 6356752.314245179,
+                "inverse_flattening": 298.257223563,
+                "reference_ellipsoid_name": "WGS 84",
+                "longitude_of_prime_meridian": 0.0,
+                "prime_meridian_name": "Greenwich",
+                "geographic_crs_name": "WGS 84",
+                "horizontal_datum_name": "World Geodetic System 1984 ensemble",
+                "projected_crs_name": "WGS 84 / UTM zone 31N",
+                "grid_mapping_name": "transverse_mercator",
+                "latitude_of_projection_origin": 0.0,
+                "longitude_of_central_meridian": 3.0,
+                "false_easting": 500000.0,
+                "false_northing": 0.0,
+                "scale_factor_at_central_meridian": 0.9996,
+                "spatial_ref": "PROJCRS[\"WGS 84 / UTM zone 31N\",BASEGEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",3,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],USAGE[SCOPE[\"Navigation and medium accuracy spatial referencing.\"],AREA[\"Between 0\u00b0E and 6\u00b0E, northern hemisphere between equator and 84\u00b0N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.\"],BBOX[0,0,84,6]],ID[\"EPSG\",32631]]",
+                "_ARRAY_DIMENSIONS": []
+              },
+              "shape": [],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": []
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": null
+            },
+            "time": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "nanoseconds since 1970-01-01",
+                "calendar": "proleptic_gregorian",
+                "standard_name": "time",
+                "_ARRAY_DIMENSIONS": [
+                  "time"
+                ]
+              },
+              "shape": [
+                3
+              ],
+              "data_type": "int64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    512
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": 0,
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time"
+              ]
+            },
+            "vh": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                15,
+                15
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    15,
+                    15
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      15,
+                      15
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "vv": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "standard_name": "surface_backwards_scattering_coefficient_of_radar_wave",
+                "units": "1",
+                "_FillValue": "AAAAAAAA+H8=",
+                "grid_mapping": "spatial_ref"
+              },
+              "shape": [
+                3,
+                15,
+                15
+              ],
+              "data_type": "float32",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    1,
+                    15,
+                    15
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "sharding_indexed",
+                  "configuration": {
+                    "chunk_shape": [
+                      1,
+                      15,
+                      15
+                    ],
+                    "codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "blosc",
+                        "configuration": {
+                          "typesize": 4,
+                          "cname": "zstd",
+                          "clevel": 5,
+                          "shuffle": "shuffle",
+                          "blocksize": 0
+                        }
+                      }
+                    ],
+                    "index_codecs": [
+                      {
+                        "name": "bytes",
+                        "configuration": {
+                          "endian": "little"
+                        }
+                      },
+                      {
+                        "name": "crc32c"
+                      }
+                    ],
+                    "index_location": "end"
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "time",
+                "y",
+                "x"
+              ]
+            },
+            "x": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "x coordinate of projection",
+                "standard_name": "projection_x_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "x"
+                ]
+              },
+              "shape": [
+                15
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    15
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "x"
+              ]
+            },
+            "y": {
+              "zarr_format": 3,
+              "node_type": "array",
+              "attributes": {
+                "units": "m",
+                "long_name": "y coordinate of projection",
+                "standard_name": "projection_y_coordinate",
+                "_ARRAY_DIMENSIONS": [
+                  "y"
+                ]
+              },
+              "shape": [
+                15
+              ],
+              "data_type": "float64",
+              "chunk_grid": {
+                "name": "regular",
+                "configuration": {
+                  "chunk_shape": [
+                    15
+                  ]
+                }
+              },
+              "chunk_key_encoding": {
+                "name": "default",
+                "configuration": {
+                  "separator": "/"
+                }
+              },
+              "fill_value": "NaN",
+              "codecs": [
+                {
+                  "name": "bytes",
+                  "configuration": {
+                    "endian": "little"
+                  }
+                },
+                {
+                  "name": "zstd",
+                  "configuration": {
+                    "level": 0,
+                    "checksum": false
+                  }
+                }
+              ],
+              "storage_transformers": [],
+              "dimension_names": [
+                "y"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
