@@ -272,6 +272,7 @@ Group names, array names, and any intermediate path segments **MUST NOT** end wi
 
 ```
 ✅  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance/r10m
+✅  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements/reflectance
 ❌  s3://bucket/S2A_MSIL2A_20251008T100041.zarr/measurements.zarr/reflectance
 ```
 
