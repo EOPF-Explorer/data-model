@@ -270,7 +270,9 @@ class TestWriteGeoMetadata:
         with patch.object(ds.rio, "transform", stale_transform):
             write_geo_metadata(ds)
 
-        assert ds.attrs["spatial:transform"] == [120.0, 0.0, 600030.0, 0.0, -120.0, 4899990.0]
+        # Origin is the outer pixel edge: half of the 120 m pixel outside the first centre.
+        assert ds.attrs["spatial:transform"] == [120.0, 0.0, 599970.0, 0.0, -120.0, 4900050.0]
+        assert ds.attrs["spatial:bbox"] == [599970.0, 4899690.0, 600330.0, 4900050.0]
 
 
 class TestWriteGeoMetadataEdgeCases:
