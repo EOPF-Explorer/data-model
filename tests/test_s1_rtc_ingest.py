@@ -1832,11 +1832,8 @@ class TestTimeAxisOrdering:
         self._build_unsorted(s1_geotiff_dir, s1_store_path)
         gap = self._paths(s1_geotiff_dir, "20230121t061234")
         tags = {**ACQ1_TAGS, "ACQUISITION_DATETIME": "2023:01:21T06:12:34Z"}
-        rng = np.random.default_rng(5)
-        for path in gap[:2]:
-            data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
-            _create_synthetic_geotiff(path, data, tags=tags)
-        _create_synthetic_geotiff(gap[2], np.ones((SIZE, SIZE), dtype=np.uint8), tags=tags)
+        for path in gap:
+            _create_synthetic_geotiff(path, np.ones((SIZE, SIZE), dtype=np.float32), tags=tags)
 
         with pytest.raises(ValueError, match="precedes the latest slice"):
             ingest_s1tiling_acquisition(*gap, s1_store_path, "ascending")
