@@ -904,7 +904,7 @@ def ingest_s1tiling_acquisition(
     orbit_direction : str
         Orbit direction group name (e.g. "ascending", "descending").
     allow_out_of_order : bool, default False
-        Accept an acquisition older than (or equal to) the cube's last slice, writing a
+        Accept an acquisition older than (or equal to) the cube's latest slice, writing a
         non-monotonic time axis. The default refuses: `.sel(time=slice(...))` raises on such a
         cube, so accepting one silently makes it unqueryable by time. Set this only to recover a
         cube whose ordering is already broken.
@@ -1086,25 +1086,34 @@ def ingest_s1tiling_acquisition(
         # `discover_s1tiling_acquisitions` now returns acquisitions chronologically, but the real
         # caller iterates that list and other callers never go through discovery at all.
         #
-        # Checked AFTER the ragged assertion above: on a half-built cube the last timestamp is
+        # Checked AFTER the ragged assertion above: on a half-built cube the stored timestamps are
         # not a reliable thing to compare against, and raggedness is the more fundamental fault.
         #
-        # An equal timestamp is rejected as a duplicate. The append is positional, so re-ingesting
-        # the same acquisition adds a second slice carrying the same instant rather than replacing
-        # the first.
+        # Compare against the LATEST slice, not the last one. A cube written before this guard
+        # existed, or through `allow_out_of_order`, can already be unsorted (most of the S1 RTC
+        # fleet is), and there an append that is later than `time[-1]` but earlier than
+        # `max(time)` lands in the gap and scrambles the axis further without a word.
+        #
+        # An equal timestamp anywhere on the axis is rejected as a duplicate. The append is
+        # positional, so re-ingesting an acquisition adds a second slice carrying the same instant
+        # rather than replacing the first.
         if current_size > 0:
-            last_ns = int(ref_time[current_size - 1])
-            if int(dt_ns) <= last_ns:
+            latest_ns = int(ref_time.max())
+            if int(dt_ns) <= latest_ns:
                 # `np.datetime64` takes a plain int but rejects np.int64 (numpy 2.4), and `dt_ns`
                 # is np.int64 — without the cast this formatting raises instead of reporting.
-                previous = np.datetime64(last_ns, "ns")
+                latest = np.datetime64(latest_ns, "ns")
                 incoming = np.datetime64(int(dt_ns), "ns")
-                relation = "duplicates" if int(dt_ns) == last_ns else "precedes"
+                relation = (
+                    "duplicates a slice already in the cube"
+                    if (ref_time == dt_ns).any()
+                    else f"precedes the latest slice already in the cube ({latest})"
+                )
                 message = (
                     f"Out-of-order append to {orbit_direction}: incoming acquisition {incoming} "
-                    f"{relation} the last slice already in the cube ({previous}). Ingest "
-                    "acquisitions chronologically, or pass allow_out_of_order=True to accept a "
-                    "non-monotonic time axis (`.sel(time=slice(...))` then raises on this cube)."
+                    f"{relation}. Ingest acquisitions chronologically, or pass "
+                    "allow_out_of_order=True to accept a non-monotonic time axis "
+                    "(`.sel(time=slice(...))` then raises on this cube)."
                 )
                 if not allow_out_of_order:
                     raise ValueError(message)

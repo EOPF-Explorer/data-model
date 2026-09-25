@@ -1816,6 +1816,45 @@ class TestTimeAxisOrdering:
         with pytest.raises(ValueError, match="duplicates"):
             ingest_s1tiling_acquisition(*acq, s1_store_path, "ascending")
 
+    def _build_unsorted(self, d: Path, store: Path) -> None:
+        """The shape most of the S1 RTC fleet is in: time = [01-27, 01-15], so the last slice
+        is not the latest one."""
+        ingest_s1tiling_acquisition(*self._paths(d, "20230127t061235"), store, "ascending")
+        ingest_s1tiling_acquisition(
+            *self._paths(d, "20230115t061234"), store, "ascending", allow_out_of_order=True
+        )
+
+    def test_append_into_the_gap_of_an_unsorted_cube_raises(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """01-21 is later than the last slice (01-15) but earlier than the latest (01-27). A guard
+        that compares against `time[-1]` lets it through and scrambles the axis further."""
+        self._build_unsorted(s1_geotiff_dir, s1_store_path)
+        gap = self._paths(s1_geotiff_dir, "20230121t061234")
+        tags = {**ACQ1_TAGS, "ACQUISITION_DATETIME": "2023:01:21T06:12:34Z"}
+        rng = np.random.default_rng(5)
+        for path in gap[:2]:
+            data = rng.uniform(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
+            _create_synthetic_geotiff(path, data, tags=tags)
+        _create_synthetic_geotiff(gap[2], np.ones((SIZE, SIZE), dtype=np.uint8), tags=tags)
+
+        with pytest.raises(ValueError, match="precedes the latest slice"):
+            ingest_s1tiling_acquisition(*gap, s1_store_path, "ascending")
+
+        root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3, use_consolidated=False)
+        assert _array(_group(_group(root, "ascending"), "r10m"), "time").shape[0] == 2
+
+    def test_duplicate_of_an_earlier_slice_is_rejected(
+        self, s1_geotiff_dir: Path, s1_store_path: Path
+    ) -> None:
+        """Re-ingesting any acquisition already in the cube is a duplicate, not only the last."""
+        self._build_unsorted(s1_geotiff_dir, s1_store_path)
+
+        with pytest.raises(ValueError, match="duplicates"):
+            ingest_s1tiling_acquisition(
+                *self._paths(s1_geotiff_dir, "20230127t061235"), s1_store_path, "ascending"
+            )
+
     def test_discovery_is_chronological_across_platforms(self, tmp_path: Path) -> None:
         """The group key is (platform, tile, orbit_dir, rel_orbit, acq_stamp), so sorting it
         verbatim let `platform` dominate the timestamp: a mixed S1A/S1C archive came back as all
