@@ -5296,10 +5296,7 @@
               "members": {
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -5324,10 +5321,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5352,6 +5346,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5385,12 +5406,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5401,10 +5422,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -5429,10 +5447,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5457,6 +5472,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5490,12 +5532,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5506,10 +5548,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -5534,10 +5573,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5562,6 +5598,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5595,12 +5658,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5611,10 +5674,7 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -5639,10 +5699,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5667,6 +5724,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5700,12 +5784,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5884,10 +5968,7 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -5912,10 +5993,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5940,6 +6018,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5973,12 +6078,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5989,10 +6094,7 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -6017,10 +6119,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6045,6 +6144,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6078,12 +6204,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6094,10 +6220,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -6122,10 +6245,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6150,6 +6270,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6183,12 +6330,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6199,10 +6346,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -6227,10 +6371,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6255,6 +6396,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6288,12 +6456,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6304,10 +6472,7 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -6332,10 +6497,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6360,6 +6522,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6393,12 +6582,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6409,10 +6598,7 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -6437,10 +6623,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6465,6 +6648,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6498,12 +6708,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6514,10 +6724,7 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -6542,10 +6749,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6570,6 +6774,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6603,12 +6834,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6619,13 +6850,10 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -6650,10 +6878,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6678,6 +6903,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6711,12 +6963,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6727,10 +6979,7 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -6755,10 +7004,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6783,6 +7029,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6816,12 +7089,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6832,10 +7105,7 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -6860,10 +7130,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6888,6 +7155,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6921,12 +7215,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6937,10 +7231,7 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -6965,10 +7256,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6993,6 +7281,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7026,12 +7341,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -7042,10 +7357,7 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -7070,10 +7382,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7098,6 +7407,33 @@
                           915
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7131,12 +7467,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     915,
@@ -7312,10 +7648,7 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -7340,10 +7673,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7368,6 +7698,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7401,12 +7758,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7417,10 +7774,7 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -7445,10 +7799,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7473,6 +7824,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7506,12 +7884,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7522,10 +7900,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -7550,10 +7925,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7578,6 +7950,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7611,12 +8010,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7627,10 +8026,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -7655,10 +8051,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7683,6 +8076,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7716,12 +8136,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7732,10 +8152,7 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -7760,10 +8177,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7788,6 +8202,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7821,12 +8262,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7837,10 +8278,7 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -7865,10 +8303,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7893,6 +8328,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7926,12 +8388,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7942,10 +8404,7 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -7970,10 +8429,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7998,6 +8454,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8031,12 +8514,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8047,13 +8530,10 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "_derived_from": "r10m",
                     "_factor": 2,
                     "_resampling_mode": "mean",
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -8078,10 +8558,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8106,6 +8583,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8139,12 +8643,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8155,10 +8659,7 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -8183,10 +8684,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8211,6 +8709,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8244,12 +8769,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8260,10 +8785,7 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -8288,10 +8810,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8316,6 +8835,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8349,12 +8895,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8365,10 +8911,7 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -8393,10 +8936,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8421,6 +8961,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8454,12 +9021,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8638,10 +9205,7 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -8666,10 +9230,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8694,6 +9255,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8727,12 +9315,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -8743,10 +9331,7 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -8771,10 +9356,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8799,6 +9381,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8832,12 +9441,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -8848,10 +9457,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -8876,10 +9482,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8904,6 +9507,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8937,12 +9567,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -8953,10 +9583,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -8981,10 +9608,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9009,6 +9633,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9042,12 +9693,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9058,10 +9709,7 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -9086,10 +9734,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9114,6 +9759,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9147,12 +9819,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9163,10 +9835,7 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -9191,10 +9860,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9219,6 +9885,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9252,12 +9945,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9268,10 +9961,7 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -9296,10 +9986,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9324,6 +10011,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9357,12 +10071,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9373,13 +10087,10 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -9404,10 +10115,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9432,6 +10140,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9465,12 +10200,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9481,10 +10216,7 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -9509,10 +10241,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9537,6 +10266,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9570,12 +10326,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9586,10 +10342,7 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -9614,10 +10367,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9642,6 +10392,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9675,12 +10452,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9691,10 +10468,7 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -9719,10 +10493,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9747,6 +10518,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9780,12 +10578,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9796,10 +10594,7 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -9824,10 +10619,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9852,6 +10644,33 @@
                           305
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9885,12 +10704,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     305,
@@ -10066,10 +10885,7 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -10094,10 +10910,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10122,6 +10935,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10155,12 +10995,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10171,10 +11011,7 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -10199,10 +11036,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10227,6 +11061,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10260,12 +11121,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10276,10 +11137,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -10304,10 +11162,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10332,6 +11187,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10365,12 +11247,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10381,10 +11263,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -10409,10 +11288,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10437,6 +11313,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10470,12 +11373,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10486,10 +11389,7 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -10514,10 +11414,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10542,6 +11439,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10575,12 +11499,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10591,10 +11515,7 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -10619,10 +11540,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10647,6 +11565,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10680,12 +11625,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10696,10 +11641,7 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -10724,10 +11666,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10752,6 +11691,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10785,12 +11751,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10801,13 +11767,10 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -10832,10 +11795,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10860,6 +11820,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10893,12 +11880,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10909,10 +11896,7 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -10937,10 +11921,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10965,6 +11946,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10998,12 +12006,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11014,10 +12022,7 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -11042,10 +12047,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11070,6 +12072,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11103,12 +12132,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11119,10 +12148,7 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -11147,10 +12173,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11175,6 +12198,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11208,12 +12258,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11224,10 +12274,7 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -11252,10 +12299,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11280,6 +12324,33 @@
                           1024
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11313,12 +12384,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11497,10 +12568,7 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -11525,10 +12593,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11553,6 +12618,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11586,12 +12678,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -11602,10 +12694,7 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -11630,10 +12719,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11658,6 +12744,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11691,12 +12804,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -11707,10 +12820,7 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -11735,10 +12845,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11763,6 +12870,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11796,12 +12930,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -11812,10 +12946,7 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -11840,10 +12971,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11868,6 +12996,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11901,12 +13056,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -11917,10 +13072,7 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -11945,10 +13097,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11973,6 +13122,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12006,12 +13182,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12022,10 +13198,7 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -12050,10 +13223,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12078,6 +13248,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12111,12 +13308,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12127,10 +13324,7 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -12155,10 +13349,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12183,6 +13374,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12216,12 +13434,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12232,13 +13450,10 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -12263,10 +13478,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12291,6 +13503,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12324,12 +13563,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12340,10 +13579,7 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -12368,10 +13604,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12396,6 +13629,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12429,12 +13689,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12445,10 +13705,7 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -12473,10 +13730,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12501,6 +13755,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12534,12 +13815,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12550,10 +13831,7 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -12578,10 +13856,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12606,6 +13881,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12639,12 +13941,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12655,10 +13957,7 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": 0,
-                    "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
+                    "_FillValue": "AAAAAAAA+H8=",
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -12683,10 +13982,7 @@
                       0.0,
                       1.0
                     ],
-                    "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12711,6 +14007,33 @@
                           152
                         ],
                         "codecs": [
+                          {
+                            "configuration": {
+                              "offset": -0.1,
+                              "scale": 10000.0
+                            },
+                            "name": "scale_offset"
+                          },
+                          {
+                            "configuration": {
+                              "data_type": "uint16",
+                              "scalar_map": {
+                                "decode": [
+                                  [
+                                    0,
+                                    "NaN"
+                                  ]
+                                ],
+                                "encode": [
+                                  [
+                                    "NaN",
+                                    0
+                                  ]
+                                ]
+                              }
+                            },
+                            "name": "cast_value"
+                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12744,12 +14067,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "uint16",
+                  "data_type": "float32",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     152,
