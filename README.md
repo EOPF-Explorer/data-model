@@ -292,13 +292,6 @@ layout (`convert-s2-optimized`).  The three native resolution groups (10 m, 20 m
 60 m) are reused as-is and coarser overviews (120 m, 360 m, 720 m) are computed
 via /2 downsampling.
 
-Every level keeps the packing of the source product (for example `uint16` for
-reflectance). By default the Zarr `scale_offset` + `cast_value` codecs store it,
-so Zarr readers return decoded values. Pass `--no-scale-offset-codec` to write the ESA
-layout instead: packed integers with CF `scale_factor`, `add_offset` and
-`_FillValue`, and STAC `raster:scale`/`raster:offset`/`nodata` (see
-[docs/converter.md](docs/converter.md#encoding)).
-
 ### Sentinel-3 OLCI L1 EFR
 
 Sentinel-3 OLCI (Ocean and Land Colour Instrument) Level-1 EFR (Full Resolution)
@@ -331,6 +324,7 @@ Key flags:
 - `--min-dimension` — stop generating /2 overview levels once either spatial
   dimension would drop below this value (default: 256)
 - `--enable-sharding` — accepted but not yet wired into encoding (follow-up task)
+- `--keep-scale-offset` — accepted but not yet wired into encoding (follow-up task)
 - `--output-grid` — `native` (default) preserves the instrument swath geometry; any other value is parsed as a CRS (e.g. `EPSG:4326`) and the swath is warped once onto a regular grid
 
 #### What is converted
@@ -352,9 +346,8 @@ Key flags:
 > **Note:** OLCI support is initial/measurements-focused (v1).  Tie-point grid
 > groups (`conditions/geometry`, `meteorology`, `instrument`) are copied through but
 > not converted to GeoZarr convention.  Encoding wiring for `--enable-sharding`,
-> `--spatial-chunk` and `--compression-level` is accepted but scheduled as a
-> follow-up task.  Radiance is written with the source packing (`uint16` with CF
-> `scale_factor` and `_FillValue`).
+> `--spatial-chunk`, `--compression-level`, and `--keep-scale-offset` is accepted
+> but scheduled as a follow-up task.
 
 ## Architecture
 

@@ -198,35 +198,6 @@ dt_optimized = convert_s2_optimized(
 
 The result is a space-efficient multiscale pyramid: `/measurements/reflectance/{r10m, r20m, r60m, r120m, r360m, r720m}` where the native resolutions are preserved as-is and only the coarser levels are computed.
 
-### Encoding
-
-Every level of the reflectance pyramid keeps the packing of the source product
-(for example `uint16`, `scale_factor` 0.0001, `add_offset` -0.1, nodata 0 for
-S2 L2A). One option selects how that packing is stored:
-
-| Mode | Option | On disk | Metadata |
-|---|---|---|---|
-| Default: Zarr codec | none | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes and no STAC scale fields: Zarr readers return decoded values |
-| ESA layout | `--no-scale-offset-codec` / `scale_offset_codec=False` | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays; `raster:scale`, `raster:offset` and `nodata` on the STAC `reflectance` asset |
-
-What a reader needs:
-
-- Default mode: a Zarr library that supports the `scale_offset` and
-  `cast_value` codecs, for example zarr-python with the `cast-value-rs` extra,
-  or zarrita (used by the OpenLayers `GeoZarr` source).
-- ESA layout: a reader that applies the CF attributes. xarray does this by
-  default (`mask_and_scale=True`); zarrita does not.
-
-The input can be opened raw (`mask_and_scale=False`, as in the CPM path) or
-decoded (as in the CLI). Both give the same output. Arrays without a packing,
-such as the classification and quality masks, keep their integer dtype and
-fill value in both modes.
-
-In the CPM writer (`eopf convert-geozarr --no-scale-offset-codec` or
-`target_store_kwargs={"scale_offset_codec": False}`), the former
-`keep_scale_offset` option is still accepted for one release with a
-`DeprecationWarning`: `keep_scale_offset=True` selects the ESA layout.
-
 ## Sentinel-3 OLCI L1 EFR Conversion
 
 Sentinel-3 OLCI (Ocean and Land Colour Instrument) Level-1 EFR (Full Resolution)
@@ -262,6 +233,7 @@ eopf-geozarr convert-s3-olci-optimized S3A_OL_1_EFR.zarr output.zarr \
 | `--compression-level` | 3 | Blosc/zstd compression level (1–9) |
 | `--min-dimension` | 256 | Minimum spatial dimension for overview levels |
 | `--enable-sharding` | off | Accepted but not yet wired into encoding (follow-up task) |
+| `--keep-scale-offset` | off | Accepted but not yet wired into encoding (follow-up task) |
 | `--output-grid` | native | `native` preserves instrument geometry; any CRS string (e.g. `EPSG:4326`) warps onto a regular grid |
 
 ### Output layout
@@ -291,9 +263,8 @@ a regular grid and is dropped (it remains in the source product).
 > **Note:** OLCI support is initial/measurements-focused (v1).  Tie-point grid
 > groups in `conditions/geometry`, `meteorology`, and `instrument` are copied
 > through but not converted to GeoZarr convention.  Encoding wiring for
-> `--enable-sharding`, `--spatial-chunk` and `--compression-level` is accepted
-> but scheduled as a follow-up task.  Radiance is written with the source
-> packing (`uint16` with CF `scale_factor` and `_FillValue`).
+> `--enable-sharding`, `--spatial-chunk`, `--compression-level`, and
+> `--keep-scale-offset` is accepted but scheduled as a follow-up task.
 
 ## Error Handling
 

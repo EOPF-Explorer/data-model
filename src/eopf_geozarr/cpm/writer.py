@@ -36,7 +36,6 @@ This module requires the ``eopf`` package (install with
 from __future__ import annotations
 
 import shutil
-import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -111,8 +110,7 @@ class GeoZarrWriter(EOWriter):
         gcp_group: str | None = None,
         min_dimension: int = 256,
         compression_level: int = 3,
-        scale_offset_codec: bool = True,
-        keep_scale_offset: bool | None = None,
+        keep_scale_offset: bool = False,
         validate_output: bool = False,
         output_grid: str = "native",
         **kwargs: Any,
@@ -169,15 +167,9 @@ class GeoZarrWriter(EOWriter):
             level.
         compression_level
             S2 optimized pipeline only: blosc-zstd compression level.
-        scale_offset_codec
-            S2 optimized pipeline only: pack reflectance with the Zarr
-            ``scale_offset`` + ``cast_value`` codecs (default). ``False``
-            writes it as in the ESA product: source integers with CF
-            ``scale_factor``/``add_offset``/``_FillValue``, and STAC
-            ``raster:scale``/``raster:offset``/``nodata``.
         keep_scale_offset
-            Deprecated, use ``scale_offset_codec``: ``keep_scale_offset=True``
-            is ``scale_offset_codec=False`` (ESA layout).
+            S2 optimized pipeline only: preserve CF scale/offset encoding
+            instead of decoding to float.
         validate_output
             S2 optimized pipeline only: run output validation after writing.
         output_grid
@@ -202,14 +194,6 @@ class GeoZarrWriter(EOWriter):
             compute=compute,
             **kwargs,
         )
-        if keep_scale_offset is not None:
-            warnings.warn(
-                "keep_scale_offset is deprecated and will be removed in the next release; "
-                "use scale_offset_codec instead (keep_scale_offset=True is scale_offset_codec=False).",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            scale_offset_codec = scale_offset_codec and not keep_scale_offset
         target_str = self._check_target(filename_or_obj)
         if mode == "w-" and Path(target_str).exists():
             raise EOStoreProductAlreadyExistsError(f"Product already exists in {target_str}")
@@ -252,7 +236,7 @@ class GeoZarrWriter(EOWriter):
                 spatial_chunk=resolved_spatial_chunk,
                 compression_level=compression_level,
                 validate_output=validate_output,
-                scale_offset_codec=scale_offset_codec,
+                keep_scale_offset=keep_scale_offset,
                 max_retries=max_retries,
             )
 
@@ -264,6 +248,7 @@ class GeoZarrWriter(EOWriter):
                 spatial_chunk=resolved_spatial_chunk,
                 compression_level=compression_level,
                 min_dimension=min_dimension,
+                keep_scale_offset=keep_scale_offset,
                 output_grid=output_grid,
             )
 
@@ -302,7 +287,6 @@ class GeoZarrWriter(EOWriter):
             "gcp_group",
             "min_dimension",
             "compression_level",
-            "scale_offset_codec",
             "keep_scale_offset",
             "validate_output",
             "output_grid",
@@ -497,14 +481,6 @@ def get_cli_command() -> click.Command:
         ),
     )
     @click.option(
-        "--no-scale-offset-codec",
-        is_flag=True,
-        help=(
-            "S2 optimized pipeline: write packed reflectance as in the ESA product (CF "
-            "scale_factor/add_offset/_FillValue) instead of the default Zarr scale-offset codecs."
-        ),
-    )
-    @click.option(
         "--stage-source",
         is_flag=True,
         help="Download the source product to a local temporary folder before converting.",
@@ -526,7 +502,6 @@ def get_cli_command() -> click.Command:
         no_s2_optimized: bool,
         no_s3_olci_optimized: bool,
         output_grid: str,
-        no_scale_offset_codec: bool,
         stage_source: bool,
         stage_output: bool,
     ) -> None:
@@ -550,8 +525,6 @@ def get_cli_command() -> click.Command:
             target_store_kwargs["s3_olci_optimized"] = False
         if output_grid != "native":
             target_store_kwargs["output_grid"] = output_grid
-        if no_scale_offset_codec:
-            target_store_kwargs["scale_offset_codec"] = False
         convert(
             source_path=source_path,
             target_path=target_path,
