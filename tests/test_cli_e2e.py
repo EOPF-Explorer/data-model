@@ -13,6 +13,8 @@ import pytest
 import xarray as xr
 import zarr
 
+import eopf_geozarr
+
 
 def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
     """
@@ -213,7 +215,7 @@ def test_cli_version() -> None:
         text=True,
     )
     assert result.returncode == 0, "Version command failed"
-    assert "0.1.0" in result.stdout, "Version should be 0.1.0"
+    assert eopf_geozarr.__version__ in result.stdout, "Version should match the package"
 
 
 def test_cli_crs_groups_option() -> None:

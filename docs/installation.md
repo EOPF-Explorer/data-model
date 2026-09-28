@@ -1,159 +1,98 @@
-# Installation
+---
+title: Installation
+description: Install eopf-geozarr with pip or uv, as the standalone GeoZarr converter (Python 3.12+) or as the GeoZarr driver for EOPF CPM with the cpm extra (Python 3.13+).
+---
 
-This guide covers the installation of the EOPF GeoZarr library and its dependencies.
+# Installation
 
 ## Requirements
 
-- Python 3.11 or higher
-- Operating System: Linux, macOS, or Windows
+| Use | Python | Package |
+|---|---|---|
+| Standalone converter (`eopf-geozarr`) | 3.12 or later | `eopf-geozarr` |
+| GeoZarr driver for EOPF CPM (`eopf convert-geozarr`) | 3.13 or later | `eopf-geozarr[cpm]` (installs `eopf` 3.x) |
 
-## Installation Methods
+Linux and macOS are tested. Windows works through WSL.
 
-### Using pip (Recommended)
+## Install
 
-Install the latest stable version from PyPI:
+=== "Standalone converter"
 
-```bash
-pip install eopf-geozarr
-```
+    ```bash
+    pip install eopf-geozarr
+    # or
+    uv add eopf-geozarr
+    ```
 
-### Using uv (Fast Alternative)
+=== "CPM driver"
 
-If you have [uv](https://docs.astral.sh/uv/) installed:
+    ```bash
+    pip install "eopf-geozarr[cpm]"
+    # or
+    uv add "eopf-geozarr[cpm]"
+    ```
 
-```bash
-uv add eopf-geozarr
-```
+    The `cpm` extra installs EOPF CPM (`eopf`), registers the `geozarr` engine
+    in CPM's writer registry and adds `convert-geozarr` to the `eopf` CLI. On
+    Python 3.12 the extra installs nothing.
 
-### Development Installation
-
-For development or to get the latest features:
-
-```bash
-git clone https://github.com/eopf-explorer/data-model.git
-cd data-model
-pip install -e .
-```
-
-## Dependencies
-
-The library automatically installs the following key dependencies:
-
-- **pydantic-zarr** (≥0.8.0) - Zarr data validation
-- **zarr** (≥3.1.1) - Zarr format support
-- **xarray** (≥2025.7.1) - N-dimensional labeled arrays
-- **dask** (≥2025.5.1) - Parallel computing
-- **rioxarray** (≥0.13.0) - Geospatial xarray extension
-- **s3fs** (≥2024.6.0) - S3 filesystem support
-- **pyproj** (≥3.7.0) - Cartographic projections
-
-## Optional Dependencies
-
-### Development Tools
-
-For development work, install additional tools:
-
-```bash
-pip install eopf-geozarr[dev]
-```
-
-This includes:
-
-- Testing frameworks (pytest, pytest-cov)
-- Code formatting (black, isort)
-- Linting (flake8, mypy)
-- Security scanning (bandit, safety)
-
-### Documentation
-
-To build documentation locally:
-
-```bash
-pip install eopf-geozarr[docs]
-```
-
-## Verification
-
-Verify your installation by running:
+## Check the installation
 
 ```bash
 eopf-geozarr --version
+eopf convert-geozarr --help   # CPM driver only
 ```
-
-Or in Python:
 
 ```python
 import eopf_geozarr
+
 print(eopf_geozarr.__version__)
 ```
 
-## Cloud Storage Setup
+## Development installation
 
-### AWS S3 Configuration
-
-For S3 support, configure your AWS credentials:
+The project uses [uv](https://docs.astral.sh/uv/) and pre-commit (ruff,
+pyright).
 
 ```bash
-# Using AWS CLI
-aws configure
+git clone https://github.com/EOPF-Explorer/data-model.git
+cd data-model
+uv sync                      # add --extra cpm on Python 3.13+ for the CPM driver
+uv run pre-commit install
+uv run pytest -m "not network"
+uv run mkdocs serve          # build and serve this documentation
+```
 
-# Or set environment variables
+## Cloud storage credentials
+
+Both paths read and write S3-compatible object storage with the standard AWS
+environment variables:
+
+```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_DEFAULT_REGION=us-east-1
+# S3-compatible providers (OVH, MinIO, ...):
+export AWS_ENDPOINT_URL=https://your-endpoint.example
 ```
 
-### Alternative S3-Compatible Storage
-
-For other S3-compatible services (MinIO, DigitalOcean Spaces, etc.):
-
-```bash
-export AWS_ENDPOINT_URL=https://your-endpoint.com
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-```
+The standalone converter writes to `s3://` URLs directly. The CPM driver
+writes locally and uploads with `--stage-output` (`stage_target=True` in
+Python).
 
 ## Troubleshooting
 
-### Common Issues
+**`ImportError` about `eopf` when you import `eopf_geozarr.cpm.writer`**
+: The CPM driver needs Python 3.13 or later and the `cpm` extra:
+  `pip install "eopf-geozarr[cpm]"`.
 
-**ImportError: No module named 'eopf_geozarr'**
-
-- Ensure you're using the correct Python environment
-- Verify installation with `pip list | grep eopf-geozarr`
-
-**Permission errors during installation**
-
-- Use `pip install --user eopf-geozarr` for user-level installation
-- Or use a virtual environment (recommended)
+**`eopf: command not found` or no `convert-geozarr` in `eopf --help`**
+: Install the `cpm` extra in the same environment as `eopf`.
 
 **Dependency conflicts**
+: Install into a fresh virtual environment (`python -m venv .venv` or
+  `uv venv`).
 
-- Create a fresh virtual environment
-- Use `pip install --upgrade eopf-geozarr` to update dependencies
+## Next steps
 
-### Virtual Environment Setup
-
-Recommended approach using venv:
-
-```bash
-python -m venv eopf-env
-source eopf-env/bin/activate  # On Windows: eopf-env\Scripts\activate
-pip install eopf-geozarr
-```
-
-### System-Specific Notes
-
-**macOS with Apple Silicon**
-
-- Some dependencies may require Rosetta 2 or native ARM builds
-- Consider using conda for better compatibility
-
-**Windows**
-
-- Ensure Visual C++ Build Tools are installed for some dependencies
-- Use Windows Subsystem for Linux (WSL) for best compatibility
-
-## Next Steps
-
-After installation, proceed to the [Quick Start](quickstart.md) guide to begin using the library.
+Continue with the [quick start](quickstart.md).

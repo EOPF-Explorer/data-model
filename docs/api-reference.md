@@ -1,494 +1,175 @@
-# API Reference
+---
+title: API reference
+description: Python API of eopf-geozarr — the GeoZarr driver for EOPF CPM and the standalone converters for Sentinel-1, Sentinel-2 and Sentinel-3 OLCI, plus validation and utilities.
+---
 
-Complete reference for the EOPF GeoZarr library's Python API.
+# API reference
 
-## Core Functions
+This page lists the public entry points. Each function has a full docstring in
+the source code.
 
-### create_geozarr_dataset
+## GeoZarr driver for EOPF CPM
 
-The main function for converting EOPF datasets to GeoZarr format.
-
-```python
-# test: skip
-def create_geozarr_dataset(
-    dt_input: xr.DataTree,
-    groups: List[str],
-    output_path: str,
-    spatial_chunk: int = 4096,
-    min_dimension: int = 256,
-    max_retries: int = 3,
-    **storage_kwargs
-) -> xr.DataTree
-```
-
-**Parameters:**
-
-- `dt_input` (xr.DataTree): Input EOPF DataTree to convert
-- `groups` (List[str]): List of group paths to process (e.g., `["/measurements/reflectance/r10m"]`)
-- `output_path` (str): Output path for the GeoZarr dataset (local or S3)
-- `spatial_chunk` (int, optional): Target spatial chunk size. Default: 4096
-- `min_dimension` (int, optional): Minimum dimension size for processing. Default: 256
-- `max_retries` (int, optional): Maximum retry attempts for operations. Default: 3
-- `**storage_kwargs`: Additional storage options (S3 credentials, etc.)
-
-**Returns:**
-
-- `xr.DataTree`: The converted GeoZarr-compliant DataTree
-
-**Example:**
+`eopf_geozarr.cpm.writer.GeoZarrWriter` is the CPM writer registered under the
+engine name `geozarr`. You do not call it directly: import
+`eopf_geozarr.cpm.writer` and select `engine="geozarr"` in
+`eopf.store.write_datatree` or `eopf.store.convert.convert`. See the
+[CPM driver guide](cpm-driver.md) for the options and the product routing.
 
 ```python
-# test: skip
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
+# test: skip (needs eopf-cpm)
+import eopf_geozarr.cpm.writer  # registers the "geozarr" engine
+from eopf.store import write_datatree
 
-dt = xr.open_datatree("input.zarr", engine="zarr")
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m"],
-    output_path="output.zarr",
-    spatial_chunk=2048
-)
+write_datatree(dtree, "out.zarr", engine="geozarr", enable_sharding=True)
 ```
 
-## Sentinel-2 Optimization Functions
+`eopf_geozarr.cpm.routing` (importable without eopf-cpm) has the routing
+helpers: `select_pipeline(dtree)`, `product_type_of(dtree)`,
+`looks_like_sentinel2(dtree)` and `looks_like_sentinel3_olci(dtree)`.
 
-### convert_s2_optimized
-
-Main function for optimized Sentinel-2 conversion with multiscale pyramid generation.
-
-```python
-# test: skip
-def convert_s2_optimized(
-    dt_input: xr.DataTree,
-    output_path: str,
-    enable_sharding: bool = True,
-    spatial_chunk: int = 256,
-    compression_level: int = 3,
-    validate_output: bool = True,
-    max_retries: int = 3
-) -> xr.DataTree
-```
-
-**Parameters:**
-
-- `dt_input` (xr.DataTree): Input Sentinel-2 DataTree
-- `output_path` (str): Output path for optimized dataset
-- `enable_sharding` (bool, optional): Enable Zarr v3 sharding. Default: True
-- `spatial_chunk` (int, optional): Spatial chunk size. Default: 256
-- `compression_level` (int, optional): Compression level 1-9. Default: 3
-- `validate_output` (bool, optional): Validate output after conversion. Default: True
-- `max_retries` (int, optional): Maximum retry attempts for operations. Default: 3
-
-**Returns:**
-
-- `xr.DataTree`: Optimized DataTree with multiscale pyramid
-
-**Example:**
+## Sentinel-2: `convert_s2_optimized`
 
 ```python
 # test: skip
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
-import xarray as xr
 
-dt = xr.open_datatree("s2_product.zarr", engine="zarr")
-dt_optimized = convert_s2_optimized(
-    dt_input=dt,
-    output_path="s2_optimized.zarr",
-    enable_sharding=True,
-    spatial_chunk=256
-)
-```
-
-### create_multiscale_from_datatree
-
-Creates multiscale pyramid from DataTree, reusing native resolution groups.
-
-```python
-# test: skip
-def create_multiscale_from_datatree(
+convert_s2_optimized(
     dt_input: xr.DataTree,
+    *,
     output_path: str,
     enable_sharding: bool,
     spatial_chunk: int,
-    crs: CRS | None = None
-) -> dict[str, dict]
-```
-
-**Parameters:**
-
-- `dt_input` (xr.DataTree): Input DataTree containing native resolution groups (e.g., r10m, r20m, r60m)
-- `output_path` (str): Output path for the multiscale dataset
-- `enable_sharding` (bool): Enable Zarr v3 sharding for improved performance
-- `spatial_chunk` (int): Spatial chunk size for arrays
-- `crs` (CRS | None, optional): Coordinate reference system. If None, CRS is extracted from input
-
-**Returns:**
-
-- `dict[str, dict]`: Nested dictionary structure organizing the multiscale levels:
-  ```python
-  {
-      "measurements": {
-          "reflectance": {
-              "r10m": Dataset,   # Native 10m resolution
-              "r20m": Dataset,   # Native 20m resolution
-              "r60m": Dataset,   # Native 60m resolution
-              "r120m": Dataset,  # Computed 120m overview
-              "r360m": Dataset,  # Computed 360m overview
-              "r720m": Dataset   # Computed 720m overview
-          }
-      }
-  }
-  ```
-
-**Example:**
-
-```python
-# test: skip
-from eopf_geozarr.s2_optimization.s2_multiscale import create_multiscale_from_datatree
-from pyproj import CRS
-import xarray as xr
-
-# Load Sentinel-2 DataTree with native resolutions
-dt = xr.open_datatree("s2_input.zarr", engine="zarr")
-
-# Create multiscale pyramid
-multiscale_dict = create_multiscale_from_datatree(
-    dt_input=dt,
-    output_path="s2_multiscale.zarr",
-    enable_sharding=True,
-    spatial_chunk=256,
-    crs=CRS.from_epsg(32633)  # UTM Zone 33N
-)
-
-# Access specific resolution level
-r360m_reflectance = multiscale_dict["measurements"]["reflectance"]["r360m"]
-```
-
-**Note:** The S2 optimization uses xarray's built-in `.coarsen()` method for efficient downsampling operations, providing better integration with lazy evaluation and memory management.
-
-## Conversion Functions
-
-### setup_datatree_metadata_geozarr_spec_compliant
-
-Sets up GeoZarr-compliant metadata for a DataTree.
-
-```python
-# test: skip
-def setup_datatree_metadata_geozarr_spec_compliant(
-    dt: xr.DataTree,
-    geozarr_groups: Dict[str, xr.Dataset]
-) -> None
-```
-
-### write_geozarr_group
-
-Writes a single group to GeoZarr format with proper metadata.
-
-```python
-# test: skip
-def write_geozarr_group(
-    group_path: str,
-    datasets: Dict[str, xr.Dataset],
-    output_path: str,
-    spatial_chunk: int = 4096,
+    compression_level: int,
+    validate_output: bool,
+    scale_offset_codec: bool = True,
     max_retries: int = 3,
-    **storage_kwargs
-) -> None
+) -> xr.DataTree
 ```
 
-### create_geozarr_compliant_multiscales
+Converts a Sentinel-2 L1C or L2A DataTree to the optimized pyramid
+(`r10m` … `r720m`). All arguments after `dt_input` are keyword-only, and all
+without a default are required.
 
-Creates the overview pyramid (`r{2**level}` sibling groups) and writes the
-`multiscales` metadata onto the parent group.
+| Argument | Description |
+|---|---|
+| `output_path` | Local path or `s3://` URL of the output store. |
+| `enable_sharding` | Enable Zarr v3 sharding. |
+| `spatial_chunk` | Spatial chunk size (the CLI default is 256). |
+| `compression_level` | Blosc zstd level, 1–9. |
+| `validate_output` | Validate the output after writing. |
+| `scale_offset_codec` | `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. `False`: ESA layout with CF and STAC scale fields. See [Encoding](converter.md#encoding). |
+| `max_retries` | Retries for network operations. |
+
+`create_multiscale_from_datatree(dt_input, *, output_group, enable_sharding,
+spatial_chunk, crs=None, scale_offset_codec=True)` in
+`eopf_geozarr.s2_optimization.s2_multiscale` is the lower-level function that
+writes the pyramid into an open `zarr.Group`.
+
+## Sentinel-3 OLCI: `convert_olci_optimized`
 
 ```python
 # test: skip
-def create_geozarr_compliant_multiscales(
-    ds: xr.Dataset,
+from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
+
+convert_olci_optimized(
+    dt_input: xr.DataTree,
+    *,
     output_path: str,
-    group_name: str,
-    min_dimension: int = 256,
-    spatial_chunk: int = 4096,
-    ds_gcp: xr.Dataset | None = None,
     enable_sharding: bool = False,
-) -> dict[str, Any]
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    min_dimension: int = 256,
+    output_grid: str = "native",
+) -> xr.DataTree
 ```
 
-## Utility Functions
+Converts a Sentinel-3 OLCI L1 EFR or ERR DataTree. Open the input with
+`mask_and_scale=False`. `output_grid="native"` keeps the swath geometry; a CRS
+string (for example `"EPSG:4326"`) warps onto a regular grid.
+`enable_sharding`, `spatial_chunk` and `compression_level` are accepted but not
+applied yet.
 
-### calculate_aligned_chunk_size
-
-Calculates optimal chunk size that aligns with data dimensions.
+## Generic pipeline and Sentinel-1 GRD: `create_geozarr_dataset`
 
 ```python
 # test: skip
-def calculate_aligned_chunk_size(
-    dimension_size: int,
-    target_chunk_size: int
-) -> int
-```
-
-**Parameters:**
-
-- `dimension_size` (int): Size of the data dimension
-- `target_chunk_size` (int): Desired chunk size
-
-**Returns:**
-
-- `int`: Optimal aligned chunk size
-
-**Example:**
-
-```python
-from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
-
-# For a 10980x10980 image with target 4096 chunks
-chunk_size = calculate_aligned_chunk_size(10980, 4096)
-print(chunk_size)  # Returns 3660 (10980 / 3 = 3660)
-```
-
-### downsample_2d_array
-
-Downsamples a 2D array by factor of 2 using mean aggregation.
-
-```python
-# test: skip
-def downsample_2d_array(
-    data: np.ndarray,
-    factor: int = 2
-) -> np.ndarray
-```
-
-### validate_existing_band_data
-
-Validates existing band data against expected specifications.
-
-```python
-# test: skip
-def validate_existing_band_data(
-    dataset: xr.Dataset,
-    band_name: str,
-    expected_shape: Tuple[int, ...],
-    expected_chunks: Tuple[int, ...]
-) -> bool
-```
-
-## File System Functions
-
-### Storage Path Utilities
-
-```python
-# test: skip
-# Path normalization and validation
-def normalize_path(path: str) -> str
-def is_s3_path(path: str) -> bool
-def parse_s3_path(s3_path: str) -> tuple[str, str]
-
-# Storage options
-def get_storage_options(path: str, **kwargs: Any) -> Optional[Dict[str, Any]]
-def get_s3_storage_options(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]
-```
-
-### S3 Operations
-
-```python
-# test: skip
-# S3 store creation and validation
-def validate_s3_access(s3_path: str, **s3_kwargs: Any) -> tuple[bool, Optional[str]]
-def s3_path_exists(s3_path: str, **s3_kwargs: Any) -> bool
-
-# S3 metadata operations
-def write_s3_json_metadata(
-    s3_path: str,
-    metadata: Dict[str, Any],
-    **s3_kwargs: Any
-) -> None
-
-def read_s3_json_metadata(s3_path: str, **s3_kwargs: Any) -> Dict[str, Any]
-```
-
-### Zarr Operations
-
-```python
-# test: skip
-# Zarr group operations
-def open_zarr_group(path: str, mode: str = "r", **kwargs: Any) -> zarr.Group
-def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.Group
-
-# Metadata consolidation
-def consolidate_metadata(output_path: str, **storage_kwargs) -> None
-async def async_consolidate_metadata(output_path: str, **storage_kwargs) -> None
-```
-
-## Metadata Functions
-
-### Coordinate Metadata
-
-```python
-# test: skip
-def _add_coordinate_metadata(ds: xr.Dataset) -> None
-```
-
-Adds proper coordinate metadata including:
-
-- `_ARRAY_DIMENSIONS` attributes
-- CF standard names
-- Coordinate variable attributes
-
-### Grid Mapping
-
-```python
-# test: skip
-def _setup_grid_mapping(ds: xr.Dataset, grid_mapping_var_name: str) -> None
-def _add_geotransform(ds: xr.Dataset, grid_mapping_var: str) -> None
-```
-
-### Overview Generation
-
-### calculate_overview_levels
-
-```python
-# test: skip
-def calculate_overview_levels(
-    width: int,
-    height: int,
-    min_dimension: int = 256
-) -> List[int]
-```
-
-Calculates appropriate overview levels based on data dimensions.
-
-### create_overview_dataset_all_vars
-
-```python
-# test: skip
-def create_overview_dataset_all_vars(
-    ds: xr.Dataset,
-    overview_factor: int
-) -> xr.Dataset
-```
-
-Creates overview dataset with all variables downsampled.
-
-## Error Handling
-
-### Retry Logic
-
-```python
-# test: skip
-def write_dataset_band_by_band_with_validation(
-    ds: xr.Dataset,
-    output_path: str,
-    max_retries: int = 3,
-    **storage_kwargs
-) -> None
-```
-
-Writes dataset with robust error handling and retry logic.
-
-## Constants and Enums
-
-### Coordinate Attributes
-
-```python
-# test: skip
-def _get_x_coord_attrs() -> Dict[str, Any]
-def _get_y_coord_attrs() -> Dict[str, Any]
-```
-
-Returns standard attributes for X and Y coordinates.
-
-### Grid Mapping Detection
-
-```python
-# test: skip
-def is_grid_mapping_variable(ds: xr.Dataset, var_name: str) -> bool
-```
-
-Determines if a variable is a grid mapping variable.
-
-## Usage Examples
-
-### Basic Conversion
-
-```python
-# test: skip
-import xarray as xr
 from eopf_geozarr import create_geozarr_dataset
 
-# Load and convert
-dt = xr.open_datatree("input.zarr", engine="zarr")
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="output.zarr"
-)
+create_geozarr_dataset(
+    dt_input: xr.DataTree,
+    groups: Iterable[str],
+    output_path: str,
+    spatial_chunk: int = 4096,
+    min_dimension: int = 256,
+    max_retries: int = 3,
+    crs_groups: Iterable[str] | None = None,
+    gcp_group: str | None = None,
+    enable_sharding: bool = False,
+) -> xr.DataTree
 ```
 
-### Advanced S3 Usage
+Converts the given `groups` with factor-of-two overviews (`r2`, `r4`, …).
+For Sentinel-1 GRD, pass `groups=["measurements"]` and
+`gcp_group="conditions/gcp"`.
+
+## Sentinel-1 GRD RTC ingestion
+
+In `eopf_geozarr.conversion.s1_ingest`:
+
+| Function | Description |
+|---|---|
+| `ingest_s1tiling_acquisition(vv_path, vh_path, border_mask_path, store_path, orbit_direction, allow_out_of_order=False) -> int` | Add one S1Tiling acquisition to the store; returns its time index. |
+| `ingest_s1tiling_conditions(store_path, orbit_direction, relative_orbit, gamma_area_path=None, lia_path=None, incidence_angle_path=None)` | Write the time-invariant condition arrays. |
+| `consolidate_s1_store(store_path, orbit_direction)` | Consolidate the metadata of the store. |
+
+`eopf_geozarr.stac.s1_rtc.build_s1_rtc_stac_item(zarr_store, collection_id)`
+builds a `pystac.Item` from a consolidated store.
+
+## Validation
 
 ```python
-# test: skip
-from eopf_geozarr.conversion.fs_utils import (
-    validate_s3_access,
-    get_s3_storage_options
-)
+# test: skip (needs a converted store)
+from eopf_geozarr.data_api.geozarr.validation import validate_store
 
-# Validate S3 access
-s3_path = "s3://my-bucket/data.zarr"
-is_valid, error = validate_s3_access(s3_path)
-
-if is_valid:
-    # Get storage options
-    storage_opts = get_s3_storage_options(s3_path)
-
-    # Convert with S3
-    dt_geozarr = create_geozarr_dataset(
-        dt_input=dt,
-        groups=["/measurements/reflectance/r10m"],
-        output_path=s3_path,
-        **storage_opts
-    )
+report = validate_store("out.zarr")
+print(report.summary())
+if not report.compliant:
+    for issue in report.issues:
+        print(issue)
 ```
 
-### Custom Chunking
+`validate_store(store, *, storage_options=None)` accepts a path, an `s3://`
+URL or an open `zarr.Group` and checks it against the
+[GeoZarr mini spec](geozarr-minispec.md). The `eopf-geozarr validate` command
+uses it.
+
+## Opening sources
+
+`eopf_geozarr.conversion.open_source.open_source_datatree(path, *,
+storage_options=None, cache_dir=None, engine="zarr", mask_and_scale=True)`
+opens a local, `s3://` or HTTP product with Dask chunks that match the native
+Zarr chunks. The CLI uses it to open its inputs.
+
+## Utilities
+
+In `eopf_geozarr.conversion.utils`:
+
+- `calculate_aligned_chunk_size(dimension_size, target_chunk_size)`: the
+  largest chunk size up to the target that divides the dimension evenly.
+- `write_store_root_geo_metadata(output_path, storage_options=None)`: write the
+  store-root GeoZarr metadata (`zarr_conventions`, `spatial:bbox`,
+  `proj:code`), for example on stores from older releases.
+- `downsample_2d_array(source_data, target_height, target_width, nodata_value=None)`:
+  block average with nodata handling.
 
 ```python
-# test: skip
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 
-# Calculate optimal chunks for your data
-width, height = 10980, 10980
-optimal_chunk = calculate_aligned_chunk_size(width, 4096)
-
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="output.zarr",
-    spatial_chunk=optimal_chunk
-)
+print(calculate_aligned_chunk_size(10980, 4096))
+#> 3660
 ```
 
-## Type Hints
-
-The library uses comprehensive type hints. Import types as needed:
-
-```python
-# test: skip
-from typing import Dict, List, Optional, Tuple, Any
-import xarray as xr
-import numpy as np
-```
-
-## Error Types
-
-Common exceptions you may encounter:
-
-- `ValueError`: Invalid parameters or data
-- `FileNotFoundError`: Missing input files
-- `PermissionError`: Insufficient permissions for S3 or file operations
-- `zarr.errors.ArrayNotFoundError`: Missing Zarr arrays
-- `xarray.core.common.DataWithCoords`: Data structure issues
-
-For detailed error handling examples, see the [FAQ](faq.md).
+In `eopf_geozarr.conversion.fs_utils`: `get_storage_options(path)`,
+`get_s3_storage_options(s3_path)`, `validate_s3_access(s3_path)` and
+`is_s3_path(path)` handle S3 and fsspec storage options.

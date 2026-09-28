@@ -1,49 +1,62 @@
+---
+title: Examples
+description: Examples for eopf-geozarr, the GeoZarr driver for EOPF CPM — convert SAFE and EOPF Zarr Sentinel products to GeoZarr, write to S3, process with Dask and add STAC metadata.
+---
+
 # Examples
 
-Practical examples demonstrating common use cases for the EOPF GeoZarr library.
+## GeoZarr driver for EOPF CPM
 
-## Basic Examples
-
-### Simple Local Conversion
-
-Convert a local EOPF dataset to GeoZarr format:
-
-```python
-# test: skip
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
-
-# Load EOPF dataset
-dt = xr.open_datatree("sentinel2_l2a.zarr", engine="zarr")
-
-# Convert to GeoZarr
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="sentinel2_geozarr.zarr"
-)
-
-print("Conversion completed successfully!")
-```
-
-### Command Line Conversion
+Convert native products with CPM (see the [CPM driver guide](cpm-driver.md)):
 
 ```bash
-# Basic conversion
+# Sentinel-2 L2A SAFE to GeoZarr, with sharding
+eopf convert-geozarr S2B_MSIL2A_….SAFE out.zarr --enable-sharding
+
+# Sentinel-3 OLCI EFR on a regular WGS 84 grid
+eopf convert-geozarr S3A_OL_1_EFR____….SEN3 out.zarr --output-grid EPSG:4326
+
+# Sentinel-2 to S3, with the ESA layout (CF scale attributes)
+eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/out.zarr \
+    --stage-output --no-scale-offset-codec
+```
+
+```python
+# test: skip (needs eopf-cpm and source products)
+from pathlib import Path
+
+import eopf_geozarr.cpm.writer  # registers the "geozarr" engine
+from eopf.store.convert import convert
+
+# Convert every SAFE product in a folder
+for safe in sorted(Path("inputs").glob("S2*_MSIL2A_*.SAFE")):
+    convert(
+        str(safe),
+        f"outputs/{safe.stem}.zarr",
+        target_store_kwargs={"engine": "geozarr", "enable_sharding": True},
+    )
+```
+
+## Standalone converter
+
+### Command line
+
+```bash
+# Detects Sentinel-2 and Sentinel-3 OLCI and selects the optimized pipeline
 eopf-geozarr convert input.zarr output.zarr
 
-# With custom chunk size
-eopf-geozarr convert input.zarr output.zarr --spatial-chunk 2048
+# Write to S3
+eopf-geozarr convert input.zarr s3://my-bucket/output.zarr
 
 # Validate the result
 eopf-geozarr validate output.zarr
 ```
 
-## Sentinel-2 Examples
+### Generic pipeline for selected groups
 
-### Multi-Resolution Sentinel-2 Processing
-
-Process all resolution groups from a Sentinel-2 L2A dataset:
+`convert` and `convert_s2_optimized` are the recommended paths for
+Sentinel-2. The generic `create_geozarr_dataset` converts only the groups you
+list, with factor-of-two overviews:
 
 ```python
 import xarray as xr
@@ -80,16 +93,20 @@ Access bands from the consolidated pyramid structure produced by
 `convert_s2_optimized`:
 
 ```python
+# test: skip (needs a Sentinel-2 product)
 import xarray as xr
 import matplotlib.pyplot as plt
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
 # Convert using the S2-optimized converter
-dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr")
+dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr", chunks={})
 dt = convert_s2_optimized(
-    dt_input=dt_input,
+    dt_input,
     output_path="s2_l2a.zarr",
-    spatial_chunk=256
+    enable_sharding=True,
+    spatial_chunk=256,
+    compression_level=3,
+    validate_output=False,
 )
 
 # Access data from different resolution levels
@@ -269,6 +286,8 @@ Add custom metadata to the converted dataset:
 
 ```python
 import xarray as xr
+
+import eopf_geozarr
 from eopf_geozarr import create_geozarr_dataset
 
 # Convert dataset
@@ -281,7 +300,7 @@ dt_geozarr = create_geozarr_dataset(
 # Add custom metadata
 dt_geozarr.attrs.update({
     'processing_date': '2024-01-15',
-    'processing_software': 'eopf-geozarr v0.1.0',
+    'processing_software': f'eopf-geozarr {eopf_geozarr.__version__}',
     'custom_parameter': 'value'
 })
 
@@ -389,111 +408,47 @@ batch_convert_datasets(
 )
 ```
 
-## Integration Examples
+## Integration examples
 
-### STAC Integration
+### STAC metadata
 
-Create STAC items for converted GeoZarr datasets:
+For CPM products, the Sentinel-2 pipeline copies the product's
+`stac_discovery` metadata to the store root and adds a `reflectance` asset that
+points to the multiscale group:
 
 ```python
-import json
-from datetime import datetime
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
+# test: skip (needs a converted store)
+import zarr
 
-# Convert dataset
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="stac_ready.zarr"
-)
-
-# Extract metadata for STAC
-ds = dt_geozarr["/measurements/reflectance/r10m"].ds
-spatial_ref = ds.get('spatial_ref', ds.get('crs', None))
-
-# Create basic STAC item
-stac_item = {
-    "stac_version": "1.0.0",
-    "type": "Feature",
-    "id": "sentinel2_geozarr_example",
-    "properties": {
-        "datetime": datetime.now().isoformat(),
-        "platform": "sentinel-2",
-        "instruments": ["msi"],
-        "processing:level": "L2A",
-        "processing:software": "eopf-geozarr"
-    },
-    "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-            # Extract from dataset bounds
-            [float(ds.x.min()), float(ds.y.min())],
-            [float(ds.x.max()), float(ds.y.min())],
-            [float(ds.x.max()), float(ds.y.max())],
-            [float(ds.x.min()), float(ds.y.max())],
-            [float(ds.x.min()), float(ds.y.min())]
-        ]]
-    },
-    "assets": {
-        "geozarr": {
-            "href": "stac_ready.zarr",
-            "type": "application/vnd+zarr",
-            "roles": ["data"],
-            "title": "GeoZarr Dataset"
-        }
-    }
-}
-
-# Save STAC item
-with open("stac_item.json", "w") as f:
-    json.dump(stac_item, f, indent=2)
+root = zarr.open_group("out.zarr", mode="r")
+asset = root.attrs["stac_discovery"]["assets"]["reflectance"]
+print(asset["href"], asset["type"])
+#> /measurements/reflectance application/vnd.zarr; version=3; profile=multiscales
 ```
 
-### Jupyter Notebook Integration
-
-Interactive exploration in Jupyter:
+For Sentinel-1 GRD RTC stores, build a complete STAC item:
 
 ```python
-# Cell 1: Setup and conversion
-import xarray as xr
+# test: skip (needs a consolidated S1 GRD RTC store)
+from eopf_geozarr.stac.s1_rtc import build_s1_rtc_stac_item
+
+item = build_s1_rtc_stac_item("s1-rtc.zarr", collection_id="sentinel-1-grd-rtc")
+print(item.to_dict()["properties"]["datetime"])
+```
+
+### Exploring the pyramid in a notebook
+
+```python
+# test: skip (needs a converted store)
 import matplotlib.pyplot as plt
-from eopf_geozarr import create_geozarr_dataset
+import xarray as xr
 
-dt = xr.open_datatree("input.zarr", engine="zarr")
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="notebook_example.zarr"
-)
+dt = xr.open_datatree("out.zarr", engine="zarr")
+reflectance = dt["measurements/reflectance"]
 
-# Cell 2: Interactive visualization
-%matplotlib widget
-import ipywidgets as widgets
-
-def plot_band(band_name, level):
-    ds = dt_geozarr[f"/measurements/reflectance/r10m/{level}"].ds
-    band_data = ds[band_name]
-    
-    plt.figure(figsize=(10, 8))
-    band_data.plot(robust=True, cmap='viridis')
-    plt.title(f"{band_name} - Level {level}")
-    plt.show()
-
-# Create interactive widgets
-band_widget = widgets.Dropdown(
-    options=['b02', 'b03', 'b04', 'b08'],
-    value='b04',
-    description='Band:'
-)
-
-level_widget = widgets.Dropdown(
-    options=['0', '1', '2'],
-    value='0',
-    description='Level:'
-)
-
-widgets.interact(plot_band, band_name=band_widget, level=level_widget)
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+for ax, level in zip(axes, ["r60m", "r120m", "r720m"]):
+    reflectance[level].ds["b04"].plot(ax=ax, robust=True, cmap="gray")
+    ax.set_title(f"b04 at {level}")
+plt.show()
 ```
-
-These examples demonstrate the flexibility and power of the EOPF GeoZarr library across various use cases, from simple conversions to complex cloud-based workflows.

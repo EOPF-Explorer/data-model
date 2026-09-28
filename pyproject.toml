@@ -5,16 +5,33 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "eopf-geozarr"
 version = "0.12.0"
-description = "GeoZarr compliant data model for EOPF datasets"
+description = "GeoZarr driver for ESA's EOPF CPM: convert Sentinel-1, -2 and -3 products to cloud-optimized GeoZarr (Zarr v3)"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Development Seed", email = "info@developmentseed.org" }]
 maintainers = [
     { name = "Development Seed", email = "info@developmentseed.org" },
 ]
-keywords = ["zarr", "eopf", "sentinel", "geospatial", "geozarr"]
+keywords = [
+    "geozarr",
+    "zarr",
+    "eopf",
+    "eopf-cpm",
+    "cpm",
+    "driver",
+    "sentinel",
+    "sentinel-1",
+    "sentinel-2",
+    "sentinel-3",
+    "copernicus",
+    "geospatial",
+    "cloud-optimized",
+    "multiscale",
+    "ogc",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Environment :: Plugins",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -48,7 +65,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The eopf-cpm integration (eopf_geozarr.cpm): registers the "geozarr" writer
+# The GeoZarr driver for EOPF CPM (eopf_geozarr.cpm): registers the "geozarr"
 # engine in CPM's writer registry and the `eopf convert-geozarr` CLI command.
 # eopf 3.x requires Python >= 3.13, so the extra is empty on older interpreters.
 cpm = ["eopf>=3.0.0; python_version >= '3.13'"]
@@ -75,10 +92,9 @@ downstream-titiler = [
     "httpx>=0.27.0",
 ]
 docs = [
-    "mkdocs>=1.4.0",
-    "mkdocs-material>=9.1.0",
+    "mkdocs>=1.4.0,<2",
+    "mkdocs-material[imaging]>=9.1.0",
     "pymdown-extensions>=10.0",
-    "mike>=2.1.3",
 ]
 notebooks = [
     "cartopy>=0.23",
@@ -88,16 +104,17 @@ notebooks = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/developmentseed/eopf-geozarr"
-Repository = "https://github.com/developmentseed/eopf-geozarr"
-Issues = "https://github.com/developmentseed/eopf-geozarr/issues"
-Documentation = "https://github.com/developmentseed/eopf-geozarr/tree/main/docs"
+Homepage = "https://eopf-explorer.github.io/data-model/"
+Documentation = "https://eopf-explorer.github.io/data-model/"
+Repository = "https://github.com/EOPF-Explorer/data-model"
+Issues = "https://github.com/EOPF-Explorer/data-model/issues"
+Changelog = "https://github.com/EOPF-Explorer/data-model/blob/main/CHANGELOG.md"
 
 [project.scripts]
 eopf-geozarr = "eopf_geozarr.cli:main"
 
-# Discovered by eopf-cpm's CLI (an entry-point-driven click group): adds the
-# `eopf convert-geozarr` subcommand when eopf-geozarr is installed next to eopf.
+# Discovered by the EOPF CPM CLI (an entry-point-driven click group): the GeoZarr
+# driver adds `eopf convert-geozarr` when eopf-geozarr is installed next to eopf.
 [project.entry-points."eopf.cli"]
 convert-geozarr = "eopf_geozarr.cpm:get_cli_command"
 

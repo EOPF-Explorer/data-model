@@ -1,223 +1,99 @@
-# Quick Start
+---
+title: Quick start
+description: Convert your first Sentinel product to GeoZarr in minutes, with the eopf-geozarr driver for EOPF CPM or the standalone eopf-geozarr converter.
+---
 
-Get up and running with EOPF GeoZarr in minutes. This guide shows you how to convert your first EOPF dataset to GeoZarr format.
+# Quick start
 
-## Prerequisites
+This page converts one Sentinel-2 L2A product to GeoZarr, then checks and
+opens the result. Install eopf-geozarr first (see [Installation](installation.md)).
 
-- EOPF GeoZarr library installed ([Installation Guide](installation.md))
-- An EOPF dataset in Zarr format
-- Basic familiarity with Python and command-line tools
+## 1. Convert
 
-## Your First Conversion
+=== "CPM driver"
 
-### Command Line (Simplest)
+    Start from a native product (for example a `.SAFE`):
 
-Convert an EOPF dataset to GeoZarr format:
+    ```bash
+    eopf convert-geozarr S2B_MSIL2A_20250113T103309_N0511_R108_T32TLQ.SAFE out.zarr
+    ```
 
-```bash
-eopf-geozarr convert input.zarr output.zarr
-```
+    Or in Python:
 
-That's it! The converter will:
+    ```python
+    # test: skip (needs eopf-cpm and a source product)
+    import eopf_geozarr.cpm.writer  # registers the "geozarr" engine
+    from eopf.store.convert import convert
 
-- Analyze your EOPF dataset structure
-- Apply the GeoZarr conventions
-- Create multiscale overviews
-- Preserve native CRS and scientific accuracy
+    convert(
+        "S2B_MSIL2A_20250113T103309_N0511_R108_T32TLQ.SAFE",
+        "out.zarr",
+        target_store_kwargs={"engine": "geozarr"},
+    )
+    ```
 
-### Python API (More Control)
+=== "Standalone converter"
 
-For programmatic usage with custom parameters:
+    Start from an EOPF Zarr product, local or from a URL of the
+    [EOPF Sentinel Zarr Samples Service](https://zarr.eopf.copernicus.eu/):
 
-```python
-# test: skip
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
+    ```bash
+    eopf-geozarr convert S2B_MSIL2A_20250113T103309_N0511_R108_T32TLQ.zarr out.zarr
+    ```
 
-# Load your EOPF DataTree
-dt = xr.open_datatree("input.zarr", engine="zarr")
+    `convert` detects Sentinel-2 and Sentinel-3 OLCI products and selects the
+    optimized pipeline. Or in Python:
 
-# Convert to GeoZarr
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
-    output_path="output.zarr",
-    spatial_chunk=4096,
-    min_dimension=256
-)
+    ```python
+    # test: skip (needs a Sentinel-2 product)
+    import xarray as xr
 
-print("Conversion complete!")
-```
+    from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
-## Working with Cloud Storage
+    dt = xr.open_datatree("S2B_MSIL2A_20250113T103309_N0511_R108_T32TLQ.zarr", engine="zarr", chunks={})
+    convert_s2_optimized(
+        dt,
+        output_path="out.zarr",
+        enable_sharding=True,
+        spatial_chunk=256,
+        compression_level=3,
+        validate_output=True,
+    )
+    ```
 
-### S3 Output
+The output has the native levels `r10m`, `r20m` and `r60m` plus the overviews
+`r120m`, `r360m` and `r720m` under `measurements/reflectance`.
 
-Save directly to AWS S3:
-
-```bash
-# Set credentials
-export AWS_ACCESS_KEY_ID=your_key
-export AWS_SECRET_ACCESS_KEY=your_secret
-export AWS_DEFAULT_REGION=us-east-1
-
-# Convert to S3
-eopf-geozarr convert input.zarr s3://my-bucket/output.zarr
-```
-
-### S3 Input and Output
-
-```python
-# Both input and output on S3
-dt_geozarr = create_geozarr_dataset(
-    dt_input=xr.open_datatree("s3://input-bucket/data.zarr", engine="zarr"),
-    groups=["/measurements/reflectance/r10m"],
-    output_path="s3://output-bucket/geozarr.zarr"
-)
-```
-
-## Validation
-
-Verify your GeoZarr dataset meets the specification:
+## 2. Validate
 
 ```bash
-eopf-geozarr validate output.zarr
+eopf-geozarr validate out.zarr
 ```
 
-Or in Python:
+The validator checks the store against the [GeoZarr mini spec](geozarr-minispec.md).
+It lists every violation with its Zarr path and exits with a non-zero code when
+the store is not compliant.
+
+## 3. Open the result
 
 ```python
-from eopf_geozarr.cli import validate_command
-import argparse
-
-# Create args object
-args = argparse.Namespace()
-args.input_path = "output.zarr"
-args.verbose = True
-
-validate_command(args)
-```
-
-## Inspecting Results
-
-### Dataset Information
-
-Get detailed information about your converted dataset:
-
-```bash
-eopf-geozarr info output.zarr
-```
-
-### Python Inspection
-
-```python
+# test: skip (needs a converted store)
 import xarray as xr
 
-# Open the converted dataset
-dt = xr.open_datatree("output.zarr", engine="zarr")
-
-# Explore the structure
-print(dt)
-
-# Check multiscales metadata
-print(dt.attrs.get('multiscales', 'No multiscales found'))
-
-# Examine resolution levels
-# Native resolutions live at the group root; overviews live as sibling
-# `r{2**level}` subgroups (e.g. `/measurements/reflectance/r10m`,
-# `/measurements/reflectance/r20m`, ...).
-if "/measurements/reflectance/r10m" in dt.groups:
-    ds_10m = dt["/measurements/reflectance/r10m"].ds
-    ds_20m = dt["/measurements/reflectance/r20m"].ds
-    print(f"10m resolution: {ds_10m.dims}")
-    print(f"20m resolution: {ds_20m.dims}")
+dt = xr.open_datatree("out.zarr", engine="zarr")
+reflectance = dt["measurements/reflectance"]
+print(reflectance.attrs["multiscales"]["layout"][0])  # first pyramid level
+print(reflectance["r720m"].ds)  # coarsest overview, decoded to reflectance
 ```
 
-## Common Patterns
+Reflectance is stored as packed integers. xarray and zarr-python return the
+decoded values. See [Encoding](converter.md#encoding) for the two storage
+modes.
 
-### Sentinel-2 Data
+## Next steps
 
-For Sentinel-2 L2A data, use the optimized converter:
-
-```python
-from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
-
-dt_optimized = convert_s2_optimized(
-    dt_input=dt,
-    output_path="s2_optimized.zarr",
-    spatial_chunk=256,
-    enable_sharding=True
-)
-```
-
-The S2-optimized converter automatically:
-- Reuses native resolutions (r10m, r20m, r60m) without duplication
-- Adds coarser levels (r120m, r360m, r720m) for efficient visualization
-- Applies variable-aware resampling for different data types
-
-### Large Datasets with Dask
-
-For processing large datasets efficiently:
-
-```bash
-eopf-geozarr convert large_input.zarr output.zarr --dask-cluster
-```
-
-Or in Python:
-
-```python
-from dask.distributed import Client
-
-# Start Dask client
-client = Client('scheduler-address:8786')  # Or Client() for local
-
-# Process with Dask
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m"],
-    output_path="output.zarr",
-    spatial_chunk=2048  # Smaller chunks for distributed processing
-)
-
-client.close()
-```
-
-## Key Features Demonstrated
-
-Your converted dataset now includes:
-
-✅ **GeoZarr Conventions** - multiscales, geo-proj and spatial  
-✅ **Native CRS Preservation** - No unnecessary reprojection  
-✅ **Multiscale Pyramids** - Efficient overview levels  
-✅ **Optimized Chunking** - Aligned chunks for performance  
-✅ **CF Conventions** - Standard metadata attributes  
-✅ **Cloud-Ready** - S3 and other cloud storage support  
-
-## Next Steps
-
-- **Detailed Usage**: See the [User Guide](converter.md) for advanced options
-- **API Reference**: Explore the [API Reference](api-reference.md) for all functions
-- **Examples**: Check out [Examples](examples.md) for specific use cases
-- **Architecture**: Understand the [Architecture](architecture.md) behind the conversion
-
-## Troubleshooting Quick Fixes
-
-**Memory errors with large datasets?**
-
-```bash
-eopf-geozarr convert input.zarr output.zarr --spatial-chunk 2048
-```
-
-**S3 permission errors?**
-
-```bash
-aws sts get-caller-identity  # Verify credentials
-```
-
-**Validation failures?**
-
-```bash
-eopf-geozarr validate output.zarr --verbose  # Get detailed error info
-```
-
-For more troubleshooting help, see the [FAQ](faq.md).
+- [CPM driver](cpm-driver.md): all `eopf convert-geozarr` options and product routing.
+- [Standalone converter](converter.md): every `eopf-geozarr` command, S3 output
+  and Sentinel-1.
+- [Examples](examples.md) and [API reference](api-reference.md).
+- [FAQ](faq.md) for common problems.

@@ -1,12 +1,31 @@
-# Frequently Asked Questions
+---
+title: FAQ
+description: Frequently asked questions about eopf-geozarr, the GeoZarr driver for EOPF CPM — supported Sentinel products, CPM versus standalone use, Python versions, encoding, chunking and troubleshooting.
+---
 
-Common questions and solutions for using the EOPF GeoZarr library.
+# Frequently asked questions
 
-## General Questions
+## General questions
 
-### What is EOPF GeoZarr?
+### What is eopf-geozarr?
 
-EOPF GeoZarr is a Python library that converts EOPF (Earth Observation Processing Framework) datasets to GeoZarr format. It maintains scientific accuracy while optimizing for cloud-native workflows and performance.
+eopf-geozarr is the GeoZarr driver for ESA's
+[EOPF CPM](https://cpm.pages.eopf.copernicus.eu/eopf-cpm), and a standalone
+converter. It converts Sentinel products from the Copernicus Earth Observation
+Processing Framework (EOPF) to cloud-optimized GeoZarr, with native projections
+and multiscale pyramids.
+
+### Should I use the CPM driver or the standalone converter?
+
+Both run the same pipelines and write the same output.
+
+- Use the [CPM driver](cpm-driver.md) (`eopf convert-geozarr`) when you start
+  from a native product such as a `.SAFE`, or when your processing already runs
+  in EOPF CPM. It needs Python 3.13 or later.
+- Use the [standalone converter](converter.md) (`eopf-geozarr convert`) when
+  you already have an EOPF Zarr product, for example from the
+  [EOPF Sentinel Zarr Samples Service](https://zarr.eopf.copernicus.eu/), or
+  for Sentinel-1 GRD RTC ingestion. It needs Python 3.12 or later.
 
 ### What makes this different from standard Zarr?
 
@@ -20,28 +39,41 @@ GeoZarr is a set of modular [Zarr conventions](https://geozarr.org/conventions) 
 
 ### Which satellite missions are supported?
 
-Currently, the library is optimized for:
+- **Sentinel-2 MSI** L1C and L2A: optimized pipeline with native levels and
+  overviews.
+- **Sentinel-3 OLCI** L1 EFR and ERR: optimized pipeline, native swath
+  geometry or a regular grid.
+- **Sentinel-1 GRD**: generic pipeline with ground control points.
+- **Sentinel-1 GRD RTC** from S1Tiling (Orfeo ToolBox) Cloud Optimized
+  GeoTIFFs: ingestion commands of the standalone converter.
 
-- **Sentinel-2** (L1C and L2A products)
-- **Sentinel-1** (planned support)
+See [Supported products](index.md#supported-products).
 
-The architecture is designed to support additional missions with minimal modifications.
+## Installation and setup
 
-## Installation and Setup
+### Which Python version do I need?
 
-### Why do I need Python 3.11 or higher?
-
-The library uses modern Python features and depends on recent versions of scientific libraries (xarray, zarr, dask) that require Python 3.11+.
+Python 3.12 or later for the standalone converter. The CPM driver needs Python
+3.13 or later, because EOPF CPM (`eopf` 3.x) supports only 3.13 and later.
 
 ### Can I use conda instead of pip?
 
-While the library is primarily distributed via PyPI, you can install it in a conda environment:
+Yes. Create the environment with conda and install the package with pip:
 
 ```bash
-conda create -n eopf-geozarr python=3.11
+conda create -n eopf-geozarr python=3.13
 conda activate eopf-geozarr
-pip install eopf-geozarr
+pip install "eopf-geozarr[cpm]"   # or eopf-geozarr without the CPM driver
 ```
+
+### Why are my reflectance values integers, or why do they have NaN?
+
+eopf-geozarr keeps the packing of the source product. By default the Zarr
+`scale_offset` + `cast_value` codecs store the packed integers, and Zarr
+readers return decoded reflectance with NaN for nodata. With
+`--no-scale-offset-codec`, the arrays keep CF `scale_factor`/`add_offset`
+attributes instead, and readers must apply them (xarray does by default). See
+[Encoding](converter.md#encoding).
 
 ### How do I set up AWS credentials?
 
@@ -456,11 +488,11 @@ for band in ["b02", "b03", "b04"]:
 
 ### Can I use this with STAC?
 
-Yes, you can create STAC items for GeoZarr datasets. See the [Examples](examples.md#stac-integration) section for detailed code.
+Yes, you can create STAC items for GeoZarr datasets. See the [Examples](examples.md#stac-metadata) section for detailed code.
 
 ### How does this work with Jupyter notebooks?
 
-The library works well in Jupyter environments. See [Examples](examples.md#jupyter-notebook-integration) for interactive visualization patterns.
+The library works well in Jupyter environments. See [Examples](examples.md#exploring-the-pyramid-in-a-notebook) for interactive visualization patterns.
 
 ### Can I integrate this into my processing pipeline?
 

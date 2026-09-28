@@ -1,4 +1,4 @@
-"""CPM writer plugin: the ``geozarr`` engine for eopf-cpm.
+"""The GeoZarr driver for EOPF CPM: the ``geozarr`` writer engine.
 
 Importing this module registers :class:`GeoZarrWriter` in CPM's
 ``EOWriterRegistry`` under the engine name ``"geozarr"``, which makes it
@@ -444,7 +444,7 @@ def get_cli_command() -> click.Command:
 
     @click.command(
         name="convert-geozarr",
-        help="Convert a product to GeoZarr using the eopf-geozarr engine.",
+        help="Convert a product to GeoZarr with the eopf-geozarr driver.",
     )
     @click.argument("source_path", type=click.Path())
     @click.argument("target_path", type=click.Path())
