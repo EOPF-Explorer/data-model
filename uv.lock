@@ -1286,7 +1286,7 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "xarray", specifier = ">=2025.7.1" },
     { name = "zarr", extras = ["cast-value-rs"], specifier = ">=3.2.0,<3.4.0" },
-    { name = "zarr-cm", specifier = ">=0.4.1" },
+    { name = "zarr-cm", specifier = ">=0.5.0" },
 ]
 
 [package.metadata.requires-dev]
