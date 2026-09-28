@@ -345,7 +345,7 @@ def test_grid_spatial_attrs() -> None:
     """grid_spatial_attrs derives dimensions, bbox, and 6-element transform."""
     transform = rasterio.transform.from_origin(10.0, 46.0, 0.01, 0.01)
     attrs = grid_spatial_attrs(transform, (100, 200))
-    assert attrs["spatial:dimensions"] == ["y", "x"]
+    assert attrs["spatial:dimensions"] == ["y", "x"]  # type: ignore[index]
     assert attrs["spatial:registration"] == "pixel"  # type: ignore[index]
     assert attrs["spatial:transform"] == [  # type: ignore[index]
         0.01,
@@ -570,7 +570,7 @@ def test_reduce_swath_odd_dims_coords_are_block_centroids() -> None:
 
 def test_swath_spatial_attrs_has_no_transform() -> None:
     attrs = swath_spatial_attrs()
-    assert attrs["spatial:dimensions"] == ["rows", "columns"]
+    assert attrs["spatial:dimensions"] == ["rows", "columns"]  # type: ignore[index]
     assert attrs.get("spatial:registration") == "pixel"
     assert "spatial:transform" not in attrs
     assert "spatial:bbox" not in attrs

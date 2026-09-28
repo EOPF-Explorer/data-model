@@ -366,9 +366,9 @@ class TestWriteGeoMetadataEdgeCases:
         proj_convention = None
 
         for convention in zarr_conventions:
-            if convention.get("name") == "spatial:":
+            if convention.get("name") == "spatial":
                 spatial_convention = convention
-            elif convention.get("name") == "proj:":
+            elif convention.get("name") == "proj":
                 proj_convention = convention
 
         # Verify spatial convention
@@ -405,8 +405,8 @@ class TestWriteGeoMetadataEdgeCases:
         # Verify zarr_conventions includes both spatial and proj
         zarr_conventions = sample_dataset_with_crs.attrs["zarr_conventions"]
         convention_names = [conv.get("name") for conv in zarr_conventions]
-        assert "spatial:" in convention_names
-        assert "proj:" in convention_names
+        assert "spatial" in convention_names
+        assert "proj" in convention_names
 
     def test_write_geo_metadata_no_crs_no_conventions(
         self, sample_dataset_no_crs: xr.Dataset
