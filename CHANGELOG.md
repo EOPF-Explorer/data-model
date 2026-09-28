@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.1 (2026-09-28)
+
+## What's Changed
+* fix(s2): compute spatial:bbox and spatial:transform from pixel edges by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/275
+* fix(s1): check out-of-order appends against the latest time slice by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/279
+* fix(deps): bump zarr-cm to 0.5.0 for correct proj/spatial convention metadata by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/280
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.11.0...v0.11.1
+
 ## 0.11.0 (2026-09-18)
 
 ## What's Changed
