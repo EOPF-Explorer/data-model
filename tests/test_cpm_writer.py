@@ -121,6 +121,7 @@ def test_resolve_forced_pipeline_olci_suppressed_without_s2_structure() -> None:
     tree.attrs = {"stac_discovery": {"properties": {"product:type": "S03OLCEFR"}}}
     resolved = GeoZarrWriter._resolve_forced_pipeline(
         tree,
+        generic_rechunker=None,
         s2_optimized=None,
         s3_olci_optimized=False,
     )
@@ -146,6 +147,7 @@ def test_resolve_forced_pipeline_olci_suppressed_with_s2_structure() -> None:
     )
     resolved = GeoZarrWriter._resolve_forced_pipeline(
         tree,
+        generic_rechunker=None,
         s2_optimized=None,
         s3_olci_optimized=False,
     )

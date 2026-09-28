@@ -51,6 +51,7 @@ from eopf_geozarr.cpm.routing import (
     looks_like_sentinel3_olci,
     select_pipeline,
 )
+from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
@@ -100,6 +101,7 @@ class GeoZarrWriter(EOWriter):
         zarr_format: int | None = None,
         consolidated: bool = True,
         compute: bool = True,
+        generic_rechunker: bool | None = None,
         s2_optimized: bool | None = None,
         s3_olci_optimized: bool | None = None,
         spatial_chunk: int | None = None,
@@ -138,14 +140,18 @@ class GeoZarrWriter(EOWriter):
             Must be True: writes are synchronous. Accepted because CPM's
             staged-output path injects ``compute=True`` when a remote Dask
             client is active; ``compute=False`` (lazy write) is not supported.
+        generic_rechunker
+            Force (True) or suppress (False) the generic rechunking
+            pipeline; None skips to ``generic``. Mutually
+            exclusive with ``s3_olci_optimized=True`` & ``s2_optimized=True`` .
         s2_optimized
             Force (True) or suppress (False) the Sentinel-2 optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s3_olci_optimized=True``.
+            exclusive with ``s3_olci_optimized=True`` & ``generic_rechunker``.
         s3_olci_optimized
             Force (True) or suppress (False) the Sentinel-3 OLCI optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s2_optimized=True``.
+            exclusive with ``s2_optimized=True`` &  & ``generic_rechunker``..
         spatial_chunk
             Spatial chunk size; defaults to 256 (S2 optimized), 1024 (OLCI
             optimized), or 4096 (generic).
@@ -201,12 +207,11 @@ class GeoZarrWriter(EOWriter):
             dtree,
             force=self._resolve_forced_pipeline(
                 dtree,
+                generic_rechunker=generic_rechunker,
                 s2_optimized=s2_optimized,
                 s3_olci_optimized=s3_olci_optimized,
             ),
         )
-        generic_groups: list[str] | None = None
-
         resolved_spatial_chunk = (
             spatial_chunk
             if spatial_chunk is not None
@@ -245,12 +250,7 @@ class GeoZarrWriter(EOWriter):
                 output_grid=output_grid,
             )
 
-        # overrride geozarr-call to new generic class -> needs its own selected_pipeline force
-        from eopf_geozarr.generic_optimization.generic_converter import (
-            create_generic_geozarr_dataset,
-        )
-
-        if selected_pipeline == "generic":
+        if selected_pipeline == "generic_rechunker":
             return create_generic_geozarr_dataset(
                 dt_input=dtree,
                 output_path=output_path,
@@ -359,29 +359,39 @@ class GeoZarrWriter(EOWriter):
     def _resolve_forced_pipeline(
         dtree: DataTree,
         *,
+        generic_rechunker: bool | None,
         s2_optimized: bool | None,
         s3_olci_optimized: bool | None,
     ) -> PipelineName | None:
         """
-        Translate the ``s2_optimized``/``s3_olci_optimized`` flags into a single
-        ``force`` value for :func:`select_pipeline`.
+        Translate the ``s2_optimized``/``s3_olci_optimized``/ ``generic_rechunker``
+        flags into a single ``force`` value for :func:`select_pipeline`.
 
         Returns None (full auto-detection, S2 then OLCI then generic) unless
         one of the flags pins the outcome:
 
-        - ``s2_optimized=True`` or ``s3_olci_optimized=True`` forces that
-          pipeline outright (the two cannot both be True).
+        - ``generic_rechunker`` forces the ``generic_rechunker`` pipeline IF the product is not
+          overridden by the  ``looks_like_sentinel3_olci`` or  ``looks_like_sentinel2`` functions
+          -> this allows the generic setting of ``generic_rechunker`` as a flag during the converter
+             which still routes the specific products along accordingly
+        - ``s2_optimized=True`` or ``s3_olci_optimized=True`` or ``generic_rechunker`` forces that
+          pipeline (the three cannot all be True).
         - ``s2_optimized=False`` forces the generic pipeline, matching the
           pre-OLCI behavior of this flag exactly.
         - ``s3_olci_optimized=False`` only has an effect when the product
           would otherwise auto-detect as OLCI: it falls back to the
           S2-vs-generic decision instead, leaving S2 auto-detection intact.
         """
-        if s2_optimized is True and s3_olci_optimized is True:
+        if sum(f is True for f in (s2_optimized, s3_olci_optimized, generic_rechunker)) > 1:
             raise ValueError(
-                "s2_optimized and s3_olci_optimized cannot both be True; set at most one "
-                "to force a specific pipeline.",
+                "Only one of s2_optimized, s3_olci_optimized and generic_rechunker may be True.",
             )
+        if generic_rechunker is True:
+            if looks_like_sentinel2(dtree):
+                return "s2-optimized"
+            if looks_like_sentinel3_olci(dtree):
+                return "s3-olci-optimized"
+            return "generic_rechunker"
         if s2_optimized is True:
             return "s2-optimized"
         if s3_olci_optimized is True:
