@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import numpy as np
-import rasterio  # Import to enable .rio accessor
-import rasterio.transform
 import structlog
 import xarray as xr
 import zarr
@@ -27,12 +24,13 @@ from eopf_geozarr.data_api.geozarr.types import (
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
 
-    from affine import Affine
 
 from importlib.util import find_spec
 
 DISTRIBUTED_AVAILABLE = find_spec("distributed") is not None
 
+# Sentinel: distinguish "no explicit fill_value" from a legitimate `None`.
+UNSET: Any = object()
 
 # Dimension names that represent a "band-like" axis (polarization) to allow a per-"band" sharding if they extend beyond ram
 # purposedly doeStn inlcude the 'band' option to not impleemnt on small enOugh arrays
@@ -43,31 +41,6 @@ _LEGACY_CODEC_ENCODING_KEYS = {"compressor", "compressors", "filters"}
 log = structlog.get_logger()
 
 CF_STANDARD_NAME_URL = "https://raw.githubusercontent.com/cf-convention/cf-convention.github.io/master/Data/cf-standard-names/current/src/cf-standard-name-table.xml"
-
-
-@lru_cache(maxsize=1)
-def _cf_standard_names() -> frozenset[str]:
-    """Fetch + cache the CF standard-name table once, lazily, on first use (never at import)."""
-    import urllib.request
-
-    from cf_xarray.utils import parse_cf_standard_name_table
-
-    try:
-        with urllib.request.urlopen(CF_STANDARD_NAME_URL, timeout=5) as resp:
-            _info, table, _aliases = parse_cf_standard_name_table(source=resp)
-        return frozenset(table)
-    except Exception as e:  # offline, GitHub down, etc. — never block a write over this
-        log.warning(
-            "Could not fetch CF standard-name table; skipping standard_name checks", error=str(e)
-        )
-        return frozenset()
-
-
-def warn_if_not_cf_standard_name(name: str | None) -> None:
-    """Log (never raise) if *name* isn't a recognised CF standard name."""
-    table = _cf_standard_names()
-    if name and table and name not in table:
-        log.warning("standard_name not in CF standard name table", standard_name=name)
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
@@ -697,121 +670,6 @@ def stream_write_dataset(
     return dataset
 
 
-def overview_levels(rows: int, cols: int, min_dimension: int) -> int:
-    """Return the number of /2 decimations before min(rows, cols) drops below min_dimension.
-
-    A level is generated only when the *post*-decimation minimum spatial
-    dimension is at least *min_dimension*.  For example, a 512x480 dataset
-    with min_dimension=256 yields zero levels because 480//2=240 < 256, while
-    a 1024x1024 dataset with min_dimension=256 yields two levels (512x512,
-    then 256x256).
-    """
-    levels = 0
-    r, c = rows, cols
-    while min(r, c) // 2 >= min_dimension:
-        r, c = r // 2, c // 2
-        levels += 1
-    return levels
-
-
-def clear_encoding(ds: xr.Dataset) -> xr.Dataset:
-    """Return *ds* with all inherited source encoding cleared.
-
-    When the input DataTree was opened from a Zarr v2 store, xarray carries
-    ``numcodecs.Blosc`` compressors (and potentially scale-offset filters) in
-    each variable's ``.encoding``.  Passing that encoding to
-    ``Dataset.to_zarr(zarr_format=3)`` raises::
-
-        TypeError: Expected a BytesBytesCodec. Got <class 'numcodecs.blosc.Blosc'>
-
-    because numcodecs codecs are not valid Zarr v3 BytesBytesCodecs.  Clearing
-    the encoding lets the Zarr v3 writer choose its own default codecs.
-
-    This converter expects raw (non-mask-scaled) input: the caller must open
-    the source DataTree with ``mask_and_scale=False`` so that CF
-    ``scale_factor``/``add_offset`` stay in ``.attrs`` and integer fill pixels
-    are identified via ``attrs["_FillValue"]``.  Only Zarr v2 *codec* encoding
-    (e.g. ``numcodecs.Blosc`` compressors) is stripped here — CF metadata is
-    untouched.
-    """
-    ds = ds.copy()
-    for key in _LEGACY_CODEC_ENCODING_KEYS:
-        ds.encoding.pop(key, None)
-    for var in list(ds.data_vars) + list(ds.coords):
-        for key in _LEGACY_CODEC_ENCODING_KEYS:
-            ds[var].encoding.pop(key, None)
-    return ds
-
-
-def coarsen_variable(
-    var_name: str, var_data: xr.DataArray, factor: int, other_fill_value: int | None = None
-) -> xr.DataArray:
-    """Coarsen a single variable using type-aware resampling.
-
-    Dispatches to the appropriate coarsen reduction (mean, max, subsample)
-    based on `determine_variable_type`.  Preserves encoding and dtype.
-    """
-    # some data products have several 'nodata' values:
-    # S1 GRDH has a fill value of 65535 due to the reprojection. The other 'fill_value' (-> 0) is already present in the data as such, and should be kept in the data to distinguish it from reprojection-based nodata
-    # to also consider these, the attribute 'other_fill_value' is added, which also functions similar to the fill_value, but gets reinserted as such at the end of the coarsening
-
-    coarsened = var_data.coarsen({"x": factor, "y": factor}, boundary="trim")
-    # Cast the input array to float and ignore nans during the .coarsen() operation, which could not be considered in int array with "nan-value" == 0.
-    # This prohibits the inclusion of 0 values in the mean calculation of multiscales, mainly impacting the boder regions of arrays
-
-    # nan values are later refilled again with 0s (or fillna values) to conform with int array requirements
-    fill_value = var_data.attrs.get("fill_value")
-
-    # resort to _FillValue from encoding (-> likely empty anyway, as encodings are set later) is not found via fill_value
-    if not fill_value:
-        fill_value = var_data.encoding.get("_FillValue")
-    if fill_value is not None:
-        # mask all 0 as nan in float array
-        masked = var_data.where(var_data != fill_value)
-
-        # redefine coarsen operation to ignore nans and fill up with fill_value later
-        result = (
-            masked.coarsen({"x": factor, "y": factor}, boundary="trim")
-            .mean(skipna=True)  # type: ignore[attr-defined]
-            .fillna(fill_value)
-        )
-    else:
-        result = coarsened.mean()  # type: ignore[attr-defined]
-
-    # `xr.DataArray.astype` clears `.encoding`, so we capture it first and
-    # restore it on the cast result. Without this, downstream code that
-    # inspects encoding (e.g. to push CF scale-offset into a codec pipeline)
-    # would see an empty encoding on every coarsened level.
-    encoding = var_data.encoding
-    cast_result: xr.DataArray = result.astype(var_data.dtype)
-    cast_result.encoding = encoding
-    return cast_result
-
-
-def grid_spatial_attrs(transform: Affine, shape: tuple[int, int]) -> SpatialAttrs:
-    """Spatial-convention data for a regular grid with an affine *transform*.
-
-    *shape* is ``(height, width)``.  Emits ``spatial:dimensions`` ``["y","x"]``,
-    pixel registration, the bounding box, and the 6-element row-major affine
-    transform.
-    """
-    height, width = shape
-    left, bottom, right, top = rasterio.transform.array_bounds(height, width, transform)
-    return {
-        "spatial:dimensions": ["y", "x"],
-        "spatial:registration": "pixel",
-        "spatial:bbox": [float(left), float(bottom), float(right), float(top)],
-        "spatial:transform": [
-            float(transform.a),
-            float(transform.b),
-            float(transform.c),
-            float(transform.d),
-            float(transform.e),
-            float(transform.f),
-        ],
-    }
-
-
 def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
     """Index of the band-like dimension, if var_data has one. Falls back to
     None (caller should then skip band-axis sharding, not guess)."""
@@ -1176,10 +1034,6 @@ def build_convention_attrs(
     # generic JSON dict; narrow to the combined convention TypedDict.
     result = zarr_cm.create_many(conventions)
     return cast("MultiConventionAttrs", result)
-
-
-# Sentinel: distinguish "no explicit fill_value" from a legitimate `None`.
-UNSET: Any = object()
 
 
 def explicit_fill_value(var: xr.DataArray) -> Any:
