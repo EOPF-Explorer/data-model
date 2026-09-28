@@ -216,23 +216,26 @@ def simple_root_consolidation(
 def updated_root_consolidation(
     dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
 ) -> None:
-    """Simple root-level metadata consolidation with proper zarr group creation."""
-    # create missing intermediary groups (/conditions, /quality, etc.)
-    # using the keys of the datasets dict
-
+    """Simple root-level and sub-root level metadata consolidation with proper zarr group creation."""
+    # catch all recently added groups (eg. multiscales)
     missing_groups = set()
+
+    # add all measurement groups to (poTentially) consolidate them
+    # -> separate from `subroot_groups` as it functions as it being empyt
+    # functions as the distinction between consolidating subroots and roots
+    measurements_groups = set()
+
+    # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
+    # also gather potential measurement groups for consolidating
     for group_path in datasets:
-        # extract all the parent paths
-        parts = group_path.strip("/").split("/")
-        for i in range(1, len(parts)):
-            parent_path = "/" + "/".join(parts[:i])
-            if parent_path not in datasets:
-                missing_groups.add(parent_path)
+        # extract all the parent paths and names
+        parent, _, name = group_path.rstrip("/").rpartition("/")
+        if parent not in datasets:
+            missing_groups.add(parent)
+        if name == "measurements":
+            measurements_groups.add(group_path)
 
-    has_subroots = dtree_has_subroot(dt_input)
-    consolidate_groups = []
-    subroots = list(dt_input.children) if has_subroots else None
-
+    # instantiate missing groups
     for group_path in missing_groups:
         dt_parent = xr.DataTree()
 
@@ -243,25 +246,23 @@ def updated_root_consolidation(
             consolidated=False,
         )
 
-        # also add some geo root metadata if its a parent root
-        if has_subroots:
-            ref_root = dt_input[group_path]
-            group_attrs = ref_root.attrs
+    # check and get possible subroots for consolidation
+    subroot_groups = get_subroots(dt_input.groups)
 
-            # rework this, as store_root metadata should also be added to non-stac_discovery nodes
-            if (
-                subroots
-                and ref_root.path.lstrip("/") in subroots
-                and len(group_attrs) > 0
-                and "stac_discovery" in group_attrs
-            ):
-                consolidate_groups.append(group_path)
-                write_store_root_geo_metadata(
-                    output_path + group_path,
-                    input_root_attrs=group_attrs,  # pyright: ignore[reportArgumentType]
-                )
+    # also add some geo- and stac-root metadata
+    if subroot_groups:
+        for subroot in subroot_groups:
+            write_store_root_geo_metadata(
+                output_path + subroot,
+                input_root_attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+            )
 
-    # Create root zarr group if it doesn't exist
+            write_store_root_stac_metadata(
+                output_path + subroot,
+                root_attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+            )
+
+    # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
     log.info("Creating root zarr group")
     dt_root = xr.DataTree()
     dt_root.to_zarr(
@@ -305,78 +306,28 @@ def updated_root_consolidation(
             root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
         )
 
+    if measurements_groups:
+        for consolidate_measurement in measurements_groups:
+            zarr.consolidate_metadata(output_path + consolidate_measurement, zarr_format=3)
     # consolidate metadata in root OR in each subroot
-    if has_subroots:
-        for consolidate_subroot in consolidate_groups:
+    if subroot_groups:
+        for consolidate_subroot in subroot_groups:
             zarr.consolidate_metadata(output_path + consolidate_subroot, zarr_format=3)
     else:
         zarr.consolidate_metadata(output_path, zarr_format=3)
 
 
-def dtree_has_subroot(dtree: xr.DataTree, children_to_check: list[str] | None = None) -> bool:
-    # dtrees can have subroots, which carry the relevant data. -> eg S1 SLC with bursts, S1 GRDH with its data
-    # in such a case, the subroot needs to be consolidated instead of the overarching root..
-    # this function checks if a tree has a normal root (measurements, .. etc as children) or not
-    if not children_to_check:
-        children_to_check = ["measurements", "quality", "conditions"]
-
-    if sorted(children_to_check) != sorted(["measurements", "quality", "conditions"]):
-        log.warning(
-            "Set different children to validate against than the usual selection. Will likely work, but it is unusal behaviour and definitevly to spec.",
-            children_to_check=children_to_check,
-        )
-
-    children = list(dtree.children)
-
-    # single depth logic
-    if children:
-        # standard case -> no subroots jsut basic mode with measurements/.. in root
-        if len(children) == len(children_to_check) and sorted(children) == sorted(
-            children_to_check
-        ):
-            return False
-
-        # extra check, measurements are in children but its possible that there are more and different children present than anticipated
-        if sum(c in children_to_check for c in children):
-            log.info(
-                "No Subroots present, but found children are no precise overlap with expected",
-                found_children=children,
-                children_to_check=children_to_check,
-            )
-            return False
-
-        log.info("Subroots present:", subroots=children)
-        return True
-    raise ValueError("Given Datatree has no children at all... Is it empty?")
-
-
-def get_subroots_from_dtree(dtree: xr.DataTree) -> tuple[bool, list[str] | None]:
-    # check if subroots are present by traversing the dtree with children to find the /measurement /quality and /conditions groups
-    children_to_check = ["/measurements", "/quality", "/conditions"]
-    has_subroots: bool = False
-    all_subroots = []
-
-    for group in dtree.groups:
-        for child in children_to_check:
-            # if clauses by order
-            # child is not the child folder itself
-            # Child is in the group name (/asljkd/measurements)
-            # its actually the last thing in the anem (/asljkd/measurements) and not the a parent (/asljkd/measurements/quality)
-            # check its not actually the parent fileder itseld == /measureemtn (should be checked above already??)
-
-            if (
-                child != group
-                and child in group
-                and group.split("/")[-1] == child
-                and group.rstrip(child) != "/"
-            ):
-                all_subroots.append(group.rstrip(child).rstrip("/"))
-                has_subroots = True
-
-    if len(all_subroots) > 0:
-        subroots = set(all_subroots)
-        return has_subroots, list(subroots)
-    return has_subroots, None
+def get_subroots(
+    groups: tuple[str, ...], subroot_markers: set[str] | None = None
+) -> set[str] | None:
+    if not subroot_markers:
+        subroot_markers = {"measurements", "conditions", "quality"}
+    subroots = set()
+    for path in groups:
+        parent, _, name = path.rstrip("/").rpartition("/")
+        if name in subroot_markers and parent and parent not in subroots:
+            subroots.add(parent)
+    return subroots or None
 
 
 def add_multiscale_pyramids_to_stac_metadata(
