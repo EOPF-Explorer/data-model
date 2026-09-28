@@ -20,6 +20,7 @@ from pyproj import CRS
 
 from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
+from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
@@ -55,6 +56,14 @@ class S2Type(StrEnum):
             if member.value in filename:
                 return member
         return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> S2Type | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
 
 
 log = structlog.get_logger()
@@ -278,11 +287,13 @@ def inject_missing_bands(
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
-        # add attribute value acknoleding the own resampling
-        trgt_attrs = band_src.attrs
-        trgt_attrs.update(
-            {"_derived_from": f"r{native_res}m", "_factor": factor, "_resampling_mode": "mean"}
-        )
+        # Copy: updating `band_src.attrs` in place would tag the native source band too.
+        trgt_attrs = {
+            **band_src.attrs,
+            "_derived_from": f"r{native_res}m",
+            "_factor": factor,
+            "_resampling_mode": "mean",
+        }
 
         # Replace coordinates with the target dataset's coordinates so that
         # xarray.Dataset.assign does not try to align on mismatched values.
@@ -335,12 +346,13 @@ def create_multiscale_from_datatree(
     processed_groups: dict[str, Any] = {}
     # The scale levels in the output data. 10, 20, 60 already exist in the source data.
 
-    # cheap dEtermination if its L2A or L1C
-    filename = dt_input.name
-    s2_type = S2Type.from_filename(filename)
-
+    s2_type = S2Type.from_datatree(dt_input)
     if s2_type is None:
-        log.info("not found a matching s2_type {}: is not matching L2A or L1C", s2_type=s2_type)
+        log.warning(
+            "Could not determine S2 product level (L1C/L2A); no bands are injected",
+            product_type=product_type_of(dt_input),
+            name=dt_input.name,
+        )
 
     # Step 1: Copy all original groups as-is
     for group_path in dt_input.groups:

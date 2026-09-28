@@ -2,6 +2,8 @@
 Tests for S2 multiscale pyramid creation with xy-aligned sharding.
 """
 
+import json
+import os
 import pathlib
 from collections.abc import Mapping, Sequence
 from itertools import pairwise
@@ -11,11 +13,14 @@ import numpy as np
 import pytest
 import xarray as xr
 import zarr
+from pydantic_zarr.core import tuplify_json
+from pydantic_zarr.v3 import GroupSpec
 from structlog.testing import capture_logs
 from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
+    S2Type,
     _coarsen_variable,
     _rechunk_ds,
     add_multiscales_metadata_to_parent,
@@ -27,6 +32,8 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     inject_missing_bands,
     rechunk_dataset_for_encoding,
 )
+
+from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
 
 
 @pytest.fixture
@@ -221,6 +228,57 @@ def _band_names(group: zarr.Group) -> set[str]:
     return {name for name in group.array_keys() if name not in _NON_BAND_ARRAYS}
 
 
+# L1C r60m is filled with every finer band, so it and its overviews carry all 13.
+_L1C_ALL_BANDS = {f"b{i:02d}" for i in range(1, 13)} | {"b8a"}
+
+
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*:FutureWarning")
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+@pytest.mark.parametrize("source_path", s2_example_json_paths, ids=get_stem)
+def test_create_multiscale_from_datatree_snapshot(
+    source_path: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    """Compare the output structure of a Zarr v2 S2 input against a stored snapshot.
+
+    Any change to array metadata (dtype, fill value, chunks, codecs, attributes)
+    or to the set of arrays shows up here. When a change is intended, regenerate
+    the snapshots with `REGENERATE_SNAPSHOTS=1 pytest -k snapshot` and review
+    the JSON diff.
+    """
+    input_group = zarr.open_group(create_zarrv2_group_from_json(source_path, tmp_path))
+    dt_input = xr.open_datatree(
+        input_group.store,  # pyright: ignore[reportArgumentType]
+        engine="zarr",
+        chunks={},
+        mask_and_scale=False,
+        decode_coords="all",
+    )
+    output_path = str(tmp_path / "output.zarr")
+    with capture_logs():
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=True,
+            spatial_chunk=1024,
+            keep_scale_offset=True,
+        )
+
+    observed_json = GroupSpec.from_zarr(
+        zarr.open_group(output_path, use_consolidated=False)
+    ).model_dump()
+    snapshot_path = pathlib.Path("tests/_test_data/optimized_geozarr_examples") / (
+        source_path.stem + ".json"
+    )
+    if os.environ.get("REGENERATE_SNAPSHOTS"):
+        snapshot_path.write_text(json.dumps(observed_json, indent=2, sort_keys=True) + "\n")
+
+    observed = GroupSpec(**tuplify_json(observed_json)).to_flat()
+    expected = GroupSpec(**tuplify_json(json.loads(snapshot_path.read_text()))).to_flat()
+    assert set(observed) == set(expected)
+    assert [key for key in observed if observed[key] != expected[key]] == []
+
+
 @pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:.*:FutureWarning")
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
@@ -315,6 +373,20 @@ def test_create_multiscale_from_datatree(
         assert level_bands == r60m_bands, (
             f"{level}: band mismatch with r60m; expected {r60m_bands}, got {level_bands}"
         )
+
+    # Bands injected from finer resolutions must be present. The product level
+    # comes from `stac_discovery`, because a tree opened from a store has no name.
+    s2_type = S2Type.from_datatree(dt_input)
+    assert s2_type is not None
+    for level in ("r20m", "r60m", "r120m", "r360m", "r720m"):
+        level_group = reflectance_group[level]
+        assert isinstance(level_group, zarr.Group)
+        assert "b08" in _band_names(level_group), f"{level}: b08 not injected"
+    if s2_type == S2Type.L1C:
+        for level in ("r60m", "r120m", "r360m", "r720m"):
+            level_group = reflectance_group[level]
+            assert isinstance(level_group, zarr.Group)
+            assert _band_names(level_group) == _L1C_ALL_BANDS, f"{level}: incomplete L1C bands"
 
     # All multiscale levels must agree on dtype for the bands they share.
     _, res_groups = zip(*reflectance_group.groups(), strict=False)
