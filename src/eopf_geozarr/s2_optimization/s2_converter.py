@@ -19,7 +19,7 @@ from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
-from .s2_multiscale import create_multiscale_from_datatree, packing_of
+from .s2_multiscale import create_multiscale_from_datatree
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
@@ -174,6 +174,7 @@ def convert_s2(
         output_group=zarr.open_group(output_path),
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
+        keep_scale_offset=False,
     )
 
     log.info("Created multiscale pyramids", num_groups=len(datasets))
@@ -215,7 +216,7 @@ def convert_s2_optimized(
     spatial_chunk: int,
     compression_level: int,
     validate_output: bool,
-    scale_offset_codec: bool = True,
+    keep_scale_offset: bool,
     max_retries: int = 3,
 ) -> xr.DataTree:
     """
@@ -228,10 +229,7 @@ def convert_s2_optimized(
         spatial_chunk: Spatial chunk size
         compression_level: Compression level 1-9
         validate_output: Whether to validate the output
-        scale_offset_codec: Pack reflectance with the Zarr `scale_offset` +
-            `cast_value` codecs (default). False writes it as in the ESA
-            product: packed integers with CF `scale_factor` / `add_offset` /
-            `_FillValue` and STAC `raster:scale` / `raster:offset` / `nodata`.
+        keep_scale_offset: Whether to preserve scale-offset encoding of the source data.
         max_retries: Maximum number of retries for network operations
 
     Returns:
@@ -264,16 +262,14 @@ def convert_s2_optimized(
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
         crs=crs,
-        scale_offset_codec=scale_offset_codec,
+        keep_scale_offset=keep_scale_offset,
     )
 
     log.info("Created multiscale pyramids", num_groups=len(datasets))
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(
-        output_path, datasets, dt_input, crs=crs, scale_offset_codec=scale_offset_codec
-    )
+    simple_root_consolidation(output_path, datasets, dt_input, crs=crs)
 
     # Step 4: Validation
     if validate_output:
@@ -298,7 +294,6 @@ def simple_root_consolidation(
     datasets: Mapping[str, object],
     dt_input: xr.DataTree | None = None,
     crs: CRS | None = None,
-    scale_offset_codec: bool = True,
 ) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
     # create missing intermediary groups (/conditions, /quality, etc.)
@@ -383,14 +378,6 @@ def simple_root_consolidation(
             base = datasets.get("/measurements/reflectance/r10m")
             if isinstance(base, xr.Dataset):
                 reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
-                # In codec mode the Zarr reader already returns decoded values, so the
-                # asset must not declare a scale or clients would apply it twice.
-                packing = next(filter(None, map(packing_of, base.data_vars.values())), None)
-                if not scale_offset_codec and packing is not None:
-                    reflectance_asset["raster:scale"] = packing.scale_factor
-                    reflectance_asset["raster:offset"] = packing.add_offset
-                    if packing.fill_value is not None:
-                        reflectance_asset["nodata"] = packing.fill_value
 
             stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 

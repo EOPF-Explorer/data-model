@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import structlog
@@ -17,9 +17,7 @@ from dask.array import from_delayed
 from dask.delayed import delayed
 from pydantic.experimental.missing_sentinel import MISSING
 from pyproj import CRS
-from zarr.codecs import CastValue
 
-from eopf_geozarr.codecs.scale_offset import scale_offset_from_cf
 from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
 from eopf_geozarr.cpm.routing import product_type_of
@@ -28,6 +26,7 @@ from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
 )
 from eopf_geozarr.data_api.geozarr.types import (
+    CF_SCALE_OFFSET_KEYS,
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
 )
@@ -68,118 +67,6 @@ class S2Type(StrEnum):
 
 
 log = structlog.get_logger()
-
-
-class Packing(NamedTuple):
-    """CF packing of a variable: `decoded = packed * scale_factor + add_offset`."""
-
-    scale_factor: float
-    add_offset: float
-    fill_value: int | None
-    dtype: np.dtype[Any]
-
-
-def packing_of(var: xr.DataArray) -> Packing | None:
-    """Return the CF packing of `var`, or None when it is not packed.
-
-    The CF values are in `.encoding` for decoded input (`mask_and_scale=True`)
-    and in `.attrs` for raw input (`mask_and_scale=False`). A trivial packing
-    (`scale_factor` 1, `add_offset` 0) counts as not packed. The nodata value
-    can be the CF `_FillValue` or, on Zarr v3 CPM products, only the EOPF
-    `fill_value` attribute or the Zarr `fill_value`.
-    """
-    scale = var.encoding.get("scale_factor", var.attrs.get("scale_factor"))
-    offset = var.encoding.get("add_offset", var.attrs.get("add_offset"))
-    if scale is None and offset is None:
-        return None
-    scale = 1.0 if scale is None else float(scale)
-    offset = 0.0 if offset is None else float(offset)
-    dtype = np.dtype(var.encoding.get("dtype", var.dtype))
-    if (scale == 1.0 and offset == 0.0) or not np.issubdtype(dtype, np.integer):
-        return None
-    candidates = (
-        var.encoding.get("_FillValue"),
-        var.attrs.get("_FillValue"),
-        var.attrs.get("fill_value"),
-        var.encoding.get("fill_value"),
-    )
-    fill = next((value for value in candidates if value is not None), None)
-    return Packing(scale, offset, None if fill is None else int(fill), dtype)
-
-
-def _decode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
-    """Return `var` as decoded float32 with NaN for nodata, and `packing` in `.encoding`.
-
-    Both input forms end up identical, so each encoding mode packs the same values.
-    """
-    if np.issubdtype(var.dtype, np.integer):
-        values = var.astype("float64")
-        if packing.fill_value is not None:
-            values = values.where(var != packing.fill_value)
-        values = values * packing.scale_factor + packing.add_offset
-    else:
-        values = var
-        if packing.fill_value is not None:
-            # Decoded Zarr v3 input is not masked: its nodata is only in attributes.
-            decoded_fill = packing.fill_value * packing.scale_factor + packing.add_offset
-            values = values.where(abs(values - decoded_fill) > packing.scale_factor / 2)
-    decoded = values.astype("float32")
-    decoded.attrs = {
-        key: value
-        for key, value in utils.sanitize_array_attrs(var.attrs, is_decoded_float=True).items()
-        if key not in ("scale_factor", "add_offset")
-    }
-    decoded.encoding = {
-        key: value for key, value in var.encoding.items() if key in ("chunks", "preferred_chunks")
-    }
-    decoded.encoding.update(
-        {
-            "scale_factor": packing.scale_factor,
-            "add_offset": packing.add_offset,
-            "dtype": packing.dtype,
-        }
-    )
-    if packing.fill_value is not None:
-        decoded.encoding["_FillValue"] = packing.fill_value
-    return decoded
-
-
-def _drop_trivial_scaling(var: xr.DataArray) -> xr.DataArray:
-    """Remove a `scale_factor` 1 / `add_offset` 0 pair and keep the integer dtype.
-
-    Zarr v3 CPM products declare it on classification masks such as SCL; with
-    it, readers would decode those integers to floats.
-    """
-    keys = ("scale_factor", "add_offset")
-    if not any(key in var.attrs or key in var.encoding for key in keys):
-        return var
-    dtype = np.dtype(var.encoding.get("dtype", var.dtype))
-    if np.issubdtype(var.dtype, np.floating) and np.issubdtype(dtype, np.integer):
-        fill = var.encoding.get("_FillValue", var.encoding.get("fill_value", 0))
-        encoding = var.encoding
-        var = var.fillna(fill).astype(dtype)
-        var.encoding = encoding
-    var.attrs = {key: value for key, value in var.attrs.items() if key not in keys}
-    var.encoding = {key: value for key, value in var.encoding.items() if key not in keys}
-    return var
-
-
-def _scale_offset_filters(packing: Packing) -> tuple[Any, CastValue]:
-    """Zarr codecs that store decoded floats as the packed integers of `packing`."""
-    # CastValue refuses to cast NaN to an integer without a mapping: map it to the
-    # source nodata value, or to the lowest integer when the source has none.
-    nan_sentinel = (
-        packing.fill_value if packing.fill_value is not None else int(np.iinfo(packing.dtype).min)
-    )
-    return (
-        scale_offset_from_cf(scale_factor=packing.scale_factor, add_offset=packing.add_offset),
-        CastValue(
-            data_type=packing.dtype.name,
-            rounding="nearest-even",
-            scalar_map={"encode": [("NaN", nan_sentinel)], "decode": [(nan_sentinel, "NaN")]},
-        ),
-    )
-
 
 MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
@@ -301,25 +188,30 @@ def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.
 
     coarsened = var_data.coarsen({"x": factor, "y": factor}, boundary="trim")
     if var_type in ("reflectance", "probability"):
-        if np.issubdtype(var_data.dtype, np.floating):
-            # Decoded values: nodata is NaN, so skipping NaN excludes it from the mean.
-            result = coarsened.mean(skipna=True)  # type: ignore[attr-defined]
+        # Cast the input array to float and ignore nans during the .coarsen() operation, which could not be considered in int array with "nan-value" == 0.
+        # This prohibits the inclusion of 0 values in the mean calculation of multiscales, mainly impacting the boder regions of arrays
+
+        # nan values are later refilled again with 0s (or fillna values) to conform with int array requirements
+        # fill_value = var_data.fill_value
+
+        fill_value = var_data.attrs.get("fill_value")
+
+        # resort to _FillValue from encoding (-> likely empty anyway, as encodings are set later) is not found via fill_value
+        if not fill_value:
+            fill_value = var_data.encoding.get("_FillValue")
+
+        if fill_value is not None:
+            # mask all 0 as nan in float array
+            masked = var_data.where(var_data != fill_value)
+
+            # redefine coarsen operation to ignore nans and fill up with fill_value later
+            result = (
+                masked.coarsen({"x": factor, "y": factor}, boundary="trim")
+                .mean(skipna=True)  # type: ignore[attr-defined]
+                .fillna(fill_value)
+            )
         else:
-            # Raw integers: mask nodata, average, and round before the integer cast
-            # (a plain cast truncates).
-            fill_value = var_data.attrs.get("fill_value")
-            if fill_value is None:
-                fill_value = var_data.encoding.get("_FillValue")
-            if fill_value is None:
-                result = coarsened.mean().round()  # type: ignore[attr-defined]
-            else:
-                result = (
-                    var_data.where(var_data != fill_value)
-                    .coarsen({"x": factor, "y": factor}, boundary="trim")
-                    .mean(skipna=True)  # type: ignore[attr-defined]
-                    .round()
-                    .fillna(fill_value)
-                )
+            result = coarsened.mean()  # type: ignore[attr-defined]
     elif var_type == "classification":
         result = coarsened.reduce(subsample_2)
     elif var_type == "quality_mask":
@@ -392,10 +284,6 @@ def inject_missing_bands(
             continue
 
         band_src = source_ds[band_name]
-        packing = packing_of(band_src)
-        if packing is not None:
-            # Decode first so the mean skips nodata whatever the input form.
-            band_src = _decode_packed(band_src, packing)
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
@@ -439,7 +327,7 @@ def create_multiscale_from_datatree(
     enable_sharding: bool,
     spatial_chunk: int,
     crs: CRS | None = None,
-    scale_offset_codec: bool = True,
+    keep_scale_offset: bool,
 ) -> dict[str, dict]:
     """
     Create multiscale versions preserving original structure.
@@ -451,9 +339,6 @@ def create_multiscale_from_datatree(
         enable_sharding: Enable Zarr v3 sharding
         spatial_chunk: Spatial chunk size
         crs: Coordinate Reference System for datasets
-        scale_offset_codec: Pack packed variables with the Zarr scale-offset
-            codecs (default). False writes them with CF attributes, as in the
-            ESA product.
 
     Returns:
         Dictionary of processed groups
@@ -568,7 +453,7 @@ def create_multiscale_from_datatree(
                 dataset,
                 spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
-                scale_offset_codec=scale_offset_codec,
+                keep_scale_offset=keep_scale_offset,
             )
             # convert float64 arrays to float32. `xr.DataArray.astype` clears
             # encoding, so we capture and restore it — downstream pyramid
@@ -579,13 +464,18 @@ def create_multiscale_from_datatree(
                     var_encoding = dataset[data_var].encoding
                     dataset[data_var] = dataset[data_var].astype("float32")
                     dataset[data_var].encoding = var_encoding
+            # Clear _FillValue from the DataArray's own encoding to prevent
+            # xarray from raising "Zarr does not support _FillValue in encoding".
+            if not keep_scale_offset:
+                for data_var in dataset.data_vars:
+                    dataset[data_var].encoding.pop("_FillValue", None)
         else:
             # Non-measurement groups: preserve original encoding
             encoding = create_uniform_encoding(
                 dataset,
                 spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
-                scale_offset_codec=scale_offset_codec,
+                keep_scale_offset=keep_scale_offset,
             )
 
         # Drop scalar (0-D) coordinates such as a source `band` label: the
@@ -642,8 +532,13 @@ def create_multiscale_from_datatree(
             downsampled_dataset,
             spatial_chunk=spatial_chunk,
             enable_sharding=enable_sharding,
-            scale_offset_codec=scale_offset_codec,
+            keep_scale_offset=keep_scale_offset,
         )
+
+        # Strip _FillValue from DataArray encoding for downsampled levels too
+        if not keep_scale_offset:
+            for data_var in downsampled_dataset.data_vars:
+                downsampled_dataset[data_var].encoding.pop("_FillValue", None)
 
         # Write dataset
         ds_out = stream_write_dataset(
@@ -700,44 +595,16 @@ def get_chunking_for_encoding(var_data: xr.DataArray) -> tuple[int, ...]:
     )
 
 
-def _forward_unpacked_encoding(
-    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> None:
-    """Copy the source encoding of an unpacked variable, with an explicit Zarr fill value."""
-    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
-    fv = utils.explicit_fill_value(var_data)
-    if fv is not utils.UNSET:
-        var_encoding["fill_value"] = fv
-    elif "fill_value" in var_data.attrs:
-        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
-        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-
-    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
-        if key in var_data.encoding:
-            var_encoding[key] = var_data.encoding[key]
-
-    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
-    if unknown:
-        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
-
-
 def create_uniform_encoding(
     dataset: xr.Dataset,
     *,
     spatial_chunk: int,
     enable_sharding: bool = True,
-    scale_offset_codec: bool = True,
+    keep_scale_offset: bool = True,
     compression_level: int = 3,
 ) -> dict[str, XarrayDataArrayEncoding]:
     """
     Create encoding (compression, chunking, sharding) for a dataset.
-
-    Packed variables (see `packing_of`) keep their source integer dtype on disk
-    and are replaced in `dataset` by their decoded float32 values. By default
-    the Zarr `scale_offset` + `cast_value` codecs pack them, with no CF scale
-    attributes. With `scale_offset_codec=False`, they are written as in the ESA
-    product: packed integers with CF `scale_factor`, `add_offset` and
-    `_FillValue`. Other variables keep their dtype and fill value.
 
     Chunking is taken from the input dataset's existing chunks when present
     (e.g. a group that's already been rechunked/aggregated, such as a
@@ -758,13 +625,7 @@ def create_uniform_encoding(
     encoding: dict[str, XarrayDataArrayEncoding] = {}
     compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
 
-    for var_name in list(dataset.data_vars):
-        packing = packing_of(dataset[var_name])
-        if packing is not None:
-            dataset[var_name] = _decode_packed(dataset[var_name], packing)
-        else:
-            dataset[var_name] = _drop_trivial_scaling(dataset[var_name])
-        var_data = dataset[var_name]
+    for var_name, var_data in dataset.data_vars.items():
         var_encoding: XarrayDataArrayEncoding = {}
 
         encoding_chunks = get_chunking_for_encoding(var_data)
@@ -783,27 +644,66 @@ def create_uniform_encoding(
         else:
             var_encoding["shards"] = None
 
-        # `to_zarr(encoding=...)` replaces each variable's `.encoding`, so the
-        # decoded variables keep their packing in `.encoding` for the pyramid
-        # levels while only the keys below are written.
-        if packing is not None and not scale_offset_codec:
-            var_encoding["scale_factor"] = packing.scale_factor
-            var_encoding["add_offset"] = packing.add_offset
-            var_encoding["dtype"] = packing.dtype
-            if packing.fill_value is not None:
-                var_encoding["_FillValue"] = packing.fill_value
-        elif packing is not None:
-            var_encoding["filters"] = _scale_offset_filters(packing)
+        # --- Forward-propagate remaining encoding keys ---------------------
+        keep_keys = XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks"}
+
+        # Whether to inject a CF _FillValue attribute for xarray issue #11345.
+        # The injection itself happens after sanitize_array_attrs below, which
+        # would otherwise strip it.
+        inject_nan_fillvalue = False
+
+        if not keep_scale_offset:
+            # When stripping scale/offset, also strip _FillValue since the original
+            # _FillValue is in raw integer units and meaningless for decoded float data.
+            keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue"}
             var_encoding["fill_value"] = "NaN"
-            # CF _FillValue attribute for xarray issue #11345.
-            var_data.attrs["_FillValue"] = np.nan
+            inject_nan_fillvalue = True
         else:
-            _forward_unpacked_encoding(var_name, var_data, var_encoding)
-            # Sanitize source-only attributes (replace dict — ``.update`` cannot
-            # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
-            # otherwise leak into the output).
-            is_float = np.issubdtype(var_data.dtype, np.floating)
-            var_data.attrs = utils.sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
+            # Not stripping scale/offset: pick an explicit zarr-level fill_value
+            # rather than letting xarray infer one differently across versions.
+            keep_keys = keep_keys - {"fill_value"}
+
+            # get the fill value and detect if its int or Nan/None -> UnSet differentiates between nan/None and actually not set
+            fv = utils.explicit_fill_value(var_data)
+            if fv is not utils.UNSET:
+                # gets triggered for s1?
+                var_encoding["fill_value"] = fv
+            else:
+                # We need to pass _FillValue in the encoding to allow decode_cf to read it..
+                # either this, or it gets removed from everywhere else during the sanitize_array_attrs() call
+                if "fill_value" in var_data.attrs and "_FillValue" not in var_encoding:
+                    var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+                else:
+                    pass
+
+        for key in keep_keys:
+            if key in var_data.encoding:
+                var_encoding[key] = var_data.encoding[key]
+
+        if len(set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS) > 0:
+            log.warning(
+                "Unknown encoding keys in %s: %s",
+                var_name,
+                set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS,
+            )
+
+        # Sanitize source-only attributes (replace dict — ``.update`` cannot
+        # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
+        # otherwise leak into the output).
+        is_float = np.issubdtype(var_data.dtype, np.floating)
+        var_data.attrs = utils.sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
+
+        # if fill value is set to nan, the array needs to be cast to a float.
+        # `xr.DataArray.astype` clears `.encoding`, so capture and restore it —
+        # the `var_encoding` dict above (and the experimental scale-offset
+        # filters within it) is derived from `var_data.encoding` too, but
+        # downstream code (e.g. pyramid coarsening) reads the encoding back
+        # off the dataset variable itself, so it must survive this cast.
+        if inject_nan_fillvalue:
+            var_data.attrs["_FillValue"] = np.nan
+            original_encoding = var_data.encoding
+            dataset[var_name] = var_data.astype(np.float32)
+            dataset[var_name].encoding = original_encoding
 
         encoding[str(var_name)] = var_encoding
 

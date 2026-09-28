@@ -183,6 +183,7 @@ def convert_olci_optimized(
     spatial_chunk: int = 1024,
     compression_level: int = 3,
     min_dimension: int = 256,
+    keep_scale_offset: bool = False,
     output_grid: str = "native",
 ) -> xr.DataTree:
     """Convert an EOPF OLCI L1 EFR DataTree to a GeoZarr multiscale store.
@@ -213,6 +214,11 @@ def convert_olci_optimized(
     min_dimension:
         Stop generating overview levels once either spatial dimension would
         drop below this value after /2 decimation.
+    keep_scale_offset:
+        When ``True``, preserve CF ``scale_factor``/``add_offset`` in the
+        output encoding rather than decoding to float32.
+        Not yet wired into encoding for this minimal pass; accepted as a
+        typed parameter for forward-compatibility (follow-up task).
     output_grid:
         ``"native"`` (default) preserves the instrument swath geometry:
         no warp, 2-D lat/lon geolocation, per-row ``time_stamp`` kept,
@@ -236,9 +242,9 @@ def convert_olci_optimized(
 
     Notes
     -----
-    Parameters ``enable_sharding``, ``spatial_chunk`` and ``compression_level``
-    are accepted but not yet applied to the on-disk encoding.  Wiring them
-    through the existing ``conversion`` helpers
+    Parameters ``enable_sharding``, ``spatial_chunk``, ``compression_level``,
+    and ``keep_scale_offset`` are accepted but not yet applied to the on-disk
+    encoding.  Wiring them through the existing ``conversion`` helpers
     (``create_measurements_encoding``, sharding codec, etc.) is left for a
     follow-up task so as not to block the integration test.  A warning is
     logged when a non-default value is passed for any of them, so callers
@@ -254,6 +260,7 @@ def convert_olci_optimized(
         "enable_sharding": (enable_sharding, False),
         "spatial_chunk": (spatial_chunk, 1024),
         "compression_level": (compression_level, 3),
+        "keep_scale_offset": (keep_scale_offset, False),
     }
     ignored = [name for name, (value, default) in unwired.items() if value != default]
     if ignored:
