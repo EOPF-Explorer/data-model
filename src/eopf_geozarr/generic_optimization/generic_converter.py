@@ -109,8 +109,8 @@ def create_generic_geozarr_dataset(
         processed_groups[group_path] = ds_out
 
     # root level consolidation
-    utils.simple_root_consolidation(dt_input, output_path, processed_groups)
-    # utils.updated_root_consolidation(dt_input, output_path, processed_groups)
+    # utils.simple_root_consolidation(dt_input, output_path, processed_groups)
+    utils.updated_root_consolidation(dt_input, output_path, processed_groups)
 
     # Create result DataTree
     result_dt = utils.create_result_datatree(output_path)
