@@ -83,10 +83,10 @@ def test_build_convention_attrs_matches_handwritten() -> None:
 
 def test_build_convention_attrs_validates() -> None:
     """Invalid spatial data is rejected by zarr-cm validation."""
-    with pytest.raises(ValueError, match="spatial:dimensions"):
+    with pytest.raises(ValueError, match="spatial:registration"):
         build_convention_attrs(
-            # missing required dimensions — exercises runtime validation
-            spatial=cast("spatial_cm.SpatialAttrs", {"spatial:registration": "pixel"}),
+            # invalid enum value — exercises runtime validation
+            spatial=cast("spatial_cm.SpatialAttrs", {"spatial:registration": "bogus-value"}),
             crs=CRS.from_epsg(32632),
         )
 

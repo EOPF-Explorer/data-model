@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import rasterio.transform
 import xarray as xr
+import zarr_cm
 
 from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
     decimate_swath,
@@ -345,18 +346,14 @@ def test_grid_spatial_attrs() -> None:
     """grid_spatial_attrs derives dimensions, bbox, and 6-element transform."""
     transform = rasterio.transform.from_origin(10.0, 46.0, 0.01, 0.01)
     attrs = grid_spatial_attrs(transform, (100, 200))
-    assert attrs["spatial:dimensions"] == ["y", "x"]
-    assert attrs["spatial:registration"] == "pixel"  # type: ignore[index]
-    assert attrs["spatial:transform"] == [  # type: ignore[index]
-        0.01,
-        0.0,
-        10.0,
-        0.0,
-        -0.01,
-        46.0,
-    ]
+    _, extracted = zarr_cm.extract_many(attrs, ["spatial"])
     # bbox is [xmin, ymin, xmax, ymax] from array_bounds
-    assert attrs["spatial:bbox"] == [10.0, 45.0, 12.0, 46.0]  # type: ignore[index]
+    assert extracted["spatial"] == {
+        "spatial:dimensions": ["y", "x"],
+        "spatial:registration": "pixel",
+        "spatial:transform": [0.01, 0.0, 10.0, 0.0, -0.01, 46.0],
+        "spatial:bbox": [10.0, 45.0, 12.0, 46.0],
+    }
 
 
 def test_reduce_fill_collision_nudged_not_recoded_as_fill() -> None:
@@ -570,7 +567,8 @@ def test_reduce_swath_odd_dims_coords_are_block_centroids() -> None:
 
 def test_swath_spatial_attrs_has_no_transform() -> None:
     attrs = swath_spatial_attrs()
-    assert attrs["spatial:dimensions"] == ["rows", "columns"]
-    assert attrs.get("spatial:registration") == "pixel"
-    assert "spatial:transform" not in attrs
-    assert "spatial:bbox" not in attrs
+    _, extracted = zarr_cm.extract_many(attrs, ["spatial"])
+    assert extracted["spatial"] == {
+        "spatial:dimensions": ["rows", "columns"],
+        "spatial:registration": "pixel",
+    }

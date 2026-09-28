@@ -115,7 +115,7 @@ def reproject_sentinel1_with_gcps(
             f"expected an xarray.Dataset after write_crs, got {type(reprojected_ds).__name__}"
         )
 
-    log.info("✅ Successfully reprojected Sentinel-1 data", target_crs=target_crs)
+    log.info("Successfully reprojected Sentinel-1 data", target_crs=target_crs)
     return reprojected_ds
 
 
