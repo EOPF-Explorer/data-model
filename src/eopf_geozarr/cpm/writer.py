@@ -141,17 +141,18 @@ class GeoZarrWriter(EOWriter):
             staged-output path injects ``compute=True`` when a remote Dask
             client is active; ``compute=False`` (lazy write) is not supported.
         generic_rechunker
-            Force (True) or suppress (False) the generic rechunking
-            pipeline; None skips to ``generic``. Mutually
-            exclusive with ``s3_olci_optimized=True`` & ``s2_optimized=True`` .
+            Route non-S2/non-OLCI products to the generic rechunking pipeline
+            (True); S2 and OLCI products still go to their optimized pipelines.
+            None or False leaves pipeline auto-detection unchanged. Mutually
+            exclusive with ``s2_optimized=True`` and ``s3_olci_optimized=True``.
         s2_optimized
             Force (True) or suppress (False) the Sentinel-2 optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s3_olci_optimized=True`` & ``generic_rechunker``.
+            exclusive with ``s3_olci_optimized=True`` and ``generic_rechunker=True``.
         s3_olci_optimized
             Force (True) or suppress (False) the Sentinel-3 OLCI optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s2_optimized=True`` &  & ``generic_rechunker``..
+            exclusive with ``s2_optimized=True`` and ``generic_rechunker=True``.
         spatial_chunk
             Spatial chunk size; defaults to 256 (S2 optimized), 1024 (OLCI
             optimized), or 4096 (generic).
@@ -267,11 +268,9 @@ class GeoZarrWriter(EOWriter):
                     "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
                     "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
                 )
-            generic_groups = list(groups)
-
             return create_geozarr_dataset(
                 dt_input=dtree,
-                groups=generic_groups if generic_groups is not None else [],
+                groups=list(groups),
                 output_path=output_path,
                 spatial_chunk=resolved_spatial_chunk,
                 min_dimension=min_dimension,
