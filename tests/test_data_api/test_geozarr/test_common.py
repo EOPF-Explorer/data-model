@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import numpy as np
 import pytest
 from pydantic_zarr.core import tuplify_json
@@ -36,6 +39,24 @@ def test_grouplike(obj: AnyGroupSpec_V3 | AnyGroupSpec_V2) -> None:
     Test that the GroupLike protocol works correctly
     """
     assert isinstance(obj, GroupLike)
+
+
+def test_import_makes_no_network_call() -> None:
+    """
+    Importing the package must not touch the network (#265).
+
+    Runs in a fresh interpreter because the package is already imported here. The
+    stub raises a BaseException so an `except OSError` fallback cannot hide the call.
+    """
+    code = (
+        "import socket\n"
+        "class NetworkUsed(BaseException): pass\n"
+        "def deny(*args, **kwargs): raise NetworkUsed(args)\n"
+        "socket.getaddrinfo = deny\n"
+        "socket.socket.connect = deny\n"
+        "import eopf_geozarr\n"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
 
 
 def test_multiscales_round_trip() -> None:
