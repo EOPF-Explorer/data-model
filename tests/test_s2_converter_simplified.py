@@ -14,11 +14,39 @@ import pytest
 import xarray as xr
 
 from eopf_geozarr.s2_optimization.s2_converter import (
+    _validate_s2_input,
     convert_s2_optimized,
     initialize_crs_from_dataset,
     simple_root_consolidation,
     write_store_root_bbox,
 )
+
+
+def test_validate_s2_input_skips_trees_without_zarr_backend() -> None:
+    """In-memory DataTrees (e.g. from the CPM SAFE reader) skip store validation."""
+    tree = xr.DataTree()
+    tree["measurements"] = xr.Dataset({"var": (["y", "x"], np.zeros((4, 4)))})
+    _validate_s2_input(tree)  # must not raise
+
+
+def test_validate_s2_input_rejects_non_s2_zarr_backed_tree(tmp_path: Path) -> None:
+    """Zarr-v2-backed trees that are not Sentinel-2 products are still rejected."""
+    store = tmp_path / "not_s2.zarr"
+    source = xr.DataTree(xr.Dataset({"var": (["y", "x"], np.zeros((4, 4)))}))
+    source.to_zarr(store, zarr_format=2, consolidated=False)
+    backed = xr.open_datatree(store, engine="zarr")
+    with pytest.raises(ValueError, match="not a Sentinel-2 product"):
+        _validate_s2_input(backed)
+
+
+def test_validate_s2_input_rejects_non_s2_zarr_v3_backed_tree(tmp_path: Path) -> None:
+    """Zarr-v3-backed trees that are not Sentinel-2 products are still rejected."""
+    store = tmp_path / "not_s2_v3.zarr"
+    source = xr.DataTree(xr.Dataset({"var": (["y", "x"], np.zeros((4, 4)))}))
+    source.to_zarr(store, zarr_format=3, consolidated=False)
+    backed = xr.open_datatree(store, engine="zarr")
+    with pytest.raises(ValueError, match="not a Sentinel-2 product"):
+        _validate_s2_input(backed)
 
 
 @pytest.fixture
@@ -48,21 +76,6 @@ def mock_s2_dataset() -> xr.DataTree:
     dt.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
     return dt
-
-
-class TestS2FunctionalAPI:
-    """Test the S2 functional API."""
-
-    def test_is_sentinel2_dataset_placeholder(self) -> None:
-        """Placeholder test for is_sentinel2_dataset.
-
-        The actual is_sentinel2_dataset function uses complex pydantic validation
-        that requires a fully structured zarr group matching Sentinel1Root or
-        Sentinel2Root models. Testing this would require creating a complete
-        mock sentinel dataset, which is better done in integration tests.
-        """
-        # This test is kept as a placeholder to maintain test structure
-        assert True
 
 
 class TestCRSInitialization:
@@ -224,7 +237,7 @@ def test_simple_root_consolidation_success(tmp_path: Path) -> None:
         for k, v in datasets.items()
     ]
 
-    simple_root_consolidation(str(tmp_path / "test.zarr"), datasets=datasets)
+    simple_root_consolidation(output_path=str(tmp_path / "test.zarr"), datasets=datasets)
 
     root_z_meta = json.loads((tmp_path / "test.zarr/zarr.json").read_text())
     reflectance_zmeta = json.loads(
@@ -441,6 +454,45 @@ class TestConvenienceFunction:
         call_kwargs = mock_multiscale.call_args.kwargs
         assert call_kwargs["enable_sharding"] is False
         assert call_kwargs["spatial_chunk"] == 512
+
+
+def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -> None:
+    from pyproj import CRS
+
+    # initialise an empty dataset to mimic the process and write to tmp
+    r10m = xr.Dataset(coords={"y": np.arange(10), "x": np.arange(20)})
+    r10m.to_zarr(
+        str(tmp_path / "test.zarr/measurements/reflectance/r10m"),
+        mode="a",
+        zarr_format=3,
+        consolidated=False,
+    )
+    datasets = {"/measurements/reflectance/r10m": r10m}
+
+    # adding dummy data to dt_input to mimic input reference dtreee
+    dt_input = xr.DataTree(xr.Dataset({"dummy": (["y"], np.zeros(10))}))
+    dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
+
+    # test execution of func
+    simple_root_consolidation(
+        output_path=str(tmp_path / "test.zarr"),
+        datasets=datasets,
+        dt_input=dt_input,
+        crs=CRS.from_epsg(32632),
+    )
+
+    # read in the consolidated dTree root to cross-check with expected outcome
+    root_attrs = json.loads((tmp_path / "test.zarr/zarr.json").read_text())["attributes"]
+    asset = root_attrs["stac_discovery"]["assets"]["reflectance"]
+    assert asset == {
+        "href": "/measurements/reflectance",
+        "type": "application/vnd.zarr; version=3; profile=multiscales",
+        "title": "Surface Reflectance",
+        "roles": ["data", "reflectance"],
+        "gsd": 10,
+        "proj:code": "EPSG:32632",
+        "proj:shape": [10, 20],
+    }
 
 
 if __name__ == "__main__":

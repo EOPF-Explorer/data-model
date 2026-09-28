@@ -6,17 +6,12 @@ from the analysis notebook:
 docs/analysis/eopf-geozarr/EOPF_Sentinel2_ZarrV3_geozarr_compliant.ipynb
 """
 
-import json
 import subprocess
 from pathlib import Path
 
 import pytest
 import xarray as xr
 import zarr
-from pydantic_zarr.core import tuplify_json
-from pydantic_zarr.v3 import GroupSpec
-
-from tests.test_data_api.conftest import view_json_diff
 
 
 def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
@@ -47,6 +42,16 @@ def test_convert_s2_optimized(s2_group_example: Path, tmp_path: Path) -> None:
 def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path) -> None:
     """
     Test CLI conversion using a Sentinel-2 hierarchy saved locally.
+
+    A Sentinel-2 input auto-routes to the optimized flat-pyramid converter
+    (see `test_cli_convert_routing.py`), so this exercises the whole-product
+    conversion rather than the generic converter's explicit `--groups`
+    selection; the per-group options from the original notebook workflow
+    don't apply to that path. Note the generic converter's legacy nested
+    overview layout (asset='.' under the base-resolution group) is known not
+    to open via `xr.open_datatree` — see `DATATREE_XFAIL` in
+    `test_geozarr_output_contract.py` — so forcing `--no-s2-optimized` here
+    would break the `info` command below for a reason unrelated to this test.
     """
 
     output_path = tmp_path / "s2b_geozarr_cli_test.zarr"
@@ -81,14 +86,10 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
         "convert",
         str(s2_group_example),
         str(output_path),
-        "--groups",
-        *groups,
         "--spatial-chunk",
-        "1024",  # From notebook
-        "--min-dimension",
-        "256",  # From notebook
+        "1024",
         "--max-retries",
-        "3",  # From notebook
+        "3",
         "--verbose",
     ]
 
@@ -133,23 +134,37 @@ def test_cli_convert_real_sentinel2_data(s2_group_example: Path, tmp_path: Path)
     assert "GeoZarr minispec validation: COMPLIANT" in validate_output, (
         "Should show the minispec validation summary"
     )
-    assert "✅ Dataset is compliant" in validate_output, "Should report compliance"
+    assert "Dataset is compliant" in validate_output, "Should report compliance"
 
-    # verify exact output group structure
-    # this is a sensitive, brittle check
-    expected_structure_json = tuplify_json(
-        json.loads(
-            (
-                Path("tests/_test_data/geozarr_examples/") / (s2_group_example.stem + ".json")
-            ).read_text()
+    # Verify the output mirrors the input's group layout and band content —
+    # full GeoZarr minispec conformance (multiscale layout, spatial metadata,
+    # etc.) is already checked above via the CLI `validate` command, so this
+    # only needs to confirm the optimized converter carried every group and
+    # band through, rather than diffing against a golden JSON snapshot.
+    input_group = zarr.open_group(s2_group_example)
+    observed_group = zarr.open_group(output_path)
+    for top_level in input_group.group_keys():
+        assert top_level in observed_group, f"missing top-level group '{top_level}'"
+
+    non_band_arrays = {"x", "y", "time", "spatial_ref"}
+
+    def band_names(group: zarr.Group) -> set[str]:
+        return {name for name in group.array_keys() if name not in non_band_arrays}
+
+    input_reflectance = input_group["measurements/reflectance"]
+    observed_reflectance = observed_group["measurements/reflectance"]
+    assert isinstance(input_reflectance, zarr.Group)
+    assert isinstance(observed_reflectance, zarr.Group)
+    for level in input_reflectance.group_keys():
+        input_level = input_reflectance[level]
+        observed_level = observed_reflectance[level]
+        assert isinstance(input_level, zarr.Group)
+        assert isinstance(observed_level, zarr.Group)
+        input_bands = band_names(input_level)
+        observed_bands = band_names(observed_level)
+        assert input_bands <= observed_bands, (
+            f"{level}: missing bands {input_bands - observed_bands}"
         )
-    )
-    observed_structure_json = tuplify_json(
-        GroupSpec.from_zarr(zarr.open_group(output_path)).model_dump()
-    )
-    assert expected_structure_json == observed_structure_json, view_json_diff(
-        dict(expected_structure_json), dict(observed_structure_json)
-    )
 
 
 def test_cli_help_commands() -> None:

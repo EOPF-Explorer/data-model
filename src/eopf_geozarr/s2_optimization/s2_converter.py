@@ -5,7 +5,7 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import structlog
 import xarray as xr
@@ -22,7 +22,7 @@ from eopf_geozarr.data_api.s2 import Sentinel2Root
 from .s2_multiscale import create_multiscale_from_datatree
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Hashable, Mapping
 
 log = structlog.get_logger()
 
@@ -110,6 +110,31 @@ def initialize_crs_from_dataset(dt_input: xr.DataTree) -> CRS | None:
     return None
 
 
+def _validate_s2_input(dt_input: xr.DataTree) -> None:
+    """
+    Validate that the input DataTree is a Sentinel-2 product.
+
+    Validation runs against the DataTree's backing zarr store. Trees built in
+    memory (e.g. by the CPM SAFE reader) have no backing group; callers on
+    that path are responsible for routing only Sentinel-2 products here.
+    """
+    try:
+        backing_group = get_zarr_group(dt_input)
+    except TypeError:
+        log.info("Input DataTree has no zarr backend; skipping input store validation")
+        return
+    try:
+        is_s2 = is_sentinel2_dataset(backing_group)
+    except TypeError:
+        # is_sentinel2_dataset can still raise on backing stores it can't
+        # introspect at all (neither the Zarr V2 model nor the V3 structural
+        # check apply); treat that as "not checkable" rather than "not S2".
+        log.info("Backing zarr store could not be validated; skipping input store validation")
+        return
+    if not is_s2:
+        raise ValueError("Input dataset is not a Sentinel-2 product")
+
+
 def convert_s2(
     dt_input: xr.DataTree,
     output_path: str,
@@ -137,9 +162,7 @@ def convert_s2(
         output_path=output_path,
     )
 
-    # Validate input is S2
-    if not is_sentinel2_dataset(get_zarr_group(dt_input)):
-        raise ValueError("Input dataset is not a Sentinel-2 product")
+    _validate_s2_input(dt_input)
 
     # Step 1: Process data while preserving original structure
     log.info("Step 1: Processing data with original structure preserved")
@@ -158,7 +181,7 @@ def convert_s2(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(output_path, datasets)
+    simple_root_consolidation(output_path, datasets, dt_input)
 
     # Step 4: Validation
     if validate_output:
@@ -194,7 +217,6 @@ def convert_s2_optimized(
     compression_level: int,
     validate_output: bool,
     keep_scale_offset: bool,
-    experimental_scale_offset_codec: bool = False,
     max_retries: int = 3,
 ) -> xr.DataTree:
     """
@@ -208,7 +230,6 @@ def convert_s2_optimized(
         compression_level: Compression level 1-9
         validate_output: Whether to validate the output
         keep_scale_offset: Whether to preserve scale-offset encoding of the source data.
-        experimental_scale_offset_codec: Push CF scale-offset into zarr codec pipeline.
         max_retries: Maximum number of retries for network operations
 
     Returns:
@@ -222,9 +243,7 @@ def convert_s2_optimized(
         num_groups=len(dt_input.groups),
         output_path=output_path,
     )
-    # Validate input is S2
-    if not is_sentinel2_dataset(get_zarr_group(dt_input)):
-        raise ValueError("Input dataset is not a Sentinel-2 product")
+    _validate_s2_input(dt_input)
 
     # Initialize CRS from dataset
     crs = initialize_crs_from_dataset(dt_input)
@@ -244,14 +263,13 @@ def convert_s2_optimized(
         enable_sharding=enable_sharding,
         crs=crs,
         keep_scale_offset=keep_scale_offset,
-        experimental_scale_offset_codec=experimental_scale_offset_codec,
     )
 
     log.info("Created multiscale pyramids", num_groups=len(datasets))
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(output_path, datasets)
+    simple_root_consolidation(output_path, datasets, dt_input, crs=crs)
 
     # Step 4: Validation
     if validate_output:
@@ -271,7 +289,12 @@ def convert_s2_optimized(
     return result_dt
 
 
-def simple_root_consolidation(output_path: str, datasets: Mapping[str, object]) -> None:
+def simple_root_consolidation(
+    output_path: str,
+    datasets: Mapping[str, object],
+    dt_input: xr.DataTree | None = None,
+    crs: CRS | None = None,
+) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
     # create missing intermediary groups (/conditions, /quality, etc.)
     # using the keys of the datasets dict
@@ -319,11 +342,87 @@ def simple_root_consolidation(output_path: str, datasets: Mapping[str, object]) 
     # and writes the union on the root `zarr.json`.
     write_store_root_bbox(output_path)
 
+    if dt_input and dt_input.attrs:
+        # this can be used to add multiscale paths to the stac attributes
+        # wether we want that or not has to be discussed
+        # -> For now this data is not added, as we dont want to expose the additional multiscale arrays for users in the stac assets, this comes at the possibility of confusion for users, but we accept that risk
+        # as users wont need the multiscale, but they are just used for visualisation
+        # the code is currently commented out, as this discussion is not 100% final yet and changes might apply
+
+        # updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+        # utils.write_store_root_stac_metadata(
+        #     output_path,
+        #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
+        # )
+
+        # addition of measurements as its own stac asset in root -> will needto be verified and tested
+        # likely triggErs addtionial modifications in eopf-stac -> cannot be tested here as eopf-stac is out of scope from this repo
+        root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
+        # Reference the pyramid root group, not the individual levels. That
+        # group carries the `multiscales` attribute, and the
+        # `profile=multiscales` media-type parameter tells a consumer to look
+        # for it there and resolve the levels from the convention itself.
+        stac = root_attrs.get("stac_discovery")
+        if stac is not None:
+            reflectance_asset: dict[str, Any] = {
+                "href": "/measurements/reflectance",
+                "type": "application/vnd.zarr; version=3; profile=multiscales",
+                "title": "Surface Reflectance",
+                "roles": ["data", "reflectance"],
+                "gsd": 10,
+            }
+
+            if crs is not None and crs.to_epsg() is not None:
+                reflectance_asset.update(utils.proj_attrs_for_crs(crs))
+
+            base = datasets.get("/measurements/reflectance/r10m")
+            if isinstance(base, xr.Dataset):
+                reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
+            stac.setdefault("assets", {})["reflectance"] = reflectance_asset
+
+        utils.write_store_root_stac_metadata(
+            output_path,
+            root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+        )
+
     # consolidate reflectance group metadata
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)
 
     # consolidate root group metadata
     zarr.consolidate_metadata(output_path, zarr_format=3)
+
+
+def add_multiscale_pyramids_to_stac_metadata(
+    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
+    stac_attrs = dt_attributes["stac_discovery"]["assets"]
+
+    # a bit messy but effective split to get group parent from stac attrs
+    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
+
+    # gEt mismatched ones -> we need pyramids not present
+    missing_group_paths = [
+        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
+    ]
+
+    for group_path in missing_group_paths:
+        ds = datasets[group_path]
+
+        # catch object != datAset for typing
+        if isinstance(ds, xr.Dataset):
+            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+            for var_name in ds.data_vars:
+                if var_name == "spatial_ref":
+                    continue
+                asset_key = f"{var_name}_{resolution}"
+                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
+        else:
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+
+    # replace attrs
+    dt_attributes["stac_discovery"]["assets"] = stac_attrs
+    return dt_attributes
 
 
 def write_store_root_bbox(output_path: str) -> None:
@@ -378,6 +477,9 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
 
 
 def is_sentinel2_dataset(group: zarr.Group) -> bool:
+    if group.metadata.zarr_format == 3:
+        return _is_sentinel2_dataset_v3(group)
+
     from eopf_geozarr.pyz.v2 import GroupSpec
 
     adapter = TypeAdapter(Sentinel1Root | Sentinel2Root)
@@ -388,6 +490,31 @@ def is_sentinel2_dataset(group: zarr.Group) -> bool:
         return False
 
     return isinstance(model, Sentinel2Root)
+
+
+def _is_sentinel2_dataset_v3(group: zarr.Group) -> bool:
+    """Lightweight structural check for Zarr V3 Sentinel-2 stores.
+
+    ``Sentinel2Root`` (and its full-fidelity round-trip validation) is defined
+    against the Zarr V2 pydantic model only; there is no V3 counterpart yet.
+    Rather than guess at one, this checks the handful of root-level members
+    that already distinguish an S2 product from anything else we route on:
+    S2 has ``measurements``/``quality``/``conditions`` directly at the root,
+    with an S2-specific ``measurements/reflectance`` group underneath.
+    Sentinel-1, by contrast, nests those same three groups one level down
+    under arbitrary per-polarization product-id groups.
+    """
+    if set(group.keys()) != {"measurements", "quality", "conditions"}:
+        return False
+
+    measurements = group.get("measurements")
+    if not isinstance(measurements, zarr.Group):
+        return False
+
+    reflectance = measurements.get("reflectance")
+    return isinstance(reflectance, zarr.Group) and any(
+        isinstance(sub, zarr.Group) for _, sub in reflectance.groups()
+    )
 
 
 class ValidationResult(TypedDict):

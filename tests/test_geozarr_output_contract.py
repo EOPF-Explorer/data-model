@@ -36,12 +36,203 @@ from eopf_geozarr.conversion import create_geozarr_dataset
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 from .test_integration_sentinel1 import MockSentinel1L1GRDBuilder
-from .test_integration_sentinel2 import build_sample_sentinel2_datatree
 from .test_olci_integration import build_synthetic_olci
 
 if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable
+
+
+def build_sample_sentinel2_datatree() -> xr.DataTree:
+    """Build the sample Sentinel-2 EOPF DataTree (importable, non-fixture form).
+
+    This mimics the structure from the notebook:
+    - Multiple resolution groups (r10m, r20m, r60m)
+    - Quality groups (l1c_quicklook)
+    - Realistic Sentinel-2 band structure
+    - UTM coordinate system (EPSG:32632)
+    - Proper EOPF hierarchical organization
+    """
+    # Use UTM Zone 32N (EPSG:32632) as in the notebook example
+    epsg_code = 32632
+
+    # Define spatial extents (smaller for testing but realistic proportions)
+    x_min, x_max = 600000, 605490  # 5.49 km width
+    y_min, y_max = 5090000, 5095490  # 5.49 km height
+
+    # Create coordinate arrays for different resolutions
+    # r10m: 549x549 pixels (10m resolution)
+    coords_10m = {
+        "x": np.linspace(x_min, x_max, 549, endpoint=False),
+        "y": np.linspace(y_max, y_min, 549, endpoint=False),
+        "time": [np.datetime64("2025-01-13T10:33:09")],
+    }
+
+    # r20m: 275x275 pixels (20m resolution)
+    coords_20m = {
+        "x": np.linspace(x_min, x_max, 275, endpoint=False),
+        "y": np.linspace(y_max, y_min, 275, endpoint=False),
+        "time": [np.datetime64("2025-01-13T10:33:09")],
+    }
+
+    # r60m: 92x92 pixels (60m resolution)
+    coords_60m = {
+        "x": np.linspace(x_min, x_max, 92, endpoint=False),
+        "y": np.linspace(y_max, y_min, 92, endpoint=False),
+        "time": [np.datetime64("2025-01-13T10:33:09")],
+    }
+
+    # Create realistic spectral data with proper value ranges
+    # Sentinel-2 reflectance values typically range from 0-10000 (scaled)
+    np.random.seed(42)  # For reproducible test data
+
+    # 10m resolution bands (B02, B03, B04, B08) - key bands for RGB
+    r10m_data = {
+        "b02": (
+            ["time", "y", "x"],
+            np.random.randint(500, 3000, (1, 549, 549), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Blue band (B02)"},
+        ),
+        "b03": (
+            ["time", "y", "x"],
+            np.random.randint(800, 4000, (1, 549, 549), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Green band (B03)"},
+        ),
+        "b04": (
+            ["time", "y", "x"],
+            np.random.randint(600, 3500, (1, 549, 549), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Red band (B04)"},
+        ),
+        "b08": (
+            ["time", "y", "x"],
+            np.random.randint(2000, 6000, (1, 549, 549), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "NIR band (B08)"},
+        ),
+    }
+
+    # 20m resolution bands (B05, B06, B07, B8A, B11, B12)
+    r20m_data = {
+        "b05": (
+            ["time", "y", "x"],
+            np.random.randint(1500, 5000, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Red Edge 1 (B05)"},
+        ),
+        "b06": (
+            ["time", "y", "x"],
+            np.random.randint(1800, 5500, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Red Edge 2 (B06)"},
+        ),
+        "b07": (
+            ["time", "y", "x"],
+            np.random.randint(2000, 6000, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Red Edge 3 (B07)"},
+        ),
+        "b8a": (
+            ["time", "y", "x"],
+            np.random.randint(2200, 6500, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Red Edge 4 (B8A)"},
+        ),
+        "b11": (
+            ["time", "y", "x"],
+            np.random.randint(1000, 4000, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "SWIR 1 (B11)"},
+        ),
+        "b12": (
+            ["time", "y", "x"],
+            np.random.randint(500, 2500, (1, 275, 275), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "SWIR 2 (B12)"},
+        ),
+    }
+
+    # 60m resolution bands (B01, B09, B10)
+    r60m_data = {
+        "b01": (
+            ["time", "y", "x"],
+            np.random.randint(800, 3000, (1, 92, 92), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Coastal aerosol (B01)"},
+        ),
+        "b09": (
+            ["time", "y", "x"],
+            np.random.randint(200, 1000, (1, 92, 92), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Water vapour (B09)"},
+        ),
+        "b10": (
+            ["time", "y", "x"],
+            np.random.randint(100, 500, (1, 92, 92), dtype=np.uint16),
+            {"proj:epsg": epsg_code, "long_name": "Cirrus (B10)"},
+        ),
+    }
+
+    # Quality quicklook data (RGB composite at 10m)
+    quicklook_data = {
+        "red": (
+            ["y", "x"],
+            np.random.randint(0, 255, (549, 549), dtype=np.uint8),
+            {"proj:epsg": epsg_code, "long_name": "RGB Red component"},
+        ),
+        "green": (
+            ["y", "x"],
+            np.random.randint(0, 255, (549, 549), dtype=np.uint8),
+            {"proj:epsg": epsg_code, "long_name": "RGB Green component"},
+        ),
+        "blue": (
+            ["y", "x"],
+            np.random.randint(0, 255, (549, 549), dtype=np.uint8),
+            {"proj:epsg": epsg_code, "long_name": "RGB Blue component"},
+        ),
+    }
+
+    # Create datasets for each resolution
+    ds_r10m = xr.Dataset(r10m_data, coords=coords_10m)
+    ds_r20m = xr.Dataset(r20m_data, coords=coords_20m)
+    ds_r60m = xr.Dataset(r60m_data, coords=coords_60m)
+
+    # Quicklook uses 10m coordinates but without time dimension
+    quicklook_coords = {"x": coords_10m["x"], "y": coords_10m["y"]}
+    ds_quicklook = xr.Dataset(quicklook_data, coords=quicklook_coords)
+
+    # Set CRS for all datasets
+    ds_r10m = ds_r10m.rio.write_crs(f"EPSG:{epsg_code}")
+    ds_r20m = ds_r20m.rio.write_crs(f"EPSG:{epsg_code}")
+    ds_r60m = ds_r60m.rio.write_crs(f"EPSG:{epsg_code}")
+    ds_quicklook = ds_quicklook.rio.write_crs(f"EPSG:{epsg_code}")
+
+    # Create DataTree structure following EOPF organization from the notebook
+    dt = xr.DataTree()
+
+    # Measurements branch
+    dt["measurements"] = xr.DataTree()
+    dt["measurements/reflectance"] = xr.DataTree()
+    dt["measurements/reflectance/r10m"] = ds_r10m
+    dt["measurements/reflectance/r20m"] = ds_r20m
+    dt["measurements/reflectance/r60m"] = ds_r60m
+
+    # Quality branch (as in the notebook)
+    dt["quality"] = xr.DataTree()
+    dt["quality/l1c_quicklook"] = xr.DataTree()
+    dt["quality/l1c_quicklook/r10m"] = ds_quicklook
+
+    # Add metadata at different levels (following notebook structure)
+    dt.attrs = {
+        "title": "S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458",
+        "platform": "Sentinel-2B",
+        "processing_level": "L1C",
+        "product_type": "S2MSI1C",
+        "tile_id": "T32TLQ",
+    }
+
+    dt["measurements"].attrs = {"description": "Measurement data groups"}
+
+    dt["measurements/reflectance"].attrs = {
+        "description": "Top-of-atmosphere reflectance measurements",
+        "units": "dimensionless (scaled by 10000)",
+    }
+
+    dt["quality"].attrs = {"description": "Quality assessment data"}
+
+    dt["quality/l1c_quicklook"].attrs = {"description": "L1C quicklook RGB composite"}
+
+    return dt
 
 
 def _convert_olci(tmp: pathlib.Path) -> pathlib.Path:
