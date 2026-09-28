@@ -206,14 +206,7 @@ class GeoZarrWriter(EOWriter):
             ),
         )
         generic_groups: list[str] | None = None
-        if selected_pipeline == "generic":
-            if groups is None:
-                raise ValueError(
-                    "The generic GeoZarr pipeline requires the 'groups' option naming the "
-                    "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
-                    "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
-                )
-            generic_groups = list(groups)
+
         resolved_spatial_chunk = (
             spatial_chunk
             if spatial_chunk is not None
@@ -252,17 +245,42 @@ class GeoZarrWriter(EOWriter):
                 output_grid=output_grid,
             )
 
-        return create_geozarr_dataset(
-            dt_input=dtree,
-            groups=generic_groups if generic_groups is not None else [],
-            output_path=output_path,
-            spatial_chunk=resolved_spatial_chunk,
-            min_dimension=min_dimension,
-            max_retries=max_retries,
-            crs_groups=list(crs_groups) if crs_groups is not None else None,
-            gcp_group=gcp_group,
-            enable_sharding=enable_sharding,
+        # overrride geozarr-call to new generic class -> needs its own selected_pipeline force
+        from eopf_geozarr.generic_optimization.generic_converter import (
+            create_generic_geozarr_dataset,
         )
+
+        if selected_pipeline == "generic":
+            return create_generic_geozarr_dataset(
+                dt_input=dtree,
+                output_path=output_path,
+                enable_sharding=enable_sharding,
+                spatial_chunk=resolved_spatial_chunk,
+                compression_level=compression_level,
+                keep_scale_offset=keep_scale_offset,
+            )
+
+        if selected_pipeline == "generic":
+            if groups is None:
+                raise ValueError(
+                    "The generic GeoZarr pipeline requires the 'groups' option naming the "
+                    "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
+                    "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
+                )
+            generic_groups = list(groups)
+
+            return create_geozarr_dataset(
+                dt_input=dtree,
+                groups=generic_groups if generic_groups is not None else [],
+                output_path=output_path,
+                spatial_chunk=resolved_spatial_chunk,
+                min_dimension=min_dimension,
+                max_retries=max_retries,
+                crs_groups=list(crs_groups) if crs_groups is not None else None,
+                gcp_group=gcp_group,
+                enable_sharding=enable_sharding,
+            )
+        return None
 
     def validate_write_options(
         self,
