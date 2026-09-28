@@ -267,8 +267,8 @@ class TestCreateStore:
             assert isinstance(conv, dict)
             conv_names.add(conv["name"])
         assert "multiscales" in conv_names
-        assert "proj:" in conv_names
-        assert "spatial:" in conv_names
+        assert "proj" in conv_names
+        assert "spatial" in conv_names
         assert attrs["proj:code"] == CRS
         assert attrs["spatial:dimensions"] == ["y", "x"]
         bbox = attrs["spatial:bbox"]
@@ -1706,8 +1706,8 @@ class TestMinispecConformance:
         for level_name, _, _ in OVERVIEW_CHAIN:
             attrs = dict(_group(orbit, level_name).attrs)
             declared = self._declared_conventions(attrs)
-            assert "spatial:" in declared, f"{level_name} does not declare the spatial convention"
-            assert "proj:" in declared, f"{level_name} does not declare the geo-proj convention"
+            assert "spatial" in declared, f"{level_name} does not declare the spatial convention"
+            assert "proj" in declared, f"{level_name} does not declare the geo-proj convention"
             assert attrs["spatial:dimensions"] == ["y", "x"], level_name
 
     def test_conditions_group_has_coordinate_arrays(
@@ -1723,8 +1723,8 @@ class TestMinispecConformance:
         assert {"x", "y"} <= arrays, f"conditions group has no coordinate arrays: {sorted(arrays)}"
 
         declared = self._declared_conventions(dict(conditions.attrs))
-        assert "spatial:" in declared
-        assert "proj:" in declared
+        assert "spatial" in declared
+        assert "proj" in declared
 
         # x/y must describe the grid the group's own attrs record.
         transform = dict(conditions.attrs)["spatial:transform"]
