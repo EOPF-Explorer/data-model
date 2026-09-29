@@ -14,6 +14,7 @@ jobs:
     permissions:
       contents: write  # release-please creates releases and version bump commits
       pull-requests: write  # release-please opens and updates release PRs
+      actions: write  # dispatch the Release workflow for a new release
     steps:
       - name: Release Please
         id: release
@@ -21,3 +22,13 @@ jobs:
         with:
           config-file: "release-please-config.json"
           manifest-file: ".release-please-manifest.json"
+
+      # Events from the default GITHUB_TOKEN do not start other workflows, so the
+      # `release: published` trigger of release.yml never fires for releases made
+      # here. workflow_dispatch is the documented exception.
+      - name: Publish the release to PyPI
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main -f tag="$TAG"
