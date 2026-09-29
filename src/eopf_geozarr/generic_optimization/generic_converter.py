@@ -29,11 +29,12 @@ def create_generic_geozarr_dataset(
     output_path: str,
     spatial_chunk: int,
     enable_sharding: bool,
-    compression_level: int,
-    keep_scale_offset: bool,
+    compression_level: int = 3,
+    keep_scale_offset: bool = True,
 ) -> xr.DataTree:
     """
-    Create a GeoZarr-spec compliant dataset from EOPF data.
+    Create a GeoZarr-spec compliant dataset from EOPF data with CPM 3.0.0.
+    Possibly backward compatabile but not verified and not required, as this generic converter is (so far) only used by EODC which uses solely CPM 3.0.0
 
     Parameters
     ----------
@@ -41,18 +42,13 @@ def create_generic_geozarr_dataset(
         Input EOPF DataTree
     output_path : str
         Output path for the Zarr store
-    spatial_chunk : int, default 4096
+    spatial_chunk : int, default 1024 (loaded in the writer.py script)
         Spatial chunk size for encoding
-    min_dimension : int, default 256
-        Minimum dimension for overview levels
-    max_retries : int, default 3
-        Maximum number of retries for network operations
-    crs_groups : Iterabl[str], optional
-        Iterable of group names that need CRS information added on best-effort basis
-    gcp_group : str, optional
-        Group name where GCPs (Ground Control Points) are located.
-    enable_sharding : bool, default False
+    enable_sharding : bool
         Enable zarr sharding for spatial dimensions of each variable
+    compression_level: int, default 3
+    keep_scale_offset: bool, default True
+        Keep uint16 and scale/offset attributes
 
     Returns
     -------
@@ -108,8 +104,7 @@ def create_generic_geozarr_dataset(
         )
         processed_groups[group_path] = ds_out
 
-    # root level consolidation
-    # utils.simple_root_consolidation(dt_input, output_path, processed_groups)
+    # root/sub-root level consolidation and attribute handling
     utils.updated_root_consolidation(dt_input, output_path, processed_groups)
 
     # Create result DataTree
@@ -120,4 +115,4 @@ def create_generic_geozarr_dataset(
 
     utils.optimization_summary(dt_input, result_dt, output_path)
 
-    return dt_input
+    return result_dt
