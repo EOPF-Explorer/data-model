@@ -757,14 +757,21 @@ def create_uniform_encoding(
         # --- Forward-propagate remaining encoding keys ---------------------
         keep_keys = XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks"}
 
+        # Only floats can hold a NaN fill value. Integer, bool and complex
+        # variables are written in their own dtype, with the same fill-value
+        # handling as keep_scale_offset=True.
+        # Note: an integer variable that still carries scale_factor/add_offset
+        # (a source opened with mask_and_scale=False) keeps them and is not
+        # decoded, even with keep_scale_offset=False.
+        is_float = np.issubdtype(var_data.dtype, np.floating)
+
         # Whether to inject a CF _FillValue attribute for xarray issue #11345.
         # The injection itself happens after sanitize_array_attrs below, which
         # would otherwise strip it.
         inject_nan_fillvalue = False
 
-        if not keep_scale_offset:
-            # When stripping scale/offset, also strip _FillValue since the original
-            # _FillValue is in raw integer units and meaningless for decoded float data.
+        if not keep_scale_offset and is_float:
+            # Decoded float data: strip scale/offset and the source _FillValue (it is in raw integer units) and use NaN as the fill value.
             keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue"}
             var_encoding["fill_value"] = "NaN"
             inject_nan_fillvalue = True
@@ -797,15 +804,10 @@ def create_uniform_encoding(
         # Sanitize source-only attributes (replace dict — ``.update`` cannot
         # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
         # otherwise leak into the output).
-        is_float = np.issubdtype(var_data.dtype, np.floating)
         var_data.attrs = sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
         if inject_nan_fillvalue:
+            # assign nan as fill values if its already a float
             var_data.attrs["_FillValue"] = np.nan
-
-            # need to validate this logic here - not tested but kept from orignal encoding function
-            # original_encoding = var_data.encoding
-            # dataset[var_name] = var_data.astype(np.float32)
-            # dataset[var_name].encoding = original_encoding
 
         encoding[str(var_name)] = var_encoding
 
