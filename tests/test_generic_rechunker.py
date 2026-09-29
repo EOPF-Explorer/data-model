@@ -7,7 +7,6 @@ install. The CPM writer's ``generic_rechunker=True`` option is tested in
 
 from __future__ import annotations
 
-import json
 import pathlib
 from typing import Any
 
@@ -20,13 +19,9 @@ from zarr.codecs import BloscCodec
 
 from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 
-from .conftest import create_zarrv3_group_from_json, get_stem, read_json
+from .conftest import create_zarrv3_group_from_json, get_stem
 
-s1_slc_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_slc_examples").glob("*.json"))
-
-#: Cap for every array dimension of the S1 SLC fixture. A full burst holds a
-#: (2, ~1500, ~24000) complex64 array, far too large to convert in a unit test.
-SLC_MAX_DIM_SIZE = 64
+s1_grdh_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_grdh_examples").glob("*.json"))
 
 
 def build_synthetic_tree() -> xr.DataTree:
@@ -77,33 +72,20 @@ def leaf_groups_with_data(tree: xr.DataTree) -> list[str]:
     )
 
 
-def _cap_array_shapes(node: dict[str, Any], max_dim_size: int) -> None:
-    """Cap every array dimension (and its chunk size) at `max_dim_size`, in place.
+def open_zarrv3_example(source_path: pathlib.Path, tmp_path: pathlib.Path) -> xr.DataTree:
+    """Build a Zarr V3 product fixture at its full size and open it like the SAFE reader.
 
-    Arrays that share a dimension name share its original size, so they still
-    agree after capping.
+    Reading from Zarr attaches on-disk encoding (`dtype`, `units`, `calendar`,
+    `fill_value`, ...) to every variable, while the CPM SAFE reader hands the
+    writer variables with an empty encoding. Clear it so the converter gets the
+    same input as in a SAFE -> geozarr conversion.
     """
-    if node["node_type"] == "array":
-        node["shape"] = [min(size, max_dim_size) for size in node["shape"]]
-        config = node["chunk_grid"]["configuration"]
-        config["chunk_shape"] = [
-            min(chunk, size)
-            for chunk, size in zip(config["chunk_shape"], node["shape"], strict=True)
-        ]
-        return
-    for member in (node.get("members") or {}).values():
-        _cap_array_shapes(member, max_dim_size)
-
-
-def open_capped_s1_slc_example(source_path: pathlib.Path, tmp_path: pathlib.Path) -> xr.DataTree:
-    """Build the S1 SLC fixture as a Zarr V3 store with capped array sizes and open it."""
-    spec = read_json(source_path)
-    _cap_array_shapes(spec, SLC_MAX_DIM_SIZE)
-    capped_json = tmp_path / "capped" / source_path.name
-    capped_json.parent.mkdir()
-    capped_json.write_text(json.dumps(spec))
-    store = create_zarrv3_group_from_json(capped_json, tmp_path)
-    return xr.open_datatree(store, engine="zarr", chunks={})
+    store = create_zarrv3_group_from_json(source_path, tmp_path)
+    tree = xr.open_datatree(store, engine="zarr", chunks={})
+    for node in tree.subtree:
+        for variable in node.variables.values():
+            variable.encoding = {}
+    return tree
 
 
 def read_array(output_path: pathlib.Path, path: str) -> zarr.Array:
@@ -249,19 +231,23 @@ def test_writes_variables_of_groups_with_children(tmp_path: pathlib.Path) -> Non
 
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
 @pytest.mark.parametrize("keep_scale_offset", [True, False])
-@pytest.mark.parametrize("source_path", s1_slc_example_json_paths, ids=get_stem)
-def test_s1_slc_example_converts(
+@pytest.mark.parametrize("source_path", s1_grdh_example_json_paths, ids=get_stem)
+def test_s1_grdh_example_converts(
     source_path: pathlib.Path, tmp_path: pathlib.Path, keep_scale_offset: bool
 ) -> None:
-    """Every data group of every burst of a real S1 SLC layout is written."""
-    tree = open_capped_s1_slc_example(source_path, tmp_path)
+    """Every data group of a full-size S1 GRDH product (Zarr V3) is written."""
+    tree = open_zarrv3_example(source_path, tmp_path)
     expected_groups = leaf_groups_with_data(tree)
     assert expected_groups, "fixture has no data groups"
 
-    _, output_path = convert(tree, tmp_path, spatial_chunk=32, keep_scale_offset=keep_scale_offset)
+    _, output_path = convert(
+        tree, tmp_path, spatial_chunk=1024, keep_scale_offset=keep_scale_offset
+    )
 
     root = zarr.open_group(str(output_path), mode="r")
     missing = [group for group in expected_groups if group.lstrip("/") not in root]
     assert missing == []
-    for burst in tree.children:
-        assert read_array(output_path, f"{burst}/measurements/slc").dtype == np.dtype("complex64")
+    for product in tree.children:
+        grd = read_array(output_path, f"{product}/measurements/grd")
+        assert grd.shape == tree[f"{product}/measurements/grd"].shape
+        assert grd.chunks[1:] == (1024, 1024)

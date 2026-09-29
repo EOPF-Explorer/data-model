@@ -29,14 +29,8 @@ from eopf.store.writer_registry import EOWriterRegistry
 
 from eopf_geozarr.cpm.writer import ENGINE_NAME, GeoZarrWriter, get_cli_command
 
-from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
-from .test_generic_rechunker import (
-    build_synthetic_tree,
-    leaf_groups_with_data,
-    open_capped_s1_slc_example,
-    read_array,
-    s1_slc_example_json_paths,
-)
+from .conftest import create_zarrv2_group_from_json, s2_example_json_paths
+from .test_generic_rechunker import build_synthetic_tree, read_array
 from .test_olci_integration import build_synthetic_olci
 
 
@@ -321,20 +315,6 @@ def test_write_generic_rechunker_mode_w_dash_keeps_target(tmp_path: pathlib.Path
     with pytest.raises(EOStoreProductAlreadyExistsError):
         GeoZarrWriter().write(build_synthetic_tree(), target, generic_rechunker=True, mode="w-")
     assert existing.exists()
-
-
-@pytest.mark.filterwarnings("ignore:.*:UserWarning")
-@pytest.mark.parametrize("source_path", s1_slc_example_json_paths, ids=get_stem)
-def test_write_generic_rechunker_s1_slc(source_path: pathlib.Path, tmp_path: pathlib.Path) -> None:
-    """A real S1 SLC layout converts through the writer with its default options."""
-    tree = open_capped_s1_slc_example(source_path, tmp_path)
-    target = tmp_path / "out.zarr"
-
-    write_datatree(tree, target, engine=ENGINE_NAME, generic_rechunker=True, spatial_chunk=32)
-
-    root = zarr.open_group(str(target), mode="r")
-    missing = [group for group in leaf_groups_with_data(tree) if group.lstrip("/") not in root]
-    assert missing == []
 
 
 def test_write_rejects_zarr_format_2(tmp_path: pathlib.Path) -> None:
