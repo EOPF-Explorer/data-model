@@ -106,7 +106,10 @@ def test_write_olci_forced_pipeline(tmp_path: pathlib.Path) -> None:
 
 def test_write_rejects_both_s2_and_olci_forced(tmp_path: pathlib.Path) -> None:
     """s2_optimized=True and s3_olci_optimized=True together is a usage error."""
-    with pytest.raises(ValueError, match="cannot both be True"):
+    with pytest.raises(
+        ValueError,
+        match="Only one of s2_optimized, s3_olci_optimized and generic_rechunker",
+    ):
         GeoZarrWriter().write(
             xr.DataTree(),
             tmp_path / "out.zarr",

@@ -69,7 +69,12 @@ ENGINE_NAME = "geozarr"
 _SUPPORTED_MODES = ("w", "w-")
 
 #: Default spatial chunk size per pipeline, matching the eopf-geozarr CLI.
-_DEFAULT_SPATIAL_CHUNK = {"s2-optimized": 256, "s3-olci-optimized": 1024, "generic": 4096}
+_DEFAULT_SPATIAL_CHUNK = {
+    "s2-optimized": 256,
+    "s3-olci-optimized": 1024,
+    "generic": 4096,
+    "generic_rechunker": 1024,
+}
 
 
 class GeoZarrWriter(EOWriter):
@@ -213,6 +218,12 @@ class GeoZarrWriter(EOWriter):
                 s3_olci_optimized=s3_olci_optimized,
             ),
         )
+        if selected_pipeline == "generic" and groups is None:
+            raise ValueError(
+                "The generic GeoZarr pipeline requires the 'groups' option naming the "
+                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
+                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
+            )
         resolved_spatial_chunk = (
             spatial_chunk
             if spatial_chunk is not None
@@ -261,25 +272,19 @@ class GeoZarrWriter(EOWriter):
                 keep_scale_offset=keep_scale_offset,
             )
 
-        if selected_pipeline == "generic":
-            if groups is None:
-                raise ValueError(
-                    "The generic GeoZarr pipeline requires the 'groups' option naming the "
-                    "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
-                    "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
-                )
-            return create_geozarr_dataset(
-                dt_input=dtree,
-                groups=list(groups),
-                output_path=output_path,
-                spatial_chunk=resolved_spatial_chunk,
-                min_dimension=min_dimension,
-                max_retries=max_retries,
-                crs_groups=list(crs_groups) if crs_groups is not None else None,
-                gcp_group=gcp_group,
-                enable_sharding=enable_sharding,
-            )
-        return None
+        # last validation and calling of the generic geizar writer
+        assert groups is not None
+        return create_geozarr_dataset(
+            dt_input=dtree,
+            groups=list(groups),
+            output_path=output_path,
+            spatial_chunk=resolved_spatial_chunk,
+            min_dimension=min_dimension,
+            max_retries=max_retries,
+            crs_groups=list(crs_groups) if crs_groups is not None else None,
+            gcp_group=gcp_group,
+            enable_sharding=enable_sharding,
+        )
 
     def validate_write_options(
         self,
