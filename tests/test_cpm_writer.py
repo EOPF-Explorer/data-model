@@ -29,7 +29,14 @@ from eopf.store.writer_registry import EOWriterRegistry
 
 from eopf_geozarr.cpm.writer import ENGINE_NAME, GeoZarrWriter, get_cli_command
 
-from .conftest import create_zarrv2_group_from_json, s2_example_json_paths
+from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
+from .test_generic_rechunker import (
+    build_synthetic_tree,
+    leaf_groups_with_data,
+    open_capped_s1_slc_example,
+    read_array,
+    s1_slc_example_json_paths,
+)
 from .test_olci_integration import build_synthetic_olci
 
 
@@ -223,6 +230,111 @@ def test_write_accepts_compute_true(tmp_path: pathlib.Path) -> None:
 def test_write_rejects_compute_false(tmp_path: pathlib.Path) -> None:
     with pytest.raises(NotImplementedError, match="compute"):
         GeoZarrWriter().write(xr.DataTree(), tmp_path / "out.zarr", compute=False)
+
+
+def _tree_with_product_type(product_type: str) -> xr.DataTree:
+    tree = xr.DataTree()
+    tree.attrs = {"stac_discovery": {"properties": {"product:type": product_type}}}
+    return tree
+
+
+@pytest.mark.parametrize(
+    ("product_type", "expected"),
+    [
+        ("S02MSIL2A", "s2-optimized"),
+        ("S03OLCEFR", "s3-olci-optimized"),
+        ("S01SIWSLC", "generic_rechunker"),
+    ],
+)
+def test_resolve_forced_pipeline_generic_rechunker(product_type: str, expected: str) -> None:
+    """generic_rechunker=True keeps S2 and OLCI on their optimized pipelines."""
+    resolved = GeoZarrWriter._resolve_forced_pipeline(
+        _tree_with_product_type(product_type),
+        generic_rechunker=True,
+        s2_optimized=None,
+        s3_olci_optimized=None,
+    )
+    assert resolved == expected
+
+
+@pytest.mark.parametrize(
+    ("generic_rechunker", "s2_optimized", "s3_olci_optimized"),
+    [(True, True, None), (True, None, True), (True, True, True)],
+)
+def test_resolve_forced_pipeline_rejects_generic_rechunker_with_other_forced(
+    generic_rechunker: bool | None, s2_optimized: bool | None, s3_olci_optimized: bool | None
+) -> None:
+    with pytest.raises(ValueError, match="Only one of"):
+        GeoZarrWriter._resolve_forced_pipeline(
+            xr.DataTree(),
+            generic_rechunker=generic_rechunker,
+            s2_optimized=s2_optimized,
+            s3_olci_optimized=s3_olci_optimized,
+        )
+
+
+def test_write_generic_rechunker_end_to_end(tmp_path: pathlib.Path) -> None:
+    """generic_rechunker=True converts every data group without the 'groups' option."""
+    target = tmp_path / "out.zarr"
+
+    write_datatree(
+        build_synthetic_tree(),
+        target,
+        engine=ENGINE_NAME,
+        generic_rechunker=True,
+        spatial_chunk=128,
+    )
+
+    assert read_array(target, "measurements/amplitude").chunks == (128, 128)
+    assert "incidence_angle" in zarr.open_group(str(target), mode="r")["conditions/geometry"]
+
+
+def test_write_generic_rechunker_default_spatial_chunk(tmp_path: pathlib.Path) -> None:
+    """Without spatial_chunk, the generic_rechunker pipeline chunks at 1024."""
+    tree = xr.DataTree()
+    tree["measurements"] = xr.Dataset({"var": (("y", "x"), np.zeros((1500, 20), "float32"))})
+    target = tmp_path / "out.zarr"
+
+    GeoZarrWriter().write(tree, target, generic_rechunker=True)
+
+    assert read_array(target, "measurements/var").chunks == (1024, 20)
+
+
+def test_write_generic_rechunker_mode_w_replaces_target(tmp_path: pathlib.Path) -> None:
+    target = tmp_path / "out.zarr"
+    target.mkdir()
+    stale = target / "previous-product-content"
+    stale.touch()
+
+    GeoZarrWriter().write(build_synthetic_tree(), target, generic_rechunker=True, mode="w")
+
+    assert not stale.exists()
+    assert "amplitude" in zarr.open_group(str(target), mode="r")["measurements"]
+
+
+def test_write_generic_rechunker_mode_w_dash_keeps_target(tmp_path: pathlib.Path) -> None:
+    target = tmp_path / "out.zarr"
+    target.mkdir()
+    existing = target / "previous-product-content"
+    existing.touch()
+
+    with pytest.raises(EOStoreProductAlreadyExistsError):
+        GeoZarrWriter().write(build_synthetic_tree(), target, generic_rechunker=True, mode="w-")
+    assert existing.exists()
+
+
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+@pytest.mark.parametrize("source_path", s1_slc_example_json_paths, ids=get_stem)
+def test_write_generic_rechunker_s1_slc(source_path: pathlib.Path, tmp_path: pathlib.Path) -> None:
+    """A real S1 SLC layout converts through the writer with its default options."""
+    tree = open_capped_s1_slc_example(source_path, tmp_path)
+    target = tmp_path / "out.zarr"
+
+    write_datatree(tree, target, engine=ENGINE_NAME, generic_rechunker=True, spatial_chunk=32)
+
+    root = zarr.open_group(str(target), mode="r")
+    missing = [group for group in leaf_groups_with_data(tree) if group.lstrip("/") not in root]
+    assert missing == []
 
 
 def test_write_rejects_zarr_format_2(tmp_path: pathlib.Path) -> None:
