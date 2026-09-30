@@ -3,6 +3,14 @@ name: Release
 on:
   release:
     types: [published]
+  # Releases created by release-please use the default GITHUB_TOKEN, which does
+  # not trigger the `release` event; release-please.yml dispatches this instead.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and publish (for example v0.12.0)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,12 +24,13 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        ref: ${{ inputs.tag || github.ref }}
         persist-credentials: false
 
     - name: Set up Python
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: Install build dependencies
       run: |
@@ -58,3 +67,5 @@ jobs:
       uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
       with:
         packages-dir: dist/
+        # A tag can be published by both a manual release and a dispatch.
+        skip-existing: true
