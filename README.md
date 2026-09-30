@@ -292,12 +292,11 @@ layout (`convert-s2-optimized`).  The three native resolution groups (10 m, 20 m
 60 m) are reused as-is and coarser overviews (120 m, 360 m, 720 m) are computed
 via /2 downsampling.
 
-Every level keeps the packing of the source product (for example `uint16` for
-reflectance). By default the Zarr `scale_offset` + `cast_value` codecs store it,
-so Zarr readers return decoded values. Pass `--no-scale-offset-codec` to write the ESA
-layout instead: packed integers with CF `scale_factor`, `add_offset` and
-`_FillValue`, and STAC `raster:scale`/`raster:offset`/`nodata` (see
-[docs/converter.md](docs/converter.md#encoding)).
+Every level keeps the packing of the source product, as in the ESA product:
+packed integers (for example `uint16` for reflectance) with CF `scale_factor`,
+`add_offset` and `_FillValue`, and STAC `raster:scale`/`raster:offset`/`nodata`.
+Pass `--scale-offset-codec` to store the packing with the Zarr `scale_offset` +
+`cast_value` codecs instead (see [docs/converter.md](docs/converter.md#encoding)).
 
 ### Sentinel-3 OLCI L1 EFR
 

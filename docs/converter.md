@@ -206,26 +206,29 @@ S2 L2A). One option selects how that packing is stored:
 
 | Mode | Option | On disk | Metadata |
 |---|---|---|---|
-| Default: Zarr codec | none | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes and no STAC scale fields: Zarr readers return decoded values |
-| ESA layout | `--no-scale-offset-codec` / `scale_offset_codec=False` | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays; `raster:scale`, `raster:offset` and `nodata` on the STAC `reflectance` asset |
+| Default: ESA layout | none | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays; `raster:scale`, `raster:offset` and `nodata` on the STAC `reflectance` asset |
+| Zarr codec | `--scale-offset-codec` / `scale_offset_codec=True` | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes and no STAC scale fields: Zarr readers return decoded values |
 
 What a reader needs:
 
-- Default mode: a Zarr library that supports the `scale_offset` and
-  `cast_value` codecs, for example zarr-python with the `cast-value-rs` extra,
-  or zarrita (used by the OpenLayers `GeoZarr` source).
-- ESA layout: a reader that applies the CF attributes. xarray does this by
-  default (`mask_and_scale=True`); zarrita does not.
+- ESA layout (default): a reader that uses the CF attributes. xarray
+  (`mask_and_scale=True`, the default) and titiler apply them, and GDAL reports
+  them as band scale and offset; zarrita (used by the OpenLayers `GeoZarr`
+  source) ignores them. This is also the encoding of the
+  EOPF Sentinel Zarr Samples Service products.
+- Zarr codec: a Zarr library that supports the `scale_offset` and `cast_value`
+  codecs, for example zarr-python with the `cast-value-rs` extra, or zarrita.
+  GDAL does not support them yet (OSGeo/gdal#15170).
 
 The input can be opened raw (`mask_and_scale=False`, as in the CPM path) or
 decoded (as in the CLI). Both give the same output. Arrays without a packing,
 such as the classification and quality masks, keep their integer dtype and
 fill value in both modes.
 
-In the CPM writer (`eopf convert-geozarr --no-scale-offset-codec` or
-`target_store_kwargs={"scale_offset_codec": False}`), the former
+In the CPM writer (`eopf convert-geozarr --scale-offset-codec` or
+`target_store_kwargs={"scale_offset_codec": True}`), the former
 `keep_scale_offset` option is still accepted for one release with a
-`DeprecationWarning`: `keep_scale_offset=True` selects the ESA layout.
+`DeprecationWarning`: `keep_scale_offset=False` selects the codecs.
 
 ## Sentinel-3 OLCI L1 EFR Conversion
 

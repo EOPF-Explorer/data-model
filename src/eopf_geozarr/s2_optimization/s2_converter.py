@@ -215,7 +215,7 @@ def convert_s2_optimized(
     spatial_chunk: int,
     compression_level: int,
     validate_output: bool,
-    scale_offset_codec: bool = True,
+    scale_offset_codec: bool = False,
     max_retries: int = 3,
 ) -> xr.DataTree:
     """
@@ -229,7 +229,7 @@ def convert_s2_optimized(
         compression_level: Compression level 1-9
         validate_output: Whether to validate the output
         scale_offset_codec: Pack reflectance with the Zarr `scale_offset` +
-            `cast_value` codecs (default). False writes it as in the ESA
+            `cast_value` codecs. By default it is written as in the ESA
             product: packed integers with CF `scale_factor` / `add_offset` /
             `_FillValue` and STAC `raster:scale` / `raster:offset` / `nodata`.
         max_retries: Maximum number of retries for network operations
@@ -298,7 +298,7 @@ def simple_root_consolidation(
     datasets: Mapping[str, object],
     dt_input: xr.DataTree | None = None,
     crs: CRS | None = None,
-    scale_offset_codec: bool = True,
+    scale_offset_codec: bool = False,
 ) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
     # create missing intermediary groups (/conditions, /quality, etc.)

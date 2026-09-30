@@ -89,21 +89,9 @@ def _reflectance_asset(root: zarr.Group) -> dict[str, Any]:
     return cast("dict[str, Any]", stac["assets"]["reflectance"])
 
 
-def test_write_s2_default_uses_scale_offset_codecs(tmp_path: pathlib.Path) -> None:
-    """By default, packed reflectance is stored with Zarr codecs and no CF scale attributes."""
+def test_write_s2_default_writes_esa_layout(tmp_path: pathlib.Path) -> None:
+    """By default, packed reflectance keeps the ESA layout: uint16 with CF and STAC scale fields."""
     root = _write_s2(tmp_path)
-    b04 = root["measurements/reflectance/r10m/b04"]
-    assert isinstance(b04, zarr.Array)
-    assert b04.dtype == np.float32
-    assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
-    assert "scale_factor" not in b04.attrs
-    asset = _reflectance_asset(root)
-    assert "raster:scale" not in asset
-
-
-def test_write_s2_without_scale_offset_codec(tmp_path: pathlib.Path) -> None:
-    """`scale_offset_codec=False` writes the ESA layout: uint16 with CF and STAC scale fields."""
-    root = _write_s2(tmp_path, scale_offset_codec=False)
     b04 = root["measurements/reflectance/r10m/b04"]
     assert isinstance(b04, zarr.Array)
     assert b04.dtype == np.uint16
@@ -116,13 +104,26 @@ def test_write_s2_without_scale_offset_codec(tmp_path: pathlib.Path) -> None:
     assert asset["nodata"] == 0
 
 
-def test_write_s2_keep_scale_offset_is_deprecated(tmp_path: pathlib.Path) -> None:
-    """`keep_scale_offset=True` still works for one release and selects the ESA layout."""
-    with pytest.warns(DeprecationWarning, match="scale_offset_codec"):
-        root = _write_s2(tmp_path, keep_scale_offset=True)
+def test_write_s2_scale_offset_codec(tmp_path: pathlib.Path) -> None:
+    """`scale_offset_codec=True` stores the packing in Zarr codecs, without CF or STAC scale fields."""
+    root = _write_s2(tmp_path, scale_offset_codec=True)
     b04 = root["measurements/reflectance/r10m/b04"]
     assert isinstance(b04, zarr.Array)
-    assert b04.dtype == np.uint16
+    assert b04.dtype == np.float32
+    assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
+    assert "scale_factor" not in b04.attrs
+    asset = _reflectance_asset(root)
+    assert "raster:scale" not in asset
+
+
+def test_write_s2_keep_scale_offset_is_deprecated(tmp_path: pathlib.Path) -> None:
+    """`keep_scale_offset` still works for one release; `False` selects the codecs."""
+    with pytest.warns(DeprecationWarning, match="scale_offset_codec"):
+        root = _write_s2(tmp_path, keep_scale_offset=False)
+    b04 = root["measurements/reflectance/r10m/b04"]
+    assert isinstance(b04, zarr.Array)
+    assert b04.dtype == np.float32
+    assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
 
 
 def test_write_olci_end_to_end(tmp_path: pathlib.Path) -> None:
