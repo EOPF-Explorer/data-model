@@ -16,9 +16,9 @@ eopf convert-geozarr S2B_MSIL2A_….SAFE out.zarr --enable-sharding
 # Sentinel-3 OLCI EFR on a regular WGS 84 grid
 eopf convert-geozarr S3A_OL_1_EFR____….SEN3 out.zarr --output-grid EPSG:4326
 
-# Sentinel-2 to S3, with the ESA layout (CF scale attributes)
+# Sentinel-2 to S3, packed with the Zarr scale-offset codecs
 eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/out.zarr \
-    --stage-output --no-scale-offset-codec
+    --stage-output --scale-offset-codec
 ```
 
 ```python

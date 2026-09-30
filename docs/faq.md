@@ -68,11 +68,12 @@ pip install "eopf-geozarr[cpm]"   # or eopf-geozarr without the CPM driver
 
 ### Why are my reflectance values integers, or why do they have NaN?
 
-eopf-geozarr keeps the packing of the source product. By default the Zarr
-`scale_offset` + `cast_value` codecs store the packed integers, and Zarr
-readers return decoded reflectance with NaN for nodata. With
-`--no-scale-offset-codec`, the arrays keep CF `scale_factor`/`add_offset`
-attributes instead, and readers must apply them (xarray does by default). See
+eopf-geozarr keeps the packing of the source product. By default the arrays
+are packed integers with CF `scale_factor`/`add_offset`/`_FillValue`
+attributes, as in the ESA products: xarray applies them by default, but a
+plain Zarr reader returns the integers. With `--scale-offset-codec`, the Zarr
+`scale_offset` + `cast_value` codecs store the packing instead, and Zarr readers
+that support these codecs return decoded reflectance with NaN for nodata. See
 [Encoding](converter.md#encoding).
 
 ### How do I set up AWS credentials?

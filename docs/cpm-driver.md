@@ -56,7 +56,7 @@ eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/path/out.zarr --stage-outpu
 |---|---|---|
 | `--spatial-chunk INTEGER` | all | Spatial chunk size. Default: 256 (Sentinel-2), 1024 (Sentinel-3 OLCI), 4096 (generic). |
 | `--enable-sharding` | all | Enable Zarr v3 sharding. |
-| `--no-scale-offset-codec` | Sentinel-2 | Write packed reflectance as in the ESA product (CF `scale_factor`/`add_offset`/`_FillValue`) instead of the default Zarr scale-offset codecs. See [Encoding](converter.md#encoding). |
+| `--scale-offset-codec` | Sentinel-2 | Pack reflectance with the Zarr `scale_offset` + `cast_value` codecs instead of the default ESA layout (CF `scale_factor`/`add_offset`/`_FillValue`). See [Encoding](converter.md#encoding). |
 | `--output-grid TEXT` | Sentinel-3 OLCI | `native` (default) keeps the instrument swath geometry. A CRS string (for example `EPSG:4326`) warps the swath onto a regular grid. |
 | `--min-dimension INTEGER` | Sentinel-3 OLCI, generic | Minimum dimension of the coarsest overview level. Default: 256. |
 | `--groups TEXT` | generic | DataTree group to convert. Repeat the option for more groups. Required on the generic pipeline. |
@@ -109,7 +109,7 @@ arguments (with `write_datatree`). Unknown options raise `NotImplementedError`.
 | `s3_olci_optimized` | `None` | `True` forces the Sentinel-3 OLCI pipeline, `False` falls back to Sentinel-2 or generic detection, `None` detects the product. Cannot be `True` together with `s2_optimized=True`. |
 | `spatial_chunk` | per pipeline | 256 (Sentinel-2), 1024 (Sentinel-3 OLCI), 4096 (generic). |
 | `enable_sharding` | `False` | Enable Zarr v3 sharding. |
-| `scale_offset_codec` | `True` | Sentinel-2: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. `False` writes the ESA layout with CF and STAC scale fields. |
+| `scale_offset_codec` | `False` | Sentinel-2: `True` packs reflectance with the Zarr `scale_offset` + `cast_value` codecs. `False` keeps the ESA layout with CF and STAC scale fields. |
 | `compression_level` | `3` | Sentinel-2: Blosc zstd compression level. |
 | `validate_output` | `False` | Sentinel-2: validate the output after writing. |
 | `output_grid` | `"native"` | Sentinel-3 OLCI: `native` or a CRS string to warp onto. |
@@ -118,7 +118,7 @@ arguments (with `write_datatree`). Unknown options raise `NotImplementedError`.
 | `crs_groups` | `None` | Generic: groups that get CRS information added. |
 | `gcp_group` | `None` | Generic: group with ground control points (Sentinel-1). |
 | `max_retries` | `3` | Retries for network operations. |
-| `keep_scale_offset` | — | Deprecated, use `scale_offset_codec`. `keep_scale_offset=True` is `scale_offset_codec=False`. |
+| `keep_scale_offset` | — | Deprecated. `keep_scale_offset=True` is the default ESA layout; `keep_scale_offset=False` is `scale_offset_codec=True`. |
 
 ## Product routing
 

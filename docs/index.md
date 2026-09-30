@@ -60,9 +60,9 @@ Both paths run the same pipelines and write the same GeoZarr output.
 - **Native projections**: UTM and other source CRSs are kept; nothing is
   reprojected to Web Mercator.
 - **Multiscale pyramids** for fast visualization at every zoom level.
-- **Source packing**: reflectance stays as packed integers, stored by default
-  with the Zarr `scale_offset` + `cast_value` codecs, or with CF attributes
-  on request. See [Encoding](converter.md#encoding).
+- **Source packing**: reflectance stays as packed integers with CF
+  attributes, as in the ESA products, or packed by the Zarr `scale_offset` +
+  `cast_value` codecs on request. See [Encoding](converter.md#encoding).
 - **Cloud storage**: write to local paths or S3-compatible object storage.
 - **Validation**: `eopf-geozarr validate` checks a store against the mini spec.
 

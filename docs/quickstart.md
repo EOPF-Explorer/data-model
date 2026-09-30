@@ -86,9 +86,9 @@ print(reflectance.attrs["multiscales"]["layout"][0])  # first pyramid level
 print(reflectance["r720m"].ds)  # coarsest overview, decoded to reflectance
 ```
 
-Reflectance is stored as packed integers. xarray and zarr-python return the
-decoded values. See [Encoding](converter.md#encoding) for the two storage
-modes.
+Reflectance is stored as packed integers with CF `scale_factor`/`add_offset`
+attributes. xarray applies them and returns reflectance values. See
+[Encoding](converter.md#encoding) for the two storage modes.
 
 ## Next steps
 
