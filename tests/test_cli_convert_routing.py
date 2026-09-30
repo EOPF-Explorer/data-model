@@ -103,8 +103,8 @@ def test_convert_command_routes_s2_to_optimized(
 
     assert "s2_optimized" in calls_or_fail(converter_spy)
     assert "generic" not in converter_spy
-    # The convert route uses the default encoding (Zarr scale-offset codecs).
-    assert converter_spy["s2_optimized"].get("scale_offset_codec", True) is True
+    # The convert route uses the default encoding (ESA layout with CF attributes).
+    assert converter_spy["s2_optimized"].get("scale_offset_codec", False) is False
 
 
 def test_convert_command_no_s2_optimized_forces_generic(

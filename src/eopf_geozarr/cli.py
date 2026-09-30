@@ -1412,13 +1412,12 @@ def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None
     s2_parser.add_argument("--skip-validation", action="store_true", help="Skip output validation")
     s2_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     s2_parser.add_argument(
-        "--no-scale-offset-codec",
-        dest="scale_offset_codec",
-        action="store_false",
+        "--scale-offset-codec",
+        action="store_true",
         help=(
-            "Write packed reflectance as in the ESA product: source integers with CF "
-            "scale_factor/add_offset/_FillValue and STAC raster:scale/raster:offset/nodata. "
-            "By default the Zarr scale_offset + cast_value codecs pack it."
+            "Pack reflectance with the Zarr scale_offset + cast_value codecs. By default it "
+            "is written as in the ESA product: source integers with CF "
+            "scale_factor/add_offset/_FillValue and STAC raster:scale/raster:offset/nodata."
         ),
     )
     s2_parser.add_argument(

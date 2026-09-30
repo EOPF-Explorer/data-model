@@ -4767,7 +4767,8 @@
               "members": {
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -4792,6 +4793,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -4817,33 +4819,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -4877,12 +4852,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -4893,7 +4868,8 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -4918,6 +4894,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -4943,33 +4920,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5003,12 +4953,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5019,7 +4969,8 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -5044,6 +4995,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5069,33 +5021,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5129,12 +5054,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5145,7 +5070,8 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -5170,6 +5096,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5195,33 +5122,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5255,12 +5155,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980,
@@ -5439,7 +5339,8 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -5464,6 +5365,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5489,33 +5391,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5549,12 +5424,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5565,10 +5440,11 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -5593,6 +5469,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5618,33 +5495,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5678,12 +5528,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5694,10 +5544,11 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -5722,6 +5573,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5747,33 +5599,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5807,12 +5632,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5823,10 +5648,11 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -5851,6 +5677,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -5876,33 +5703,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -5936,12 +5736,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -5952,10 +5752,11 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -5980,6 +5781,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6005,33 +5807,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6065,12 +5840,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6081,10 +5856,11 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -6109,6 +5885,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6134,33 +5911,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6194,12 +5944,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6210,10 +5960,11 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -6238,6 +5989,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6263,33 +6015,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6323,12 +6048,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6339,10 +6064,11 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -6367,6 +6093,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6392,33 +6119,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6452,12 +6152,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6468,7 +6168,8 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -6493,6 +6194,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6518,33 +6220,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6578,12 +6253,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6594,7 +6269,8 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -6619,6 +6295,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6644,33 +6321,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6704,12 +6354,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6720,10 +6370,11 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -6748,6 +6399,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6773,33 +6425,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6833,12 +6458,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6849,10 +6474,11 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -6877,6 +6503,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -6902,33 +6529,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -6962,12 +6562,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -6978,10 +6578,11 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -7006,6 +6607,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7031,33 +6633,6 @@
                           915
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7091,12 +6666,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     915,
@@ -7272,10 +6847,11 @@
               "members": {
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 2,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -7300,6 +6876,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7325,33 +6902,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7385,12 +6935,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7401,10 +6951,11 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 2,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -7429,6 +6980,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7454,33 +7006,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7514,12 +7039,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7530,10 +7055,11 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 2,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -7558,6 +7084,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7583,33 +7110,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7643,12 +7143,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7659,7 +7159,8 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -7684,6 +7185,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7709,33 +7211,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7769,12 +7244,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7785,7 +7260,8 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -7810,6 +7286,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7835,33 +7312,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -7895,12 +7345,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -7911,7 +7361,8 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -7936,6 +7387,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -7961,33 +7413,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8021,12 +7446,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8037,10 +7462,11 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 2,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -8065,6 +7491,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8090,33 +7517,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8150,12 +7550,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8166,7 +7566,8 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -8191,6 +7592,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8216,33 +7618,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8276,12 +7651,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8292,7 +7667,8 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -8317,6 +7693,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8342,33 +7719,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8402,12 +7752,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8418,7 +7768,8 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -8443,6 +7794,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8468,33 +7820,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8528,12 +7853,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490,
@@ -8712,7 +8037,8 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -8737,6 +8063,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8762,33 +8089,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8822,12 +8122,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -8838,10 +8138,11 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -8866,6 +8167,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -8891,33 +8193,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -8951,12 +8226,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -8967,10 +8242,11 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -8995,6 +8271,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9020,33 +8297,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9080,12 +8330,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9096,10 +8346,11 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -9124,6 +8375,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9149,33 +8401,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9209,12 +8434,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9225,10 +8450,11 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -9253,6 +8479,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9278,33 +8505,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9338,12 +8538,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9354,10 +8554,11 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -9382,6 +8583,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9407,33 +8609,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9467,12 +8642,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9483,10 +8658,11 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -9511,6 +8687,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9536,33 +8713,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9596,12 +8746,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9612,10 +8762,11 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -9640,6 +8791,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9665,33 +8817,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9725,12 +8850,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9741,7 +8866,8 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -9766,6 +8892,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9791,33 +8918,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9851,12 +8951,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9867,7 +8967,8 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -9892,6 +8993,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -9917,33 +9019,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -9977,12 +9052,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -9993,10 +9068,11 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -10021,6 +9097,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10046,33 +9123,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10106,12 +9156,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -10122,10 +9172,11 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -10150,6 +9201,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10175,33 +9227,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10235,12 +9260,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -10251,10 +9276,11 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -10279,6 +9305,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10304,33 +9331,6 @@
                           305
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10364,12 +9364,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     305,
@@ -10545,7 +9545,8 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -10570,6 +9571,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10595,33 +9597,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10655,12 +9630,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10671,10 +9646,11 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -10699,6 +9675,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10724,33 +9701,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10784,12 +9734,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10800,10 +9750,11 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -10828,6 +9779,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10853,33 +9805,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -10913,12 +9838,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -10929,10 +9854,11 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -10957,6 +9883,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -10982,33 +9909,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11042,12 +9942,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11058,10 +9958,11 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -11086,6 +9987,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11111,33 +10013,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11171,12 +10046,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11187,10 +10062,11 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -11215,6 +10091,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11240,33 +10117,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11300,12 +10150,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11316,10 +10166,11 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -11344,6 +10195,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11369,33 +10221,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11429,12 +10254,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11445,10 +10270,11 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -11473,6 +10299,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11498,33 +10325,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11558,12 +10358,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11574,7 +10374,8 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -11599,6 +10400,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11624,33 +10426,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11684,12 +10459,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11700,7 +10475,8 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -11725,6 +10501,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11750,33 +10527,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11810,12 +10560,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11826,10 +10576,11 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -11854,6 +10605,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -11879,33 +10631,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -11939,12 +10664,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -11955,10 +10680,11 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -11983,6 +10709,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12008,33 +10735,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12068,12 +10768,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -12084,10 +10784,11 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -12112,6 +10813,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12137,33 +10839,6 @@
                           1024
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12197,12 +10872,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830,
@@ -12381,7 +11056,8 @@
               "members": {
                 "b01": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b01 442.3 nm",
                     "proj:bbox": [
@@ -12406,6 +11082,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12431,33 +11108,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12491,12 +11141,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12507,10 +11157,11 @@
                 },
                 "b02": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
                     "proj:bbox": [
@@ -12535,6 +11186,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12560,33 +11212,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12620,12 +11245,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12636,10 +11261,11 @@
                 },
                 "b03": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
                     "proj:bbox": [
@@ -12664,6 +11290,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12689,33 +11316,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12749,12 +11349,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12765,10 +11365,11 @@
                 },
                 "b04": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
                     "proj:bbox": [
@@ -12793,6 +11394,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12818,33 +11420,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -12878,12 +11453,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -12894,10 +11469,11 @@
                 },
                 "b05": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
                     "proj:bbox": [
@@ -12922,6 +11498,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -12947,33 +11524,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13007,12 +11557,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13023,10 +11573,11 @@
                 },
                 "b06": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
                     "proj:bbox": [
@@ -13051,6 +11602,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13076,33 +11628,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13136,12 +11661,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13152,10 +11677,11 @@
                 },
                 "b07": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
                     "proj:bbox": [
@@ -13180,6 +11706,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13205,33 +11732,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13265,12 +11765,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13281,10 +11781,11 @@
                 },
                 "b08": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r10m",
                     "_factor": 6,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
                     "proj:bbox": [
@@ -13309,6 +11810,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13334,33 +11836,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13394,12 +11869,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13410,7 +11885,8 @@
                 },
                 "b09": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b09 943.2 nm",
                     "proj:bbox": [
@@ -13435,6 +11911,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13460,33 +11937,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13520,12 +11970,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13536,7 +11986,8 @@
                 },
                 "b10": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b10 1376.9 nm",
                     "proj:bbox": [
@@ -13561,6 +12012,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13586,33 +12038,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13646,12 +12071,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13662,10 +12087,11 @@
                 },
                 "b11": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
                     "proj:bbox": [
@@ -13690,6 +12116,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13715,33 +12142,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13775,12 +12175,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13791,10 +12191,11 @@
                 },
                 "b12": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
                     "proj:bbox": [
@@ -13819,6 +12220,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13844,33 +12246,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -13904,12 +12279,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,
@@ -13920,10 +12295,11 @@
                 },
                 "b8a": {
                   "attributes": {
-                    "_FillValue": "AAAAAAAA+H8=",
+                    "_FillValue": 0,
                     "_derived_from": "r20m",
                     "_factor": 3,
                     "_resampling_mode": "mean",
+                    "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
                     "proj:bbox": [
@@ -13948,6 +12324,7 @@
                       0.0,
                       1.0
                     ],
+                    "scale_factor": 0.0001,
                     "units": "1"
                   },
                   "chunk_grid": {
@@ -13973,33 +12350,6 @@
                           152
                         ],
                         "codecs": [
-                          {
-                            "configuration": {
-                              "offset": -0.1,
-                              "scale": 10000.0
-                            },
-                            "name": "scale_offset"
-                          },
-                          {
-                            "configuration": {
-                              "data_type": "uint16",
-                              "scalar_map": {
-                                "decode": [
-                                  [
-                                    0,
-                                    "NaN"
-                                  ]
-                                ],
-                                "encode": [
-                                  [
-                                    "NaN",
-                                    0
-                                  ]
-                                ]
-                              }
-                            },
-                            "name": "cast_value"
-                          },
                           {
                             "configuration": {
                               "endian": "little"
@@ -14033,12 +12383,12 @@
                       "name": "sharding_indexed"
                     }
                   ],
-                  "data_type": "float32",
+                  "data_type": "uint16",
                   "dimension_names": [
                     "y",
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     152,

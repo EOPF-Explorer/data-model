@@ -439,7 +439,7 @@ def create_multiscale_from_datatree(
     enable_sharding: bool,
     spatial_chunk: int,
     crs: CRS | None = None,
-    scale_offset_codec: bool = True,
+    scale_offset_codec: bool = False,
 ) -> dict[str, dict]:
     """
     Create multiscale versions preserving original structure.
@@ -452,7 +452,7 @@ def create_multiscale_from_datatree(
         spatial_chunk: Spatial chunk size
         crs: Coordinate Reference System for datasets
         scale_offset_codec: Pack packed variables with the Zarr scale-offset
-            codecs (default). False writes them with CF attributes, as in the
+            codecs. By default they are written with CF attributes, as in the
             ESA product.
 
     Returns:
@@ -726,7 +726,7 @@ def create_uniform_encoding(
     *,
     spatial_chunk: int,
     enable_sharding: bool = True,
-    scale_offset_codec: bool = True,
+    scale_offset_codec: bool = False,
     compression_level: int = 3,
 ) -> dict[str, XarrayDataArrayEncoding]:
     """
@@ -734,10 +734,10 @@ def create_uniform_encoding(
 
     Packed variables (see `packing_of`) keep their source integer dtype on disk
     and are replaced in `dataset` by their decoded float32 values. By default
-    the Zarr `scale_offset` + `cast_value` codecs pack them, with no CF scale
-    attributes. With `scale_offset_codec=False`, they are written as in the ESA
-    product: packed integers with CF `scale_factor`, `add_offset` and
-    `_FillValue`. Other variables keep their dtype and fill value.
+    they are written as in the ESA product: packed integers with CF
+    `scale_factor`, `add_offset` and `_FillValue`. With `scale_offset_codec`,
+    the Zarr `scale_offset` + `cast_value` codecs pack them instead, with no CF
+    scale attributes. Other variables keep their dtype and fill value.
 
     Chunking is taken from the input dataset's existing chunks when present
     (e.g. a group that's already been rechunked/aggregated, such as a
