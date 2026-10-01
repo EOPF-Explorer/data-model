@@ -15,11 +15,7 @@ from typing_extensions import TypedDict
 if TYPE_CHECKING:
     from pydantic.experimental.missing_sentinel import MISSING as MISSING
 
-from eopf_geozarr.data_api.geozarr.common import (
-    BaseDataArrayAttrs,
-    CFStandardName,
-    DatasetAttrs,
-)
+from eopf_geozarr.data_api.geozarr.common import BaseDataArrayAttrs, DatasetAttrs
 from eopf_geozarr.pyz.v2 import ArraySpec, GroupSpec
 
 # Member type for groups with any nested structures (groups or arrays)
@@ -31,7 +27,7 @@ class Sentinel1DataArrayAttrs(BaseDataArrayAttrs):
     """Extended attributes for Sentinel-1 data arrays."""
 
     long_name: str
-    standard_name: CFStandardName | str | None = None
+    standard_name: str | None = None
     units: str = "1"
 
 
