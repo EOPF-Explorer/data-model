@@ -79,14 +79,28 @@ class Packing(NamedTuple):
     dtype: np.dtype[Any]
 
 
+def find_fill_value(var: xr.DataArray) -> Any:
+    """Return the nodata value of `var` in stored units, or None when it has none.
+
+    This is the CF `_FillValue` (in `.encoding` for decoded input, in `.attrs`
+    for raw input) or, on Zarr v3 CPM products, only the EOPF `fill_value`
+    attribute.
+    """
+    candidates = (
+        var.encoding.get("_FillValue"),
+        var.attrs.get("_FillValue"),
+        var.attrs.get("fill_value"),
+    )
+    return next((value for value in candidates if value is not None), None)
+
+
 def packing_of(var: xr.DataArray) -> Packing | None:
     """Return the CF packing of `var`, or None when it is not packed.
 
     The CF values are in `.encoding` for decoded input (`mask_and_scale=True`)
     and in `.attrs` for raw input (`mask_and_scale=False`). A trivial packing
-    (`scale_factor` 1, `add_offset` 0) counts as not packed. The nodata value
-    can be the CF `_FillValue` or, on Zarr v3 CPM products, only the EOPF
-    `fill_value` attribute or the Zarr `fill_value`.
+    (`scale_factor` 1, `add_offset` 0) counts as not packed. See
+    `find_fill_value` for the nodata value.
     """
     scale = var.encoding.get("scale_factor", var.attrs.get("scale_factor"))
     offset = var.encoding.get("add_offset", var.attrs.get("add_offset"))
@@ -97,14 +111,51 @@ def packing_of(var: xr.DataArray) -> Packing | None:
     dtype = np.dtype(var.encoding.get("dtype", var.dtype))
     if (scale == 1.0 and offset == 0.0) or not np.issubdtype(dtype, np.integer):
         return None
-    candidates = (
-        var.encoding.get("_FillValue"),
-        var.attrs.get("_FillValue"),
-        var.attrs.get("fill_value"),
-        var.encoding.get("fill_value"),
-    )
-    fill = next((value for value in candidates if value is not None), None)
+    fill = find_fill_value(var)
     return Packing(scale, offset, None if fill is None else int(fill), dtype)
+
+
+def _encode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
+    """Return `var` as the packed integers of `packing`, with the CF values in `.attrs`.
+
+    The inverse of `_decode_packed`, for the ESA layout. Raw integer input is
+    kept as it is (no cast); decoded input is packed again, so both input forms
+    end up identical. The nodata value goes to `.encoding["_FillValue"]`.
+    """
+    if np.issubdtype(var.dtype, np.integer):
+        values = var
+    else:
+        # Decoded Zarr v3 input is not masked, but its nodata packs back to the
+        # same stored value.
+        values = ((var - packing.add_offset) / packing.scale_factor).round()
+        if packing.fill_value is not None:
+            values = values.fillna(packing.fill_value)
+        values = values.astype(packing.dtype)
+    encoded = values.copy(deep=False)
+    encoded.attrs = {
+        **utils.sanitize_array_attrs(var.attrs),
+        "scale_factor": packing.scale_factor,
+        "add_offset": packing.add_offset,
+    }
+    encoded.encoding = {
+        key: value for key, value in var.encoding.items() if key in ("chunks", "preferred_chunks")
+    }
+    if packing.fill_value is not None:
+        encoded.encoding["_FillValue"] = packing.fill_value
+    return encoded
+
+
+def normalize_packed(
+    var: xr.DataArray, packing: Packing, *, scale_offset_codec: bool
+) -> xr.DataArray:
+    """Return `var` in the form that the selected encoding mode writes.
+
+    The Zarr codecs take decoded float32 values; the ESA layout keeps the
+    packed integers, so it does not cast the data to float.
+    """
+    if scale_offset_codec:
+        return _decode_packed(var, packing)
+    return _encode_packed(var, packing)
 
 
 def _decode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
@@ -155,7 +206,8 @@ def _drop_trivial_scaling(var: xr.DataArray) -> xr.DataArray:
         return var
     dtype = np.dtype(var.encoding.get("dtype", var.dtype))
     if np.issubdtype(var.dtype, np.floating) and np.issubdtype(dtype, np.integer):
-        fill = var.encoding.get("_FillValue", var.encoding.get("fill_value", 0))
+        fill = find_fill_value(var)
+        fill = 0 if fill is None else fill
         encoding = var.encoding
         var = var.fillna(fill).astype(dtype)
         var.encoding = encoding
@@ -307,9 +359,7 @@ def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.
         else:
             # Raw integers: mask nodata, average, and round before the integer cast
             # (a plain cast truncates).
-            fill_value = var_data.attrs.get("fill_value")
-            if fill_value is None:
-                fill_value = var_data.encoding.get("_FillValue")
+            fill_value = find_fill_value(var_data)
             if fill_value is None:
                 result = coarsened.mean().round()  # type: ignore[attr-defined]
             else:
@@ -332,9 +382,12 @@ def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.
     # restore it on the cast result. Without this, downstream code that
     # inspects encoding (e.g. to push CF scale-offset into a codec pipeline)
     # would see an empty encoding on every coarsened level.
+    # The attributes can carry the CF packing (ESA layout), so keep them too:
+    # `where` and the arithmetic above do not always do so.
     encoding = var_data.encoding
     cast_result: xr.DataArray = result.astype(var_data.dtype)
     cast_result.encoding = encoding
+    cast_result.attrs = dict(var_data.attrs)
     return cast_result
 
 
@@ -350,6 +403,7 @@ def inject_missing_bands(
     spatial_chunk: int,
     *,
     bands: set[str] | None = None,
+    scale_offset_codec: bool = False,
 ) -> xr.Dataset:
     """Inject bands whose native resolution is finer than `target_resolution`.
 
@@ -369,6 +423,9 @@ def inject_missing_bands(
         spatial_chunk: Spatial chunk size
         bands: If provided, only inject these band names.  If `None`
             (default), inject every eligible band from `BAND_INFO`.
+        scale_offset_codec: Encoding mode (see `normalize_packed`). It selects
+            the form of the injected packed bands: decoded float32 for the
+            Zarr codecs, packed integers for the ESA layout.
 
     Returns:
         `dataset` with any missing finer-resolution bands added.
@@ -394,8 +451,9 @@ def inject_missing_bands(
         band_src = source_ds[band_name]
         packing = packing_of(band_src)
         if packing is not None:
-            # Decode first so the mean skips nodata whatever the input form.
-            band_src = _decode_packed(band_src, packing)
+            # Use the form of the encoding mode, so the injected band has the same
+            # dtype as the other bands and the mean skips nodata in both input forms.
+            band_src = normalize_packed(band_src, packing, scale_offset_codec=scale_offset_codec)
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
@@ -525,6 +583,7 @@ def create_multiscale_from_datatree(
                             dt_input,
                             group_resolution,
                             spatial_chunk,
+                            scale_offset_codec=scale_offset_codec,
                             bands={"b08"},
                         )
 
@@ -536,6 +595,7 @@ def create_multiscale_from_datatree(
                             dt_input,
                             group_resolution,
                             spatial_chunk,
+                            scale_offset_codec=scale_offset_codec,
                             bands={
                                 "b02",
                                 "b03",
@@ -549,6 +609,7 @@ def create_multiscale_from_datatree(
                             dt_input,
                             group_resolution,
                             spatial_chunk,
+                            scale_offset_codec=scale_offset_codec,
                             bands={
                                 "b02",
                                 "b03",
@@ -732,12 +793,13 @@ def create_uniform_encoding(
     """
     Create encoding (compression, chunking, sharding) for a dataset.
 
-    Packed variables (see `packing_of`) keep their source integer dtype on disk
-    and are replaced in `dataset` by their decoded float32 values. By default
-    they are written as in the ESA product: packed integers with CF
-    `scale_factor`, `add_offset` and `_FillValue`. With `scale_offset_codec`,
-    the Zarr `scale_offset` + `cast_value` codecs pack them instead, with no CF
-    scale attributes. Other variables keep their dtype and fill value.
+    Packed variables (see `packing_of`) keep their source integer dtype on disk.
+    By default they are written as in the ESA product: packed integers with CF
+    `scale_factor`, `add_offset` and `_FillValue`, and they stay packed integers
+    in `dataset` (no cast to float). With `scale_offset_codec`, they are
+    replaced in `dataset` by their decoded float32 values, and the Zarr
+    `scale_offset` + `cast_value` codecs pack them, with no CF scale
+    attributes. Other variables keep their dtype and fill value.
 
     Chunking is taken from the input dataset's existing chunks when present
     (e.g. a group that's already been rechunked/aggregated, such as a
@@ -761,7 +823,9 @@ def create_uniform_encoding(
     for var_name in list(dataset.data_vars):
         packing = packing_of(dataset[var_name])
         if packing is not None:
-            dataset[var_name] = _decode_packed(dataset[var_name], packing)
+            dataset[var_name] = normalize_packed(
+                dataset[var_name], packing, scale_offset_codec=scale_offset_codec
+            )
         else:
             dataset[var_name] = _drop_trivial_scaling(dataset[var_name])
         var_data = dataset[var_name]
@@ -784,12 +848,11 @@ def create_uniform_encoding(
             var_encoding["shards"] = None
 
         # `to_zarr(encoding=...)` replaces each variable's `.encoding`, so the
-        # decoded variables keep their packing in `.encoding` for the pyramid
-        # levels while only the keys below are written.
+        # variables keep their packing for the pyramid levels while only the
+        # keys below are written.
         if packing is not None and not scale_offset_codec:
-            var_encoding["scale_factor"] = packing.scale_factor
-            var_encoding["add_offset"] = packing.add_offset
-            var_encoding["dtype"] = packing.dtype
+            # The data are already the packed integers and the CF `scale_factor`
+            # and `add_offset` are attributes, so xarray writes them unchanged.
             if packing.fill_value is not None:
                 var_encoding["_FillValue"] = packing.fill_value
         elif packing is not None:
