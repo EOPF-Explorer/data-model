@@ -29,7 +29,6 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
     create_multiscale_from_datatree,
-    # create_uniform_encoding,
     inject_missing_bands,
     rechunk_dataset_for_encoding,
 )

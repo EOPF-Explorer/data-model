@@ -17,7 +17,6 @@ from zarr_cm import spatial as spatial_cm
 from eopf_geozarr.conversion.utils import create_uniform_encoding
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _rechunk_ds,
-    # create_uniform_encoding,
     stream_write_dataset,
     write_geo_metadata,
 )
