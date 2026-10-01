@@ -680,12 +680,14 @@ def _make_reflectance_datatree() -> xr.DataTree:
     return dt
 
 
-def test_inject_missing_bands_skips_unmasked_nodata() -> None:
+@pytest.mark.parametrize("scale_offset_codec", [True, False])
+def test_inject_missing_bands_skips_unmasked_nodata(scale_offset_codec: bool) -> None:
     """Decoded Zarr v3 input keeps its nodata unmasked; injection must still skip it.
 
     xarray only masks `_FillValue`, so a decoded CPM Zarr v3 band shows nodata
     as `0 * scale_factor + add_offset` and declares it only in the EOPF
-    `fill_value` attribute.
+    `fill_value` attribute. The codec mode injects decoded float32 values; the
+    ESA layout injects packed integers, with no cast to float.
     """
     dt = _make_reflectance_datatree()
     decoded = np.full((120, 120), 0.3)
@@ -703,13 +705,28 @@ def test_inject_missing_bands_skips_unmasked_nodata() -> None:
     r20m_ds = dt["measurements/reflectance/r20m"].to_dataset()
 
     result = inject_missing_bands(
-        r20m_ds, dt, target_resolution=20, bands={"b08"}, spatial_chunk=1024
+        r20m_ds,
+        dt,
+        target_resolution=20,
+        bands={"b08"},
+        spatial_chunk=1024,
+        scale_offset_codec=scale_offset_codec,
     )
 
     values = result["b08"].values
-    assert values[0, 0] == pytest.approx(0.3)  # the nodata pixel is not averaged in
-    assert np.isnan(values[1, 1])  # a fully nodata block stays nodata
-    assert np.isnan(values).sum() == 1
+    if scale_offset_codec:
+        assert values.dtype == np.float32
+        assert values[0, 0] == pytest.approx(0.3)  # the nodata pixel is not averaged in
+        assert np.isnan(values[1, 1])  # a fully nodata block stays nodata
+        assert np.isnan(values).sum() == 1
+    else:
+        assert values.dtype == np.uint16
+        assert result["b08"].attrs["scale_factor"] == pytest.approx(0.0001)
+        assert result["b08"].attrs["add_offset"] == pytest.approx(-0.1)
+        assert result["b08"].encoding["_FillValue"] == 0
+        assert values[0, 0] == 4000  # (0.3 + 0.1) / 0.0001: nodata is not averaged in
+        assert values[1, 1] == 0  # a fully nodata block stays nodata
+        assert (values == 0).sum() == 1
 
 
 def test_inject_missing_bands_respects_bands_filter() -> None:

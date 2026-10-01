@@ -132,8 +132,9 @@ def _encode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
             values = values.fillna(packing.fill_value)
         values = values.astype(packing.dtype)
     encoded = values.copy(deep=False)
+    # Same attributes as the decoded form, so both modes describe the data alike.
     encoded.attrs = {
-        **utils.sanitize_array_attrs(var.attrs),
+        **utils.sanitize_array_attrs(var.attrs, is_decoded_float=True),
         "scale_factor": packing.scale_factor,
         "add_offset": packing.add_offset,
     }
