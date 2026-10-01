@@ -229,7 +229,6 @@ def convert_command(args: argparse.Namespace) -> None:
                 spatial_chunk=args.spatial_chunk,
                 compression_level=3,
                 validate_output=True,
-                keep_scale_offset=False,
                 max_retries=args.max_retries,
             )
         # Opt-out flag first: skip the structural OLCI detection (a full
@@ -1180,7 +1179,7 @@ def create_parser() -> argparse.ArgumentParser:
         description=(
             "Convert EOPF dataset to GeoZarr compliant format. Sentinel-2 inputs are "
             "auto-detected and converted with the optimized flat multiscale layout "
-            "(equivalent to convert-s2-optimized with keep_scale_offset disabled); for "
+            "(equivalent to convert-s2-optimized with default options); for "
             "those inputs the per-group options --groups, --crs-groups, --gcp-group and "
             "--min-dimension do not apply. Sentinel-3 OLCI inputs are likewise "
             "auto-detected and converted with the OLCI swath converter (equivalent to "
@@ -1413,17 +1412,13 @@ def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None
     s2_parser.add_argument("--skip-validation", action="store_true", help="Skip output validation")
     s2_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     s2_parser.add_argument(
-        "--keep-scale-offset",
+        "--scale-offset-codec",
         action="store_true",
-        help="""
-        Preserve scale-offset encoding. Default is False, in which case arrays stored with
-        scale-offset encoding will be re-saved as the decoded data type, i.e. floating point values.
-        """,
-    )
-    s2_parser.add_argument(
-        "--experimental-scale-offset-codec",
-        action="store_true",
-        help="Push CF scale-offset encoding into zarr codec pipeline instead of decoding to float.",
+        help=(
+            "Pack reflectance with the Zarr scale_offset + cast_value codecs. By default it "
+            "is written as in the ESA product: source integers with CF "
+            "scale_factor/add_offset/_FillValue and STAC raster:scale/raster:offset/nodata."
+        ),
     )
     s2_parser.add_argument(
         "--dask-cluster",
@@ -1453,7 +1448,7 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
             spatial_chunk=args.spatial_chunk,
             compression_level=args.compression_level,
             validate_output=not args.skip_validation,
-            keep_scale_offset=args.keep_scale_offset,
+            scale_offset_codec=args.scale_offset_codec,
         )
 
         log.info("S2 optimization completed", output_path=args.output_path)
@@ -1503,14 +1498,6 @@ def add_s3_olci_optimization_commands(subparsers: argparse._SubParsersAction) ->
         help="Minimum overview dimension (default: 256)",
     )
     p.add_argument(
-        "--keep-scale-offset",
-        action="store_true",
-        help=(
-            "Preserve scale-offset encoding instead of decoding to float "
-            "(not yet applied; output is currently always raw integer)"
-        ),
-    )
-    p.add_argument(
         "--output-grid",
         type=str,
         default="native",
@@ -1534,7 +1521,6 @@ def convert_s3_olci_optimized_command(args: argparse.Namespace) -> None:
         spatial_chunk=args.spatial_chunk,
         compression_level=args.compression_level,
         min_dimension=args.min_dimension,
-        keep_scale_offset=args.keep_scale_offset,
         output_grid=args.output_grid,
     )
     log.info("S3 OLCI optimization completed", output_path=args.output_path)

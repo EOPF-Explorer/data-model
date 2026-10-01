@@ -5298,8 +5298,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -5325,9 +5323,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5403,8 +5399,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -5430,9 +5424,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5508,8 +5500,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -5535,9 +5525,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5613,8 +5601,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -5640,9 +5626,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5886,8 +5870,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -5913,9 +5895,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5991,8 +5971,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -6018,9 +5996,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6096,8 +6072,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -6123,9 +6097,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6201,8 +6173,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -6228,9 +6198,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6306,8 +6274,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -6333,9 +6299,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6411,8 +6375,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -6438,9 +6400,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6516,8 +6476,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -6543,9 +6501,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6624,8 +6580,6 @@
                     "_factor": 6,
                     "_resampling_mode": "mean",
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -6651,9 +6605,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6729,8 +6681,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -6756,9 +6706,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6834,8 +6782,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -6861,9 +6807,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6939,8 +6883,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -6966,9 +6908,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7044,8 +6984,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -7071,9 +7009,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7314,8 +7250,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -7341,9 +7275,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7419,8 +7351,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -7446,9 +7376,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7524,8 +7452,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -7551,9 +7477,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7629,8 +7553,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -7656,9 +7578,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7734,8 +7654,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -7761,9 +7679,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7839,8 +7755,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -7866,9 +7780,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7944,8 +7856,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -7971,9 +7881,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8052,8 +7960,6 @@
                     "_factor": 2,
                     "_resampling_mode": "mean",
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -8079,9 +7985,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8157,8 +8061,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -8184,9 +8086,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8262,8 +8162,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -8289,9 +8187,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8367,8 +8263,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -8394,9 +8288,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8640,8 +8532,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -8667,9 +8557,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8745,8 +8633,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -8772,9 +8658,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8850,8 +8734,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -8877,9 +8759,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8955,8 +8835,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -8982,9 +8860,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9060,8 +8936,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -9087,9 +8961,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9165,8 +9037,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -9192,9 +9062,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9270,8 +9138,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -9297,9 +9163,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9378,8 +9242,6 @@
                     "_factor": 6,
                     "_resampling_mode": "mean",
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -9405,9 +9267,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9483,8 +9343,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -9510,9 +9368,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9588,8 +9444,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -9615,9 +9469,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9693,8 +9545,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -9720,9 +9570,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9798,8 +9646,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -9825,9 +9671,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10068,8 +9912,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -10095,9 +9937,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10173,8 +10013,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -10200,9 +10038,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10278,8 +10114,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -10305,9 +10139,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10383,8 +10215,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -10410,9 +10240,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10488,8 +10316,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -10515,9 +10341,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10593,8 +10417,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -10620,9 +10442,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10698,8 +10518,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -10725,9 +10543,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10806,8 +10622,6 @@
                     "_factor": 6,
                     "_resampling_mode": "mean",
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -10833,9 +10647,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10911,8 +10723,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -10938,9 +10748,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11016,8 +10824,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -11043,9 +10849,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11121,8 +10925,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -11148,9 +10950,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11226,8 +11026,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -11253,9 +11051,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11499,8 +11295,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b01 444.2 nm",
                     "proj:bbox": [
@@ -11526,9 +11320,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11604,8 +11396,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b02 489.0 nm",
                     "proj:bbox": [
@@ -11631,9 +11421,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11709,8 +11497,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b03 560.6 nm",
                     "proj:bbox": [
@@ -11736,9 +11522,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11814,8 +11598,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b04 666.5 nm",
                     "proj:bbox": [
@@ -11841,9 +11623,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11919,8 +11699,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b05 707.1 nm",
                     "proj:bbox": [
@@ -11946,9 +11724,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12024,8 +11800,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b06 741.1 nm",
                     "proj:bbox": [
@@ -12051,9 +11825,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12129,8 +11901,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b07 784.7 nm",
                     "proj:bbox": [
@@ -12156,9 +11926,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12237,8 +12005,6 @@
                     "_factor": 6,
                     "_resampling_mode": "mean",
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
                     "proj:bbox": [
@@ -12264,9 +12030,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12342,8 +12106,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b09 947.2 nm",
                     "proj:bbox": [
@@ -12369,9 +12131,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12447,8 +12207,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b11 1612.0 nm",
                     "proj:bbox": [
@@ -12474,9 +12232,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12552,8 +12308,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b12 2191.3 nm",
                     "proj:bbox": [
@@ -12579,9 +12333,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12657,8 +12409,6 @@
                   "attributes": {
                     "_FillValue": 0,
                     "add_offset": -0.1,
-                    "dtype": "<u2",
-                    "fill_value": 0,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b8a 865.6 nm",
                     "proj:bbox": [
@@ -12684,9 +12434,7 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "digital_counts",
-                    "valid_max": 65535,
-                    "valid_min": 1
+                    "units": "1"
                   },
                   "chunk_grid": {
                     "configuration": {

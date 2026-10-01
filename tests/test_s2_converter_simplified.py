@@ -446,7 +446,6 @@ class TestConvenienceFunction:
             compression_level=2,
             max_retries=5,
             validate_output=False,
-            keep_scale_offset=False,
         )
 
         # Verify multiscale function was called with correct args
