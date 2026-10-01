@@ -20,7 +20,7 @@ from eopf_geozarr.s3_olci_optimization.olci_converter import (
     is_sentinel3_olci_dataset,
 )
 
-from . import create_geozarr_dataset
+from . import __version__, create_geozarr_dataset
 from .conversion.fs_utils import (
     get_s3_credentials_info,
     get_storage_options,
@@ -1168,7 +1168,7 @@ def create_parser() -> argparse.ArgumentParser:
         description="Convert EOPF datasets to GeoZarr compliant format",
     )
 
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

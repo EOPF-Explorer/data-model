@@ -1,202 +1,136 @@
-# Using the GeoZarr Converter
+---
+title: Standalone converter (eopf-geozarr CLI)
+description: Reference for the standalone eopf-geozarr command line and Python API. Convert EOPF Zarr products for Sentinel-1, Sentinel-2 and Sentinel-3 OLCI to GeoZarr, ingest Sentinel-1 GRD RTC, validate and inspect GeoZarr stores.
+---
 
-The GeoZarr converter provides tools to transform EOPF datasets into GeoZarr format. This guide explains how to use the converter effectively.
+# Standalone converter (`eopf-geozarr` CLI)
 
-## Command Line Interface
+The `eopf-geozarr` command converts EOPF Zarr products to GeoZarr without
+EOPF CPM. It reads local stores, `s3://` URLs and HTTP URLs, for example the
+products of the [EOPF Sentinel Zarr Samples Service](https://zarr.eopf.copernicus.eu/).
+It runs the same pipelines as the [GeoZarr driver for EOPF CPM](cpm-driver.md), without needing [EOPF CPM](https://cpm.pages.eopf.copernicus.eu/eopf-cpm).
 
-The converter can be accessed via the `eopf-geozarr` command-line tool. Below are some common use cases:
+## Commands
 
-### Basic Conversion
+| Command | Purpose |
+|---|---|
+| [`convert`](#convert) | Convert any EOPF Zarr product. Detects Sentinel-2 and Sentinel-3 OLCI; other products use the generic pipeline. |
+| [`convert-s2-optimized`](#sentinel-2-optimized-conversion) | Convert a Sentinel-2 L1C or L2A product, with all Sentinel-2 options. |
+| [`convert-s3-olci-optimized`](#sentinel-3-olci-conversion) | Convert a Sentinel-3 OLCI L1 EFR or ERR product, with all OLCI options. |
+| [`ingest-s1`, `ingest-s1-conditions`, `consolidate-s1`, `generate-stac-s1`](#sentinel-1-grd-rtc-ingestion) | Build a Sentinel-1 GRD RTC GeoZarr store from S1Tiling (Orfeo ToolBox) COGs. |
+| [`validate`](#validate) | Check a store against the GeoZarr mini spec. |
+| [`info`](#info) | Show the structure of a product, optionally as HTML. |
 
-Convert an EOPF dataset to GeoZarr format:
+Run `eopf-geozarr <command> --help` for the full list of options.
+
+## `convert`
 
 ```bash
 eopf-geozarr convert input.zarr output.zarr
+eopf-geozarr convert input.zarr s3://my-bucket/output.zarr   # S3 output
+eopf-geozarr convert input.zarr output.zarr --dask-cluster   # local Dask cluster
 ```
 
-Sentinel-2 inputs are auto-detected and converted with the optimized flat
-multiscale layout (see [Sentinel-2 Optimized Conversion](#sentinel-2-optimized-conversion)).
-Pass `--no-s2-optimized` to force the generic per-group conversion path.
+`convert` selects the pipeline from the product:
 
-### S3 Output
+- **Sentinel-2 L1C/L2A**: the [Sentinel-2 optimized pipeline](#sentinel-2-optimized-conversion)
+  with its default options. `--groups`, `--crs-groups`, `--gcp-group` and
+  `--min-dimension` do not apply.
+- **Sentinel-3 OLCI**: the [OLCI pipeline](#sentinel-3-olci-conversion). It
+  uses `--min-dimension`. Detection is strict: if a product is not detected,
+  use `convert-s3-olci-optimized`.
+- **Other products, including Sentinel-1 GRD**: the generic pipeline, which
+  converts the groups given with `--groups`.
 
-Convert and save the output directly to an S3 bucket:
+`--no-s2-optimized` and `--no-s3-olci-optimized` force the generic pipeline.
+
+| Option | Default | Description |
+|---|---|---|
+| `--groups GROUP [GROUP ...]` | — | Groups to convert (generic pipeline). |
+| `--spatial-chunk N` | 4096 | Spatial chunk size. |
+| `--min-dimension N` | 256 | Minimum dimension of the coarsest overview level. |
+| `--crs-groups [GROUP ...]` | — | Groups that get CRS information added, for example `/conditions/geometry`. |
+| `--gcp-group GROUP` | — | Group with ground control points (Sentinel-1), for example `conditions/gcp`. |
+| `--enable-sharding` | off | Shard the spatial dimensions of each variable. |
+| `--max-retries N` | 3 | Retries for network operations. |
+| `--dask-cluster` | off | Start a local Dask cluster for parallel processing. |
+| `--no-s2-optimized`, `--no-s3-olci-optimized` | off | Force the generic pipeline. |
+| `--verbose` | off | Print more details. |
+
+### Sentinel-1 GRD
+
+Sentinel-1 GRD products use the generic pipeline. The ground control points
+georeference the measurements:
 
 ```bash
-eopf-geozarr convert input.zarr s3://my-bucket/output.zarr
+eopf-geozarr convert S1A_IW_GRDH_….zarr output.zarr \
+    --groups measurements --gcp-group conditions/gcp
 ```
 
-### Parallel Processing
+### Generic output layout
 
-Enable parallel processing for large datasets using a Dask cluster:
+The generic pipeline writes the native resolution at the group root and adds
+factor-of-two overviews as sibling groups `r2`, `r4`, `r8`, … Each overview is
+a complete dataset with its own coordinates and `spatial:`/`proj:`
+attributes. The parent group's `multiscales` metadata lists every level.
 
-```bash
-eopf-geozarr convert input.zarr output.zarr --dask-cluster
-```
+## Sentinel-2 optimized conversion
 
-### Validation
-
-Validate a dataset against the [GeoZarr Mini Spec](geozarr-minispec.md):
-
-```bash
-eopf-geozarr validate output.zarr
-```
-
-The validator checks the store root (conventions declaration, `spatial:bbox`,
-CRS), every multiscale group (layout completeness, per-level georeferencing),
-every node using the `proj:` / `spatial:` conventions, and the structural
-Dataset rules (no scalar arrays, unique string `dimension_names`, matching
-1-D coordinate arrays for every data-variable dimension). Each violation is
-reported with its Zarr node path, and the command exits non-zero when the
-store is not compliant.
-
-> [!Note]
-> **Migration**: earlier releases' `validate` command always exited 0 and only
-> warned about per-variable CF attributes. Stores converted with
-> eopf-geozarr <= 0.10.x predate the store-root `zarr_conventions`
-> requirement and will report as non-compliant until reconverted (or until the
-> root metadata is added, e.g. via
-> `eopf_geozarr.conversion.utils.write_store_root_geo_metadata`). Pipelines
-> that scripted against the old output text or exit code need updating.
-
-## Python API
-
-The converter also provides a Python API for programmatic usage:
-
-### Example: Basic Conversion
-
-```python
-# test: skip
-import xarray as xr
-from eopf_geozarr import create_geozarr_dataset
-
-# Load your EOPF DataTree
-dt = xr.open_datatree("path/to/eopf/dataset.zarr", engine="zarr")
-
-# Convert to GeoZarr format
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
-    output_path="path/to/output/geozarr.zarr",
-    spatial_chunk=4096,
-    min_dimension=256,
-    max_retries=3
-)
-```
-
-### Example: S3 Output
-
-```python
-import os
-from eopf_geozarr import create_geozarr_dataset
-
-# Configure S3 credentials
-os.environ['AWS_ACCESS_KEY_ID'] = 'your_access_key'
-os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_secret_key'
-os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-
-# Convert and save to S3
-dt_geozarr = create_geozarr_dataset(
-    dt_input=dt,
-    groups=["/measurements/reflectance/r10m", "/measurements/reflectance/r20m", "/measurements/reflectance/r60m"],
-    output_path="s3://my-bucket/output.zarr",
-    spatial_chunk=4096,
-    min_dimension=256,
-    max_retries=3
-)
-```
-
-## Advanced Features
-
-### Chunk Alignment
-
-The converter ensures proper chunk alignment to optimize storage and prevent data corruption. It uses the `calculate_aligned_chunk_size` function to determine optimal chunk sizes.
-
-### Multiscale Support
-
-The converter writes the native resolution arrays at the group root and adds
-factor-of-two overviews as sibling subgroups named `r{2**level}` (`r2`, `r4`,
-`r8`, ...). Each overview is a complete dataset with its own coordinates and
-`spatial:` / `proj:` attributes; the parent group's `multiscales` metadata
-records each level via `asset`, `derived_from`, and `transform`.
-
-### Native CRS Preservation
-
-The converter maintains the native coordinate reference system (CRS) of the dataset, avoiding reprojection to Web Mercator.
-
-## Sentinel-2 Optimized Conversion
-
-The Sentinel-2 optimized converter (`convert-s2-optimized` / `convert_s2_optimized`)
-builds an efficient multiscale pyramid by **reusing the original multi-resolution
-data** (r10m, r20m, r60m) without duplication, and adding coarser overview
-levels (r120m, r360m, r720m) for visualization at lower resolutions.
-
-The general `convert` command emits the same flat `r{N}` sibling layout for
-any input, but only the S2-optimized command takes advantage of S2's native
-multi-resolution structure.
-
-### Layout
-
-Both converters produce a flat pyramid where each level is a sibling group:
+`convert-s2-optimized` (Python: `convert_s2_optimized`) reuses the native
+Sentinel-2 resolutions and adds coarser overviews:
 
 ```
 output.zarr/
 └── measurements/
     └── reflectance/
-        ├── r10m/           # Native 10m data (reused as-is)
-        ├── r20m/           # Native 20m data (reused as-is)
-        ├── r60m/           # Native 60m data (reused as-is)
-        ├── r120m/          # Computed from r60m (2x downsampling)
-        ├── r360m/          # Computed from r120m (3x downsampling)
-        └── r720m/          # Computed from r360m (2x downsampling)
+        ├── r10m/     # native 10 m bands
+        ├── r20m/     # native 20 m bands (+ b08 from 10 m)
+        ├── r60m/     # native 60 m bands (+ finer bands)
+        ├── r120m/    # 2x from r60m
+        ├── r360m/    # 3x from r120m
+        └── r720m/    # 2x from r360m
 ```
 
-**Why these specific resolution levels?**
+- The native levels (10 m, 20 m, 60 m) are the ESA resolutions, reused as they
+  are.
+- The overview factors (2, 3, 2) keep whole chunks and shards at every level.
+- Coarser levels also get the finer bands (for example b08 at r20m, and all
+  bands at r60m for L1C), so every level has a complete band set.
+- Each variable type gets its own resampling: mean for reflectance and
+  probabilities (nodata excluded), subsampling for classifications, maximum
+  for quality masks.
 
-The resolution levels are chosen to balance data preservation with storage optimization:
+```bash
+eopf-geozarr convert-s2-optimized S2B_MSIL2A_….zarr output.zarr --enable-sharding
+```
 
-- **Native ESA resolutions (10m, 20m, 60m)**: These are the original resolutions delivered by ESA for Sentinel-2 data and are reused as-is to preserve the source data without any loss
-- **Computed overview levels (120m, 360m, 720m)**: These additional levels were specifically chosen because their downsampling factors allow the data to be chunked and sharded in complete pieces, ensuring:
-  - **120m** (2x from 60m): Standard doubling for the first computed overview
-  - **360m** (3x from 120m): Selected for optimal chunking alignment
-  - **720m** (2x from 360m): Final level for global-scale visualization
-
-This approach maintains the integrity of ESA's original multi-resolution data while adding computationally efficient overview levels for performance at coarser scales.
-
-**Benefits:**
-- No data duplication — native resolutions are reused directly
-- Efficient storage
-- Simple, flat hierarchy
-- Natural fit for Sentinel-2's multi-resolution data model
-
-### Key Capabilities
-
-- **Smart Resolution Consolidation**: Combines Sentinel-2's native multi-resolution structure (10m, 20m, 60m) into a unified multiscale pyramid
-- **Non-Duplicative Downsampling**: Reuses original resolution data instead of recreating it, adding only the coarser levels (120m, 360m, 720m)
-- **Variable-Aware Processing**: Applies appropriate resampling methods for different data types (reflectance, classification, quality masks, probabilities)
-- **Efficient Testing**: Improved test infrastructure for faster local development
-
-### Usage Example
+| Option | Default | Description |
+|---|---|---|
+| `--spatial-chunk N` | 256 | Spatial chunk size. |
+| `--enable-sharding` | off | Enable Zarr v3 sharding. |
+| `--compression-level 1-9` | 3 | Blosc zstd compression level. |
+| `--scale-offset-codec` | off | Store the packing with the Zarr scale-offset codecs instead of the ESA layout (see [Encoding](#encoding)). |
+| `--skip-validation` | off | Do not validate the output. |
+| `--dask-cluster` | off | Start a local Dask cluster. |
+| `--verbose` | off | Print more details. |
 
 ```python
-from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+# test: skip (needs a Sentinel-2 product)
 import xarray as xr
 
-# Load Sentinel-2 DataTree
-dt_input = xr.open_datatree("path/to/s2/product.zarr", engine="zarr")
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
-# Convert to optimized multiscale structure
-dt_optimized = convert_s2_optimized(
-    dt_input=dt_input,
-    output_path="path/to/output/optimized.zarr",
+dt_input = xr.open_datatree("S2B_MSIL2A_….zarr", engine="zarr", chunks={})
+dt_output = convert_s2_optimized(
+    dt_input,
+    output_path="output.zarr",
     enable_sharding=True,
     spatial_chunk=256,
     compression_level=3,
-    validate_output=True
+    validate_output=True,
+    scale_offset_codec=False,  # default: ESA layout; True packs with Zarr codecs
 )
 ```
-
-The result is a space-efficient multiscale pyramid: `/measurements/reflectance/{r10m, r20m, r60m, r120m, r360m, r720m}` where the native resolutions are preserved as-is and only the coarser levels are computed.
 
 ### Encoding
 
@@ -215,10 +149,12 @@ What a reader needs:
   (`mask_and_scale=True`, the default) and titiler apply them, and GDAL reports
   them as band scale and offset; zarrita (used by the OpenLayers `GeoZarr`
   source) ignores them. This is also the encoding of the
-  EOPF Sentinel Zarr Samples Service products.
+  [EOPF Sentinel Zarr Samples Service](https://zarr.eopf.copernicus.eu/)
+  products.
 - Zarr codec: a Zarr library that supports the `scale_offset` and `cast_value`
   codecs, for example zarr-python with the `cast-value-rs` extra, or zarrita.
-  GDAL does not support them yet (OSGeo/gdal#15170).
+  GDAL does not support them yet
+  ([OSGeo/gdal#15170](https://github.com/OSGeo/gdal/issues/15170)).
 
 The input can be opened raw (`mask_and_scale=False`, as in the CPM path) or
 decoded (as in the CLI). Both give the same output. Arrays without a packing,
@@ -230,76 +166,105 @@ In the CPM writer (`eopf convert-geozarr --scale-offset-codec` or
 `keep_scale_offset` option is still accepted for one release with a
 `DeprecationWarning`: `keep_scale_offset=False` selects the codecs.
 
-## Sentinel-3 OLCI L1 EFR Conversion
+## Sentinel-3 OLCI conversion
 
-Sentinel-3 OLCI (Ocean and Land Colour Instrument) Level-1 EFR (Full Resolution)
-products are supported.  OLCI measurements keep **native swath geometry by
-default**: a per-pixel 2-D lat/lon grid, with no reprojection.  Passing
-`--output-grid <CRS>` opts into a one-time warp of the swath measurements onto
-a regular grid (e.g. `EPSG:4326`) using the swath geolocation arrays.  Either
-way, the converter then generates /2 fill-aware block-averaged overview
-subgroups for multi-resolution access.
-
-### Auto-detection
-
-The generic `convert` command detects OLCI products automatically:
+Sentinel-3 OLCI L1 EFR and ERR products keep their **native swath geometry**
+by default: a per-pixel 2-D latitude/longitude grid, with no reprojection.
+`--output-grid <CRS>` warps the swath once onto a regular grid (for example
+`EPSG:4326`), so the output is a standard, tileable GeoZarr raster. In both
+modes the converter adds /2 overviews, averaged block by block with nodata
+excluded.
 
 ```bash
-eopf-geozarr convert S3A_OL_1_EFR.zarr output.zarr
+eopf-geozarr convert S3A_OL_1_EFR____….zarr output.zarr                      # auto-detected
+eopf-geozarr convert-s3-olci-optimized S3A_OL_1_EFR____….zarr output.zarr --output-grid EPSG:4326
 ```
 
-### Dedicated command
-
-A dedicated command offers fine-grained control:
-
-```bash
-eopf-geozarr convert-s3-olci-optimized S3A_OL_1_EFR.zarr output.zarr \
-    --spatial-chunk 1024 \
-    --min-dimension 256 \
-    --compression-level 3
-```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--spatial-chunk` | 1024 | Target spatial chunk size in pixels |
-| `--compression-level` | 3 | Blosc/zstd compression level (1–9) |
-| `--min-dimension` | 256 | Minimum spatial dimension for overview levels |
-| `--enable-sharding` | off | Accepted but not yet wired into encoding (follow-up task) |
-| `--output-grid` | native | `native` preserves instrument geometry; any CRS string (e.g. `EPSG:4326`) warps onto a regular grid |
-
-### Output layout
+| Option | Default | Description |
+|---|---|---|
+| `--output-grid` | `native` | `native` keeps the instrument geometry; a CRS string warps onto a regular grid. |
+| `--min-dimension N` | 256 | Minimum dimension of the coarsest overview level. |
+| `--spatial-chunk`, `--enable-sharding`, `--compression-level` | — | Accepted but not applied yet. |
+| `--verbose` | off | Print more details. |
 
 ```
 output.zarr/
-├── measurements/        # Carries multiscales + spatial: convention metadata
-│                        # (+ proj: when --output-grid is a CRS)
-│   ├── r0/             # Native-resolution bands (instrument grid by default; regular
-│   │                   # y/x grid with spatial_ref when --output-grid is a CRS)
-│   ├── r2/             # 1/2-resolution overview
-│   ├── r4/             # 1/4-resolution overview
+├── measurements/   # multiscales + spatial: metadata (+ proj: with a CRS)
+│   ├── r0/         # native-resolution radiance bands
+│   ├── r2/         # 1/2 resolution
+│   ├── r4/         # 1/4 resolution
 │   └── ...
-├── conditions/          # Copied through unmodified (tie-point geometry, meteorology)
-└── quality/             # Copied through unmodified (quality flags)
+├── conditions/     # copied unchanged
+└── quality/        # copied unchanged
 ```
 
-Each measurement group carries GeoZarr `spatial:` convention metadata (plus
-`proj:` metadata when a CRS is selected).
-In native mode (`--output-grid native`, the default) bands keep per-pixel 2-D
-`latitude`/`longitude`/`altitude` and per-row `time_stamp`, with no projected CRS.
-When `--output-grid <CRS>` is given, bands are warped onto a regular grid with 1-D
-`y`/`x` dimension coordinates and a `spatial_ref` variable referenced by
-`grid_mapping` on every band; per-scan-line `time_stamp` has no representation on
-a regular grid and is dropped (it remains in the source product).
+- **Native mode**: bands keep per-pixel 2-D `latitude`/`longitude`/`altitude`
+  and per-row `time_stamp`, with no projected CRS.
+- **Regular grid**: bands get 1-D `y`/`x` coordinates and a `spatial_ref`
+  variable referenced by `grid_mapping`. The per-row `time_stamp` is dropped;
+  it stays in the source product.
+- Radiance keeps the source packing (`uint16` with CF `scale_factor` and
+  `_FillValue`). The tie-point groups in `conditions` are copied, not converted
+  to the GeoZarr conventions.
 
-> **Note:** OLCI support is initial/measurements-focused (v1).  Tie-point grid
-> groups in `conditions/geometry`, `meteorology`, and `instrument` are copied
-> through but not converted to GeoZarr convention.  Encoding wiring for
-> `--enable-sharding`, `--spatial-chunk` and `--compression-level` is accepted
-> but scheduled as a follow-up task.  Radiance is written with the source
-> packing (`uint16` with CF `scale_factor` and `_FillValue`).
+## Sentinel-1 GRD RTC ingestion
 
-## Error Handling
+These commands build a Sentinel-1 GRD γ⁰ RTC GeoZarr store from the
+S1Tiling (Orfeo ToolBox) γ⁰ RTC Cloud Optimized GeoTIFFs (COGs), named like
+`s1a_32TQM_vv_ASC_037_20230115t061234_GammaNaughtRTC.tif`. The store has
+one time series per orbit direction, multiscale overviews and full GeoZarr
+metadata.
 
-The converter includes robust error handling and retry logic for network operations, ensuring reliable processing even in challenging environments.
+```bash
+# 1. Add one acquisition (VV, VH and border mask GeoTIFFs)
+eopf-geozarr ingest-s1 --vv VV.tif --vh VH.tif --mask BorderMask.tif \
+    --store s1-rtc.zarr --orbit-dir ascending
 
-For more details, refer to the [API Reference](api-reference.md).
+# 2. Add the condition arrays of a relative orbit (all optional)
+eopf-geozarr ingest-s1-conditions --store s1-rtc.zarr --orbit-dir ascending \
+    --relative-orbit 37 --gamma-area gamma_area.tif --lia lia.tif \
+    --incidence-angle incidence.tif
+
+# 3. Consolidate the metadata after the last acquisition
+eopf-geozarr consolidate-s1 --store s1-rtc.zarr --orbit-dir ascending
+
+# 4. Print a STAC item for the store
+eopf-geozarr generate-stac-s1 --store s1-rtc.zarr --collection sentinel-1-grd-rtc
+```
+
+## `validate`
+
+```bash
+eopf-geozarr validate output.zarr
+```
+
+The validator checks the [GeoZarr mini spec](geozarr-minispec.md) rules: the
+store root (convention declarations, `spatial:bbox`, CRS), every multiscale
+group (complete layout, georeferencing of each level), every node that uses
+the `proj:` or `spatial:` conventions, and the dataset structure (no scalar
+arrays, unique `dimension_names`, a 1-D coordinate array for every dimension).
+It reports each violation with its Zarr path and exits with a non-zero code
+when the store is not compliant.
+
+!!! note "Stores from eopf-geozarr 0.10.x and earlier"
+    These stores do not have the store-root `zarr_conventions` declaration, so
+    `validate` reports them as non-compliant. Convert them again, or add the
+    root metadata with
+    `eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
+
+## `info`
+
+```bash
+eopf-geozarr info input.zarr
+eopf-geozarr info input.zarr --html-output info.html   # HTML view of the tree
+```
+
+## Python API
+
+The same pipelines are available in Python. See the
+[API reference](api-reference.md) for the signatures:
+
+- `eopf_geozarr.s2_optimization.s2_converter.convert_s2_optimized` (Sentinel-2)
+- `eopf_geozarr.s3_olci_optimization.olci_converter.convert_olci_optimized` (Sentinel-3 OLCI)
+- `eopf_geozarr.create_geozarr_dataset` (generic pipeline, Sentinel-1 GRD)
+- `eopf_geozarr.conversion.s1_ingest` (Sentinel-1 GRD RTC ingestion)

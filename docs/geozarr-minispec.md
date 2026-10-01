@@ -1,3 +1,8 @@
+---
+title: GeoZarr mini spec
+description: "The GeoZarr mini spec implemented by eopf-geozarr: the multiscales, geo-proj and spatial Zarr conventions, store-root metadata and dataset rules that every converted Sentinel store follows."
+---
+
 # GeoZarr Mini Spec
 
 This document specifies the GeoZarr model used in this repository. It is a "mini" version of the emerging [GeoZarr specification](https://geozarr.org/) that documents the specific subset of conventions this implementation supports, along with implementation-specific details.
