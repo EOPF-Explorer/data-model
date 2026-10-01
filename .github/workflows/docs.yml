@@ -7,6 +7,8 @@ on:
     branches: [ main ]
     paths:
       - "docs/**"
+      - "overrides/**"
+      - "mkdocs.yml"
 
 permissions:
   contents: read
@@ -25,7 +27,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: Install uv
       uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -34,12 +36,15 @@ jobs:
         python-version: "3.13"
         enable-cache: false
 
+    - name: Install system libraries for social cards
+      run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev
+
     - name: Install dependencies
       run: uv sync --group docs
 
     - name: Build docs
       if: github.event_name == 'pull_request'
-      run: uv run -- mkdocs build
+      run: uv run -- mkdocs build --strict
 
     - name: Deploy docs
       if: github.event_name == 'push'

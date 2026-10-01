@@ -1,8 +1,8 @@
-"""Integration of eopf-geozarr with the EOPF CPM (the ``eopf`` package).
+"""The GeoZarr driver for EOPF CPM (the ``eopf`` package).
 
-This package provides the ``geozarr`` writer engine for CPM's writer
-registry, plus an ``eopf convert-geozarr`` CLI command exposed through the
-``eopf.cli`` entry-point group.
+This package provides the ``geozarr`` engine for CPM's writer registry, plus
+an ``eopf convert-geozarr`` CLI command exposed through the ``eopf.cli``
+entry-point group.
 
 Importing :mod:`eopf_geozarr.cpm.writer` (or accessing ``GeoZarrWriter`` /
 ``register`` here) requires the ``eopf`` package; install it with the
@@ -32,7 +32,7 @@ def _import_writer() -> Any:
     except ModuleNotFoundError as exc:
         if exc.name is not None and exc.name.split(".")[0] == "eopf":
             raise ImportError(
-                "The eopf_geozarr.cpm integration requires the 'eopf' package "
+                "The eopf-geozarr CPM driver requires the 'eopf' package "
                 "(eopf-cpm), which supports Python >= 3.13 only. On Python 3.13+ "
                 "install it with: pip install 'eopf-geozarr[cpm]'. Note that on "
                 "older interpreters that command succeeds without installing eopf.",

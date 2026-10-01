@@ -1,62 +1,62 @@
+---
+title: Architecture
+description: Architecture of eopf-geozarr — the GeoZarr driver for EOPF CPM and the standalone converter, the product routing, the Sentinel-1, Sentinel-2 and Sentinel-3 pipelines and the package layout.
+---
+
 # Architecture
 
-This document describes the architecture and design principles of the EOPF GeoZarr library.
+eopf-geozarr has two entry points, the GeoZarr driver for EOPF CPM and the
+standalone `eopf-geozarr` CLI. Both select one of three conversion pipelines
+and write a GeoZarr store that follows the [GeoZarr mini spec](geozarr-minispec.md).
 
-## Overview
+## Design principles
 
-The EOPF GeoZarr library is designed to convert EOPF (Earth Observation Processing Framework) datasets to GeoZarr format while maintaining scientific accuracy and optimizing performance.
+- **Native projections**: the source CRS is kept; nothing is reprojected to
+  Web Mercator.
+- **Source data kept**: the native resolutions and the source packing are
+  kept; only overviews are computed.
+- **Cloud-native output**: Zarr v3 with chunking, optional sharding and
+  consolidated metadata, on local or S3-compatible storage.
+- **Standards**: the GeoZarr conventions (`multiscales`, `geo-proj`,
+  `spatial`) and CF metadata for older readers.
 
-This implementation follows our [GeoZarr Mini Spec](geozarr-minispec.md), which defines the specific subset of the GeoZarr specification that this library implements, including implementation-specific details for chunking, CF compliance, and multiscale dataset organization.
-
-## Design Principles
-
-### 1. Scientific Integrity First
-
-- **Native CRS Preservation**: Maintains original coordinate reference systems to avoid reprojection artifacts
-- **Data Accuracy**: Preserves original data values without unnecessary transformations
-- **Metadata Fidelity**: Ensures all scientific metadata is properly transferred and enhanced
-
-### 2. Performance Optimization
-
-- **Aligned Chunking**: Optimizes chunk sizes to prevent partial chunks and improve I/O performance
-- **Lazy Loading**: Uses xarray and Dask for memory-efficient processing
-- **Parallel Processing**: Supports distributed computing for large datasets
-
-### 3. Cloud-Native Design
-
-- **Storage Agnostic**: Works with local filesystems, S3, and other cloud storage
-- **Scalable**: Designed for processing large Earth observation datasets
-- **Robust**: Includes retry logic and error handling for network operations
-
-## System Architecture
+## System overview
 
 ```mermaid
-graph TB
-    A[EOPF DataTree Input] --> B[Conversion Engine]
-    B --> C[GeoZarr Output]
-    
-    B --> D[Metadata Processing]
-    B --> E[Spatial Processing]
-    B --> F[Storage Management]
-    
-    D --> D1[CF Conventions]
-    D --> D2[Grid Mapping]
-    D --> D3[Multiscales]
-    
-    E --> E1[Chunking Strategy]
-    E --> E2[Overview Generation]
-    E --> E3[CRS Handling]
-    
-    F --> F1[Local Storage]
-    F --> F2[S3 Storage]
-    F --> F3[Validation]
+graph LR
+    SAFE[Native product<br/>e.g. SAFE] --> CPM[EOPF CPM reader]
+    CPM --> DRV["GeoZarr driver<br/>engine=&quot;geozarr&quot;"]
+    ZARR[EOPF Zarr product] --> CLI[eopf-geozarr CLI]
+    DRV --> ROUTE{Product routing}
+    CLI --> ROUTE
+    ROUTE -->|S02MSIL1C / S02MSIL2A| S2[Sentinel-2 pipeline]
+    ROUTE -->|S03OLCEFR / S03OLCERR| S3[Sentinel-3 OLCI pipeline]
+    ROUTE -->|other, e.g. Sentinel-1 GRD| GEN[Generic pipeline]
+    S2 --> OUT[(GeoZarr store)]
+    S3 --> OUT
+    GEN --> OUT
+    TIF[S1Tiling OTB COGs] --> S1[Sentinel-1 RTC ingestion] --> OUT
 ```
+
+## Package layout
+
+| Module | Role |
+|---|---|
+| `cpm/` | GeoZarr driver for EOPF CPM: `writer.py` (`GeoZarrWriter`, engine `geozarr`, `eopf convert-geozarr`) and `routing.py` (product routing, no CPM dependency). |
+| `cli.py` | Standalone `eopf-geozarr` command line. |
+| `s2_optimization/` | Sentinel-2 pipeline: native levels, overviews, encoding, band injection. |
+| `s3_olci_optimization/` | Sentinel-3 OLCI pipeline: swath or regular grid, overviews. |
+| `conversion/` | Generic pipeline (`geozarr.py`), Sentinel-1 GRD RTC ingestion (`s1_ingest.py`), Sentinel-1 reprojection, source opening, storage and metadata utilities. |
+| `stac/` | STAC item builders (Sentinel-1 GRD RTC). |
+| `data_api/` | pydantic-zarr models of the EOPF products and of GeoZarr, and the mini spec validator (`data_api/geozarr/validation.py`). |
+| `pyz/` | pydantic-zarr helpers used by the models. |
+| `codecs/` | Helpers for the Zarr `scale_offset` codec. |
 
 ## Core Components
 
-### 1. Conversion Engine (`conversion/geozarr.py`)
+### 1. Generic pipeline (`conversion/geozarr.py`)
 
-The main conversion engine orchestrates the transformation process:
+The generic pipeline converts the listed groups:
 
 ```python
 # test: skip
@@ -396,14 +396,14 @@ def consolidate_metadata(output_path: str, **storage_kwargs) -> None:
 
 ## Extensibility
 
-### 1. Plugin Architecture
+### 1. EOPF CPM integration
 
-The library is designed to support extensions:
+The GeoZarr driver plugs into EOPF CPM through two documented extension points:
 
-- Custom storage backends
-- Additional metadata formats
-- Custom processing algorithms
-- Validation plugins
+- the writer registry (`EOWriterRegistry`), under the engine name `geozarr`
+- the `eopf.cli` entry-point group, which adds `eopf convert-geozarr`
+
+A new product type needs a routing rule in `cpm/routing.py` and a pipeline.
 
 ### 2. Configuration System
 
@@ -438,7 +438,7 @@ The library uses an efficient testing approach with **lightweight JSON-based Zar
 - **No Remote Dependencies**: Eliminates need for network access during testing
 - **Lightweight Fixtures**: JSON files define Zarr group structure using `pydantic-zarr`
 
-Test fixtures are created from JSON schemas stored in `tests/test_data_api/{s1_examples,s2_examples}/` directories, making the test suite both comprehensive and efficient.
+Test fixtures are created from JSON schemas in `tests/_test_data/` (for example `s2_examples/` for Zarr v2 and `v3_s2_examples/` for Zarr v3 Sentinel-2 products). Golden snapshots of the converted output live in `tests/_test_data/optimized_geozarr_examples/`; regenerate them with `REGENERATE_SNAPSHOTS=1 pytest -k snapshot`.
 
 ### 4. Validation Tests
 
@@ -446,5 +446,3 @@ Test fixtures are created from JSON schemas stored in `tests/test_data_api/{s1_e
 - Metadata accuracy verification
 - Data integrity checks
 - Performance regression testing
-
-This architecture ensures the EOPF GeoZarr library is robust, performant, and maintainable while meeting the specific needs of Earth observation data processing.
