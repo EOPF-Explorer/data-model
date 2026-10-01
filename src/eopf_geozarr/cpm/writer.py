@@ -218,12 +218,6 @@ class GeoZarrWriter(EOWriter):
                 s3_olci_optimized=s3_olci_optimized,
             ),
         )
-        if selected_pipeline == "generic" and groups is None:
-            raise ValueError(
-                "The generic GeoZarr pipeline requires the 'groups' option naming the "
-                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
-                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
-            )
         resolved_spatial_chunk = (
             spatial_chunk
             if spatial_chunk is not None
@@ -273,17 +267,26 @@ class GeoZarrWriter(EOWriter):
             )
 
         # last validation and calling of the generic geizar writer
-        assert groups is not None
-        return create_geozarr_dataset(
-            dt_input=dtree,
-            groups=list(groups),
-            output_path=output_path,
-            spatial_chunk=resolved_spatial_chunk,
-            min_dimension=min_dimension,
-            max_retries=max_retries,
-            crs_groups=list(crs_groups) if crs_groups is not None else None,
-            gcp_group=gcp_group,
-            enable_sharding=enable_sharding,
+        if selected_pipeline == "generic" and groups is not None:
+            return create_geozarr_dataset(
+                dt_input=dtree,
+                groups=list(groups),
+                output_path=output_path,
+                spatial_chunk=resolved_spatial_chunk,
+                min_dimension=min_dimension,
+                max_retries=max_retries,
+                crs_groups=list(crs_groups) if crs_groups is not None else None,
+                gcp_group=gcp_group,
+                enable_sharding=enable_sharding,
+            )
+        if groups is None:
+            raise ValueError(
+                "The generic GeoZarr pipeline requires the 'groups' option naming the "
+                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
+                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
+            )
+        raise ValueError(
+            "The selected input parameters could not trigger a conversion. Re-evaluate them, to guarantee the conversion through your selected processor."
         )
 
     def validate_write_options(
@@ -312,6 +315,7 @@ class GeoZarrWriter(EOWriter):
             "keep_scale_offset",
             "validate_output",
             "output_grid",
+            "generic_rechunker",
         )
         unknown = {key: value for key, value in kwargs.items() if key not in option_names}
         self._validate_options(
@@ -502,6 +506,11 @@ def get_cli_command() -> click.Command:
         "--no-s3-olci-optimized",
         is_flag=True,
         help="Fall back to Sentinel-2/generic auto-detection for Sentinel-3 OLCI inputs.",
+    )
+    @click.option(
+        "--generic-rechunker",
+        is_flag=True,
+        help="Fall back to Generic Rechunker processing. Automatically triggers Sentinel-2/3 OLCI detection scripts and routes through to optimized converters.",
     )
     @click.option(
         "--output-grid",
