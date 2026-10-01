@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.0 (2026-10-01)
+
+## What's Changed
+* revert: undo #281 work pushed to main by mistake by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/286
+* ci: publish release-please releases to PyPI by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/290
+* feat!: one scale/offset encoding switch by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/287
+* Enhance documentation for STAC integration and Zarr asset access by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/130
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.12.0...v0.13.0
+
 ## 0.12.0 (2026-09-28)
 
 ## What's Changed
