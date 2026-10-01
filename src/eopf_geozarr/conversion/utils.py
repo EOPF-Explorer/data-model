@@ -290,19 +290,7 @@ def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
     return None
 
 
-def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int, chunk_data: tuple | None = None) -> xr.Dataset:
-    if chunk_data:
-        if len(ds.sizes) != len(chunk_data):
-            log.warning(
-                "chunk_data not same length as data variables:",
-                data_vars=list(ds.data_vars.keys()),
-                chunk_keys=chunk_data,
-            )
-
-        chunks_ = {}
-        for (dim, size), chunk_ in zip(ds.sizes.items(), chunk_data, strict=True):
-            chunks_[dim] = chunk_ if chunk_ != -1 else size
-        return ds.chunk(chunks_)
+def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
     chunks = {dim: (min(spatial_chunk, size)) for dim, size in ds.sizes.items()}
     return ds.chunk(chunks)
 
@@ -317,6 +305,10 @@ def rechunk_dataset_for_encoding(
 
     When using Zarr v3 sharding, Dask chunks must align with shard dimensions to avoid
     checksum validation errors.
+
+    chunk_and_shard_coords: bool
+        allows (primarily) the sharding of coordinate arrays, usually not too relevant but
+        takes effect for large 2dim coordinate arrays eg. lat/lon S3A OLCI LFR
     """
     rechunked_vars: dict[Hashable, xr.DataArray] = {}
 

@@ -14,10 +14,9 @@ import zarr
 from zarr_cm import geo_proj
 from zarr_cm import spatial as spatial_cm
 
-from eopf_geozarr.conversion.utils import create_uniform_encoding
+from eopf_geozarr.conversion.utils import _rechunk_ds, create_uniform_encoding
 from eopf_geozarr.s2_optimization.s2_multiscale import (
-    _rechunk_ds,
-    stream_write_dataset,
+    stream_write_s2dataset,
     write_geo_metadata,
 )
 
@@ -236,7 +235,7 @@ class TestWriteGeoMetadata:
         # Call _stream_write_dataset (which should call _write_geo_metadata internally)
         # Use a measurements path to trigger geo metadata writing
         dataset_path = "/measurements/reflectance/r10m"
-        stream_write_dataset(
+        stream_write_s2dataset(
             ds,
             path=dataset_path,
             group=zarr.create_group(tmp_path),
