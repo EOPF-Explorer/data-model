@@ -4,12 +4,17 @@ Run from the repository root, in an environment with the ``cpm`` extra::
 
     uv run --extra cpm python tests/_test_data/s1_grdh_examples/regenerate.py \\
         /path/to/S1A_IW_GRDH_1SDV_....SAFE [more .SAFE ...]
+        #home/samuel/data/samples/cpm_v300rc4a/safe_products
 
 Each product is converted with CPM's own ``cpm_zarr`` engine (the layout the CPM
 SAFE reader hands to writers), and the resulting Zarr V3 hierarchy is dumped with the
 generic ``GroupSpec``. Only metadata reaches the JSON, and
 ``create_zarrv3_group_from_json`` rebuilds it as a store of fill-valued arrays.
 """
+
+# eopf is an optional dependency (the `cpm` extra, Python >= 3.13 only), so it
+# is absent from the default type-checking environment.
+# pyright: reportMissingImports=false
 
 import json
 import sys

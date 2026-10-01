@@ -1551,6 +1551,7 @@ dependencies = [
     { name = "pystac" },
     { name = "rioxarray" },
     { name = "s3fs" },
+    { name = "shapely" },
     { name = "structlog" },
     { name = "typing-extensions" },
     { name = "xarray" },
@@ -1560,6 +1561,7 @@ dependencies = [
 
 [package.optional-dependencies]
 cpm = [
+    { name = "defusedxml", marker = "python_full_version >= '3.13'" },
     { name = "eopf", marker = "python_full_version >= '3.13'" },
 ]
 
@@ -1602,6 +1604,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.34.0" },
     { name = "cf-xarray", specifier = ">=0.8.0" },
     { name = "dask", extras = ["array", "distributed"], specifier = ">=2026.1.0" },
+    { name = "defusedxml", marker = "python_full_version >= '3.13' and extra == 'cpm'" },
     { name = "eopf", marker = "python_full_version >= '3.13' and extra == 'cpm'", specifier = ">=3.0.0" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pydantic", specifier = ">=2.12" },
@@ -1610,6 +1613,7 @@ requires-dist = [
     { name = "pystac", specifier = ">=1.8.0" },
     { name = "rioxarray", specifier = ">=0.13.0" },
     { name = "s3fs", specifier = ">=2024.6.0" },
+    { name = "shapely", specifier = ">=2.0" },
     { name = "structlog", specifier = ">=25.5.0" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "xarray", specifier = ">=2025.7.1" },

@@ -223,6 +223,12 @@ class GeoZarrWriter(EOWriter):
             if spatial_chunk is not None
             else _DEFAULT_SPATIAL_CHUNK[selected_pipeline]
         )
+        if selected_pipeline == "generic" and groups is None:
+            raise ValueError(
+                "The generic GeoZarr pipeline requires the 'groups' option naming the "
+                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
+                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
+            )
         output_path = self._prepare_target(filename_or_obj, mode=mode)
         log.info(
             "Writing GeoZarr product",
@@ -278,12 +284,6 @@ class GeoZarrWriter(EOWriter):
                 crs_groups=list(crs_groups) if crs_groups is not None else None,
                 gcp_group=gcp_group,
                 enable_sharding=enable_sharding,
-            )
-        if groups is None:
-            raise ValueError(
-                "The generic GeoZarr pipeline requires the 'groups' option naming the "
-                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
-                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
             )
         raise ValueError(
             "The selected input parameters could not trigger a conversion. Re-evaluate them, to guarantee the conversion through your selected processor."
@@ -542,6 +542,7 @@ def get_cli_command() -> click.Command:
         min_dimension: int,
         no_s2_optimized: bool,
         no_s3_olci_optimized: bool,
+        generic_rechunker: bool,
         output_grid: str,
         stage_source: bool,
         stage_output: bool,
@@ -564,6 +565,8 @@ def get_cli_command() -> click.Command:
             target_store_kwargs["s2_optimized"] = False
         if no_s3_olci_optimized:
             target_store_kwargs["s3_olci_optimized"] = False
+        if generic_rechunker:
+            target_store_kwargs["generic_rechunker"] = True
         if output_grid != "native":
             target_store_kwargs["output_grid"] = output_grid
         convert(
