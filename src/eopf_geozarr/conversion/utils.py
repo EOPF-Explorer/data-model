@@ -417,7 +417,6 @@ def get_chunking_for_encoding(
 def create_uniform_encoding(
     dataset: xr.Dataset,
     *,
-    spatial_chunk: int,
     enable_sharding: bool = True,
     shard_along_smallest_dimension: bool = False,
     keep_scale_offset: bool = True,
@@ -427,11 +426,8 @@ def create_uniform_encoding(
     """
     Create encoding (compression, chunking, sharding) for a dataset.
 
-    Chunking is taken from the input dataset's existing chunks when present
-    (e.g. a group that's already been rechunked/aggregated, such as a
-    pyramid level or a group written with `preferred_chunks`). Only when a
-    variable has no chunks at all do we compute a chunk grid from
-    `spatial_chunk`. Sharding always covers the *entire* array along every
+    Chunking is taken from the input dataset's existing chunks which HAS to be present, which has to be enforced before calling this fucntion.
+    Tests inside this fucntion from `get_chunking_for-encoding` will raise a ValueError if no chunks are present. Sharding always covers the *entire* array along every
     dimension, sized as the smallest multiple of that dimension's chunk size
     that is >= the array's shape — so a shard always contains a whole number
     of chunks and there is exactly one shard per array. This avoids partial

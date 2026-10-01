@@ -25,11 +25,6 @@ from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
 )
-from eopf_geozarr.data_api.geozarr.types import (
-    CF_SCALE_OFFSET_KEYS,
-    XARRAY_ENCODING_KEYS,
-    XarrayDataArrayEncoding,
-)
 from eopf_geozarr.s2_optimization.common import DISTRIBUTED_AVAILABLE
 from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 
@@ -41,6 +36,7 @@ if TYPE_CHECKING:
     from zarr_cm import MultiscalesAttrs
     from zarr_cm import spatial as spatial_cm
 
+    from eopf_geozarr.data_api.geozarr.types import XarrayDataArrayEncoding
     from eopf_geozarr.types import OverviewLevelJSON
 
 
@@ -449,9 +445,8 @@ def create_multiscale_from_datatree(
                         )
 
             # Measurement groups: apply custom encoding
-            encoding = create_uniform_encoding(
+            encoding = utils.create_uniform_encoding(
                 dataset,
-                spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
                 keep_scale_offset=keep_scale_offset,
             )
@@ -471,9 +466,8 @@ def create_multiscale_from_datatree(
                     dataset[data_var].encoding.pop("_FillValue", None)
         else:
             # Non-measurement groups: preserve original encoding
-            encoding = create_uniform_encoding(
+            encoding = utils.create_uniform_encoding(
                 dataset,
-                spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
                 keep_scale_offset=keep_scale_offset,
             )
@@ -528,9 +522,8 @@ def create_multiscale_from_datatree(
         log.info("Writing level to path", level=dest_level_name, output_path=dest_level_path)
 
         # Create encoding
-        encoding = create_uniform_encoding(
+        encoding = utils.create_uniform_encoding(
             downsampled_dataset,
-            spatial_chunk=spatial_chunk,
             enable_sharding=enable_sharding,
             keep_scale_offset=keep_scale_offset,
         )
@@ -593,125 +586,6 @@ def get_chunking_for_encoding(var_data: xr.DataArray) -> tuple[int, ...]:
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
-
-
-def create_uniform_encoding(
-    dataset: xr.Dataset,
-    *,
-    spatial_chunk: int,
-    enable_sharding: bool = True,
-    keep_scale_offset: bool = True,
-    compression_level: int = 3,
-) -> dict[str, XarrayDataArrayEncoding]:
-    """
-    Create encoding (compression, chunking, sharding) for a dataset.
-
-    Chunking is taken from the input dataset's existing chunks when present
-    (e.g. a group that's already been rechunked/aggregated, such as a
-    pyramid level or a group written with `preferred_chunks`). Only when a
-    variable has no chunks at all do we compute a chunk grid from
-    `spatial_chunk`. Sharding always covers the *entire* array along every
-    dimension, sized as the smallest multiple of that dimension's chunk size
-    that is >= the array's shape — so a shard always contains a whole number
-    of chunks and there is exactly one shard per array. This avoids partial
-    edge chunks ending up in their own oddly-sized shard when e.g. shape=1830
-    and chunk=1024 (shard becomes 2048, i.e. 2 chunks, not some 1830-based
-    value that would clip/overlap the second chunk).
-    """
-    import math
-
-    from zarr.codecs import BloscCodec
-
-    encoding: dict[str, XarrayDataArrayEncoding] = {}
-    compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
-
-    for var_name, var_data in dataset.data_vars.items():
-        var_encoding: XarrayDataArrayEncoding = {}
-
-        encoding_chunks = get_chunking_for_encoding(var_data)
-
-        var_encoding["chunks"] = encoding_chunks
-        var_encoding["compressors"] = (compressor,)
-
-        # --- Shards: cover the whole array, one shard per array -----------
-        if enable_sharding:
-            # select next largest mutliple of chunksize to fit full array
-            shards = tuple(
-                math.ceil(shape / chunk) * chunk
-                for shape, chunk in zip(var_data.shape, encoding_chunks, strict=True)
-            )
-            var_encoding["shards"] = shards
-        else:
-            var_encoding["shards"] = None
-
-        # --- Forward-propagate remaining encoding keys ---------------------
-        keep_keys = XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks"}
-
-        # Whether to inject a CF _FillValue attribute for xarray issue #11345.
-        # The injection itself happens after sanitize_array_attrs below, which
-        # would otherwise strip it.
-        inject_nan_fillvalue = False
-
-        if not keep_scale_offset:
-            # When stripping scale/offset, also strip _FillValue since the original
-            # _FillValue is in raw integer units and meaningless for decoded float data.
-            keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue"}
-            var_encoding["fill_value"] = "NaN"
-            inject_nan_fillvalue = True
-        else:
-            # Not stripping scale/offset: pick an explicit zarr-level fill_value
-            # rather than letting xarray infer one differently across versions.
-            keep_keys = keep_keys - {"fill_value"}
-
-            # get the fill value and detect if its int or Nan/None -> UnSet differentiates between nan/None and actually not set
-            fv = utils.explicit_fill_value(var_data)
-            if fv is not utils.UNSET:
-                # gets triggered for s1?
-                var_encoding["fill_value"] = fv
-            else:
-                # We need to pass _FillValue in the encoding to allow decode_cf to read it..
-                # either this, or it gets removed from everywhere else during the sanitize_array_attrs() call
-                if "fill_value" in var_data.attrs and "_FillValue" not in var_encoding:
-                    var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-                else:
-                    pass
-
-        for key in keep_keys:
-            if key in var_data.encoding:
-                var_encoding[key] = var_data.encoding[key]
-
-        if len(set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS) > 0:
-            log.warning(
-                "Unknown encoding keys in %s: %s",
-                var_name,
-                set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS,
-            )
-
-        # Sanitize source-only attributes (replace dict — ``.update`` cannot
-        # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
-        # otherwise leak into the output).
-        is_float = np.issubdtype(var_data.dtype, np.floating)
-        var_data.attrs = utils.sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
-
-        # if fill value is set to nan, the array needs to be cast to a float.
-        # `xr.DataArray.astype` clears `.encoding`, so capture and restore it —
-        # the `var_encoding` dict above (and the experimental scale-offset
-        # filters within it) is derived from `var_data.encoding` too, but
-        # downstream code (e.g. pyramid coarsening) reads the encoding back
-        # off the dataset variable itself, so it must survive this cast.
-        if inject_nan_fillvalue:
-            var_data.attrs["_FillValue"] = np.nan
-            original_encoding = var_data.encoding
-            dataset[var_name] = var_data.astype(np.float32)
-            dataset[var_name].encoding = original_encoding
-
-        encoding[str(var_name)] = var_encoding
-
-    for coord_name, coord_data in dataset.coords.items():
-        coord_data.attrs = utils.sanitize_array_attrs(coord_data.attrs)
-        encoding[str(coord_name)] = {"compressors": []}  # type: ignore[typeddict-item]
-
-    return encoding
 
 
 def calculate_aligned_chunk_size(dimension_size: int, target_chunk: int) -> int:

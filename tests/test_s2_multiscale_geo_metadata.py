@@ -14,9 +14,10 @@ import zarr
 from zarr_cm import geo_proj
 from zarr_cm import spatial as spatial_cm
 
+from eopf_geozarr.conversion.utils import create_uniform_encoding
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _rechunk_ds,
-    create_uniform_encoding,
+    # create_uniform_encoding,
     stream_write_dataset,
     write_geo_metadata,
 )
@@ -231,7 +232,7 @@ class TestWriteGeoMetadata:
         ds = _rechunk_ds(ds, spatial_chunk=1024)
 
         # Create encoding for the dataset
-        encoding = create_uniform_encoding(ds, spatial_chunk=1024, enable_sharding=True)
+        encoding = create_uniform_encoding(ds, enable_sharding=True)
 
         # Call _stream_write_dataset (which should call _write_geo_metadata internally)
         # Use a measurements path to trigger geo metadata writing

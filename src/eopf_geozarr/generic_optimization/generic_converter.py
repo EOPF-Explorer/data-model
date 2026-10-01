@@ -88,7 +88,6 @@ def create_generic_geozarr_dataset(
 
         encoding = utils.create_uniform_encoding(
             dataset,
-            spatial_chunk=spatial_chunk,
             enable_sharding=enable_sharding,
             keep_scale_offset=keep_scale_offset,
             compression_level=compression_level,
