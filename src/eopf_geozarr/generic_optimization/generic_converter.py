@@ -31,7 +31,6 @@ def create_generic_geozarr_dataset(
     enable_sharding: bool,
     compression_level: int = 3,
     scale_offset_codec: bool = False,
-    keep_scale_offset: bool | None = True,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec compliant dataset from EOPF data with CPM 3.0.0.
@@ -48,8 +47,6 @@ def create_generic_geozarr_dataset(
     enable_sharding : bool
         Enable zarr sharding for spatial dimensions of each variable
     compression_level: int, default 3
-    keep_scale_offset: bool, default True
-        Keep uint16 and scale/offset attributes
 
     Returns
     -------

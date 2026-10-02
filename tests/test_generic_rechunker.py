@@ -88,6 +88,15 @@ def open_zarrv3_example(source_path: pathlib.Path, tmp_path: pathlib.Path) -> xr
     return tree
 
 
+def codec_names(array: zarr.Array) -> list[str]:
+    """Codec class names, including those nested in a sharding codec."""
+    names: list[str] = []
+    for codec in array.metadata.codecs:  # type: ignore[union-attr]
+        names.append(type(codec).__name__)
+        names.extend(type(inner).__name__ for inner in getattr(codec, "codecs", ()))
+    return names
+
+
 def read_array(output_path: pathlib.Path, path: str) -> zarr.Array:
     """Open one written array of the output store."""
     array = zarr.open_group(str(output_path), mode="r")[path]
@@ -103,7 +112,6 @@ def convert(
         "spatial_chunk": 128,
         "enable_sharding": True,
         "compression_level": 3,
-        "keep_scale_offset": True,
     } | overrides
     output_path = tmp_path / "out.zarr"
     with capture_logs():
@@ -163,28 +171,33 @@ def test_data_round_trips(tmp_path: pathlib.Path) -> None:
         np.testing.assert_array_equal(read_array(output_path, path)[:], tree[path].values)
 
 
-def test_keep_scale_offset_true_keeps_packed_integers(tmp_path: pathlib.Path) -> None:
-    _, output_path = convert(build_scaled_tree(), tmp_path, keep_scale_offset=True)
+def test_default_keeps_packed_integers(tmp_path: pathlib.Path) -> None:
+    """Without `scale_offset_codec`, packed variables are written as in the ESA product."""
+    _, output_path = convert(build_scaled_tree(), tmp_path)
 
     reflectance = read_array(output_path, "measurements/reflectance")
     assert reflectance.dtype == np.dtype("uint16")
     assert reflectance.attrs["scale_factor"] == 0.5
     assert reflectance.attrs["add_offset"] == 1.0
+    assert reflectance.attrs["_FillValue"] == 0
+    assert "ScaleOffset" not in codec_names(reflectance)
 
 
-def test_keep_scale_offset_false_writes_decoded_floats(tmp_path: pathlib.Path) -> None:
-    _, output_path = convert(build_scaled_tree(), tmp_path, keep_scale_offset=False)
+def test_scale_offset_codec_packs_with_zarr_codecs(tmp_path: pathlib.Path) -> None:
+    """With `scale_offset_codec`, the packing is in Zarr codecs, not CF attributes."""
+    _, output_path = convert(build_scaled_tree(), tmp_path, scale_offset_codec=True)
 
     reflectance = read_array(output_path, "measurements/reflectance")
     assert reflectance.dtype == np.dtype("float32")
+    assert {"ScaleOffset", "CastValue"} <= set(codec_names(reflectance))
     assert "scale_factor" not in reflectance.attrs
     assert "add_offset" not in reflectance.attrs
-    assert np.isnan(reflectance.fill_value)
 
 
+@pytest.mark.parametrize("scale_offset_codec", [True, False], ids=["codec", "cf"])
 @pytest.mark.parametrize("dtype", ["int32", "complex64"])
-def test_keep_scale_offset_false_handles_non_float_variables(
-    tmp_path: pathlib.Path, dtype: str
+def test_non_float_variables_keep_their_dtype(
+    tmp_path: pathlib.Path, dtype: str, scale_offset_codec: bool
 ) -> None:
     """Variables that are not floats are written with their dtype intact.
 
@@ -194,7 +207,7 @@ def test_keep_scale_offset_false_handles_non_float_variables(
     tree = xr.DataTree()
     tree["measurements"] = xr.Dataset({"values": (("y", "x"), np.ones((40, 60), dtype=dtype))})
 
-    _, output_path = convert(tree, tmp_path, keep_scale_offset=False)
+    _, output_path = convert(tree, tmp_path, scale_offset_codec=scale_offset_codec)
 
     assert read_array(output_path, "measurements/values").dtype == np.dtype(dtype)
 
@@ -230,10 +243,10 @@ def test_writes_variables_of_groups_with_children(tmp_path: pathlib.Path) -> Non
 
 
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
-@pytest.mark.parametrize("keep_scale_offset", [True, False])
+@pytest.mark.parametrize("scale_offset_codec", [True, False], ids=["codec", "cf"])
 @pytest.mark.parametrize("source_path", s1_grdh_example_json_paths, ids=get_stem)
 def test_s1_grdh_example_converts(
-    source_path: pathlib.Path, tmp_path: pathlib.Path, keep_scale_offset: bool
+    source_path: pathlib.Path, tmp_path: pathlib.Path, scale_offset_codec: bool
 ) -> None:
     """Every data group of a full-size S1 GRDH product (Zarr V3) is written."""
     tree = open_zarrv3_example(source_path, tmp_path)
@@ -241,7 +254,7 @@ def test_s1_grdh_example_converts(
     assert expected_groups, "fixture has no data groups"
 
     _, output_path = convert(
-        tree, tmp_path, spatial_chunk=1024, keep_scale_offset=keep_scale_offset
+        tree, tmp_path, spatial_chunk=1024, scale_offset_codec=scale_offset_codec
     )
 
     root = zarr.open_group(str(output_path), mode="r")
