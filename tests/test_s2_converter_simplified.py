@@ -398,7 +398,7 @@ def test_write_store_root_bbox_antimeridian_falls_back_to_full_range(tmp_path: P
 class TestConvenienceFunction:
     """Test the convenience function."""
 
-    @patch("eopf_geozarr.s2_optimization.s2_converter.create_result_datatree")
+    @patch("eopf_geozarr.conversion.utils.create_result_datatree")
     @patch("eopf_geozarr.s2_optimization.s2_converter.zarr.open_group")
     @patch("eopf_geozarr.s2_optimization.s2_converter.initialize_crs_from_dataset")
     @patch("eopf_geozarr.s2_optimization.s2_converter.get_zarr_group")

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import structlog
@@ -17,10 +17,8 @@ from dask.array import from_delayed
 from dask.delayed import delayed
 from pydantic.experimental.missing_sentinel import MISSING
 from pyproj import CRS
-from zarr.codecs import CastValue
 
-from eopf_geozarr.codecs.scale_offset import scale_offset_from_cf
-from eopf_geozarr.conversion import utils
+from eopf_geozarr.conversion import encoding_utils, utils
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
 from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
@@ -68,171 +66,6 @@ class S2Type(StrEnum):
 
 
 log = structlog.get_logger()
-
-
-class Packing(NamedTuple):
-    """CF packing of a variable: `decoded = packed * scale_factor + add_offset`."""
-
-    scale_factor: float
-    add_offset: float
-    fill_value: int | None
-    dtype: np.dtype[Any]
-
-
-def find_fill_value(var: xr.DataArray) -> Any:
-    """Return the nodata value of `var` in stored units, or None when it has none.
-
-    This is the CF `_FillValue` (in `.encoding` for decoded input, in `.attrs`
-    for raw input) or, on Zarr v3 CPM products, only the EOPF `fill_value`
-    attribute.
-    """
-    candidates = (
-        var.encoding.get("_FillValue"),
-        var.attrs.get("_FillValue"),
-        var.attrs.get("fill_value"),
-    )
-    return next((value for value in candidates if value is not None), None)
-
-
-def packing_of(var: xr.DataArray) -> Packing | None:
-    """Return the CF packing of `var`, or None when it is not packed.
-
-    The CF values are in `.encoding` for decoded input (`mask_and_scale=True`)
-    and in `.attrs` for raw input (`mask_and_scale=False`). A trivial packing
-    (`scale_factor` 1, `add_offset` 0) counts as not packed. See
-    `find_fill_value` for the nodata value.
-    """
-    scale = var.encoding.get("scale_factor", var.attrs.get("scale_factor"))
-    offset = var.encoding.get("add_offset", var.attrs.get("add_offset"))
-    if scale is None and offset is None:
-        return None
-    scale = 1.0 if scale is None else float(scale)
-    offset = 0.0 if offset is None else float(offset)
-    dtype = np.dtype(var.encoding.get("dtype", var.dtype))
-    if (scale == 1.0 and offset == 0.0) or not np.issubdtype(dtype, np.integer):
-        return None
-    fill = find_fill_value(var)
-    return Packing(scale, offset, None if fill is None else int(fill), dtype)
-
-
-def _encode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
-    """Return `var` as the packed integers of `packing`, with the CF values in `.attrs`.
-
-    The inverse of `_decode_packed`, for the ESA layout. Raw integer input is
-    kept as it is (no cast); decoded input is packed again, so both input forms
-    end up identical. The nodata value goes to `.encoding["_FillValue"]`.
-    """
-    if np.issubdtype(var.dtype, np.integer):
-        values = var
-    else:
-        # Decoded Zarr v3 input is not masked, but its nodata packs back to the
-        # same stored value.
-        values = ((var - packing.add_offset) / packing.scale_factor).round()
-        if packing.fill_value is not None:
-            values = values.fillna(packing.fill_value)
-        values = values.astype(packing.dtype)
-    encoded = values.copy(deep=False)
-    # Same attributes as the decoded form, so both modes describe the data alike.
-    encoded.attrs = {
-        **utils.sanitize_array_attrs(var.attrs, is_decoded_float=True),
-        "scale_factor": packing.scale_factor,
-        "add_offset": packing.add_offset,
-    }
-    encoded.encoding = {
-        key: value for key, value in var.encoding.items() if key in ("chunks", "preferred_chunks")
-    }
-    if packing.fill_value is not None:
-        encoded.encoding["_FillValue"] = packing.fill_value
-    return encoded
-
-
-def normalize_packed(
-    var: xr.DataArray, packing: Packing, *, scale_offset_codec: bool
-) -> xr.DataArray:
-    """Return `var` in the form that the selected encoding mode writes.
-
-    The Zarr codecs take decoded float32 values; the ESA layout keeps the
-    packed integers, so it does not cast the data to float.
-    """
-    if scale_offset_codec:
-        return _decode_packed(var, packing)
-    return _encode_packed(var, packing)
-
-
-def _decode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
-    """Return `var` as decoded float32 with NaN for nodata, and `packing` in `.encoding`.
-
-    Both input forms end up identical, so each encoding mode packs the same values.
-    """
-    if np.issubdtype(var.dtype, np.integer):
-        values = var.astype("float64")
-        if packing.fill_value is not None:
-            values = values.where(var != packing.fill_value)
-        values = values * packing.scale_factor + packing.add_offset
-    else:
-        values = var
-        if packing.fill_value is not None:
-            # Decoded Zarr v3 input is not masked: its nodata is only in attributes.
-            decoded_fill = packing.fill_value * packing.scale_factor + packing.add_offset
-            values = values.where(abs(values - decoded_fill) > packing.scale_factor / 2)
-    decoded = values.astype("float32")
-    decoded.attrs = {
-        key: value
-        for key, value in utils.sanitize_array_attrs(var.attrs, is_decoded_float=True).items()
-        if key not in ("scale_factor", "add_offset")
-    }
-    decoded.encoding = {
-        key: value for key, value in var.encoding.items() if key in ("chunks", "preferred_chunks")
-    }
-    decoded.encoding.update(
-        {
-            "scale_factor": packing.scale_factor,
-            "add_offset": packing.add_offset,
-            "dtype": packing.dtype,
-        }
-    )
-    if packing.fill_value is not None:
-        decoded.encoding["_FillValue"] = packing.fill_value
-    return decoded
-
-
-def _drop_trivial_scaling(var: xr.DataArray) -> xr.DataArray:
-    """Remove a `scale_factor` 1 / `add_offset` 0 pair and keep the integer dtype.
-
-    Zarr v3 CPM products declare it on classification masks such as SCL; with
-    it, readers would decode those integers to floats.
-    """
-    keys = ("scale_factor", "add_offset")
-    if not any(key in var.attrs or key in var.encoding for key in keys):
-        return var
-    dtype = np.dtype(var.encoding.get("dtype", var.dtype))
-    if np.issubdtype(var.dtype, np.floating) and np.issubdtype(dtype, np.integer):
-        fill = find_fill_value(var)
-        fill = 0 if fill is None else fill
-        encoding = var.encoding
-        var = var.fillna(fill).astype(dtype)
-        var.encoding = encoding
-    var.attrs = {key: value for key, value in var.attrs.items() if key not in keys}
-    var.encoding = {key: value for key, value in var.encoding.items() if key not in keys}
-    return var
-
-
-def _scale_offset_filters(packing: Packing) -> tuple[Any, CastValue]:
-    """Zarr codecs that store decoded floats as the packed integers of `packing`."""
-    # CastValue refuses to cast NaN to an integer without a mapping: map it to the
-    # source nodata value, or to the lowest integer when the source has none.
-    nan_sentinel = (
-        packing.fill_value if packing.fill_value is not None else int(np.iinfo(packing.dtype).min)
-    )
-    return (
-        scale_offset_from_cf(scale_factor=packing.scale_factor, add_offset=packing.add_offset),
-        CastValue(
-            data_type=packing.dtype.name,
-            rounding="nearest-even",
-            scalar_map={"encode": [("NaN", nan_sentinel)], "decode": [(nan_sentinel, "NaN")]},
-        ),
-    )
-
 
 MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
@@ -360,7 +193,7 @@ def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.
         else:
             # Raw integers: mask nodata, average, and round before the integer cast
             # (a plain cast truncates).
-            fill_value = find_fill_value(var_data)
+            fill_value = encoding_utils.find_fill_value(var_data)
             if fill_value is None:
                 result = coarsened.mean().round()  # type: ignore[attr-defined]
             else:
@@ -390,11 +223,6 @@ def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.
     cast_result.encoding = encoding
     cast_result.attrs = dict(var_data.attrs)
     return cast_result
-
-
-def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
-    chunks = {dim: (min(spatial_chunk, size)) for dim, size in ds.sizes.items()}
-    return ds.chunk(chunks)
 
 
 def inject_missing_bands(
@@ -450,11 +278,13 @@ def inject_missing_bands(
             continue
 
         band_src = source_ds[band_name]
-        packing = packing_of(band_src)
+        packing = encoding_utils.packing_of(band_src)
         if packing is not None:
             # Use the form of the encoding mode, so the injected band has the same
             # dtype as the other bands and the mean skips nodata in both input forms.
-            band_src = normalize_packed(band_src, packing, scale_offset_codec=scale_offset_codec)
+            band_src = encoding_utils.normalize_packed(
+                band_src, packing, scale_offset_codec=scale_offset_codec
+            )
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
@@ -488,7 +318,7 @@ def inject_missing_bands(
             shape=band_ds.shape,
         )
 
-    return _rechunk_ds(dataset, spatial_chunk)
+    return utils._rechunk_ds(dataset, spatial_chunk)
 
 
 def create_multiscale_from_datatree(
@@ -556,7 +386,7 @@ def create_multiscale_from_datatree(
 
         log.info("Copying original group: {}", group_path=group_path)
 
-        dataset = _rechunk_ds(base_dataset, spatial_chunk)
+        dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
 
         # Determine if this is a measurement-related resolution group
         group_name = group_path.split("/")[-1]
@@ -626,9 +456,8 @@ def create_multiscale_from_datatree(
                         )
 
             # Measurement groups: apply custom encoding
-            encoding = create_uniform_encoding(
+            encoding = utils.create_uniform_encoding(
                 dataset,
-                spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
                 scale_offset_codec=scale_offset_codec,
             )
@@ -643,9 +472,8 @@ def create_multiscale_from_datatree(
                     dataset[data_var].encoding = var_encoding
         else:
             # Non-measurement groups: preserve original encoding
-            encoding = create_uniform_encoding(
+            encoding = utils.create_uniform_encoding(
                 dataset,
-                spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
                 scale_offset_codec=scale_offset_codec,
             )
@@ -658,7 +486,7 @@ def create_multiscale_from_datatree(
             for name in scalar_coords:
                 encoding.pop(str(name), None)
 
-        ds_out = stream_write_dataset(
+        ds_out = stream_write_s2dataset(
             dataset,
             path=group_path,
             group=output_group,
@@ -700,15 +528,14 @@ def create_multiscale_from_datatree(
         log.info("Writing level to path", level=dest_level_name, output_path=dest_level_path)
 
         # Create encoding
-        encoding = create_uniform_encoding(
+        encoding = utils.create_uniform_encoding(
             downsampled_dataset,
-            spatial_chunk=spatial_chunk,
             enable_sharding=enable_sharding,
             scale_offset_codec=scale_offset_codec,
         )
 
         # Write dataset
-        ds_out = stream_write_dataset(
+        ds_out = stream_write_s2dataset(
             downsampled_dataset,
             path=dest_level_path,
             group=output_group,
@@ -822,13 +649,13 @@ def create_uniform_encoding(
     compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
 
     for var_name in list(dataset.data_vars):
-        packing = packing_of(dataset[var_name])
+        packing = encoding_utils.packing_of(dataset[var_name])
         if packing is not None:
-            dataset[var_name] = normalize_packed(
+            dataset[var_name] = encoding_utils.normalize_packed(
                 dataset[var_name], packing, scale_offset_codec=scale_offset_codec
             )
         else:
-            dataset[var_name] = _drop_trivial_scaling(dataset[var_name])
+            dataset[var_name] = encoding_utils._drop_trivial_scaling(dataset[var_name])
         var_data = dataset[var_name]
         var_encoding: XarrayDataArrayEncoding = {}
 
@@ -857,7 +684,7 @@ def create_uniform_encoding(
             if packing.fill_value is not None:
                 var_encoding["_FillValue"] = packing.fill_value
         elif packing is not None:
-            var_encoding["filters"] = _scale_offset_filters(packing)
+            var_encoding["filters"] = encoding_utils._scale_offset_filters(packing)
             var_encoding["fill_value"] = "NaN"
             # CF _FillValue attribute for xarray issue #11345.
             var_data.attrs["_FillValue"] = np.nan
@@ -1285,7 +1112,7 @@ def create_lazy_downsample_operation_from_existing(
     )
 
 
-def stream_write_dataset(
+def stream_write_s2dataset(
     dataset: xr.Dataset,
     *,
     path: str,
@@ -1330,7 +1157,7 @@ def stream_write_dataset(
     log.info("Variables", variables=list(dataset.data_vars.keys()))
 
     # Rechunk dataset to align with encoding
-    dataset = rechunk_dataset_for_encoding(dataset, encoding)
+    dataset = utils.rechunk_dataset_for_encoding(dataset, encoding)
 
     # Add the geo metadata before writing for
     # - /measurements/ groups
@@ -1457,45 +1284,3 @@ def write_geo_metadata(
 
         # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
         dataset.attrs.update(utils.build_convention_attrs(spatial=spatial_data, crs=crs))
-
-
-def rechunk_dataset_for_encoding(
-    dataset: xr.Dataset, encoding: dict[str, XarrayDataArrayEncoding]
-) -> xr.Dataset:
-    """
-    Rechunk dataset variables to align with sharding dimensions when sharding is enabled.
-
-    When using Zarr v3 sharding, Dask chunks must align with shard dimensions to avoid
-    checksum validation errors.
-    """
-    rechunked_vars: dict[Hashable, xr.DataArray] = {}
-
-    for var_name, var_data in dataset.data_vars.items():
-        if str(var_name) in encoding:
-            var_encoding = encoding[str(var_name)]
-
-            # If sharding is enabled, rechunk based on shard dimensions
-            if "shards" in var_encoding and var_encoding["shards"] is not None:
-                target_chunks = var_encoding["shards"]  # Use shard dimensions for rechunking
-            elif "chunks" in var_encoding:
-                target_chunks = var_encoding["chunks"]  # Fallback to chunk dimensions
-            else:
-                # No specific chunking needed, use original variable
-                rechunked_vars[var_name] = var_data
-                continue
-
-            # Create chunk dict using the actual dimensions of the variable
-            var_dims = var_data.dims
-            chunk_dict = {}
-            for i, dim in enumerate(var_dims):
-                if i < len(target_chunks):
-                    chunk_dict[dim] = target_chunks[i]
-
-            # Rechunk the variable to match the target dimensions
-            rechunked_vars[var_name] = var_data.chunk(chunk_dict)
-        else:
-            # No specific chunking needed, use original variable
-            rechunked_vars[var_name] = var_data
-
-    # Create new dataset with rechunked variables, preserving coordinates
-    return xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)

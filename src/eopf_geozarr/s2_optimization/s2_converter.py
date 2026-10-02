@@ -13,13 +13,12 @@ import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
 
-from eopf_geozarr.conversion import utils
-from eopf_geozarr.conversion.fs_utils import get_storage_options
+from eopf_geozarr.conversion import encoding_utils, utils
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
-from .s2_multiscale import create_multiscale_from_datatree, packing_of
+from .s2_multiscale import create_multiscale_from_datatree
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
@@ -190,12 +189,12 @@ def convert_s2(
             log.warning("Validation issues found", issues=validation_results["issues"])
 
     # Create result DataTree
-    result_dt = create_result_datatree(output_path)
+    result_dt = utils.create_result_datatree(output_path)
 
     total_time = time.time() - start_time
     log.info("Optimization complete", duration_seconds=round(total_time, 2))
 
-    optimization_summary(dt_input, result_dt, output_path)
+    utils.optimization_summary(dt_input, result_dt, output_path)
 
     return result_dt
 
@@ -283,12 +282,12 @@ def convert_s2_optimized(
             log.warning("Validation issues found", issues=validation_results["issues"])
 
     # Create result DataTree
-    result_dt = create_result_datatree(output_path)
+    result_dt = utils.create_result_datatree(output_path)
 
     total_time = time.time() - start_time
     log.info("Optimization complete", duration_seconds=round(total_time, 2))
 
-    optimization_summary(dt_input, result_dt, output_path)
+    utils.optimization_summary(dt_input, result_dt, output_path)
 
     return result_dt
 
@@ -385,7 +384,9 @@ def simple_root_consolidation(
                 reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
                 # In codec mode the Zarr reader already returns decoded values, so the
                 # asset must not declare a scale or clients would apply it twice.
-                packing = next(filter(None, map(packing_of, base.data_vars.values())), None)
+                packing = next(
+                    filter(None, map(encoding_utils.packing_of, base.data_vars.values())), None
+                )
                 if not scale_offset_codec and packing is not None:
                     reflectance_asset["raster:scale"] = packing.scale_factor
                     reflectance_asset["raster:offset"] = packing.add_offset
@@ -445,48 +446,6 @@ def write_store_root_bbox(output_path: str) -> None:
     :func:`eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
     """
     utils.write_store_root_geo_metadata(output_path)
-
-
-def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
-    """Print optimization summary statistics."""
-    # Count groups
-    input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
-    output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
-
-    # Estimate file count reduction
-    estimated_input_files = input_groups * 10  # Rough estimate
-    estimated_output_files = output_groups * 5  # Fewer files per group
-    group_change_pct = (
-        ((output_groups - input_groups) / input_groups * 100) if input_groups > 0 else 0
-    )
-    file_change_pct = (
-        ((estimated_output_files - estimated_input_files) / estimated_input_files * 100)
-        if estimated_input_files > 0
-        else 0
-    )
-
-    log.info(
-        "OPTIMIZATION SUMMARY",
-        input_groups=input_groups,
-        output_groups=output_groups,
-        group_change_pct=f"{group_change_pct:+.1f}%",
-        estimated_input_files=estimated_input_files,
-        estimated_output_files=estimated_output_files,
-        file_change_pct=f"{file_change_pct:+.1f}%",
-        output_path=output_path,
-        groups=[g for g in dt_output.groups if g != "."],
-    )
-
-
-def create_result_datatree(output_path: str) -> xr.DataTree:
-    """Create result DataTree from written output."""
-    storage_options = get_storage_options(output_path)
-    return xr.open_datatree(
-        output_path,
-        engine="zarr",
-        chunks="auto",
-        storage_options=storage_options,
-    )
 
 
 def is_sentinel2_dataset(group: zarr.Group) -> bool:
