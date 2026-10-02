@@ -30,7 +30,7 @@ def create_generic_geozarr_dataset(
     spatial_chunk: int,
     enable_sharding: bool,
     compression_level: int = 3,
-    keep_scale_offset: bool = True,
+    keep_scale_offset: bool | None = True,
 ) -> xr.DataTree:
     """
     Create a GeoZarr-spec compliant dataset from EOPF data with CPM 3.0.0.

@@ -411,8 +411,9 @@ def create_uniform_encoding(
     *,
     enable_sharding: bool = True,
     shard_along_smallest_dimension: bool = False,
-    keep_scale_offset: bool = True,
+    keep_scale_offset: bool | None = True,
     compression_level: int = 3,
+    scale_offset_codec: bool = False,
     chunk_and_shard_coords: bool = False,
 ) -> dict[str, XarrayDataArrayEncoding]:
     """
