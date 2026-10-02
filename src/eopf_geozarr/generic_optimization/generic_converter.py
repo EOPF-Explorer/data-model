@@ -30,6 +30,7 @@ def create_generic_geozarr_dataset(
     spatial_chunk: int,
     enable_sharding: bool,
     compression_level: int = 3,
+    scale_offset_codec: bool = False,
     keep_scale_offset: bool | None = True,
 ) -> xr.DataTree:
     """
@@ -89,8 +90,8 @@ def create_generic_geozarr_dataset(
         encoding = utils.create_uniform_encoding(
             dataset,
             enable_sharding=enable_sharding,
-            keep_scale_offset=keep_scale_offset,
             compression_level=compression_level,
+            scale_offset_codec=scale_offset_codec,
         )
 
         # Write dataset -> does NOT add geo metadata

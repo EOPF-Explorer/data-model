@@ -13,9 +13,8 @@ from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, Spatia
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
 
-from eopf_geozarr.conversion import fs_utils
+from eopf_geozarr.conversion import encoding_utils, fs_utils
 from eopf_geozarr.data_api.geozarr.types import (
-    CF_SCALE_OFFSET_KEYS,
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
 )
@@ -406,15 +405,35 @@ def get_chunking_for_encoding(
     )
 
 
+def _forward_unpacked_encoding(
+    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
+) -> None:
+    """Copy the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
+    fv = explicit_fill_value(var_data)
+    if fv is not UNSET:
+        var_encoding["fill_value"] = fv
+    elif "fill_value" in var_data.attrs:
+        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
+        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+
+    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
+        if key in var_data.encoding:
+            var_encoding[key] = var_data.encoding[key]
+
+    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
+    if unknown:
+        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+
 def create_uniform_encoding(
     dataset: xr.Dataset,
     *,
     enable_sharding: bool = True,
-    shard_along_smallest_dimension: bool = False,
-    keep_scale_offset: bool | None = True,
     compression_level: int = 3,
     scale_offset_codec: bool = False,
     chunk_and_shard_coords: bool = False,
+    shard_along_smallest_dimension: bool = False,
 ) -> dict[str, XarrayDataArrayEncoding]:
     """
     Create encoding (compression, chunking, sharding) for a dataset.
@@ -427,6 +446,15 @@ def create_uniform_encoding(
     edge chunks ending up in their own oddly-sized shard when e.g. shape=1830
     and chunk=1024 (shard becomes 2048, i.e. 2 chunks, not some 1830-based
     value that would clip/overlap the second chunk).
+
+    Packed variables (see `packing_of`) keep their source integer dtype on disk.
+    By default they are written as in the ESA product: packed integers with CF
+    `scale_factor`, `add_offset` and `_FillValue`, and they stay packed integers
+    in `dataset` (no cast to float). With `scale_offset_codec`, they are
+    replaced in `dataset` by their decoded float32 values, and the Zarr
+    `scale_offset` + `cast_value` codecs pack them, with no CF scale
+    attributes. Other variables keep their dtype and fill value.
+
     """
     import math
 
@@ -435,7 +463,16 @@ def create_uniform_encoding(
     encoding: dict[str, XarrayDataArrayEncoding] = {}
     compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
 
-    for var_name, var_data in dataset.data_vars.items():
+    for var_name in list(dataset.data_vars):
+        packing = encoding_utils.packing_of(dataset[var_name])
+        if packing is not None:
+            dataset[var_name] = encoding_utils.normalize_packed(
+                dataset[var_name], packing, scale_offset_codec=scale_offset_codec
+            )
+        else:
+            dataset[var_name] = encoding_utils._drop_trivial_scaling(dataset[var_name])
+
+        var_data = dataset[var_name]
         var_encoding: XarrayDataArrayEncoding = {}
 
         encoding_chunks = get_chunking_for_encoding(var_data, shard_along_smallest_dimension)
@@ -466,60 +503,26 @@ def create_uniform_encoding(
         else:
             var_encoding["shards"] = None
 
-        # --- Forward-propagate remaining encoding keys ---------------------
-        keep_keys = XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks"}
-
-        # Only floats can hold a NaN fill value. Integer, bool and complex
-        # variables are written in their own dtype, with the same fill-value
-        # handling as keep_scale_offset=True.
-        # Note: an integer variable that still carries scale_factor/add_offset
-        # (a source opened with mask_and_scale=False) keeps them and is not
-        # decoded, even with keep_scale_offset=False.
-        is_float = np.issubdtype(var_data.dtype, np.floating)
-
-        # Whether to inject a CF _FillValue attribute for xarray issue #11345.
-        # The injection itself happens after sanitize_array_attrs below, which
-        # would otherwise strip it.
-        inject_nan_fillvalue = False
-
-        if not keep_scale_offset and is_float:
-            # Decoded float data: strip scale/offset and the source _FillValue (it is in raw integer units) and use NaN as the fill value.
-            keep_keys = keep_keys - CF_SCALE_OFFSET_KEYS - {"_FillValue"}
+        # `to_zarr(encoding=...)` replaces each variable's `.encoding`, so the
+        # variables keep their packing for the pyramid levels while only the
+        # keys below are written.
+        if packing is not None and not scale_offset_codec:
+            # The data are already the packed integers and the CF `scale_factor`
+            # and `add_offset` are attributes, so xarray writes them unchanged.
+            if packing.fill_value is not None:
+                var_encoding["_FillValue"] = packing.fill_value
+        elif packing is not None:
+            var_encoding["filters"] = encoding_utils._scale_offset_filters(packing)
             var_encoding["fill_value"] = "NaN"
-            inject_nan_fillvalue = True
-        else:
-            # Not stripping scale/offset: pick an explicit zarr-level fill_value
-            # rather than letting xarray infer one differently across versions.
-            keep_keys = keep_keys - {"fill_value"}
-            fv = explicit_fill_value(var_data)
-            if fv is not UNSET:
-                var_encoding["fill_value"] = fv
-            else:
-                # We need to pass _FillValue in the encoding to allow decode_cf to read it..
-                # either this, or it gets removed from everywhere else during the sanitize_array_attrs() call
-                if "fill_value" in var_data.attrs and "_FillValue" not in var_encoding:
-                    var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-                else:
-                    pass
-
-        for key in keep_keys:
-            if key in var_data.encoding:
-                var_encoding[key] = var_data.encoding[key]
-
-        if len(set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS) > 0:
-            log.warning(
-                "Unknown encoding keys in %s: %s",
-                var_name,
-                set(var_data.encoding.keys()) - XARRAY_ENCODING_KEYS,
-            )
-
-        # Sanitize source-only attributes (replace dict — ``.update`` cannot
-        # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
-        # otherwise leak into the output).
-        var_data.attrs = sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
-        if inject_nan_fillvalue:
-            # assign nan as fill values if its already a float
+            # CF _FillValue attribute for xarray issue #11345.
             var_data.attrs["_FillValue"] = np.nan
+        else:
+            _forward_unpacked_encoding(var_name, var_data, var_encoding)
+            # Sanitize source-only attributes (replace dict — ``.update`` cannot
+            # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
+            # otherwise leak into the output).
+            is_float = np.issubdtype(var_data.dtype, np.floating)
+            var_data.attrs = sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
 
         encoding[str(var_name)] = var_encoding
 
@@ -561,7 +564,7 @@ def create_uniform_encoding(
             else:
                 coord_encoding["shards"] = None
         else:
-            coord_encoding["compressors"] = (compressor,)
+            coord_encoding["compressors"] = ()
 
         coord_data.attrs = sanitize_array_attrs(coord_data.attrs)
         encoding[str(coord_name)] = coord_encoding
