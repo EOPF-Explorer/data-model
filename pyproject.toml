@@ -54,7 +54,9 @@ dependencies = [
 # eopf 3.x requires Python >= 3.13, so the extra is empty on older interpreters.
 cpm = ["eopf>=3.0.0; python_version >= '3.13'",
        # eopf imports defusedxml for Sentinel-1 SAFE reading but only declares it under its "tests" extra.
-       "defusedxml; python_version >= '3.13'",]
+       "defusedxml; python_version >= '3.13'",
+       # eopf imports scipy (eopf.computing.utils) but only declares it under its "tests" extra.
+       "scipy; python_version >= '3.13'",]
 
 [dependency-groups]
 dev = [
