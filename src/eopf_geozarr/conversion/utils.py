@@ -20,7 +20,7 @@ from eopf_geozarr.data_api.geozarr.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Mapping
+    from collections.abc import Hashable, Iterable, Mapping
 
 
 from importlib.util import find_spec
@@ -33,8 +33,8 @@ UNSET: Any = object()
 # Dimension names that represent a "band-like" axis (polarization) to allow a per-"band" sharding if they extend beyond ram
 # purposedly doeStn inlcude the 'band' option to not impleemnt on small enOugh arrays
 BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
-
-_LEGACY_CODEC_ENCODING_KEYS = {"compressor", "compressors", "filters"}
+SUBROOT_MARKERS = {"measurements", "conditions", "quality"}
+ZARR_FORMAT: int = 3
 
 log = structlog.get_logger()
 
@@ -158,15 +158,11 @@ def updated_root_consolidation(
         zarr.consolidate_metadata(output_path, zarr_format=3)
 
 
-def get_subroots(
-    groups: tuple[str, ...], subroot_markers: set[str] | None = None
-) -> set[str] | None:
-    if not subroot_markers:
-        subroot_markers = {"measurements", "conditions", "quality"}
+def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
     subroots = set()
     for path in groups:
         parent, _, name = path.rstrip("/").rpartition("/")
-        if name in subroot_markers and parent and parent not in subroots:
+        if name in SUBROOT_MARKERS and parent and parent not in subroots:
             subroots.add(parent)
     return subroots or None
 
@@ -271,7 +267,7 @@ def stream_write_dataset(
         log.info("Writing zarr file...")
         write_job.compute()
 
-    log.info("✅ Streaming write complete for dataset {}", dataset_path=path)
+    log.info("Streaming write complete for dataset {}", dataset_path=path)
     return dataset
 
 
@@ -294,6 +290,51 @@ def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
     return ds.chunk(chunks)
 
 
+def _rechunk_iterable(
+    iterable: Iterable, encoding: dict[str, XarrayDataArrayEncoding]
+) -> dict[Hashable, xr.DataArray]:
+    collector: dict[Hashable, xr.DataArray] = {}
+    for var_name, var_data in iterable:
+        if str(var_name) in encoding:
+            var_encoding = encoding[str(var_name)]
+
+            # If sharding is enabled, rechunk based on shard dimensions
+            shards_encoding = var_encoding.get("shards")
+            chunks_encoding = var_encoding.get("chunks")
+            if shards_encoding is not None:
+                target_chunks = shards_encoding  # Use shard dimensions for rechunking
+            elif chunks_encoding is not None:
+                target_chunks = chunks_encoding  # Fallback to chunk dimensions
+            else:
+                # No specific chunking needed, use original variable
+                collector[var_name] = var_data
+                continue
+
+            # Create chunk dict using the actual dimensions of the variable
+            if len(var_data.dims) == len(target_chunks):
+                chunk_dict: dict[str, int] = {}
+                for dim, chunk, shape in zip(
+                    var_data.dims, target_chunks, var_data.shape, strict=True
+                ):
+                    if shape <= chunk:
+                        chunk_dict[dim] = chunk
+                    else:
+                        raise ValueError(
+                            f"Dimension '{dim}': The given chunk size '{chunk}' is smaller than the given shape '{shape}', likely there is mis-ordering of dimensions/shapes/chunks."
+                        )
+
+                # Rechunk the variable to match the target dimensions
+                collector[var_name] = var_data.chunk(chunk_dict)
+            else:
+                raise ValueError(
+                    f"Given dataarray '{var_name}' with dimension '{var_data.dims}' has different shape than chunks '{target_chunks}'"
+                )
+        else:
+            # No specific chunking needed, use original variable
+            collector[var_name] = var_data
+    return collector
+
+
 def rechunk_dataset_for_encoding(
     dataset: xr.Dataset,
     encoding: dict[str, XarrayDataArrayEncoding],
@@ -309,69 +350,15 @@ def rechunk_dataset_for_encoding(
         allows (primarily) the sharding of coordinate arrays, usually not too relevant but
         takes effect for large 2dim coordinate arrays eg. lat/lon S3A OLCI LFR
     """
-    rechunked_vars: dict[Hashable, xr.DataArray] = {}
-
-    for var_name, var_data in dataset.data_vars.items():
-        if str(var_name) in encoding:
-            var_encoding = encoding[str(var_name)]
-
-            # If sharding is enabled, rechunk based on shard dimensions
-            if "shards" in var_encoding and var_encoding["shards"] is not None:
-                target_chunks = var_encoding["shards"]  # Use shard dimensions for rechunking
-            elif "chunks" in var_encoding:
-                target_chunks = var_encoding["chunks"]  # Fallback to chunk dimensions
-            else:
-                # No specific chunking needed, use original variable
-                rechunked_vars[var_name] = var_data
-                continue
-
-            # Create chunk dict using the actual dimensions of the variable
-            var_dims = var_data.dims
-            chunk_dict = {}
-            for i, dim in enumerate(var_dims):
-                if i < len(target_chunks):
-                    chunk_dict[dim] = target_chunks[i]
-
-            # Rechunk the variable to match the target dimensions
-            rechunked_vars[var_name] = var_data.chunk(chunk_dict)
-        else:
-            # No specific chunking needed, use original variable
-            rechunked_vars[var_name] = var_data
-
     if chunk_and_shard_coords:
-        rechunked_coords: dict[Hashable, xr.DataArray] = {}
-
-        for coord_name, coord_data in dataset.coords.items():
-            if str(coord_name) in encoding:
-                coord_encoding = encoding[str(coord_name)]
-
-                # If sharding is enabled, rechunk based on shard dimensions
-                if "shards" in coord_encoding and coord_encoding["shards"] is not None:
-                    target_chunks = coord_encoding["shards"]  # Use shard dimensions for rechunking
-                elif "chunks" in coord_encoding:
-                    target_chunks = coord_encoding["chunks"]  # Fallback to chunk dimensions
-                else:
-                    # No specific chunking needed, use original coordiable
-                    rechunked_coords[coord_name] = coord_data
-                    continue
-
-                # Create chunk dict using the actual dimensions of the coordiable
-                coord_dims = coord_data.dims
-                chunk_dict = {}
-                for i, dim in enumerate(coord_dims):
-                    if i < len(target_chunks):
-                        chunk_dict[dim] = target_chunks[i]
-
-                # Rechunk the coordiable to match the target dimensions
-                rechunked_coords[coord_name] = coord_data.chunk(chunk_dict)
-            else:
-                # No specific chunking needed, use original coordiable
-                rechunked_coords[coord_name] = coord_data
-
         # Create new dataset with rechunked variables, also sharding coordinates
-        return xr.Dataset(rechunked_vars, coords=rechunked_coords, attrs=dataset.attrs)
+        rechunked_vars = _rechunk_iterable(iterable=dataset.data_vars.items(), encoding=encoding)
+        rechunked_cords = _rechunk_iterable(iterable=dataset.coords.items(), encoding=encoding)
 
+        return xr.Dataset(rechunked_vars, coords=rechunked_cords, attrs=dataset.attrs)
     # Create new dataset with rechunked variables, preserving coordinates
+    rechunked_vars = _rechunk_iterable(iterable=dataset.data_vars.items(), encoding=encoding)
+
     return xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
 
 
@@ -398,6 +385,9 @@ def get_chunking_for_encoding(
             if band_dim is not None:
                 max_chunksizes[band_dim] = 1
 
+        if var_data.ndim == 1:
+            pass
+
         # consider the occurance of 1dim arrays, provide the encoding chunk ndim times
         return (max_chunksizes[0],) if var_data.ndim == 1 else tuple(max_chunksizes)
     raise ValueError(
@@ -407,8 +397,8 @@ def get_chunking_for_encoding(
 
 def _forward_unpacked_encoding(
     var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> None:
-    """Copy the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+) -> XarrayDataArrayEncoding:
+    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
     # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
     fv = explicit_fill_value(var_data)
     if fv is not UNSET:
@@ -424,6 +414,8 @@ def _forward_unpacked_encoding(
     unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
     if unknown:
         log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+    return var_encoding
 
 
 def create_uniform_encoding(
@@ -517,7 +509,7 @@ def create_uniform_encoding(
             # CF _FillValue attribute for xarray issue #11345.
             var_data.attrs["_FillValue"] = np.nan
         else:
-            _forward_unpacked_encoding(var_name, var_data, var_encoding)
+            var_encoding = _forward_unpacked_encoding(var_name, var_data, var_encoding)
             # Sanitize source-only attributes (replace dict — ``.update`` cannot
             # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
             # otherwise leak into the output).
