@@ -121,7 +121,7 @@ def _decode_packed(var: xr.DataArray, packing: Packing) -> xr.DataArray:
     decoded.attrs = {
         key: value
         for key, value in utils.sanitize_array_attrs(var.attrs, is_decoded_float=True).items()
-        if key not in ("scale_factor", "add_offset")
+        if key not in ("scale_factor", "add_offset", "valid_min", "valid_max")
     }
     decoded.encoding = {
         key: value for key, value in var.encoding.items() if key in ("chunks", "preferred_chunks")

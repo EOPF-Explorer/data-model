@@ -698,8 +698,9 @@ def sanitize_array_attrs(
     """
     dropped = {"_eopf_attrs", "_FillValue", *geo_proj_cm.CONVENTION_KEYS}
     out = {k: v for k, v in attrs.items() if k not in dropped}
+
     if is_decoded_float:
-        for key in ("dtype", "fill_value", "valid_min", "valid_max"):
+        for key in ("dtype", "fill_value"):
             out.pop(key, None)
         if out.get("units") == "digital_counts":
             out["units"] = "1"
