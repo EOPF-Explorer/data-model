@@ -311,16 +311,7 @@ def _rechunk_iterable(
 
             # Create chunk dict using the actual dimensions of the variable
             if len(var_data.dims) == len(target_chunks):
-                chunk_dict: dict[str, int] = {}
-                for dim, chunk, shape in zip(
-                    var_data.dims, target_chunks, var_data.shape, strict=True
-                ):
-                    if shape <= chunk:
-                        chunk_dict[dim] = chunk
-                    else:
-                        raise ValueError(
-                            f"Dimension '{dim}': The given chunk size '{chunk}' is smaller than the given shape '{shape}', likely there is mis-ordering of dimensions/shapes/chunks."
-                        )
+                chunk_dict = dict(zip(var_data.dims, target_chunks, strict=True))
 
                 # Rechunk the variable to match the target dimensions
                 collector[var_name] = var_data.chunk(chunk_dict)
