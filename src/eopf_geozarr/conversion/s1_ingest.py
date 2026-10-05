@@ -1193,7 +1193,7 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
     # It reprojects with `transform_bounds(..., densify_pts=21)` rather than transforming the
     # corners, which also avoids the near-global bbox a corner-only conversion produces in UTM
     # zones 1 and 60. `eopf:writer_schema` survives because this is an update, not a replace.
-    utils.write_store_root_geo_metadata(
+    utils.write_store_geo_metadata(
         store_path,
         storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
     )

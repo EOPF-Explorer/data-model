@@ -22,6 +22,8 @@ from eopf_geozarr.data_api.geozarr.types import (
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Mapping
 
+    from xarray.core.types import ZarrWriteModes
+
 
 from importlib.util import find_spec
 
@@ -71,13 +73,7 @@ def updated_root_consolidation(
     dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
 ) -> None:
     """Simple root-level and sub-root level metadata consolidation with proper zarr group creation."""
-    # catch all recently added groups (eg. multiscales)
-    missing_groups = set()
-
-    # add all measurement groups to (poTentially) consolidate them
-    # -> separate from `subroot_groups` as it functions as it being empyt
-    # functions as the distinction between consolidating subroots and roots
-    measurements_groups = set()
+    output_path = output_path.rstrip("/") + "/"
 
     # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
     # also gather potential measurement groups for consolidating
@@ -85,20 +81,11 @@ def updated_root_consolidation(
         # extract all the parent paths and names
         parent, _, name = group_path.rstrip("/").rpartition("/")
         if parent not in datasets:
-            missing_groups.add(parent)
+            init_zarr_group(output_path + group_path)
+
+        # consolidate 'all measurement groups
         if name == "measurements":
-            measurements_groups.add(group_path)
-
-    # instantiate missing groups
-    for group_path in missing_groups:
-        dt_parent = xr.DataTree()
-
-        dt_parent.to_zarr(
-            output_path + group_path,
-            mode="a",
-            zarr_format=ZARR_FORMAT,
-            consolidated=False,
-        )
+            zarr.consolidate_metadata(output_path + group_path, zarr_format=ZARR_FORMAT)
 
     # check and get possible subroots for consolidation
     subroot_groups = get_subroots(dt_input.groups)
@@ -106,58 +93,68 @@ def updated_root_consolidation(
     # also add some geo- and stac-root metadata
     if subroot_groups:
         for subroot in subroot_groups:
-            write_store_root_geo_metadata(
+            write_store_root_metadata(
                 output_path + subroot,
-                input_root_attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
             )
-
-            write_store_root_stac_metadata(
-                output_path + subroot,
-                root_attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
-            )
+            zarr.consolidate_metadata(output_path + subroot, zarr_format=ZARR_FORMAT)
 
     # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
-    log.info("Creating root zarr group")
-    dt_root = xr.DataTree()
-    dt_root.to_zarr(
+    init_root_zarr_group(
         output_path,
-        mode="a",
-        consolidated=False,
-        zarr_format=ZARR_FORMAT,
+        datasets=datasets,
+        dt_input_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
     )
+
+    # consolidate metadata in root OR in each subroot
+    if not subroot_groups:
+        zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
+
+
+def init_zarr_group(
+    output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
+) -> None:
+    """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
+    dt_parent = root_tree or xr.DataTree()
+
+    dt_parent.to_zarr(
+        output_path,
+        mode=mode,
+        zarr_format=ZARR_FORMAT,
+        consolidated=False,
+    )
+    return
+
+
+def init_root_zarr_group(
+    output_path: str, datasets: Mapping[str, object], dt_input_attrs: dict[str, dict[str, Any]]
+) -> None:
+    """
+    Instantiates an EOPF zarr group with xarray, with a root tree and additional root trees for all datasets passed to this function.
+    Also writes any root store metadata, namely geo metadata and stac metadata.
+    """
+    log.info("Creating root zarr group")
+    init_zarr_group(output_path)
+
     dt_root = xr.DataTree()
     for group_path in datasets:
         dt_root[group_path] = xr.DataTree()
 
-    dt_root.to_zarr(
-        output_path,
-        mode="r+",
-        consolidated=False,
-        zarr_format=ZARR_FORMAT,
-    )
+    init_zarr_group(output_path=output_path, mode="r+", root_tree=dt_root)
     log.info("Root zarr group created")
 
     # Write the store-root spatial footprint (geozarr minispec, Store Root section).
     # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
     # and writes the union on the root `zarr.json`.
-    write_store_root_geo_metadata(
-        output_path, input_root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs)
-    )
-    write_store_root_stac_metadata(
-        output_path, root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs)
-    )
+    write_store_root_metadata(output_path, attrs=dt_input_attrs)
+    return
 
-    if measurements_groups:
-        for consolidate_measurement in measurements_groups:
-            zarr.consolidate_metadata(
-                output_path + consolidate_measurement, zarr_format=ZARR_FORMAT
-            )
-    # consolidate metadata in root OR in each subroot
-    if subroot_groups:
-        for consolidate_subroot in subroot_groups:
-            zarr.consolidate_metadata(output_path + consolidate_subroot, zarr_format=ZARR_FORMAT)
-    else:
-        zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
+
+def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
+    """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
+    write_store_geo_metadata(output_path, input_root_attrs=attrs)
+    write_store_stac_metadata(output_path, input_root_attrs=attrs)
+    return
 
 
 def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
@@ -978,7 +975,7 @@ def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
     return None
 
 
-def write_store_root_geo_metadata(
+def write_store_geo_metadata(
     output_path: str,
     input_root_attrs: dict[str, dict[str, Any]] | None = None,
     storage_options: dict[str, Any] | None = None,
@@ -1095,9 +1092,9 @@ def write_store_root_geo_metadata(
     log.info("Wrote store-root spatial metadata", bbox=[xmin, ymin, xmax, ymax])
 
 
-def write_store_root_stac_metadata(
+def write_store_stac_metadata(
     output_path: str,
-    root_attrs: dict[str, dict[str, Any]],
+    input_root_attrs: dict[str, dict[str, Any]],
     storage_options: dict[str, Any] | None = None,
     overwrite_root_attrs: bool = False,
 ) -> None:
@@ -1115,11 +1112,12 @@ def write_store_root_stac_metadata(
     # prevent the overwriting of attributes in the root node if they are present in the stac metadata.. this is a failsafe for future changes of cpm if the y include zarr metadata
     if not overwrite_root_attrs:
         original_attrs = set(dict(root.attrs).keys())
-        new_attrs = set(root_attrs.keys())
+        new_attrs = set(input_root_attrs.keys())
         for int_attr in original_attrs.intersection(new_attrs):
-            root_attrs.pop(int_attr)
+            input_root_attrs.pop(int_attr)
 
-    root.attrs.update(root_attrs)
+    root.attrs.update(input_root_attrs)
     log.info(
-        "Updated root metadata attributes for STAC ingestion", root_attrs=list(root_attrs.keys())
+        "Updated root metadata attributes for STAC ingestion",
+        root_attrs=list(input_root_attrs.keys()),
     )

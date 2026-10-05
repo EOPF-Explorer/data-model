@@ -151,7 +151,7 @@ def create_geozarr_dataset(
     # declaration. A failure here must not discard the already-written data;
     # the store simply stays root-metadata-less (and the validator reports it).
     try:
-        utils.write_store_root_geo_metadata(output_path)
+        utils.write_store_geo_metadata(output_path)
     except Exception as e:
         log.warning("Failed to write store-root spatial metadata", error=str(e))
 

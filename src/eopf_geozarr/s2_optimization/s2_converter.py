@@ -396,9 +396,9 @@ def simple_root_consolidation(
 
             stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 
-        utils.write_store_root_stac_metadata(
+        utils.write_store_stac_metadata(
             output_path,
-            root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+            input_root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
         )
 
     # consolidate reflectance group metadata
@@ -446,7 +446,7 @@ def write_store_root_bbox(output_path: str) -> None:
     Thin wrapper kept for backwards compatibility; the implementation lives in
     :func:`eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
     """
-    utils.write_store_root_geo_metadata(output_path)
+    utils.write_store_geo_metadata(output_path)
 
 
 def is_sentinel2_dataset(group: zarr.Group) -> bool:

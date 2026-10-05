@@ -57,7 +57,6 @@ def create_generic_geozarr_dataset(
 
     ouput_group = zarr.open_group(output_path)
     processed_groups = {}
-    # slc_chunks = chunk_info.s1slc_chunks
 
     # rechunk everything
     for group_path in dt_input.groups:
