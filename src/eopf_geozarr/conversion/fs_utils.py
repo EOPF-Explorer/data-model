@@ -11,6 +11,7 @@ import zarr
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
+from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.types import S3Credentials, S3FsOptions
 
 if TYPE_CHECKING:
@@ -436,7 +437,7 @@ def open_s3_zarr_group(s3_path: str, mode: str = "r", **s3_kwargs: Any) -> zarr.
     return zarr.open_group(
         s3_path,
         mode=_zarr_mode(mode),
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         storage_options=cast("dict[str, object]", storage_options),
     )
 
@@ -625,6 +626,6 @@ def open_zarr_group(path: str, mode: str = "r", **kwargs: Any) -> zarr.Group:
     return zarr.open_group(
         path,
         mode=_zarr_mode(mode),
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         storage_options=cast("dict[str, object] | None", storage_options),
     )

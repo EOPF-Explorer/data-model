@@ -15,6 +15,7 @@ from pyproj import CRS
 
 from eopf_geozarr.conversion import encoding_utils, utils
 from eopf_geozarr.conversion.geozarr import get_zarr_group
+from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
@@ -316,7 +317,7 @@ def simple_root_consolidation(
         dt_parent.to_zarr(
             output_path + group_path,
             mode="a",
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
             consolidated=False,
         )
 
@@ -327,7 +328,7 @@ def simple_root_consolidation(
         output_path,
         mode="a",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     dt_root = xr.DataTree()
     for group_path in datasets:
@@ -337,7 +338,7 @@ def simple_root_consolidation(
         output_path,
         mode="r+",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     log.info("Root zarr group created")
 
@@ -401,10 +402,10 @@ def simple_root_consolidation(
         )
 
     # consolidate reflectance group metadata
-    zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)
+    zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=ZARR_FORMAT)
 
     # consolidate root group metadata
-    zarr.consolidate_metadata(output_path, zarr_format=3)
+    zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
 
 
 def add_multiscale_pyramids_to_stac_metadata(

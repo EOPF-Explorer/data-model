@@ -20,6 +20,7 @@ from pyproj import CRS
 
 from eopf_geozarr.conversion import encoding_utils, utils
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
+from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
@@ -1058,7 +1059,7 @@ def stream_write_s2dataset(
         group.store,
         mode="w",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         encoding=encoding,
         group=path,
         compute=False,  # Create job first for progress tracking

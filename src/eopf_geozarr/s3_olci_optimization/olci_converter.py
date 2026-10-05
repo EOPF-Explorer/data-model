@@ -11,7 +11,7 @@ import xarray as xr
 import zarr
 from rasterio.crs import CRS
 
-from eopf_geozarr.conversion.utils import build_convention_attrs
+from eopf_geozarr.conversion.utils import ZARR_FORMAT, build_convention_attrs
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
 from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
@@ -100,7 +100,7 @@ def _clear_encoding(ds: xr.Dataset) -> xr.Dataset:
     When the input DataTree was opened from a Zarr v2 store, xarray carries
     ``numcodecs.Blosc`` compressors (and potentially scale-offset filters) in
     each variable's ``.encoding``.  Passing that encoding to
-    ``Dataset.to_zarr(zarr_format=3)`` raises::
+    ``Dataset.to_zarr(zarr_format=ZARR_FORMAT)`` raises::
 
         TypeError: Expected a BytesBytesCodec. Got <class 'numcodecs.blosc.Blosc'>
 
@@ -171,7 +171,7 @@ def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> No
             group=group_path,
             mode="a",
             consolidated=False,
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
         )
 
 
@@ -319,7 +319,7 @@ def convert_olci_optimized(
     # so a prior run with more overview levels or extra ancillary groups would
     # otherwise leave stale sibling groups behind, and the returned DataTree
     # (built by re-scanning the store) would surface them.
-    zarr.open_group(output_path, mode="w", zarr_format=3)
+    zarr.open_group(output_path, mode="w", zarr_format=ZARR_FORMAT)
 
     # The native-resolution arrays go in a named child group (r0) alongside the
     # overview groups (r2, r4, …) rather than directly in ``measurements``.
@@ -333,7 +333,7 @@ def convert_olci_optimized(
         group="measurements/r0",
         mode="w",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
 
     # Write /2 reduced overview subgroups: r2, r4, r8, …
@@ -373,7 +373,7 @@ def convert_olci_optimized(
             group=f"measurements/{group_name}",
             mode="a",
             consolidated=False,
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
         )
 
     # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)

@@ -34,7 +34,7 @@ UNSET: Any = object()
 # purposedly doeStn inlcude the 'band' option to not impleemnt on small enOugh arrays
 BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
 SUBROOT_MARKERS = {"measurements", "conditions", "quality"}
-ZARR_FORMAT: int = 3
+ZARR_FORMAT = 3
 
 log = structlog.get_logger()
 
@@ -96,7 +96,7 @@ def updated_root_consolidation(
         dt_parent.to_zarr(
             output_path + group_path,
             mode="a",
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
             consolidated=False,
         )
 
@@ -123,7 +123,7 @@ def updated_root_consolidation(
         output_path,
         mode="a",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     dt_root = xr.DataTree()
     for group_path in datasets:
@@ -133,7 +133,7 @@ def updated_root_consolidation(
         output_path,
         mode="r+",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     log.info("Root zarr group created")
 
@@ -149,13 +149,15 @@ def updated_root_consolidation(
 
     if measurements_groups:
         for consolidate_measurement in measurements_groups:
-            zarr.consolidate_metadata(output_path + consolidate_measurement, zarr_format=3)
+            zarr.consolidate_metadata(
+                output_path + consolidate_measurement, zarr_format=ZARR_FORMAT
+            )
     # consolidate metadata in root OR in each subroot
     if subroot_groups:
         for consolidate_subroot in subroot_groups:
-            zarr.consolidate_metadata(output_path + consolidate_subroot, zarr_format=3)
+            zarr.consolidate_metadata(output_path + consolidate_subroot, zarr_format=ZARR_FORMAT)
     else:
-        zarr.consolidate_metadata(output_path, zarr_format=3)
+        zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
 
 
 def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
@@ -226,7 +228,7 @@ def stream_write_dataset(
         store=group.store,
         mode="w",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         encoding=encoding,
         group=path,
         compute=False,  # Create job first for progress tracking
