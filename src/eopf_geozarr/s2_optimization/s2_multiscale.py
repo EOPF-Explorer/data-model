@@ -25,10 +25,6 @@ from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
 )
-from eopf_geozarr.data_api.geozarr.types import (
-    XARRAY_ENCODING_KEYS,
-    XarrayDataArrayEncoding,
-)
 from eopf_geozarr.s2_optimization.common import DISTRIBUTED_AVAILABLE
 from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 
@@ -40,6 +36,9 @@ if TYPE_CHECKING:
     from zarr_cm import MultiscalesAttrs
     from zarr_cm import spatial as spatial_cm
 
+    from eopf_geozarr.data_api.geozarr.types import (
+        XarrayDataArrayEncoding,
+    )
     from eopf_geozarr.types import OverviewLevelJSON
 
 
@@ -587,27 +586,6 @@ def get_chunking_for_encoding(var_data: xr.DataArray) -> tuple[int, ...]:
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
-
-
-def _forward_unpacked_encoding(
-    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> None:
-    """Copy the source encoding of an unpacked variable, with an explicit Zarr fill value."""
-    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
-    fv = utils.explicit_fill_value(var_data)
-    if fv is not utils.UNSET:
-        var_encoding["fill_value"] = fv
-    elif "fill_value" in var_data.attrs:
-        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
-        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-
-    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
-        if key in var_data.encoding:
-            var_encoding[key] = var_data.encoding[key]
-
-    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
-    if unknown:
-        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
 
 
 def calculate_aligned_chunk_size(dimension_size: int, target_chunk: int) -> int:
