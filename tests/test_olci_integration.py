@@ -16,6 +16,7 @@ import zarr
 from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
 
+from eopf_geozarr.data_api.geozarr.validation import validate_store
 from eopf_geozarr.s3_olci_optimization.olci_converter import (
     _sanitize_olci_array_attrs_keep_fill,
 )
@@ -250,7 +251,8 @@ def test_convert_olci_regridded_output_opens_as_datatree(tmp_path: object) -> No
     assert isinstance(multiscales, dict)
     layout = multiscales["layout"]
     assert isinstance(layout, list)
-    assert layout[0] == {"asset": "r0"}
+    assert layout[0]["asset"] == "r0"
+    assert "derived_from" not in layout[0]
     # per-level geo-proj convention present
     meas_group = zarr.open_group(out, mode="r")["measurements"]
     assert isinstance(meas_group, zarr.Group)
@@ -261,6 +263,39 @@ def test_convert_olci_regridded_output_opens_as_datatree(tmp_path: object) -> No
 
     assert "/measurements/r0" in result.groups
     assert "/measurements/r2" in result.groups
+
+
+def test_convert_olci_regridded_layout_and_consolidation(tmp_path: object) -> None:
+    """Gridded output meets the GeoZarr store model under `measurements` and is consolidated.
+
+    Every layout entry carries its level's spatial:shape and spatial:transform
+    (readers take the zoom range and the level to read from the layout), and
+    `measurements` and the root each carry a consolidated block, so a reader can
+    open `measurements` without listing it (#291, #303).
+    """
+    dt = build_synthetic_olci(rows=1024, cols=1024)
+    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
+    convert_olci_optimized(dt, output_path=out, min_dimension=256, output_grid="EPSG:4326")
+
+    root = zarr.open_group(out, mode="r", use_consolidated=False)
+    layout = root["measurements"].attrs["multiscales"]["layout"]
+    assert [entry["asset"] for entry in layout] == ["r0", "r2", "r4"]
+    for entry in layout:
+        level = root[f"measurements/{entry['asset']}"]
+        assert (
+            entry["spatial:shape"]
+            == level.attrs["spatial:shape"]
+            == list(level["oa01_radiance"].shape)
+        )
+        assert entry["spatial:transform"] == level.attrs["spatial:transform"]
+
+    assert [i for i in validate_store(out).issues if i.path.startswith("/measurements")] == []
+
+    for group in ("", "measurements"):
+        body = json.loads((Path(out) / group / "zarr.json").read_text())
+        assert body["consolidated_metadata"] is not None, f"/{group}: no consolidated block"
+    opened = xr.open_datatree(f"{out}/measurements", engine="zarr", consolidated=True, chunks={})
+    assert {"r0", "r2", "r4"} <= set(opened.children)
 
 
 def test_convert_olci_conditions_quality_passthrough(tmp_path: object) -> None:
