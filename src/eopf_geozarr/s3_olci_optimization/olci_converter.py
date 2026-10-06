@@ -396,8 +396,8 @@ def convert_olci_optimized(
     # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)
     # to the measurements group attrs. Each layout entry repeats its level's
     # spatial:shape/spatial:transform (gridded output only; a swath has neither):
-    # the GeoZarr store model requires them, and readers such as titiler-eopf
-    # take the zoom range and the level to read from the layout alone.
+    # the GeoZarr store model requires them, and titiler-eopf reads them to work
+    # out the zoom range and to pick the level a tile is read from.
     layout: list[LayoutObject] = []
     for parent, name in zip([None, *level_spatial], level_spatial, strict=False):
         lo: LayoutObject = {"asset": name}
@@ -443,8 +443,7 @@ def convert_olci_optimized(
 
     # Consolidate the multiscales group, then the root (#291, #303): a reader that
     # opens `measurements` over HTTP cannot list it, so without a block it cannot
-    # open it. data-model's consolidate_metadata keeps a child's own block when its
-    # parent is consolidated (#291).
+    # open it. Consolidating the root afterwards leaves the child's block in place.
     consolidate_metadata(output_path, path="measurements", zarr_format=3)
     consolidate_metadata(output_path, zarr_format=3)
 
