@@ -13,7 +13,7 @@ import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
 
-from eopf_geozarr.conversion import encoding_utils, utils
+from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.data_api.s1 import Sentinel1Root
@@ -383,16 +383,6 @@ def simple_root_consolidation(
             base = datasets.get("/measurements/reflectance/r10m")
             if isinstance(base, xr.Dataset):
                 reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
-                # In codec mode the Zarr reader already returns decoded values, so the
-                # asset must not declare a scale or clients would apply it twice.
-                packing = next(
-                    filter(None, map(encoding_utils.packing_of, base.data_vars.values())), None
-                )
-                if not scale_offset_codec and packing is not None:
-                    reflectance_asset["raster:scale"] = packing.scale_factor
-                    reflectance_asset["raster:offset"] = packing.add_offset
-                    if packing.fill_value is not None:
-                        reflectance_asset["nodata"] = packing.fill_value
 
             stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 
