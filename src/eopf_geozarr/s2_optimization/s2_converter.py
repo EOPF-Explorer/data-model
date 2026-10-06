@@ -14,8 +14,8 @@ from pydantic import TypeAdapter
 from pyproj import CRS
 
 from eopf_geozarr.conversion import utils
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.conversion.geozarr import get_zarr_group
-from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 

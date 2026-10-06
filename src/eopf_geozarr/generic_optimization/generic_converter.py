@@ -2,15 +2,9 @@
 GeoZarr compliant conversion tools for EOPF datasets.
 
 This module provides functions to convert EOPF datasets to GeoZarr format
-while maintaining native projections and using /2 downsampling logic.
+without any application of multiscales. Dataset are rechunked and sharded,
+with geozarr attributes only applied where feasible.
 
-Key compliance features:
-- _ARRAY_DIMENSIONS attributes on all arrays
-- CF standard names for all variables
-- grid_mapping attributes referencing CF grid_mapping variables
-- GeoTransform attributes in grid_mapping variables
-- Native CRS preservation (no TMS reprojection)
-- Proper multiscales metadata structure
 """
 
 import time
@@ -55,7 +49,7 @@ def create_generic_geozarr_dataset(
     """
     start_time = time.time()
 
-    ouput_group = zarr.open_group(output_path)
+    output_group = zarr.open_group(output_path)
     processed_groups = {}
 
     # rechunk everything
@@ -94,7 +88,7 @@ def create_generic_geozarr_dataset(
         ds_out = utils.stream_write_dataset(
             dataset,
             path=group_path,
-            group=ouput_group,
+            group=output_group,
             encoding=encoding,
             enable_sharding=enable_sharding,
         )

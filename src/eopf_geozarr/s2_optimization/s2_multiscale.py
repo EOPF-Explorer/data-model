@@ -19,8 +19,8 @@ from pydantic.experimental.missing_sentinel import MISSING
 from pyproj import CRS
 
 from eopf_geozarr.conversion import encoding_utils, utils
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.conversion.fs_utils import sanitize_dataset_attributes
-from eopf_geozarr.conversion.utils import ZARR_FORMAT
 from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
@@ -567,26 +567,6 @@ def create_multiscale_from_datatree(
     processed_groups[base_path] = None
 
     return processed_groups
-
-
-def get_chunking_for_encoding(var_data: xr.DataArray) -> tuple[int, ...]:
-    """
-    requires a prior rechunking of the dataset by calling _rechunk_ds() to rechunk non-metadata arrays to spatial_chunk
-    get a tuple of maximal chunksize for the dataarray
-    -> (spatial_chukn, spatial_chukn) for spatial arrays
-    -> (x, y, z, ..) for multidimensional metadata arrays (just to allow sharding later on)
-
-    Args:
-        var_data: DataArray to get the chunks from
-
-    """
-    if var_data.chunks:
-        # get the maximal chunk shape for zarr encoding -> theoretically it wouldnt be necessary to take the max, as non-uniform chukning (1024, 806)
-        # has irregular chunksizes trailing, but the syntax and goal of the code is much clearer this way
-        return tuple(max(c) for c in var_data.chunks)
-    raise ValueError(
-        f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
-    )
 
 
 def calculate_aligned_chunk_size(dimension_size: int, target_chunk: int) -> int:

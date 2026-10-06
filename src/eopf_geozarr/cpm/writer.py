@@ -74,7 +74,7 @@ _DEFAULT_SPATIAL_CHUNK = {
     "s2-optimized": 256,
     "s3-olci-optimized": 1024,
     "generic": 4096,
-    "generic_rechunker": 1024,
+    "generic-rechunker": 1024,
 }
 
 
@@ -162,7 +162,7 @@ class GeoZarrWriter(EOWriter):
             exclusive with ``s2_optimized=True`` and ``generic_rechunker=True``.
         spatial_chunk
             Spatial chunk size; defaults to 256 (S2 optimized), 1024 (OLCI
-            optimized), or 4096 (generic).
+            optimized), 4096 (generic), or 1024 (generic rechunker).
         enable_sharding
             Enable Zarr v3 sharding for spatial dimensions.
         max_retries
@@ -277,7 +277,7 @@ class GeoZarrWriter(EOWriter):
                 output_grid=output_grid,
             )
 
-        if selected_pipeline == "generic_rechunker":
+        if selected_pipeline == "generic-rechunker":
             return create_generic_geozarr_dataset(
                 dt_input=dtree,
                 output_path=output_path,
@@ -287,7 +287,7 @@ class GeoZarrWriter(EOWriter):
                 scale_offset_codec=scale_offset_codec,
             )
 
-        # last validation and calling of the generic geizar writer
+        # last validation and calling of the generic geozarr writer
         if selected_pipeline == "generic" and groups is not None:
             return create_geozarr_dataset(
                 dt_input=dtree,
@@ -300,9 +300,8 @@ class GeoZarrWriter(EOWriter):
                 gcp_group=gcp_group,
                 enable_sharding=enable_sharding,
             )
-        raise ValueError(
-            "The selected input parameters could not trigger a conversion. Re-evaluate them, to guarantee the conversion through your selected processor."
-        )
+
+        return None
 
     def validate_write_options(
         self,
@@ -410,12 +409,21 @@ class GeoZarrWriter(EOWriter):
             raise ValueError(
                 "Only one of s2_optimized, s3_olci_optimized and generic_rechunker may be True.",
             )
+        if generic_rechunker is True and (s2_optimized is False or s3_olci_optimized is False):
+            # generic_rechunker still routes S2/OLCI products to their optimized
+            # pipelines, so an explicit False on either flag would be silently ignored.
+            raise ValueError(
+                "generic_rechunker=True cannot be combined with s2_optimized=False or "
+                "s3_olci_optimized=False: S2/OLCI products are still routed to their "
+                "optimized pipelines. Pass only s2_optimized=False/s3_olci_optimized=False "
+                "to force the generic pipeline.",
+            )
         if generic_rechunker is True:
             if looks_like_sentinel2(dtree):
                 return "s2-optimized"
             if looks_like_sentinel3_olci(dtree):
                 return "s3-olci-optimized"
-            return "generic_rechunker"
+            return "generic-rechunker"
         if s2_optimized is True:
             return "s2-optimized"
         if s3_olci_optimized is True:

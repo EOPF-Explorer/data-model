@@ -13,7 +13,7 @@ from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, Spatia
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
 
-from eopf_geozarr.conversion import encoding_utils, fs_utils
+from eopf_geozarr.conversion import constants, encoding_utils, fs_utils
 from eopf_geozarr.data_api.geozarr.types import (
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
@@ -35,12 +35,8 @@ UNSET: Any = object()
 # Dimension names that represent a "band-like" axis (polarization) to allow a per-"band" sharding if they extend beyond ram
 # purposedly doeStn inlcude the 'band' option to not impleemnt on small enOugh arrays
 BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
-SUBROOT_MARKERS = {"measurements", "conditions", "quality"}
-ZARR_FORMAT = 3
 
 log = structlog.get_logger()
-
-CF_STANDARD_NAME_URL = "https://raw.githubusercontent.com/cf-convention/cf-convention.github.io/master/Data/cf-standard-names/current/src/cf-standard-name-table.xml"
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
@@ -88,7 +84,7 @@ def updated_root_consolidation(
 
         # consolidate 'all measurement groups
         if name == "measurements":
-            zarr.consolidate_metadata(output_path + group_path, zarr_format=ZARR_FORMAT)
+            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
 
     # check and get possible subroots for consolidation
     subroot_groups = get_subroots(dt_input.groups)
@@ -100,7 +96,7 @@ def updated_root_consolidation(
                 output_path + subroot,
                 attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
             )
-            zarr.consolidate_metadata(output_path + subroot, zarr_format=ZARR_FORMAT)
+            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
 
     # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
     init_root_zarr_group(
@@ -111,7 +107,7 @@ def updated_root_consolidation(
 
     # consolidate metadata in root OR in each subroot
     if not subroot_groups:
-        zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
+        zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
 
 
 def init_zarr_group(
@@ -123,10 +119,9 @@ def init_zarr_group(
     dt_parent.to_zarr(
         output_path,
         mode=mode,
-        zarr_format=ZARR_FORMAT,
+        zarr_format=constants.ZARR_FORMAT,
         consolidated=False,
     )
-    return
 
 
 def init_root_zarr_group(
@@ -150,21 +145,19 @@ def init_root_zarr_group(
     # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
     # and writes the union on the root `zarr.json`.
     write_store_root_metadata(output_path, attrs=dt_input_attrs)
-    return
 
 
 def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
     """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
     write_store_geo_metadata(output_path, input_root_attrs=attrs)
     write_store_stac_metadata(output_path, input_root_attrs=attrs)
-    return
 
 
 def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
     subroots = set()
     for path in groups:
         parent, _, name = path.rstrip("/").rpartition("/")
-        if name in SUBROOT_MARKERS and parent and parent not in subroots:
+        if name in constants.SUBROOT_MARKERS and parent and parent not in subroots:
             subroots.add(parent)
     return subroots or None
 
@@ -228,7 +221,7 @@ def stream_write_dataset(
         store=group.store,
         mode="w",
         consolidated=False,
-        zarr_format=ZARR_FORMAT,
+        zarr_format=constants.ZARR_FORMAT,
         encoding=encoding,
         group=path,
         compute=False,  # Create job first for progress tracking
@@ -1038,11 +1031,19 @@ def write_store_geo_metadata(
                     "stac_discovery present but no geometry found; skipping store-root metadata"
                 )
             else:
-                from shapely.geometry import shape
 
-                geoms = stac_attrs["geometry"]
-                coords = shape(geoms)
-                bboxes_4326.append(coords.bounds)
+                def _positions(c: Any) -> Any:
+                    # flatten nested GeoJSON coordinates down to [x, y] positions
+                    if isinstance(c[0], (int, float)):
+                        yield c
+                    else:
+                        for sub in c:
+                            yield from _positions(sub)
+
+                pts = list(_positions(stac_attrs["geometry"]["coordinates"]))
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                bboxes_4326.append((min(xs), min(ys), max(xs), max(ys)))
         except KeyError:
             log.warning("No stac_discovery block found at all; skipping store-root metadata")
             return

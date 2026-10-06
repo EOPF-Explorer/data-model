@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     import xarray as xr
 
-PipelineName = Literal["s2-optimized", "s3-olci-optimized", "generic", "generic_rechunker"]
+PipelineName = Literal["s2-optimized", "s3-olci-optimized", "generic", "generic-rechunker"]
 
 #: CPM product types routed to the Sentinel-2 optimized pipeline. Deliberately
 #: only the L1C/L2A imagery products: other MSI product types (S02MSIL0_,

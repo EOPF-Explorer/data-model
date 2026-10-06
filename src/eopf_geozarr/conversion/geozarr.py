@@ -33,7 +33,7 @@ from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
 
-from eopf_geozarr.conversion.utils import ZARR_FORMAT
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
