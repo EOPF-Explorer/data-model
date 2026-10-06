@@ -342,7 +342,7 @@ def test_reduce_swath_on_grid_dims() -> None:
 
 
 def test_grid_spatial_attrs() -> None:
-    """grid_spatial_attrs derives dimensions, bbox, and 6-element transform."""
+    """grid_spatial_attrs derives dimensions, shape, bbox, and 6-element transform."""
     transform = rasterio.transform.from_origin(10.0, 46.0, 0.01, 0.01)
     attrs = grid_spatial_attrs(transform, (100, 200))
     assert attrs["spatial:dimensions"] == ["y", "x"]
@@ -357,6 +357,7 @@ def test_grid_spatial_attrs() -> None:
     ]
     # bbox is [xmin, ymin, xmax, ymax] from array_bounds
     assert attrs["spatial:bbox"] == [10.0, 45.0, 12.0, 46.0]  # type: ignore[index]
+    assert attrs["spatial:shape"] == [100, 200]  # type: ignore[index]
 
 
 def test_reduce_fill_collision_nudged_not_recoded_as_fill() -> None:

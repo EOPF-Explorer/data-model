@@ -2306,12 +2306,36 @@
         "multiscales": {
           "layout": [
             {
-              "asset": "r0"
+              "asset": "r0",
+              "spatial:shape": [
+                16,
+                16
+              ],
+              "spatial:transform": [
+                0.002999999999999877,
+                0.0,
+                10.0,
+                0.0,
+                -0.00299999999999964,
+                45.047999999999995
+              ]
             },
             {
               "asset": "r2",
               "derived_from": "r0",
               "resampling_method": "average",
+              "spatial:shape": [
+                8,
+                8
+              ],
+              "spatial:transform": [
+                0.00599999999999972,
+                0.0,
+                10.0,
+                0.0,
+                -0.0059999999999992126,
+                45.047999999999995
+              ],
               "transform": {
                 "scale": [
                   2.0,
@@ -2338,6 +2362,10 @@
           "x"
         ],
         "spatial:registration": "pixel",
+        "spatial:shape": [
+          16,
+          16
+        ],
         "spatial:transform": [
           0.002999999999999877,
           0.0,
@@ -4282,6 +4310,10 @@
               "x"
             ],
             "spatial:registration": "pixel",
+            "spatial:shape": [
+              16,
+              16
+            ],
             "spatial:transform": [
               0.002999999999999877,
               0.0,
@@ -5689,6 +5721,10 @@
               "x"
             ],
             "spatial:registration": "pixel",
+            "spatial:shape": [
+              8,
+              8
+            ],
             "spatial:transform": [
               0.00599999999999972,
               0.0,
