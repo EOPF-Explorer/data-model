@@ -395,14 +395,15 @@ def grid_spatial_attrs(transform: Affine, shape: tuple[int, int]) -> SpatialAttr
     """Spatial-convention data for a regular grid with an affine *transform*.
 
     *shape* is ``(height, width)``.  Emits ``spatial:dimensions`` ``["y","x"]``,
-    pixel registration, the bounding box, and the 6-element row-major affine
-    transform.
+    pixel registration, the shape, the bounding box, and the 6-element row-major
+    affine transform.
     """
     height, width = shape
     left, bottom, right, top = rasterio.transform.array_bounds(height, width, transform)
     return {
         "spatial:dimensions": ["y", "x"],
         "spatial:registration": "pixel",
+        "spatial:shape": [int(height), int(width)],
         "spatial:bbox": [float(left), float(bottom), float(right), float(top)],
         "spatial:transform": [
             float(transform.a),

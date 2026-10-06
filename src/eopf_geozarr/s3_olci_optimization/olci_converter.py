@@ -9,6 +9,7 @@ import rioxarray  # noqa: F401
 import structlog
 import xarray as xr
 import zarr
+from affine import Affine
 from rasterio.crs import CRS
 
 from eopf_geozarr.conversion.utils import build_convention_attrs
@@ -376,33 +377,42 @@ def convert_olci_optimized(
             zarr_format=3,
         )
 
-    # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)
-    # to the measurements group attrs.
-    layout: list[LayoutObject] = [{"asset": "r0"}]
-    for lvl in range(1, n_levels + 1):
-        transform: Transform = {"scale": [2.0, 2.0], "translation": [0.0, 0.0]}
-        lo: LayoutObject = {
-            "asset": f"r{2**lvl}",
-            "derived_from": f"r{2 ** (lvl - 1)}" if lvl > 1 else "r0",
-            "transform": transform,
-            "resampling_method": "average",
-        }
-        layout.append(lo)
-
     root_rw = zarr.open_group(output_path, mode="a")
 
-    def _level_spatial(level_ds: xr.Dataset) -> SpatialAttrs:
-        if crs_obj is None:
+    def _level_spatial(name: str, level_ds: xr.Dataset) -> SpatialAttrs:
+        if base_transform is None:
             return swath_spatial_attrs()
+        # Scale the r0 transform rather than recompute it from the level's coords:
+        # rio.transform(recalc=True) returns the identity for a 1-pixel level.
+        step = int(name[1:]) or 1
         return grid_spatial_attrs(
-            level_ds.rio.transform(recalc=True),
+            base_transform @ Affine.scale(step),
             (level_ds.sizes["y"], level_ds.sizes["x"]),
         )
 
-    base_spatial = _level_spatial(measurements)
-    for group_name, level_ds in level_datasets.items():
-        level_conv = build_convention_attrs(spatial=_level_spatial(level_ds), crs=crs_obj)
+    level_spatial = {name: _level_spatial(name, ds) for name, ds in level_datasets.items()}
+    for group_name, spatial in level_spatial.items():
+        level_conv = build_convention_attrs(spatial=spatial, crs=crs_obj)
         root_rw[f"measurements/{group_name}"].attrs.update(cast("dict[str, JSON]", level_conv))
+    base_spatial = level_spatial["r0"]
+
+    # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)
+    # to the measurements group attrs. Each layout entry repeats its level's
+    # spatial:shape/spatial:transform (gridded output only: swath levels carry no
+    # transform): the GeoZarr store model requires them, and titiler-eopf reads them
+    # to work out the zoom range and to pick the level a tile is read from.
+    layout: list[LayoutObject] = []
+    parent: str | None = None
+    for name, spatial in level_spatial.items():
+        lo: LayoutObject = {"asset": name}
+        if parent:
+            transform: Transform = {"scale": [2.0, 2.0], "translation": [0.0, 0.0]}
+            lo.update(derived_from=parent, transform=transform, resampling_method="average")
+        if "spatial:shape" in spatial and "spatial:transform" in spatial:
+            lo["spatial:shape"] = spatial["spatial:shape"]
+            lo["spatial:transform"] = spatial["spatial:transform"]
+        layout.append(lo)
+        parent = name
 
     if n_levels > 0:
         ms: MultiscalesAttrs = {"layout": layout, "resampling_method": "average"}
@@ -435,6 +445,12 @@ def convert_olci_optimized(
             log.info("Copying measurements subgroup", group=f"measurements/{child.name}")
             _copy_subtree(child, output_path, root_group=f"measurements/{child.name}")
 
+    # Consolidate the multiscales group, then the root (#291, #303): a reader that
+    # opens `measurements` over HTTP cannot list it, so without a block it cannot
+    # open it. Consolidating the root afterwards leaves the child's block in place.
+    zarr.consolidate_metadata(output_path, path="measurements", zarr_format=3)
+    zarr.consolidate_metadata(output_path, zarr_format=3)
+
     # The r0 named-sibling layout keeps every parent group free of arrays, so
     # the whole store — overview levels and nested ancillary groups included —
     # opens directly as a DataTree. mask_and_scale=False so the returned tree
@@ -445,6 +461,6 @@ def convert_olci_optimized(
         output_path,
         engine="zarr",
         chunks={},
-        consolidated=False,
+        consolidated=True,
         mask_and_scale=False,
     )
