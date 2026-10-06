@@ -72,7 +72,10 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
 def updated_root_consolidation(
     dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
 ) -> None:
-    """Simple root-level and sub-root level metadata consolidation with proper zarr group creation."""
+    """
+    Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
+    Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
+    """
     output_path = output_path.rstrip("/") + "/"
 
     # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
@@ -408,6 +411,51 @@ def _forward_unpacked_encoding(
     return var_encoding
 
 
+def build_dataarray_encoding(
+    var: xr.DataArray,
+    enable_sharding: bool = True,
+    compression_level: int = 3,
+    shard_along_smallest_dimension: bool = False,
+) -> XarrayDataArrayEncoding:
+    import math
+
+    from zarr.codecs import BloscCodec
+
+    _encoding: XarrayDataArrayEncoding = {}
+    compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
+
+    encoding_chunks = get_chunking_for_encoding(var, shard_along_smallest_dimension)
+
+    _encoding["chunks"] = encoding_chunks
+    _encoding["compressors"] = (compressor,)
+
+    # --- Shards: cover the whole array, one shard per array -----------
+    if enable_sharding:
+        # select next largest mutliple of chunksize to fit full array
+        shards_ = [
+            math.ceil(shape / chunk) * chunk
+            for shape, chunk in zip(var.shape, encoding_chunks, strict=True)
+        ]
+        if shard_along_smallest_dimension:
+            band_dim = _band_like_dim_index(var)
+            if band_dim is None:
+                log.warning(
+                    "shard_along_smallest_dimension=True but %s has no "
+                    "recognized band-like dimension (%s); falling back to "
+                    "whole-array sharding",
+                    var.name,
+                    list(var.dims),
+                )
+            else:
+                shards_[band_dim] = encoding_chunks[band_dim]
+
+        _encoding["shards"] = tuple(shards_)
+    else:
+        _encoding["shards"] = None
+
+    return _encoding
+
+
 def create_uniform_encoding(
     dataset: xr.Dataset,
     *,
@@ -438,12 +486,7 @@ def create_uniform_encoding(
     attributes. Other variables keep their dtype and fill value.
 
     """
-    import math
-
-    from zarr.codecs import BloscCodec
-
     encoding: dict[str, XarrayDataArrayEncoding] = {}
-    compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
 
     for var_name in list(dataset.data_vars):
         packing = encoding_utils.packing_of(dataset[var_name])
@@ -455,35 +498,12 @@ def create_uniform_encoding(
             dataset[var_name] = encoding_utils._drop_trivial_scaling(dataset[var_name])
 
         var_data = dataset[var_name]
-        var_encoding: XarrayDataArrayEncoding = {}
-
-        encoding_chunks = get_chunking_for_encoding(var_data, shard_along_smallest_dimension)
-
-        var_encoding["chunks"] = encoding_chunks
-        var_encoding["compressors"] = (compressor,)
-
-        # --- Shards: cover the whole array, one shard per array -----------
-        if enable_sharding:
-            # select next largest mutliple of chunksize to fit full array
-            shards_ = [
-                math.ceil(shape / chunk) * chunk
-                for shape, chunk in zip(var_data.shape, encoding_chunks, strict=True)
-            ]
-            if shard_along_smallest_dimension:
-                band_dim = _band_like_dim_index(var_data)
-                if band_dim is None:
-                    log.warning(
-                        "shard_along_smallest_dimension=True but %s has no "
-                        "recognized band-like dimension (%s); falling back to "
-                        "whole-array sharding",
-                        var_data.name,
-                        list(var_data.dims),
-                    )
-                else:
-                    shards_[band_dim] = encoding_chunks[band_dim]
-            var_encoding["shards"] = tuple(shards_)
-        else:
-            var_encoding["shards"] = None
+        var_encoding = build_dataarray_encoding(
+            var_data,
+            enable_sharding=enable_sharding,
+            compression_level=compression_level,
+            shard_along_smallest_dimension=shard_along_smallest_dimension,
+        )
 
         # `to_zarr(encoding=...)` replaces each variable's `.encoding`, so the
         # variables keep their packing for the pyramid levels while only the
@@ -509,44 +529,21 @@ def create_uniform_encoding(
         encoding[str(var_name)] = var_encoding
 
     for coord_name, coord_data in dataset.coords.items():
-        coord_encoding: XarrayDataArrayEncoding = {}
+        # coord_encoding: XarrayDataArrayEncoding = {}
 
         if chunk_and_shard_coords:
             if (
                 coord_name in dataset.xindexes
             ):  # skip indexed coords which are likely not chunked -> check for chunked
                 continue
-
-            encoding_chunks = get_chunking_for_encoding(coord_data, shard_along_smallest_dimension)
-
-            coord_encoding["chunks"] = encoding_chunks
-            coord_encoding["compressors"] = (compressor,)
-
-            # --- Shards: cover the whole array, one shard per array -----------
-            if enable_sharding:
-                # select next largest mutliple of chunksize to fit full array
-                shards_ = [
-                    math.ceil(shape / chunk) * chunk
-                    for shape, chunk in zip(coord_data.shape, encoding_chunks, strict=True)
-                ]
-                if shard_along_smallest_dimension:
-                    band_dim = _band_like_dim_index(coord_data)
-                    if band_dim is None:
-                        log.warning(
-                            "shard_along_smallest_dimension=True but %s has no "
-                            "recognized band-like dimension (%s); falling back to "
-                            "whole-array sharding",
-                            coord_data.name,
-                            list(coord_data.dims),
-                        )
-                    else:
-                        shards_[band_dim] = encoding_chunks[band_dim]
-
-                coord_encoding["shards"] = tuple(shards_)
-            else:
-                coord_encoding["shards"] = None
+            coord_encoding = build_dataarray_encoding(
+                coord_data,
+                enable_sharding=enable_sharding,
+                compression_level=compression_level,
+                shard_along_smallest_dimension=shard_along_smallest_dimension,
+            )
         else:
-            coord_encoding["compressors"] = ()
+            coord_encoding: XarrayDataArrayEncoding = {"compressors": ()}
 
         coord_data.attrs = sanitize_array_attrs(coord_data.attrs)
         encoding[str(coord_name)] = coord_encoding
