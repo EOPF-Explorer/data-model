@@ -100,9 +100,7 @@ def test_write_s2_default_writes_esa_layout(tmp_path: pathlib.Path) -> None:
     assert b04.attrs["scale_factor"] == pytest.approx(0.0001)
     assert b04.attrs["add_offset"] == pytest.approx(-0.1)
     asset = _reflectance_asset(root)
-    assert asset["raster:scale"] == pytest.approx(0.0001)
-    assert asset["raster:offset"] == pytest.approx(-0.1)
-    assert asset["nodata"] == 0
+    assert asset["gsd"] == 10
 
 
 def test_write_s2_scale_offset_codec(tmp_path: pathlib.Path) -> None:

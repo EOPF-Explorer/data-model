@@ -378,11 +378,7 @@ def get_chunking_for_encoding(
             if band_dim is not None:
                 max_chunksizes[band_dim] = 1
 
-        if var_data.ndim == 1:
-            pass
-
-        # consider the occurance of 1dim arrays, provide the encoding chunk ndim times
-        return (max_chunksizes[0],) if var_data.ndim == 1 else tuple(max_chunksizes)
+        return tuple(max_chunksizes)
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
