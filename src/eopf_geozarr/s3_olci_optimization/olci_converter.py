@@ -393,7 +393,7 @@ def convert_olci_optimized(
         # rio.transform(recalc=True) returns the identity for a 1-pixel level.
         step = int(name[1:]) or 1
         return grid_spatial_attrs(
-            base_transform @ Affine.scale(step),
+            base_transform * Affine.scale(step),
             (level_ds.sizes["y"], level_ds.sizes["x"]),
         )
 

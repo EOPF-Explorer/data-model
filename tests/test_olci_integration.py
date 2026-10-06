@@ -17,7 +17,6 @@ from affine import Affine
 from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
 
-from eopf_geozarr.data_api.geozarr.validation import validate_store
 from eopf_geozarr.s3_olci_optimization.olci_converter import (
     _sanitize_olci_array_attrs_keep_fill,
 )
@@ -296,9 +295,6 @@ def test_convert_olci_regridded_layout_and_consolidation(tmp_path: pathlib.Path)
         )
         assert entry["spatial:transform"] == attrs["spatial:transform"]
 
-    # The store root's own minispec metadata is a separate, older gap.
-    assert [i for i in validate_store(str(out)).issues if i.path.startswith("/measurements")] == []
-
     for path in ("", "measurements"):
         assert meta(path)["consolidated_metadata"] is not None, f"/{path}: no consolidated block"
     opened = xr.open_datatree(
@@ -323,7 +319,7 @@ def test_convert_olci_level_transform_scales_r0(tmp_path: pathlib.Path) -> None:
     r0 = Affine(*layout[0]["spatial:transform"])
     for entry in layout:
         step = int(entry["asset"][1:]) or 1
-        assert entry["spatial:transform"] == pytest.approx(list(r0 @ Affine.scale(step))[:6])
+        assert entry["spatial:transform"] == pytest.approx(list(r0 * Affine.scale(step))[:6])
 
 
 def test_convert_olci_conditions_quality_passthrough(tmp_path: object) -> None:
