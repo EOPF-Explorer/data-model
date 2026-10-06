@@ -9,9 +9,9 @@ import rioxarray  # noqa: F401
 import structlog
 import xarray as xr
 import zarr
+from affine import Affine
 from rasterio.crs import CRS
 
-from eopf_geozarr.conversion.geozarr import consolidate_metadata
 from eopf_geozarr.conversion.utils import build_convention_attrs
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
@@ -386,15 +386,18 @@ def convert_olci_optimized(
 
     root_rw = zarr.open_group(output_path, mode="a")
 
-    def _level_spatial(level_ds: xr.Dataset) -> SpatialAttrs:
-        if crs_obj is None:
+    def _level_spatial(name: str, level_ds: xr.Dataset) -> SpatialAttrs:
+        if base_transform is None:
             return swath_spatial_attrs()
+        # Scale the r0 transform rather than recompute it from the level's coords:
+        # rio.transform(recalc=True) returns the identity for a 1-pixel level.
+        step = int(name[1:]) or 1
         return grid_spatial_attrs(
-            level_ds.rio.transform(recalc=True),
+            base_transform @ Affine.scale(step),
             (level_ds.sizes["y"], level_ds.sizes["x"]),
         )
 
-    level_spatial = {name: _level_spatial(ds) for name, ds in level_datasets.items()}
+    level_spatial = {name: _level_spatial(name, ds) for name, ds in level_datasets.items()}
     for group_name, spatial in level_spatial.items():
         level_conv = build_convention_attrs(spatial=spatial, crs=crs_obj)
         root_rw[f"measurements/{group_name}"].attrs.update(cast("dict[str, JSON]", level_conv))
@@ -402,20 +405,21 @@ def convert_olci_optimized(
 
     # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)
     # to the measurements group attrs. Each layout entry repeats its level's
-    # spatial:shape/spatial:transform (gridded output only; a swath has neither):
-    # the GeoZarr store model requires them, and titiler-eopf reads them to work
-    # out the zoom range and to pick the level a tile is read from.
+    # spatial:shape/spatial:transform (gridded output only: swath levels carry no
+    # transform): the GeoZarr store model requires them, and titiler-eopf reads them
+    # to work out the zoom range and to pick the level a tile is read from.
     layout: list[LayoutObject] = []
-    for parent, name in zip([None, *level_spatial], level_spatial, strict=False):
+    parent: str | None = None
+    for name, spatial in level_spatial.items():
         lo: LayoutObject = {"asset": name}
         if parent:
             transform: Transform = {"scale": [2.0, 2.0], "translation": [0.0, 0.0]}
             lo.update(derived_from=parent, transform=transform, resampling_method="average")
-        spatial = level_spatial[name]
         if "spatial:shape" in spatial and "spatial:transform" in spatial:
             lo["spatial:shape"] = spatial["spatial:shape"]
             lo["spatial:transform"] = spatial["spatial:transform"]
         layout.append(lo)
+        parent = name
 
     if n_levels > 0:
         ms: MultiscalesAttrs = {"layout": layout, "resampling_method": "average"}
@@ -451,8 +455,8 @@ def convert_olci_optimized(
     # Consolidate the multiscales group, then the root (#291, #303): a reader that
     # opens `measurements` over HTTP cannot list it, so without a block it cannot
     # open it. Consolidating the root afterwards leaves the child's block in place.
-    consolidate_metadata(output_path, path="measurements", zarr_format=3)
-    consolidate_metadata(output_path, zarr_format=3)
+    zarr.consolidate_metadata(output_path, path="measurements", zarr_format=3)
+    zarr.consolidate_metadata(output_path, zarr_format=3)
 
     # The r0 named-sibling layout keeps every parent group free of arrays, so
     # the whole store — overview levels and nested ancillary groups included —
@@ -464,6 +468,6 @@ def convert_olci_optimized(
         output_path,
         engine="zarr",
         chunks={},
-        consolidated=False,
+        consolidated=True,
         mask_and_scale=False,
     )
