@@ -4794,7 +4794,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -4895,7 +4897,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -4996,7 +5000,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5097,7 +5103,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5366,7 +5374,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5470,7 +5480,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5574,7 +5586,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5678,7 +5692,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5782,7 +5798,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5886,7 +5904,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -5990,7 +6010,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6094,7 +6116,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6195,7 +6219,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6296,7 +6322,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6400,7 +6428,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6504,7 +6534,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6608,7 +6640,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6877,7 +6911,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -6981,7 +7017,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7085,7 +7123,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7186,7 +7226,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7287,7 +7329,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7388,7 +7432,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7492,7 +7538,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7593,7 +7641,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7694,7 +7744,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -7795,7 +7847,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8064,7 +8118,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8168,7 +8224,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8272,7 +8330,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8376,7 +8436,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8480,7 +8542,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8584,7 +8648,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8688,7 +8754,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8792,7 +8860,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8893,7 +8963,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -8994,7 +9066,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9098,7 +9172,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9202,7 +9278,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9306,7 +9384,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9572,7 +9652,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9676,7 +9758,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9780,7 +9864,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9884,7 +9970,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -9988,7 +10076,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10092,7 +10182,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10196,7 +10288,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10300,7 +10394,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10401,7 +10497,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10502,7 +10600,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10606,7 +10706,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10710,7 +10812,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -10814,7 +10918,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11083,7 +11189,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11187,7 +11295,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11291,7 +11401,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11395,7 +11507,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11499,7 +11613,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11603,7 +11719,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11707,7 +11825,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11811,7 +11931,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -11912,7 +12034,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12013,7 +12137,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12117,7 +12243,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12221,7 +12349,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {
@@ -12325,7 +12455,9 @@
                       1.0
                     ],
                     "scale_factor": 0.0001,
-                    "units": "1"
+                    "units": "1",
+                    "valid_max": 65535,
+                    "valid_min": 1
                   },
                   "chunk_grid": {
                     "configuration": {

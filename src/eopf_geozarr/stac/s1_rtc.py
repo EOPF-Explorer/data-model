@@ -13,6 +13,7 @@ import pystac
 import zarr
 
 from eopf_geozarr.conversion import fs_utils
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.types import BoundingBox2D, CRSCode, make_bounding_box, make_crs_code
 
 SAR_EXT = "https://stac-extensions.github.io/sar/v1.0.0/schema.json"
@@ -259,7 +260,7 @@ def _open_root(zarr_store: str) -> zarr.Group:
     return zarr.open_group(
         zarr_store,
         mode="r",
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         use_consolidated=None,
         storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(zarr_store)),
     )

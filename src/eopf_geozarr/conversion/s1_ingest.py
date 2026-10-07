@@ -38,6 +38,7 @@ from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion import fs_utils, utils
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
@@ -571,7 +572,7 @@ def _open_for_write(group_path: str, credentials_for: str) -> zarr.Group:
     return zarr.open_group(
         group_path,
         mode="r+",
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         use_consolidated=False,
         storage_options=cast(
             "dict[str, object] | None", fs_utils.get_storage_options(credentials_for)
@@ -797,7 +798,7 @@ def create_s1_store(
     root = zarr.open_group(
         store_path,
         mode="w-",
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
         storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
     )
     # Write a COMPLETE root at creation, not a partial one refined at consolidation.
@@ -1193,15 +1194,15 @@ def consolidate_s1_store(store_path: str | Path, orbit_direction: str) -> None:
     # It reprojects with `transform_bounds(..., densify_pts=21)` rather than transforming the
     # corners, which also avoids the near-global bbox a corner-only conversion produces in UTM
     # zones 1 and 60. `eopf:writer_schema` survives because this is an update, not a replace.
-    utils.write_store_root_geo_metadata(
+    utils.write_store_geo_metadata(
         store_path,
         storage_options=cast("dict[str, object] | None", fs_utils.get_storage_options(store_path)),
     )
 
     root = _open_store_for_write(store_path)
     for orbit_name, _ in root.groups():
-        zarr.consolidate_metadata(store_path, path=orbit_name, zarr_format=3)
-    zarr.consolidate_metadata(store_path, zarr_format=3)
+        zarr.consolidate_metadata(store_path, path=orbit_name, zarr_format=ZARR_FORMAT)
+    zarr.consolidate_metadata(store_path, zarr_format=ZARR_FORMAT)
     log.info(
         "Metadata consolidated",
         store_path=store_path,

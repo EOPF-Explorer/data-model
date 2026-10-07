@@ -52,6 +52,7 @@ from eopf_geozarr.cpm.routing import (
     looks_like_sentinel3_olci,
     select_pipeline,
 )
+from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
@@ -69,7 +70,12 @@ ENGINE_NAME = "geozarr"
 _SUPPORTED_MODES = ("w", "w-")
 
 #: Default spatial chunk size per pipeline, matching the eopf-geozarr CLI.
-_DEFAULT_SPATIAL_CHUNK = {"s2-optimized": 256, "s3-olci-optimized": 1024, "generic": 4096}
+_DEFAULT_SPATIAL_CHUNK = {
+    "s2-optimized": 256,
+    "s3-olci-optimized": 1024,
+    "generic": 4096,
+    "generic-rechunker": 1024,
+}
 
 
 class GeoZarrWriter(EOWriter):
@@ -101,6 +107,7 @@ class GeoZarrWriter(EOWriter):
         zarr_format: int | None = None,
         consolidated: bool = True,
         compute: bool = True,
+        generic_rechunker: bool | None = None,
         s2_optimized: bool | None = None,
         s3_olci_optimized: bool | None = None,
         spatial_chunk: int | None = None,
@@ -140,17 +147,22 @@ class GeoZarrWriter(EOWriter):
             Must be True: writes are synchronous. Accepted because CPM's
             staged-output path injects ``compute=True`` when a remote Dask
             client is active; ``compute=False`` (lazy write) is not supported.
+        generic_rechunker
+            Route non-S2/non-OLCI products to the generic rechunking pipeline
+            (True); S2 and OLCI products still go to their optimized pipelines.
+            None or False leaves pipeline auto-detection unchanged. Mutually
+            exclusive with ``s2_optimized=True`` and ``s3_olci_optimized=True``.
         s2_optimized
             Force (True) or suppress (False) the Sentinel-2 optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s3_olci_optimized=True``.
+            exclusive with ``s3_olci_optimized=True`` and ``generic_rechunker=True``.
         s3_olci_optimized
             Force (True) or suppress (False) the Sentinel-3 OLCI optimized
             pipeline; None auto-detects from the product type. Mutually
-            exclusive with ``s2_optimized=True``.
+            exclusive with ``s2_optimized=True`` and ``generic_rechunker=True``.
         spatial_chunk
             Spatial chunk size; defaults to 256 (S2 optimized), 1024 (OLCI
-            optimized), or 4096 (generic).
+            optimized), 4096 (generic), or 1024 (generic rechunker).
         enable_sharding
             Enable Zarr v3 sharding for spatial dimensions.
         max_retries
@@ -217,24 +229,22 @@ class GeoZarrWriter(EOWriter):
             dtree,
             force=self._resolve_forced_pipeline(
                 dtree,
+                generic_rechunker=generic_rechunker,
                 s2_optimized=s2_optimized,
                 s3_olci_optimized=s3_olci_optimized,
             ),
         )
-        generic_groups: list[str] | None = None
-        if selected_pipeline == "generic":
-            if groups is None:
-                raise ValueError(
-                    "The generic GeoZarr pipeline requires the 'groups' option naming the "
-                    "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
-                    "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
-                )
-            generic_groups = list(groups)
         resolved_spatial_chunk = (
             spatial_chunk
             if spatial_chunk is not None
             else _DEFAULT_SPATIAL_CHUNK[selected_pipeline]
         )
+        if selected_pipeline == "generic" and groups is None:
+            raise ValueError(
+                "The generic GeoZarr pipeline requires the 'groups' option naming the "
+                "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
+                "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
+            )
         output_path = self._prepare_target(filename_or_obj, mode=mode)
         log.info(
             "Writing GeoZarr product",
@@ -267,17 +277,31 @@ class GeoZarrWriter(EOWriter):
                 output_grid=output_grid,
             )
 
-        return create_geozarr_dataset(
-            dt_input=dtree,
-            groups=generic_groups if generic_groups is not None else [],
-            output_path=output_path,
-            spatial_chunk=resolved_spatial_chunk,
-            min_dimension=min_dimension,
-            max_retries=max_retries,
-            crs_groups=list(crs_groups) if crs_groups is not None else None,
-            gcp_group=gcp_group,
-            enable_sharding=enable_sharding,
-        )
+        if selected_pipeline == "generic-rechunker":
+            return create_generic_geozarr_dataset(
+                dt_input=dtree,
+                output_path=output_path,
+                enable_sharding=enable_sharding,
+                spatial_chunk=resolved_spatial_chunk,
+                compression_level=compression_level,
+                scale_offset_codec=scale_offset_codec,
+            )
+
+        # last validation and calling of the generic geozarr writer
+        if selected_pipeline == "generic" and groups is not None:
+            return create_geozarr_dataset(
+                dt_input=dtree,
+                groups=list(groups),
+                output_path=output_path,
+                spatial_chunk=resolved_spatial_chunk,
+                min_dimension=min_dimension,
+                max_retries=max_retries,
+                crs_groups=list(crs_groups) if crs_groups is not None else None,
+                gcp_group=gcp_group,
+                enable_sharding=enable_sharding,
+            )
+
+        return None
 
     def validate_write_options(
         self,
@@ -306,6 +330,7 @@ class GeoZarrWriter(EOWriter):
             "keep_scale_offset",
             "validate_output",
             "output_grid",
+            "generic_rechunker",
         )
         unknown = {key: value for key, value in kwargs.items() if key not in option_names}
         self._validate_options(
@@ -357,29 +382,48 @@ class GeoZarrWriter(EOWriter):
     def _resolve_forced_pipeline(
         dtree: DataTree,
         *,
+        generic_rechunker: bool | None,
         s2_optimized: bool | None,
         s3_olci_optimized: bool | None,
     ) -> PipelineName | None:
         """
-        Translate the ``s2_optimized``/``s3_olci_optimized`` flags into a single
-        ``force`` value for :func:`select_pipeline`.
+        Translate the ``s2_optimized``/``s3_olci_optimized``/ ``generic_rechunker``
+        flags into a single ``force`` value for :func:`select_pipeline`.
 
         Returns None (full auto-detection, S2 then OLCI then generic) unless
         one of the flags pins the outcome:
 
-        - ``s2_optimized=True`` or ``s3_olci_optimized=True`` forces that
-          pipeline outright (the two cannot both be True).
+        - ``generic_rechunker`` forces the ``generic_rechunker`` pipeline IF the product is not
+          overridden by the  ``looks_like_sentinel3_olci`` or  ``looks_like_sentinel2`` functions
+          -> this allows the generic setting of ``generic_rechunker`` as a flag during the converter
+             which still routes the specific products along accordingly
+        - ``s2_optimized=True`` or ``s3_olci_optimized=True`` or ``generic_rechunker`` forces that
+          pipeline (the three cannot all be True).
         - ``s2_optimized=False`` forces the generic pipeline, matching the
           pre-OLCI behavior of this flag exactly.
         - ``s3_olci_optimized=False`` only has an effect when the product
           would otherwise auto-detect as OLCI: it falls back to the
           S2-vs-generic decision instead, leaving S2 auto-detection intact.
         """
-        if s2_optimized is True and s3_olci_optimized is True:
+        if sum(f is True for f in (s2_optimized, s3_olci_optimized, generic_rechunker)) > 1:
             raise ValueError(
-                "s2_optimized and s3_olci_optimized cannot both be True; set at most one "
-                "to force a specific pipeline.",
+                "Only one of s2_optimized, s3_olci_optimized and generic_rechunker may be True.",
             )
+        if generic_rechunker is True and (s2_optimized is False or s3_olci_optimized is False):
+            # generic_rechunker still routes S2/OLCI products to their optimized
+            # pipelines, so an explicit False on either flag would be silently ignored.
+            raise ValueError(
+                "generic_rechunker=True cannot be combined with s2_optimized=False or "
+                "s3_olci_optimized=False: S2/OLCI products are still routed to their "
+                "optimized pipelines. Pass only s2_optimized=False/s3_olci_optimized=False "
+                "to force the generic pipeline.",
+            )
+        if generic_rechunker is True:
+            if looks_like_sentinel2(dtree):
+                return "s2-optimized"
+            if looks_like_sentinel3_olci(dtree):
+                return "s3-olci-optimized"
+            return "generic-rechunker"
         if s2_optimized is True:
             return "s2-optimized"
         if s3_olci_optimized is True:
@@ -488,6 +532,11 @@ def get_cli_command() -> click.Command:
         help="Fall back to Sentinel-2/generic auto-detection for Sentinel-3 OLCI inputs.",
     )
     @click.option(
+        "--generic-rechunker",
+        is_flag=True,
+        help="Fall back to Generic Rechunker processing. Automatically triggers Sentinel-2/3 OLCI detection scripts and routes through to optimized converters.",
+    )
+    @click.option(
         "--output-grid",
         type=str,
         default="native",
@@ -525,6 +574,7 @@ def get_cli_command() -> click.Command:
         min_dimension: int,
         no_s2_optimized: bool,
         no_s3_olci_optimized: bool,
+        generic_rechunker: bool,
         output_grid: str,
         scale_offset_codec: bool,
         stage_source: bool,
@@ -548,6 +598,8 @@ def get_cli_command() -> click.Command:
             target_store_kwargs["s2_optimized"] = False
         if no_s3_olci_optimized:
             target_store_kwargs["s3_olci_optimized"] = False
+        if generic_rechunker:
+            target_store_kwargs["generic_rechunker"] = True
         if output_grid != "native":
             target_store_kwargs["output_grid"] = output_grid
         if scale_offset_codec:

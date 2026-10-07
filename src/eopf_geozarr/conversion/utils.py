@@ -1,9 +1,10 @@
 """Utility functions for GeoZarr conversion."""
 
-from typing import Any, Protocol, cast, runtime_checkable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import numpy as np
-import rasterio  # noqa: F401  # Import to enable .rio accessor
 import structlog
 import xarray as xr
 import zarr
@@ -12,7 +13,531 @@ from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, Spatia
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
 
+from eopf_geozarr.conversion import constants, encoding_utils, fs_utils
+from eopf_geozarr.data_api.geozarr.types import (
+    XARRAY_ENCODING_KEYS,
+    XarrayDataArrayEncoding,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Hashable, Iterable, Mapping
+
+    from xarray.core.types import ZarrWriteModes
+
+
+from importlib.util import find_spec
+
+DISTRIBUTED_AVAILABLE = find_spec("distributed") is not None
+
+# Sentinel: distinguish "no explicit fill_value" from a legitimate `None`.
+UNSET: Any = object()
+
+# Dimension names that represent a "band-like" axis (polarization) to allow a per-"band" sharding if they extend beyond ram
+# purposedly doeStn inlcude the 'band' option to not impleemnt on small enOugh arrays
+BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
+
 log = structlog.get_logger()
+
+
+def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
+    """Print optimization summary statistics."""
+    # Count groups
+    input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
+    output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
+
+    log.info(
+        "OPTIMIZATION SUMMARY",
+        input_groups=input_groups,
+        output_groups=output_groups,
+        output_path=output_path,
+        groups=[g for g in dt_output.groups if g != "."],
+    )
+
+
+def create_result_datatree(output_path: str) -> xr.DataTree:
+    """Create result DataTree from written output."""
+    storage_options = fs_utils.get_storage_options(output_path)
+    return xr.open_datatree(
+        output_path,
+        engine="zarr",
+        chunks="auto",
+        storage_options=storage_options,
+    )
+
+
+def updated_root_consolidation(
+    dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
+) -> None:
+    """
+    Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
+    Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
+    """
+    output_path = output_path.rstrip("/") + "/"
+
+    # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
+    # also gather potential measurement groups for consolidating
+    for group_path in datasets:
+        # extract all the parent paths and names
+        parent, _, name = group_path.rstrip("/").rpartition("/")
+        if parent not in datasets:
+            init_zarr_group(output_path + group_path)
+
+        # consolidate 'all measurement groups
+        if name == "measurements":
+            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
+
+    # check and get possible subroots for consolidation
+    subroot_groups = get_subroots(dt_input.groups)
+
+    # also add some geo- and stac-root metadata
+    if subroot_groups:
+        for subroot in subroot_groups:
+            write_store_root_metadata(
+                output_path + subroot,
+                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+            )
+            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
+
+    # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
+    init_root_zarr_group(
+        output_path,
+        datasets=datasets,
+        dt_input_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+    )
+
+    # consolidate metadata in root OR in each subroot
+    if not subroot_groups:
+        zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
+
+
+def init_zarr_group(
+    output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
+) -> None:
+    """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
+    dt_parent = root_tree or xr.DataTree()
+
+    dt_parent.to_zarr(
+        output_path,
+        mode=mode,
+        zarr_format=constants.ZARR_FORMAT,
+        consolidated=False,
+    )
+
+
+def init_root_zarr_group(
+    output_path: str, datasets: Mapping[str, object], dt_input_attrs: dict[str, dict[str, Any]]
+) -> None:
+    """
+    Instantiates an EOPF zarr group with xarray, with a root tree and additional root trees for all datasets passed to this function.
+    Also writes any root store metadata, namely geo metadata and stac metadata.
+    """
+    log.info("Creating root zarr group")
+    init_zarr_group(output_path)
+
+    dt_root = xr.DataTree()
+    for group_path in datasets:
+        dt_root[group_path] = xr.DataTree()
+
+    init_zarr_group(output_path=output_path, mode="r+", root_tree=dt_root)
+    log.info("Root zarr group created")
+
+    # Write the store-root spatial footprint (geozarr minispec, Store Root section).
+    # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
+    # and writes the union on the root `zarr.json`.
+    write_store_root_metadata(output_path, attrs=dt_input_attrs)
+
+
+def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
+    """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
+    write_store_geo_metadata(output_path, input_root_attrs=attrs)
+    write_store_stac_metadata(output_path, input_root_attrs=attrs)
+
+
+def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
+    subroots = set()
+    for path in groups:
+        parent, _, name = path.rstrip("/").rpartition("/")
+        if name in constants.SUBROOT_MARKERS and parent and parent not in subroots:
+            subroots.add(parent)
+    return subroots or None
+
+
+def stream_write_dataset(
+    dataset: xr.Dataset,
+    *,
+    path: str,
+    group: zarr.Group,
+    encoding: dict[str, XarrayDataArrayEncoding],
+    enable_sharding: bool,
+    chunk_and_shard_coords=True,
+) -> xr.Dataset:
+    """
+    Stream write a lazy dataset with advanced chunking and sharding.
+
+    This is where the magic happens: all the lazy downsampling operations
+    are executed as the data is streamed to storage with optimal performance.
+
+    Args:
+        dataset: Dataset to write
+        dataset_path: Output path for dataset
+        encoding: Encoding dictionary for variables
+        enable_sharding: Enable Zarr v3 sharding
+
+    Returns:
+        Written dataset
+    """
+    # Check if level already exists
+    if path in group:
+        log.info(
+            "Level path {} already exists. Skipping write.",
+            dataset_path=path,
+        )
+        # The zarr backend accepts a zarr `Store` here at runtime, but xarray's
+        # `open_dataset` stub only types the first arg as path/buffer/datastore.
+        return xr.open_dataset(
+            group.store,  # type: ignore[arg-type]
+            engine="zarr",
+            chunks={},
+            decode_coords="all",
+            group=path,
+            mask_and_scale=False,
+        )
+
+    log.info("Streaming computation and write to {}", dataset_path=path)
+    log.info("Variables", variables=list(dataset.data_vars.keys()))
+
+    # Rechunk dataset to align with encoding
+    dataset = rechunk_dataset_for_encoding(
+        dataset, encoding, chunk_and_shard_coords=chunk_and_shard_coords
+    )
+
+    # Sanitize NaN values in dataset attributes before writing
+    dataset = fs_utils.sanitize_dataset_attributes(dataset)
+
+    # Write with streaming computation and progress tracking
+    # The to_zarr operation will trigger all lazy computations
+
+    write_job = dataset.to_zarr(
+        store=group.store,
+        mode="w",
+        consolidated=False,
+        zarr_format=constants.ZARR_FORMAT,
+        encoding=encoding,
+        group=path,
+        compute=False,  # Create job first for progress tracking
+    )
+    write_job = write_job.persist()
+
+    if DISTRIBUTED_AVAILABLE:
+        try:
+            import distributed
+
+            # Try to get current client for better status monitoring
+            try:
+                client = distributed.Client.current()
+                # client.compute is untyped (returns Any); verify we got a
+                # Future rather than asserting it with a cast.
+                future = client.compute(write_job)
+                if not isinstance(future, distributed.Future):
+                    raise TypeError(f"expected a distributed.Future, got {type(future).__name__}")
+                log.info("Using distributed client for write job monitoring")
+
+                try:
+                    distributed.progress(future, notebook=False)
+                except Exception as progress_error:
+                    log.warning("Could not display progress bar: {}", e=progress_error)
+
+                # Get result and raise if computation failed
+                future.result()
+            except ValueError:
+                # No current client, fall back to regular distributed.progress
+                log.info("No distributed client available, using regular progress")
+                distributed.progress(write_job, notebook=False)
+                write_job.compute()
+
+        except Exception as e:
+            log.warning("Could not use distributed features: {}", e=e)
+            write_job.compute()
+    else:
+        log.info("Writing zarr file...")
+        write_job.compute()
+
+    log.info("Streaming write complete for dataset {}", dataset_path=path)
+    return dataset
+
+
+def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
+    """Index of the band-like dimension, if var_data has one. Falls back to
+    None (caller should then skip band-axis sharding, not guess)."""
+    if len(var_data.dims) <= 2:
+        log.info(
+            "Not sharding along bandlike dim if its not dim>2", band_like_dim=BAND_LIKE_DIM_NAMES
+        )
+    else:
+        for i, dim in enumerate(var_data.dims):
+            if dim in BAND_LIKE_DIM_NAMES:
+                return i
+    return None
+
+
+def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
+    chunks = {dim: (min(spatial_chunk, size)) for dim, size in ds.sizes.items()}
+    return ds.chunk(chunks)
+
+
+def _rechunk_iterable(
+    iterable: Iterable, encoding: dict[str, XarrayDataArrayEncoding]
+) -> dict[Hashable, xr.DataArray]:
+    collector: dict[Hashable, xr.DataArray] = {}
+    for var_name, var_data in iterable:
+        if str(var_name) in encoding:
+            var_encoding = encoding[str(var_name)]
+
+            # If sharding is enabled, rechunk based on shard dimensions
+            shards_encoding = var_encoding.get("shards")
+            chunks_encoding = var_encoding.get("chunks")
+            if shards_encoding is not None:
+                target_chunks = shards_encoding  # Use shard dimensions for rechunking
+            elif chunks_encoding is not None:
+                target_chunks = chunks_encoding  # Fallback to chunk dimensions
+            else:
+                # No specific chunking needed, use original variable
+                collector[var_name] = var_data
+                continue
+
+            # Create chunk dict using the actual dimensions of the variable
+            if len(var_data.dims) == len(target_chunks):
+                chunk_dict = dict(zip(var_data.dims, target_chunks, strict=True))
+
+                # Rechunk the variable to match the target dimensions
+                collector[var_name] = var_data.chunk(chunk_dict)
+            else:
+                raise ValueError(
+                    f"Given dataarray '{var_name}' with dimension '{var_data.dims}' has different shape than chunks '{target_chunks}'"
+                )
+        else:
+            # No specific chunking needed, use original variable
+            collector[var_name] = var_data
+    return collector
+
+
+def rechunk_dataset_for_encoding(
+    dataset: xr.Dataset,
+    encoding: dict[str, XarrayDataArrayEncoding],
+    chunk_and_shard_coords: bool = False,
+) -> xr.Dataset:
+    """
+    Rechunk dataset variables to align with sharding dimensions when sharding is enabled.
+
+    When using Zarr v3 sharding, Dask chunks must align with shard dimensions to avoid
+    checksum validation errors.
+
+    chunk_and_shard_coords: bool
+        allows (primarily) the sharding of coordinate arrays, usually not too relevant but
+        takes effect for large 2dim coordinate arrays eg. lat/lon S3A OLCI LFR
+    """
+    if chunk_and_shard_coords:
+        # Create new dataset with rechunked variables, also sharding coordinates
+        rechunked_vars = _rechunk_iterable(iterable=dataset.data_vars.items(), encoding=encoding)
+        rechunked_cords = _rechunk_iterable(iterable=dataset.coords.items(), encoding=encoding)
+
+        return xr.Dataset(rechunked_vars, coords=rechunked_cords, attrs=dataset.attrs)
+    # Create new dataset with rechunked variables, preserving coordinates
+    rechunked_vars = _rechunk_iterable(iterable=dataset.data_vars.items(), encoding=encoding)
+
+    return xr.Dataset(rechunked_vars, coords=dataset.coords, attrs=dataset.attrs)
+
+
+def get_chunking_for_encoding(
+    var_data: xr.DataArray, shard_along_smallest_dimension: bool = False
+) -> tuple[int, ...]:
+    """
+    requires a prior rechunking of the dataset by calling _rechunk_ds() to rechunk non-metadata arrays to spatial_chunk
+    get a tuple of maximal chunksize for the dataarray
+    -> (spatial_chukn, spatial_chukn) for spatial arrays
+    -> (x, y, z, ..) for multidimensional metadata arrays (just to allow sharding later on)
+
+    Args:
+        var_data: DataArray to get the chunks from
+
+    """
+    if var_data.chunks:
+        # get the maximal chunk shape for zarr encoding -> theoretically it wouldnt be necessary to take the max, as non-uniform chukning (1024, 806)
+        # has irregular chunksizes trailing, but the syntax and goal of the code is much clearer this way
+        max_chunksizes = [max(c) for c in var_data.chunks]
+
+        if shard_along_smallest_dimension:
+            band_dim = _band_like_dim_index(var_data)
+            if band_dim is not None:
+                max_chunksizes[band_dim] = 1
+
+        return tuple(max_chunksizes)
+    raise ValueError(
+        f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
+    )
+
+
+def _forward_unpacked_encoding(
+    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
+) -> XarrayDataArrayEncoding:
+    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
+    fv = explicit_fill_value(var_data)
+    if fv is not UNSET:
+        var_encoding["fill_value"] = fv
+    elif "fill_value" in var_data.attrs:
+        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
+        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+
+    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
+        if key in var_data.encoding:
+            var_encoding[key] = var_data.encoding[key]
+
+    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
+    if unknown:
+        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+    return var_encoding
+
+
+def build_dataarray_encoding(
+    var: xr.DataArray,
+    enable_sharding: bool = True,
+    compression_level: int = 3,
+    shard_along_smallest_dimension: bool = False,
+) -> XarrayDataArrayEncoding:
+    import math
+
+    from zarr.codecs import BloscCodec
+
+    _encoding: XarrayDataArrayEncoding = {}
+    compressor = BloscCodec(cname="zstd", clevel=compression_level, shuffle="shuffle", blocksize=0)
+
+    encoding_chunks = get_chunking_for_encoding(var, shard_along_smallest_dimension)
+
+    _encoding["chunks"] = encoding_chunks
+    _encoding["compressors"] = (compressor,)
+
+    # --- Shards: cover the whole array, one shard per array -----------
+    if enable_sharding:
+        # select next largest mutliple of chunksize to fit full array
+        shards_ = [
+            math.ceil(shape / chunk) * chunk
+            for shape, chunk in zip(var.shape, encoding_chunks, strict=True)
+        ]
+        if shard_along_smallest_dimension:
+            band_dim = _band_like_dim_index(var)
+            if band_dim is None:
+                log.warning(
+                    "shard_along_smallest_dimension=True but %s has no "
+                    "recognized band-like dimension (%s); falling back to "
+                    "whole-array sharding",
+                    var.name,
+                    list(var.dims),
+                )
+            else:
+                shards_[band_dim] = encoding_chunks[band_dim]
+
+        _encoding["shards"] = tuple(shards_)
+    else:
+        _encoding["shards"] = None
+
+    return _encoding
+
+
+def create_uniform_encoding(
+    dataset: xr.Dataset,
+    *,
+    enable_sharding: bool = True,
+    compression_level: int = 3,
+    scale_offset_codec: bool = False,
+    chunk_and_shard_coords: bool = False,
+    shard_along_smallest_dimension: bool = False,
+) -> dict[str, XarrayDataArrayEncoding]:
+    """
+    Create encoding (compression, chunking, sharding) for a dataset.
+
+    Chunking is taken from the input dataset's existing chunks which HAS to be present, which has to be enforced before calling this fucntion.
+    Tests inside this fucntion from `get_chunking_for-encoding` will raise a ValueError if no chunks are present. Sharding always covers the *entire* array along every
+    dimension, sized as the smallest multiple of that dimension's chunk size
+    that is >= the array's shape — so a shard always contains a whole number
+    of chunks and there is exactly one shard per array. This avoids partial
+    edge chunks ending up in their own oddly-sized shard when e.g. shape=1830
+    and chunk=1024 (shard becomes 2048, i.e. 2 chunks, not some 1830-based
+    value that would clip/overlap the second chunk).
+
+    Packed variables (see `packing_of`) keep their source integer dtype on disk.
+    By default they are written as in the ESA product: packed integers with CF
+    `scale_factor`, `add_offset` and `_FillValue`, and they stay packed integers
+    in `dataset` (no cast to float). With `scale_offset_codec`, they are
+    replaced in `dataset` by their decoded float32 values, and the Zarr
+    `scale_offset` + `cast_value` codecs pack them, with no CF scale
+    attributes. Other variables keep their dtype and fill value.
+
+    """
+    encoding: dict[str, XarrayDataArrayEncoding] = {}
+
+    for var_name in list(dataset.data_vars):
+        packing = encoding_utils.packing_of(dataset[var_name])
+        if packing is not None:
+            dataset[var_name] = encoding_utils.normalize_packed(
+                dataset[var_name], packing, scale_offset_codec=scale_offset_codec
+            )
+        else:
+            dataset[var_name] = encoding_utils._drop_trivial_scaling(dataset[var_name])
+
+        var_data = dataset[var_name]
+        var_encoding = build_dataarray_encoding(
+            var_data,
+            enable_sharding=enable_sharding,
+            compression_level=compression_level,
+            shard_along_smallest_dimension=shard_along_smallest_dimension,
+        )
+
+        # `to_zarr(encoding=...)` replaces each variable's `.encoding`, so the
+        # variables keep their packing for the pyramid levels while only the
+        # keys below are written.
+        if packing is not None and not scale_offset_codec:
+            # The data are already the packed integers and the CF `scale_factor`
+            # and `add_offset` are attributes, so xarray writes them unchanged.
+            if packing.fill_value is not None:
+                var_encoding["_FillValue"] = packing.fill_value
+        elif packing is not None:
+            var_encoding["filters"] = encoding_utils._scale_offset_filters(packing)
+            var_encoding["fill_value"] = "NaN"
+            # CF _FillValue attribute for xarray issue #11345.
+            var_data.attrs["_FillValue"] = np.nan
+        else:
+            var_encoding = _forward_unpacked_encoding(var_name, var_data, var_encoding)
+            # Sanitize source-only attributes (replace dict — ``.update`` cannot
+            # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
+            # otherwise leak into the output).
+            is_float = np.issubdtype(var_data.dtype, np.floating)
+            var_data.attrs = sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
+
+        encoding[str(var_name)] = var_encoding
+
+    for coord_name, coord_data in dataset.coords.items():
+        # coord_encoding: XarrayDataArrayEncoding = {}
+
+        if chunk_and_shard_coords:
+            if (
+                coord_name in dataset.xindexes
+            ):  # skip indexed coords which are likely not chunked -> check for chunked
+                continue
+            coord_encoding = build_dataarray_encoding(
+                coord_data,
+                enable_sharding=enable_sharding,
+                compression_level=compression_level,
+                shard_along_smallest_dimension=shard_along_smallest_dimension,
+            )
+        else:
+            coord_encoding: XarrayDataArrayEncoding = {"compressors": ()}
+
+        coord_data.attrs = sanitize_array_attrs(coord_data.attrs)
+        encoding[str(coord_name)] = coord_encoding
+
+    return encoding
 
 
 @runtime_checkable
@@ -46,7 +571,7 @@ def proj_attrs_for_crs(crs: CRSLike | None) -> GeoProjAttrs:
 
 def build_convention_attrs(
     *,
-    spatial: SpatialAttrs,
+    spatial: SpatialAttrs | None,
     crs: CRSLike | None,
     multiscales: MultiscalesAttrs | None = None,
 ) -> MultiConventionAttrs:
@@ -65,18 +590,18 @@ def build_convention_attrs(
     conventions: dict[zarr_cm.ConventionName, MultiscalesAttrs | SpatialAttrs | GeoProjAttrs] = {}
     if multiscales is not None:
         conventions["multiscales"] = multiscales
-    conventions["spatial"] = spatial
+
+    if spatial is not None:
+        conventions["spatial"] = spatial
+
     proj = proj_attrs_for_crs(crs)
     if proj:
         conventions["geo-proj"] = proj
+
     # create_many validates each convention and emits its CMO. It returns a
     # generic JSON dict; narrow to the combined convention TypedDict.
     result = zarr_cm.create_many(conventions)
     return cast("MultiConventionAttrs", result)
-
-
-# Sentinel: distinguish "no explicit fill_value" from a legitimate `None`.
-UNSET: Any = object()
 
 
 def explicit_fill_value(var: xr.DataArray) -> Any:
@@ -141,8 +666,9 @@ def sanitize_array_attrs(
     """
     dropped = {"_eopf_attrs", "_FillValue", *geo_proj_cm.CONVENTION_KEYS}
     out = {k: v for k, v in attrs.items() if k not in dropped}
+
     if is_decoded_float:
-        for key in ("dtype", "fill_value", "valid_min", "valid_max"):
+        for key in ("dtype", "fill_value"):
             out.pop(key, None)
         if out.get("units") == "digital_counts":
             out["units"] = "1"
@@ -426,8 +952,10 @@ def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
     return None
 
 
-def write_store_root_geo_metadata(
-    output_path: str, storage_options: dict[str, Any] | None = None
+def write_store_geo_metadata(
+    output_path: str,
+    input_root_attrs: dict[str, dict[str, Any]] | None = None,
+    storage_options: dict[str, Any] | None = None,
 ) -> None:
     """Write the minispec store-root metadata on the root group.
 
@@ -489,8 +1017,41 @@ def write_store_root_geo_metadata(
     for _, child_group in root.groups():
         _walk(child_group)
 
+    if input_root_attrs and not bboxes_4326:
+        log.warning(
+            "deriving bounding box for minimal spatial geozarr spec from stac metadata geometry -> more stable than bbox attribute"
+        )
+        try:
+            stac_attrs = input_root_attrs.get("stac_discovery")
+
+            if stac_attrs is None or not isinstance(stac_attrs, dict):
+                log.warning("No usable stac_discovery block found; skipping store-root metadata")
+            elif "geometry" not in stac_attrs:
+                log.warning(
+                    "stac_discovery present but no geometry found; skipping store-root metadata"
+                )
+            else:
+
+                def _positions(c: Any) -> Any:
+                    # flatten nested GeoJSON coordinates down to [x, y] positions
+                    if isinstance(c[0], (int, float)):
+                        yield c
+                    else:
+                        for sub in c:
+                            yield from _positions(sub)
+
+                pts = list(_positions(stac_attrs["geometry"]["coordinates"]))
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                bboxes_4326.append((min(xs), min(ys), max(xs), max(ys)))
+        except KeyError:
+            log.warning("No stac_discovery block found at all; skipping store-root metadata")
+            return
+
     if not bboxes_4326:
-        log.warning("No usable child-group spatial:bbox found; skipping store-root metadata")
+        log.warning(
+            "No spatial:bbox found anywhere in the store; skipping store-root spatial metadata"
+        )
         return
 
     if any(b[0] > b[2] for b in bboxes_4326):
@@ -506,6 +1067,7 @@ def write_store_root_geo_metadata(
         xmax = max(b[2] for b in bboxes_4326)
     ymin = min(b[1] for b in bboxes_4326)
     ymax = max(b[3] for b in bboxes_4326)
+
     root_attrs: dict[str, Any] = {
         "zarr_conventions": [dict(spatial_cm.CMO), dict(geo_proj_cm.CMO)],
         "spatial:bbox": [xmin, ymin, xmax, ymax],
@@ -515,9 +1077,9 @@ def write_store_root_geo_metadata(
     log.info("Wrote store-root spatial metadata", bbox=[xmin, ymin, xmax, ymax])
 
 
-def write_store_root_stac_metadata(
+def write_store_stac_metadata(
     output_path: str,
-    root_attrs: dict[str, dict[str, Any]],
+    input_root_attrs: dict[str, dict[str, Any]],
     storage_options: dict[str, Any] | None = None,
     overwrite_root_attrs: bool = False,
 ) -> None:
@@ -535,11 +1097,12 @@ def write_store_root_stac_metadata(
     # prevent the overwriting of attributes in the root node if they are present in the stac metadata.. this is a failsafe for future changes of cpm if the y include zarr metadata
     if not overwrite_root_attrs:
         original_attrs = set(dict(root.attrs).keys())
-        new_attrs = set(root_attrs.keys())
+        new_attrs = set(input_root_attrs.keys())
         for int_attr in original_attrs.intersection(new_attrs):
-            root_attrs.pop(int_attr)
+            input_root_attrs.pop(int_attr)
 
-    root.attrs.update(root_attrs)
+    root.attrs.update(input_root_attrs)
     log.info(
-        "Updated root metadata attributes for STAC ingestion", root_attrs=list(root_attrs.keys())
+        "Updated root metadata attributes for STAC ingestion",
+        root_attrs=list(input_root_attrs.keys()),
     )

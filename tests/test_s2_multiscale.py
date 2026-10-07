@@ -18,19 +18,21 @@ from pydantic_zarr.v3 import GroupSpec
 from structlog.testing import capture_logs
 from zarr.core.metadata import ArrayV3Metadata
 
+from eopf_geozarr.conversion.utils import (
+    _rechunk_ds,
+    create_uniform_encoding,
+    rechunk_dataset_for_encoding,
+)
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     S2Type,
     _coarsen_variable,
-    _rechunk_ds,
     add_multiscales_metadata_to_parent,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
     create_multiscale_from_datatree,
-    create_uniform_encoding,
     inject_missing_bands,
-    rechunk_dataset_for_encoding,
 )
 
 from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
@@ -172,7 +174,6 @@ def test_create_measurements_encoding(
     encoding = create_uniform_encoding(
         sample_dataset,
         enable_sharding=True,
-        spatial_chunk=1024,
         scale_offset_codec=scale_offset_codec,
     )
 
@@ -227,7 +228,7 @@ def test_create_measurements_encoding_time_chunking(sample_dataset: xr.Dataset) 
     # rechunk
     sample_dataset = _rechunk_ds(sample_dataset, 1024)
 
-    encoding = create_uniform_encoding(sample_dataset, enable_sharding=True, spatial_chunk=1024)
+    encoding = create_uniform_encoding(sample_dataset, enable_sharding=True)
 
     for var_name in sample_dataset.data_vars:
         if sample_dataset[var_name].ndim == 3:  # 3D variable with time

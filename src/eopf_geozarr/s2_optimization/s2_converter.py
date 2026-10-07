@@ -14,12 +14,12 @@ from pydantic import TypeAdapter
 from pyproj import CRS
 
 from eopf_geozarr.conversion import utils
-from eopf_geozarr.conversion.fs_utils import get_storage_options
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
-from .s2_multiscale import create_multiscale_from_datatree, packing_of
+from .s2_multiscale import create_multiscale_from_datatree
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
@@ -190,12 +190,12 @@ def convert_s2(
             log.warning("Validation issues found", issues=validation_results["issues"])
 
     # Create result DataTree
-    result_dt = create_result_datatree(output_path)
+    result_dt = utils.create_result_datatree(output_path)
 
     total_time = time.time() - start_time
     log.info("Optimization complete", duration_seconds=round(total_time, 2))
 
-    optimization_summary(dt_input, result_dt, output_path)
+    utils.optimization_summary(dt_input, result_dt, output_path)
 
     return result_dt
 
@@ -283,12 +283,12 @@ def convert_s2_optimized(
             log.warning("Validation issues found", issues=validation_results["issues"])
 
     # Create result DataTree
-    result_dt = create_result_datatree(output_path)
+    result_dt = utils.create_result_datatree(output_path)
 
     total_time = time.time() - start_time
     log.info("Optimization complete", duration_seconds=round(total_time, 2))
 
-    optimization_summary(dt_input, result_dt, output_path)
+    utils.optimization_summary(dt_input, result_dt, output_path)
 
     return result_dt
 
@@ -317,7 +317,7 @@ def simple_root_consolidation(
         dt_parent.to_zarr(
             output_path + group_path,
             mode="a",
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
             consolidated=False,
         )
 
@@ -328,7 +328,7 @@ def simple_root_consolidation(
         output_path,
         mode="a",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     dt_root = xr.DataTree()
     for group_path in datasets:
@@ -338,7 +338,7 @@ def simple_root_consolidation(
         output_path,
         mode="r+",
         consolidated=False,
-        zarr_format=3,
+        zarr_format=ZARR_FORMAT,
     )
     log.info("Root zarr group created")
 
@@ -349,25 +349,13 @@ def simple_root_consolidation(
 
     if dt_input and dt_input.attrs:
         # this can be used to add multiscale paths to the stac attributes
-        # wether we want that or not has to be discussed
-        # -> For now this data is not added, as we dont want to expose the additional multiscale arrays for users in the stac assets, this comes at the possibility of confusion for users, but we accept that risk
-        # as users wont need the multiscale, but they are just used for visualisation
-        # the code is currently commented out, as this discussion is not 100% final yet and changes might apply
+        updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
 
-        # updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
-        # utils.write_store_root_stac_metadata(
-        #     output_path,
-        #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
-        # )
-
-        # addition of measurements as its own stac asset in root -> will needto be verified and tested
-        # likely triggErs addtionial modifications in eopf-stac -> cannot be tested here as eopf-stac is out of scope from this repo
-        root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
         # Reference the pyramid root group, not the individual levels. That
         # group carries the `multiscales` attribute, and the
         # `profile=multiscales` media-type parameter tells a consumer to look
         # for it there and resolve the levels from the convention itself.
-        stac = root_attrs.get("stac_discovery")
+        stac = updated_stac_attrs.get("stac_discovery")
         if stac is not None:
             reflectance_asset: dict[str, Any] = {
                 "href": "/measurements/reflectance",
@@ -383,33 +371,27 @@ def simple_root_consolidation(
             base = datasets.get("/measurements/reflectance/r10m")
             if isinstance(base, xr.Dataset):
                 reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
-                # In codec mode the Zarr reader already returns decoded values, so the
-                # asset must not declare a scale or clients would apply it twice.
-                packing = next(filter(None, map(packing_of, base.data_vars.values())), None)
-                if not scale_offset_codec and packing is not None:
-                    reflectance_asset["raster:scale"] = packing.scale_factor
-                    reflectance_asset["raster:offset"] = packing.add_offset
-                    if packing.fill_value is not None:
-                        reflectance_asset["nodata"] = packing.fill_value
 
             stac.setdefault("assets", {})["reflectance"] = reflectance_asset
 
-        utils.write_store_root_stac_metadata(
+        utils.write_store_stac_metadata(
             output_path,
-            root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+            input_root_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
         )
 
     # consolidate reflectance group metadata
-    zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=3)
+    zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=ZARR_FORMAT)
 
     # consolidate root group metadata
-    zarr.consolidate_metadata(output_path, zarr_format=3)
+    zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)
 
 
 def add_multiscale_pyramids_to_stac_metadata(
     datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
-    stac_attrs = dt_attributes["stac_discovery"]["assets"]
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    if not stac_attrs:
+        return dt_attributes
 
     # a bit messy but effective split to get group parent from stac attrs
     existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
@@ -433,8 +415,6 @@ def add_multiscale_pyramids_to_stac_metadata(
         else:
             log.warning("Found non-dataset object in datasets!", dataset=ds)
 
-    # replace attrs
-    dt_attributes["stac_discovery"]["assets"] = stac_attrs
     return dt_attributes
 
 
@@ -444,49 +424,7 @@ def write_store_root_bbox(output_path: str) -> None:
     Thin wrapper kept for backwards compatibility; the implementation lives in
     :func:`eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
     """
-    utils.write_store_root_geo_metadata(output_path)
-
-
-def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
-    """Print optimization summary statistics."""
-    # Count groups
-    input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
-    output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
-
-    # Estimate file count reduction
-    estimated_input_files = input_groups * 10  # Rough estimate
-    estimated_output_files = output_groups * 5  # Fewer files per group
-    group_change_pct = (
-        ((output_groups - input_groups) / input_groups * 100) if input_groups > 0 else 0
-    )
-    file_change_pct = (
-        ((estimated_output_files - estimated_input_files) / estimated_input_files * 100)
-        if estimated_input_files > 0
-        else 0
-    )
-
-    log.info(
-        "OPTIMIZATION SUMMARY",
-        input_groups=input_groups,
-        output_groups=output_groups,
-        group_change_pct=f"{group_change_pct:+.1f}%",
-        estimated_input_files=estimated_input_files,
-        estimated_output_files=estimated_output_files,
-        file_change_pct=f"{file_change_pct:+.1f}%",
-        output_path=output_path,
-        groups=[g for g in dt_output.groups if g != "."],
-    )
-
-
-def create_result_datatree(output_path: str) -> xr.DataTree:
-    """Create result DataTree from written output."""
-    storage_options = get_storage_options(output_path)
-    return xr.open_datatree(
-        output_path,
-        engine="zarr",
-        chunks="auto",
-        storage_options=storage_options,
-    )
+    utils.write_store_geo_metadata(output_path)
 
 
 def is_sentinel2_dataset(group: zarr.Group) -> bool:

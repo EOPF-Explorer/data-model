@@ -33,6 +33,7 @@ from zarr.core.sync import sync
 from zarr.storage import StoreLike
 from zarr.storage._common import make_store_path
 
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.data_api.geozarr.multiscales import zcm
 from eopf_geozarr.data_api.geozarr.multiscales.geozarr import (
     MultiscaleMeta,
@@ -150,7 +151,7 @@ def create_geozarr_dataset(
     # declaration. A failure here must not discard the already-written data;
     # the store simply stays root-metadata-less (and the validator reports it).
     try:
-        utils.write_store_root_geo_metadata(output_path)
+        utils.write_store_geo_metadata(output_path)
     except Exception as e:
         log.warning("Failed to write store-root spatial metadata", error=str(e))
 
@@ -403,7 +404,7 @@ def iterative_copy(
                 group=group_param,
                 mode="w",
                 consolidated=False,
-                zarr_format=3,
+                zarr_format=ZARR_FORMAT,
                 encoding=encoding,
                 # xarray stubs type storage_options as dict[str, str]; S3FsOptions is broader
                 storage_options=storage_options,  # pyright: ignore[reportArgumentType]
@@ -788,7 +789,7 @@ def create_geozarr_compliant_multiscales(
             group=overview_group,
             mode="w",
             consolidated=False,
-            zarr_format=3,
+            zarr_format=ZARR_FORMAT,
             encoding=encoding,
             align_chunks=align_chunks_flag,
             # xarray stubs type storage_options as dict[str, str]; S3FsOptions is broader
@@ -1180,7 +1181,7 @@ def write_dataset_band_by_band_with_validation(
                     group=group_name,
                     mode="a",
                     consolidated=False,
-                    zarr_format=3,
+                    zarr_format=ZARR_FORMAT,
                     encoding=var_encoding,
                     # xarray stubs type storage_options as dict[str, str]; S3FsOptions is broader
                     storage_options=store_storage_options,  # pyright: ignore[reportArgumentType]
@@ -1597,7 +1598,7 @@ def _load_existing_dataset(path: str) -> xr.Dataset | None:
             storage_options = fs_utils.get_storage_options(path)
             return xr.open_dataset(
                 path,
-                zarr_format=3,
+                zarr_format=ZARR_FORMAT,
                 storage_options=storage_options,
                 engine="zarr",
                 chunks="auto",
