@@ -349,25 +349,13 @@ def simple_root_consolidation(
 
     if dt_input and dt_input.attrs:
         # this can be used to add multiscale paths to the stac attributes
-        # wether we want that or not has to be discussed
-        # -> For now this data is not added, as we dont want to expose the additional multiscale arrays for users in the stac assets, this comes at the possibility of confusion for users, but we accept that risk
-        # as users wont need the multiscale, but they are just used for visualisation
-        # the code is currently commented out, as this discussion is not 100% final yet and changes might apply
+        updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
 
-        # updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
-        # utils.write_store_root_stac_metadata(
-        #     output_path,
-        #     root_attrs=cast("dict[str, dict[str, Any]]", updated_stac_attrs),
-        # )
-
-        # addition of measurements as its own stac asset in root -> will needto be verified and tested
-        # likely triggErs addtionial modifications in eopf-stac -> cannot be tested here as eopf-stac is out of scope from this repo
-        root_attrs = cast("dict[str, dict[str, Any]]", dt_input.attrs)
         # Reference the pyramid root group, not the individual levels. That
         # group carries the `multiscales` attribute, and the
         # `profile=multiscales` media-type parameter tells a consumer to look
         # for it there and resolve the levels from the convention itself.
-        stac = root_attrs.get("stac_discovery")
+        stac = updated_stac_attrs.get("stac_discovery")
         if stac is not None:
             reflectance_asset: dict[str, Any] = {
                 "href": "/measurements/reflectance",
@@ -401,7 +389,9 @@ def simple_root_consolidation(
 def add_multiscale_pyramids_to_stac_metadata(
     datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
-    stac_attrs = dt_attributes["stac_discovery"]["assets"]
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    if not stac_attrs:
+        return dt_attributes
 
     # a bit messy but effective split to get group parent from stac attrs
     existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
@@ -425,8 +415,6 @@ def add_multiscale_pyramids_to_stac_metadata(
         else:
             log.warning("Found non-dataset object in datasets!", dataset=ds)
 
-    # replace attrs
-    dt_attributes["stac_discovery"]["assets"] = stac_attrs
     return dt_attributes
 
 
