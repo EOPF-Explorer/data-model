@@ -17,11 +17,25 @@ updates:
       include: "scope"
     cooldown:
       default-days: 7
+    ignore:
+      # Coarsen reductions reject skipna= (pydata/xarray#11686).
+      - dependency-name: "xarray"
+        versions: ["2026.9.0"]
     groups:
       uv-minor-patch:
         update-types:
           - "minor"
           - "patch"
+        patterns:
+          - "*"
+      # Whatever the group above leaves out: major bumps and requirement
+      # widenings such as the zarr upper bound.
+      uv-major:
+        patterns:
+          - "*"
+      # Groups apply to version updates only unless told otherwise.
+      uv-security:
+        applies-to: security-updates
         patterns:
           - "*"
 
