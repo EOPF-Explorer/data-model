@@ -229,6 +229,7 @@ constraint-dependencies = [
     "cryptography>=46.0.6",
     "tornado>=6.5.9",
     "msgpack>=1.2.1",
+    "multidict>=6.9.1",
     "filelock>=3.20.3",
     "virtualenv>=21.7.13",
     "black>=26.3.1",
