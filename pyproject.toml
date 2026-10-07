@@ -44,7 +44,6 @@ dependencies = [
     "boto3>=1.34.0",
     "pyproj>=3.7.0",
     "pystac>=1.8.0",
-    "shapely>=2.0",
     "structlog>=25.5.0",
 ]
 
