@@ -381,10 +381,10 @@ def create_multiscale_from_datatree(
 
         # Skip empty groups
         if not base_dataset.data_vars:
-            log.info("Skipping empty group: {}", group_path=group_path)
+            log.info("Skipping empty group", group_path=group_path)
             continue
 
-        log.info("Copying original group: {}", group_path=group_path)
+        log.info("Copying original group", group_path=group_path)
 
         dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
 
