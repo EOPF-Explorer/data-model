@@ -31,7 +31,7 @@ dependencies = [
     "pydantic>=2.12",
     # <3.3.0: open_source_datatree uses zarr's experimental CacheStore, whose
     # location/API may change between minor releases; bump deliberately.
-    "zarr[cast-value-rs]>=3.2.0,<3.4.0",
+    "zarr[cast-value-rs]>=3.2.0,<3.5.0",
     "xarray>=2025.7.1",
     "dask[array,distributed]>=2026.1.0",
     "numpy>=2.3.1",
@@ -224,13 +224,13 @@ skips = ["B101", "B601"]
 [tool.uv]
 default-groups = ["dev", "test"]
 constraint-dependencies = [
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
     "requests>=2.33.0",
     "cryptography>=46.0.6",
-    "tornado>=6.5.8",
+    "tornado>=6.5.9",
     "msgpack>=1.2.1",
     "filelock>=3.20.3",
-    "virtualenv>=20.36.1",
+    "virtualenv>=21.7.13",
     "black>=26.3.1",
     "pygments>=2.20.0",
 ]
