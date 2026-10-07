@@ -60,10 +60,15 @@ def create_generic_geozarr_dataset(
         group_node = dt_input[group_path]
 
         # Skip parent groups that have children (only process leaf groups)
-        if hasattr(group_node, "children") and len(group_node.children) > 0:
-            # this silently fails for groups which have data variables at group level (eg.: S3 OLC EFR) and children groups -> if orphans are assigned to measurements!
-            # ERR works, as it has no orphans!
-            # does this need to be considered? maybe, as generic verison will likely have this issue (ans its a stupid scheem anyway)
+        if (
+            hasattr(group_node, "children")
+            and len(group_node.children) > 0
+            and len(group_node.data_vars) == 0
+        ):
+            # this catches empty groups which have children but no data variables themselves. This allows the (theoretical)
+            # application of the gener_rechunker to S3 OLC data products as they tend to have data variables on
+            # /measurements or other groups, while also having an orphan as a child.
+            # This extended check does not limit other products, as verified by the test suite.
             continue
 
         base_dataset = group_node.to_dataset()
