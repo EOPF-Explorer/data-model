@@ -294,7 +294,7 @@ def _tree_with_product_type(product_type: str) -> xr.DataTree:
     [
         ("S02MSIL2A", "s2-optimized"),
         ("S03OLCEFR", "s3-olci-optimized"),
-        ("S01SIWSLC", "generic_rechunker"),
+        ("S01SIWSLC", "generic-rechunker"),
     ],
 )
 def test_resolve_forced_pipeline_generic_rechunker(product_type: str, expected: str) -> None:
@@ -319,6 +319,23 @@ def test_resolve_forced_pipeline_rejects_generic_rechunker_with_other_forced(
         GeoZarrWriter._resolve_forced_pipeline(
             xr.DataTree(),
             generic_rechunker=generic_rechunker,
+            s2_optimized=s2_optimized,
+            s3_olci_optimized=s3_olci_optimized,
+        )
+
+
+@pytest.mark.parametrize(
+    ("s2_optimized", "s3_olci_optimized"),
+    [(False, None), (None, False), (False, False)],
+)
+def test_resolve_forced_pipeline_rejects_generic_rechunker_with_disabled_optimized(
+    s2_optimized: bool | None, s3_olci_optimized: bool | None
+) -> None:
+    """An explicit False would be silently ignored, since generic_rechunker still routes S2/OLCI."""
+    with pytest.raises(ValueError, match="generic_rechunker=True cannot be combined"):
+        GeoZarrWriter._resolve_forced_pipeline(
+            _tree_with_product_type("S02MSIL2A"),
+            generic_rechunker=True,
             s2_optimized=s2_optimized,
             s3_olci_optimized=s3_olci_optimized,
         )
