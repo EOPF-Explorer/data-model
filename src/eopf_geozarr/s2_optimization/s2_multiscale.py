@@ -240,8 +240,8 @@ def inject_missing_bands(
     finer than `target_resolution`, this function checks whether the band is
     already present in `dataset`.  If not, it looks for the band in the
     appropriate source group (e.g. `/measurements/reflectance/r10m`),
-    downsamples it to the target grid using the type-aware resampling from
-    `determine_variable_type`, and merges it into `dataset`.
+    downsamples it by the coarsening operation aligned to ESA's S2-PDGS-MPC-ATBD-L2A
+    (block-mean), and merges it into `dataset`.
 
     Args:
         dataset: The target-resolution dataset (e.g. the r20m or r60m
@@ -288,21 +288,13 @@ def inject_missing_bands(
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
-        # Copy: updating `band_src.attrs` in place would tag the native source band too.
-        trgt_attrs = {
-            **band_src.attrs,
-            "_derived_from": f"r{native_res}m",
-            "_factor": factor,
-            "_resampling_mode": "mean",
-        }
-
         # Replace coordinates with the target dataset's coordinates so that
         # xarray.Dataset.assign does not try to align on mismatched values.
         band_ds = xr.DataArray(
             band_ds.values,
             dims=band_ds.dims,
             coords={d: dataset.coords[d] for d in band_ds.dims if d in dataset.coords},
-            attrs=trgt_attrs,
+            attrs=band_src.attrs,
             name=band_name,
         )
 
