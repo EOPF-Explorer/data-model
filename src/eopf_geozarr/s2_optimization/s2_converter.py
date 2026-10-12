@@ -273,8 +273,11 @@ def convert_s2_optimized(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    simple_root_consolidation(
-        output_path, datasets, dt_input, crs=crs, scale_offset_codec=scale_offset_codec
+    # simple_root_consolidation(
+    #     output_path, datasets, dt_input, crs=crs, scale_offset_codec=scale_offset_codec
+    # )
+    utils.s2updated_root_consolidation(
+        dt_input=dt_input, output_path=output_path, datasets=datasets
     )
 
     # Step 4: Validation
