@@ -1140,7 +1140,10 @@ def write_store_geozarr_version_metadata(
 
     stac = input_root_attrs.get("stac_discovery")
     if stac is None:
-        raise ValueError("Could not find `stac_discovery` in passed down attributes.")
+        log.info(
+            "Could not find `stac_discovery` in passed down attributes, not applying geozarr verisoning."
+        )
+        return
 
     eopf_geozarr_version = git_version()
     if not eopf_geozarr_version:
