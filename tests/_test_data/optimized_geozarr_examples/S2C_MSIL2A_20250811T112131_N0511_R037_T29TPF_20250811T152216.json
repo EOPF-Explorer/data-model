@@ -6598,9 +6598,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
@@ -8002,9 +7999,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 2,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
@@ -9306,9 +9300,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
@@ -10710,9 +10701,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
@@ -12117,9 +12105,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "BOA reflectance from MSI acquisition at spectral band b08 834.6 nm",
