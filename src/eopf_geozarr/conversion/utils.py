@@ -1120,17 +1120,20 @@ def write_store_geozarr_version_metadata(
     from eopf_geozarr.conversion import fs_utils
 
     def git_version() -> str | None:
-        import subprocess
         from pathlib import Path
 
+        import pygit2
+
         try:
-            return subprocess.check_output(
-                ["git", "describe", "--tags", "--always", "--dirty"],
-                cwd=Path(__file__).resolve().parent,
-                text=True,
-                stderr=subprocess.DEVNULL,
-            ).strip()
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            repo_path = pygit2.discover_repository(str(Path(__file__).resolve().parent))
+            repo = pygit2.Repository(repo_path)
+            return repo.describe(
+                describe_strategy=pygit2.enums.DescribeStrategy.TAGS,
+                show_commit_oid_as_fallback=True,
+                always_use_long_format=True,
+                dirty_suffix="-dirty",
+            )
+        except (ImportError, LookupError, pygit2.GitError):
             return None
 
     if storage_options is None:

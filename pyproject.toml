@@ -45,6 +45,7 @@ dependencies = [
     "pyproj>=3.7.0",
     "pystac>=1.8.0",
     "structlog>=25.5.0",
+    "pygit2>=1.20.1",
 ]
 
 [project.optional-dependencies]
