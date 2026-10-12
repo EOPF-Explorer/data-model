@@ -15,6 +15,7 @@ import xarray as xr
 
 from eopf_geozarr.s2_optimization.s2_converter import (
     _validate_s2_input,
+    add_multiscale_pyramids_to_stac_metadata,
     convert_s2_optimized,
     initialize_crs_from_dataset,
     simple_root_consolidation,
@@ -492,6 +493,45 @@ def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -
         "proj:code": "EPSG:32632",
         "proj:shape": [10, 20],
     }
+
+
+def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:
+    """Pyramid levels absent from existing STAC assets get one asset per data variable."""
+    existing_asset = {"href": "/measurements/reflectance/r10m/b02", "title": "B02"}
+    attrs: dict = {"stac_discovery": {"assets": {"b02": dict(existing_asset)}}}
+    datasets = {
+        # already referenced by an existing asset -> must not be duplicated
+        "/measurements/reflectance/r10m": xr.Dataset({"b02": (["y", "x"], np.zeros((4, 4)))}),
+        # new pyramid level -> assets added, spatial_ref skipped
+        "/measurements/reflectance/r20m": xr.Dataset(
+            {
+                "b02": (["y", "x"], np.zeros((2, 2))),
+                "b05": (["y", "x"], np.zeros((2, 2))),
+                "spatial_ref": ((), 0),
+            }
+        ),
+        "/measurements/reflectance/r60m": None,
+    }
+
+    result = add_multiscale_pyramids_to_stac_metadata(datasets, attrs)
+
+    assert isinstance(result, dict)
+    assert result["stac_discovery"]["assets"] == {
+        "b02": existing_asset,
+        "b02_r20m": {"href": "/measurements/reflectance/r20m/b02", "title": "b02_r20m"},
+        "b05_r20m": {"href": "/measurements/reflectance/r20m/b05", "title": "b05_r20m"},
+    }
+
+
+@pytest.mark.parametrize("attrs", [{}, {"stac_discovery": {}}, {"stac_discovery": {"assets": {}}}])
+def test_add_multiscale_pyramids_to_stac_metadata_without_assets_is_noop(attrs: dict) -> None:
+    """Missing stac_discovery/assets returns the attributes unchanged instead of raising."""
+    datasets = {
+        "/measurements/reflectance/r20m": xr.Dataset({"b02": (["y", "x"], np.zeros((2, 2)))})
+    }
+    expected = json.loads(json.dumps(attrs))
+
+    assert add_multiscale_pyramids_to_stac_metadata(datasets, attrs) == expected
 
 
 if __name__ == "__main__":

@@ -226,10 +226,6 @@ def test_returns_the_written_output(tmp_path: pathlib.Path) -> None:
     assert result["measurements/amplitude"].encoding["chunks"] == (128, 128)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Groups that have child groups are skipped, so their own variables are not written.",
-)
 def test_writes_variables_of_groups_with_children(tmp_path: pathlib.Path) -> None:
     tree = xr.DataTree()
     tree["measurements"] = xr.Dataset({"parent_var": (("y", "x"), np.ones((4, 4), "float32"))})

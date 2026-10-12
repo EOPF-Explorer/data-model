@@ -11,7 +11,8 @@ import xarray as xr
 import zarr
 from rasterio.crs import CRS
 
-from eopf_geozarr.conversion.utils import ZARR_FORMAT, build_convention_attrs
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
+from eopf_geozarr.conversion.utils import build_convention_attrs
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
 from eopf_geozarr.s3_olci_optimization.olci_multiscale import (

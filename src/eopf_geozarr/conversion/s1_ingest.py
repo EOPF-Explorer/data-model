@@ -38,7 +38,8 @@ from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion import fs_utils, utils
-from eopf_geozarr.conversion.utils import ZARR_FORMAT, calculate_aligned_chunk_size
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
+from eopf_geozarr.conversion.utils import calculate_aligned_chunk_size
 from eopf_geozarr.types import make_bounding_box, make_crs_code
 
 if TYPE_CHECKING:

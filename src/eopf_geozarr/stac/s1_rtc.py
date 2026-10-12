@@ -13,7 +13,7 @@ import pystac
 import zarr
 
 from eopf_geozarr.conversion import fs_utils
-from eopf_geozarr.conversion.utils import ZARR_FORMAT
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.types import BoundingBox2D, CRSCode, make_bounding_box, make_crs_code
 
 SAR_EXT = "https://stac-extensions.github.io/sar/v1.0.0/schema.json"

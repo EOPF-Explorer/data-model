@@ -11,7 +11,7 @@ import zarr
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
-from eopf_geozarr.conversion.utils import ZARR_FORMAT
+from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.types import S3Credentials, S3FsOptions
 
 if TYPE_CHECKING:
