@@ -98,7 +98,7 @@ def add_multiscale_pyramids_to_stac_metadata(
     return dt_attributes
 
 
-def s2updated_root_consolidation(
+def updated_root_consolidation(
     dt_input: xr.DataTree,
     output_path: str,
     datasets: Mapping[str, object],
@@ -188,51 +188,6 @@ def s2updated_root_consolidation(
     write_store_root_metadata(
         output_path,
         attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
-    )
-
-    # consolidate metadata in root OR in each subroot
-    if not subroot_groups:
-        zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
-
-
-def updated_root_consolidation(
-    dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
-) -> None:
-    """
-    Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
-    Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
-    """
-    output_path = output_path.rstrip("/") + "/"
-
-    # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
-    # also gather potential measurement groups for consolidating
-    for group_path in datasets:
-        # extract all the parent paths and names
-        parent, _, name = group_path.rstrip("/").rpartition("/")
-        if parent not in datasets:
-            init_zarr_group(output_path + group_path)
-
-        # consolidate 'all measurement groups
-        if name == "measurements":
-            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
-
-    # check and get possible subroots for consolidation
-    subroot_groups = get_subroots(dt_input.groups)
-
-    # also add some geo- and stac-root metadata
-    if subroot_groups:
-        for subroot in subroot_groups:
-            write_store_root_metadata(
-                output_path + subroot,
-                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
-            )
-            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
-
-    # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
-    init_root_zarr_group(
-        output_path,
-        datasets=datasets,
-        dt_input_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
     )
 
     # consolidate metadata in root OR in each subroot

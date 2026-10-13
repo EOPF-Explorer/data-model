@@ -273,15 +273,6 @@ class GeoZarrWriter(EOWriter):
                 max_retries=max_retries,
             )
 
-        return create_generic_geozarr_dataset(
-            dt_input=dtree,
-            output_path=output_path,
-            enable_sharding=enable_sharding,
-            spatial_chunk=resolved_spatial_chunk,
-            compression_level=compression_level,
-            scale_offset_codec=scale_offset_codec,
-        )
-
         if selected_pipeline == "s3-olci-optimized":
             return convert_olci_optimized(
                 dt_input=dtree,
