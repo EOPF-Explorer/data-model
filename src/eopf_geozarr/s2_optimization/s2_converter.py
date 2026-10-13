@@ -276,8 +276,22 @@ def convert_s2_optimized(
     # simple_root_consolidation(
     #     output_path, datasets, dt_input, crs=crs, scale_offset_codec=scale_offset_codec
     # )
+
+    # gather all to-consolidate paths extending from ouput_path
+    consolidate_paths = []  # ['/measurements/reflectance']
+    s2_type = S2Type.from_datatree(dt_input)
+    for ms_group_path, _, _, _, product_levels in _AUX_MULTISCALES:
+        if product_levels is not None and s2_type not in product_levels:
+            continue
+        consolidate_paths.append(ms_group_path)
+
     utils.s2updated_root_consolidation(
-        dt_input=dt_input, output_path=output_path, datasets=datasets
+        dt_input=dt_input,
+        output_path=output_path,
+        datasets=datasets,
+        additional_consolidate_paths=consolidate_paths,
+        is_s2=True,
+        crs=crs,
     )
 
     # Step 4: Validation

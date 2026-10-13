@@ -22,6 +22,7 @@ from eopf_geozarr.data_api.geozarr.types import (
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Mapping
 
+    from pyproj import CRS
     from xarray.core.types import ZarrWriteModes
 
 
@@ -65,44 +66,128 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
     )
 
 
+def add_multiscale_pyramids_to_stac_metadata(
+    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    if not stac_attrs:
+        return dt_attributes
+
+    # a bit messy but effective split to get group parent from stac attrs
+    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
+
+    # gEt mismatched ones -> we need pyramids not present
+    missing_group_paths = [
+        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
+    ]
+
+    for group_path in missing_group_paths:
+        ds = datasets[group_path]
+
+        # catch object != datAset for typing
+        if isinstance(ds, xr.Dataset):
+            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+            for var_name in ds.data_vars:
+                if var_name == "spatial_ref":
+                    continue
+                asset_key = f"{var_name}_{resolution}"
+                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
+        else:
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+
+    return dt_attributes
+
+
 def s2updated_root_consolidation(
-    dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
+    dt_input: xr.DataTree,
+    output_path: str,
+    datasets: Mapping[str, object],
+    additional_consolidate_paths: list[str] | None = None,
+    is_s2: bool = False,
+    crs: CRS | None = None,
 ) -> None:
     """
     Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
     Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
+    Three steps have to be done to achieve a uniform processing of all modes:
+        0.5) Apply the S2 specific addition of STAC assets to expose it as its own asset, this could/should be outsourced to eopf-stac
+        1.) Create all groups (available and missing ones -> multiscale generated AND non-array containing parent groups) and consolidate 'measurements' for S1, S2 (in reflectance), and S3
+        2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
+        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root
     """
     output_path = output_path.rstrip("/") + "/"
 
-    # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
-    # also gather potential measurement groups for consolidating
-    # for group_path in datasets:
-    #     # extract all the parent paths and names
-    #     parent, _, name = group_path.rstrip("/").rpartition("/")
-    #     if parent not in datasets:
-    #         init_zarr_group(output_path + group_path)
+    # step 0.5, this is only a temporary fix: add stac_metadata (should be outsurced to eopf-stac) and multiscale assets to extend stac-discovery
+    if is_s2 and dt_input and dt_input.attrs:
+        # this can be used to add multiscale paths to the stac attributes
+        updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
 
-    #     # consolidate all measurement groups
-    #     if name == "measurements":
-    #         zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
+        # Reference the pyramid root group, not the individual levels. That
+        # group carries the `multiscales` attribute, and the
+        # `profile=multiscales` media-type parameter tells a consumer to look
+        # for it there and resolve the levels from the convention itself.
+        stac = updated_stac_attrs.get("stac_discovery")
+        if stac is not None:
+            reflectance_asset: dict[str, Any] = {
+                "href": "/measurements/reflectance",
+                "type": "application/vnd.zarr; version=3; profile=multiscales",
+                "title": "Surface Reflectance",
+                "roles": ["data", "reflectance"],
+                "gsd": 10,
+            }
 
-    # check and get possible subroots for consolidation
+            if crs is not None and crs.to_epsg() is not None:
+                reflectance_asset.update(proj_attrs_for_crs(crs))
+
+            base = datasets.get("/measurements/reflectance/r10m")
+            if isinstance(base, xr.Dataset):
+                reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
+            stac.setdefault("assets", {})["reflectance"] = reflectance_asset
+
+    # step 1
+    dt_tree = xr.DataTree()
+    for group_path in datasets:
+        _, _, name = group_path.rstrip("/").rpartition("/")
+        if name in ("measurements", "reflectance"):
+            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
+
+        dt_tree[group_path] = xr.DataTree()
+
+    init_zarr_group(output_path, mode="r+", root_tree=dt_tree)
+
+    # step 2
+    if additional_consolidate_paths:
+        for additional_path in additional_consolidate_paths:
+            # consolidate the additional paths (-> multiscales, /measurement/reflectance for s2)
+            zarr.consolidate_metadata(
+                output_path + additional_path, zarr_format=constants.ZARR_FORMAT
+            )
+
+    # step 2: first write subroot metadata and then root metadata
+    # write_store_root_metadata(
+    #                 output_path,
+    #                 attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+    #             )
+
+    # step 3
+
+    # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
+    # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
-
-    # also add some geo- and stac-root metadata
     if subroot_groups:
         for subroot in subroot_groups:
             write_store_root_metadata(
                 output_path + subroot,
                 attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
             )
+
+            # consolidate the subroot itself
             zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
 
-    # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
-    init_root_zarr_group(
+    write_store_root_metadata(
         output_path,
-        datasets=datasets,
-        dt_input_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+        attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
     )
 
     # consolidate metadata in root OR in each subroot
