@@ -5,9 +5,10 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import structlog
+import xarray as xr
 import zarr
 from pydantic import TypeAdapter
 from pyproj import CRS
@@ -20,7 +21,7 @@ from eopf_geozarr.data_api.s2 import Sentinel2Root
 from .s2_multiscale import _AUX_MULTISCALES, S2Type, create_multiscale_from_datatree
 
 if TYPE_CHECKING:
-    import xarray as xr
+    from collections.abc import Mapping
 
 log = structlog.get_logger()
 
@@ -147,6 +148,49 @@ def _aux_multiscale_paths(dt_input: xr.DataTree) -> list[str]:
     ]
 
 
+def add_s2_stac_assets(
+    dt_input: xr.DataTree,
+    datasets: Mapping[str, object],
+    crs: CRS | None = None,
+) -> None:
+    """Add the S2 pyramid levels and the reflectance pyramid as STAC assets.
+
+    Updates `dt_input.attrs["stac_discovery"]` in place, so call it before
+    `updated_root_consolidation` writes the root metadata from those attributes.
+    This is a temporary fix that should move to eopf-stac.
+    """
+    if not dt_input.attrs:
+        return
+
+    # this can be used to add multiscale paths to the stac attributes
+    updated_stac_attrs = utils.add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+
+    # Reference the pyramid root group, not the individual levels. That
+    # group carries the `multiscales` attribute, and the
+    # `profile=multiscales` media-type parameter tells a consumer to look
+    # for it there and resolve the levels from the convention itself.
+    stac = updated_stac_attrs.get("stac_discovery")
+    if stac is None:
+        return
+
+    reflectance_asset: dict[str, Any] = {
+        "href": "/measurements/reflectance",
+        "type": "application/vnd.zarr; version=3; profile=multiscales",
+        "title": "Surface Reflectance",
+        "roles": ["data", "reflectance"],
+        "gsd": 10,
+    }
+
+    if crs is not None and crs.to_epsg() is not None:
+        reflectance_asset.update(utils.proj_attrs_for_crs(crs))
+
+    base = datasets.get("/measurements/reflectance/r10m")
+    if isinstance(base, xr.Dataset):
+        reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
+    stac.setdefault("assets", {})["reflectance"] = reflectance_asset
+
+
 def convert_s2(
     dt_input: xr.DataTree,
     output_path: str,
@@ -193,12 +237,12 @@ def convert_s2(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
+    add_s2_stac_assets(dt_input, datasets)
     utils.updated_root_consolidation(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
         additional_consolidate_paths=_aux_multiscale_paths(dt_input),
-        is_s2=True,
     )
 
     # Step 4: Validation
@@ -283,13 +327,12 @@ def convert_s2_optimized(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
+    add_s2_stac_assets(dt_input, datasets, crs=crs)
     utils.updated_root_consolidation(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
         additional_consolidate_paths=_aux_multiscale_paths(dt_input),
-        is_s2=True,
-        crs=crs,
     )
 
     # Step 4: Validation

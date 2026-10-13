@@ -20,6 +20,7 @@ from eopf_geozarr.conversion.utils import (
 )
 from eopf_geozarr.s2_optimization.s2_converter import (
     _validate_s2_input,
+    add_s2_stac_assets,
     convert_s2_optimized,
     initialize_crs_from_dataset,
 )
@@ -458,14 +459,19 @@ class TestConvenienceFunction:
         assert call_kwargs["enable_sharding"] is False
         assert call_kwargs["spatial_chunk"] == 512
 
-        # Verify root consolidation runs in S2 mode on the converter output
+        # Verify root consolidation runs on the converter output, with the L2A pyramids
         mock_consolidation.assert_called_once()
         consolidation_kwargs = mock_consolidation.call_args.kwargs
-        assert consolidation_kwargs["is_s2"] is True
         assert consolidation_kwargs["output_path"] == output_path
+        assert consolidation_kwargs["additional_consolidate_paths"] == [
+            "/conditions/mask/l2a_classification",
+            "/quality/probability",
+            "/conditions/mask/l1c_classification",
+        ]
 
 
-def test_updated_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -> None:
+def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> None:
+    """The reflectance asset added by `add_s2_stac_assets` ends up in the consolidated root."""
     from pyproj import CRS
 
     # initialise an empty dataset to mimic the process and write it into the store as
@@ -485,13 +491,12 @@ def test_updated_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) 
     dt_input = xr.DataTree(xr.Dataset({"dummy": (["y"], np.zeros(10))}))
     dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
-    # test execution of func
+    # test execution of func: the S2 assets are added before the root metadata is written
+    add_s2_stac_assets(dt_input, datasets, crs=CRS.from_epsg(32632))
     updated_root_consolidation(
         output_path=output_path,
         datasets=datasets,
         dt_input=dt_input,
-        is_s2=True,
-        crs=CRS.from_epsg(32632),
     )
 
     # read in the consolidated dTree root to cross-check with expected outcome
