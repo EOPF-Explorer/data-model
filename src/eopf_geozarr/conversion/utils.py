@@ -9,6 +9,7 @@ import structlog
 import xarray as xr
 import zarr
 import zarr_cm
+from pyproj import CRS
 from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, SpatialAttrs
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
@@ -21,9 +22,6 @@ from eopf_geozarr.data_api.geozarr.types import (
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Mapping
-
-    from pyproj import CRS
-    from xarray.core.types import ZarrWriteModes
 
 
 from importlib.util import find_spec
@@ -38,6 +36,97 @@ UNSET: Any = object()
 BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
 
 log = structlog.get_logger()
+
+
+def _transform_from_coordinates(
+    dataset: xr.Dataset,
+) -> tuple[float, float, float, float, float, float] | None:
+    """Construct an affine transform from dataset coordinates when possible."""
+    if "x" not in dataset.coords or "y" not in dataset.coords:
+        return None
+
+    x_coords = dataset.coords["x"].values
+    y_coords = dataset.coords["y"].values
+    if len(x_coords) < 2 or len(y_coords) < 2:
+        return None
+
+    pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
+    pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+    # Coordinates are pixel centres; the transform origin is the outer pixel edge.
+    x_min = float(x_coords.min()) - pixel_size_x / 2
+    y_max = float(y_coords.max()) + pixel_size_y / 2
+    return (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
+
+
+def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
+    """Outer pixel edges ``[xmin, ymin, xmax, ymax]`` of the dataset's x/y grid.
+
+    Falls back to the coordinate extent when the grid has fewer than two pixels
+    along an axis, because the pixel size is then unknown.
+    """
+    transform = _transform_from_coordinates(dataset)
+    if transform is None:
+        x_coords = dataset.coords["x"].values
+        y_coords = dataset.coords["y"].values
+        return [
+            float(x_coords.min()),
+            float(y_coords.min()),
+            float(x_coords.max()),
+            float(y_coords.max()),
+        ]
+
+    pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = transform
+    x_max = x_min + dataset.sizes["x"] * pixel_size_x
+    y_min = y_max + dataset.sizes["y"] * neg_pixel_size_y
+    return [x_min, y_min, x_max, y_max]
+
+
+def _rio_transform_matches_coordinates(
+    transform: tuple[float, float, float, float, float, float] | None,
+    coordinate_transform: tuple[float, float, float, float, float, float] | None,
+) -> bool:
+    """Check whether rio-derived metadata matches the current x/y grid."""
+    if transform is None or coordinate_transform is None:
+        return False
+
+    return all(np.isclose(a, b) for a, b in zip(transform, coordinate_transform, strict=False))
+
+
+def _preferred_spatial_transform(
+    dataset: xr.Dataset,
+) -> tuple[float, float, float, float, float, float] | None:
+    """Prefer rio metadata only when it matches the current coordinate grid."""
+    coordinate_transform = _transform_from_coordinates(dataset)
+    rio_transform: tuple[float, float, float, float, float, float] | None = None
+
+    if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
+        try:
+            rio_value = dataset.rio.transform
+            if callable(rio_value):
+                rio_value = rio_value()
+            # rio transform value is dynamically typed; it is iterable at runtime.
+            rio_iter = cast("tuple[float, ...]", tuple(rio_value))  # pyright: ignore[reportArgumentType]
+            rio_values = tuple(float(value) for value in rio_iter[:6])
+            if len(rio_values) == 6:
+                rio_transform = (
+                    rio_values[0],
+                    rio_values[1],
+                    rio_values[2],
+                    rio_values[3],
+                    rio_values[4],
+                    rio_values[5],
+                )
+        except (AttributeError, TypeError, ValueError):
+            rio_transform = None
+
+    if (
+        rio_transform is not None
+        and not all(value == 0 for value in rio_transform)
+        and _rio_transform_matches_coordinates(rio_transform, coordinate_transform)
+    ):
+        return rio_transform
+
+    return coordinate_transform or rio_transform
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
@@ -66,38 +155,6 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
     )
 
 
-def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
-) -> dict[Hashable, Any]:
-    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
-    if not stac_attrs:
-        return dt_attributes
-
-    # a bit messy but effective split to get group parent from stac attrs
-    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
-
-    # gEt mismatched ones -> we need pyramids not present
-    missing_group_paths = [
-        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
-    ]
-
-    for group_path in missing_group_paths:
-        ds = datasets[group_path]
-
-        # catch object != datAset for typing
-        if isinstance(ds, xr.Dataset):
-            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-            for var_name in ds.data_vars:
-                if var_name == "spatial_ref":
-                    continue
-                asset_key = f"{var_name}_{resolution}"
-                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
-        else:
-            log.warning("Found non-dataset object in datasets!", dataset=ds)
-
-    return dt_attributes
-
-
 def updated_root_consolidation(
     dt_input: xr.DataTree,
     output_path: str,
@@ -118,7 +175,7 @@ def updated_root_consolidation(
     output_path = output_path.rstrip("/") + "/"
 
     # step 0.5, this is only a temporary fix: add stac_metadata (should be outsurced to eopf-stac) and multiscale assets to extend stac-discovery
-    if is_s2 and dt_input and dt_input.attrs:
+    if is_s2 and dt_input.attrs:
         # this can be used to add multiscale paths to the stac attributes
         updated_stac_attrs = add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
 
@@ -154,7 +211,7 @@ def updated_root_consolidation(
 
         dt_tree[group_path] = xr.DataTree()
 
-    init_zarr_group(output_path, mode="r+", root_tree=dt_tree)
+    # init_zarr_group(output_path, mode="r+", root_tree=dt_tree)
 
     # step 2
     if additional_consolidate_paths:
@@ -164,14 +221,7 @@ def updated_root_consolidation(
                 output_path + additional_path, zarr_format=constants.ZARR_FORMAT
             )
 
-    # step 2: first write subroot metadata and then root metadata
-    # write_store_root_metadata(
-    #                 output_path,
-    #                 attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
-    #             )
-
     # step 3
-
     # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
@@ -195,41 +245,18 @@ def updated_root_consolidation(
         zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
 
 
-def init_zarr_group(
-    output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
-) -> None:
-    """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
-    dt_parent = root_tree or xr.DataTree()
+# def init_zarr_group(
+#     output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
+# ) -> None:
+#     """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
+#     dt_parent = root_tree or xr.DataTree()
 
-    dt_parent.to_zarr(
-        output_path,
-        mode=mode,
-        zarr_format=constants.ZARR_FORMAT,
-        consolidated=False,
-    )
-
-
-def init_root_zarr_group(
-    output_path: str, datasets: Mapping[str, object], dt_input_attrs: dict[str, dict[str, Any]]
-) -> None:
-    """
-    Instantiates an EOPF zarr group with xarray, with a root tree and additional root trees for all datasets passed to this function.
-    Also writes any root store metadata, namely geo metadata and stac metadata.
-    """
-    log.info("Creating root zarr group")
-    init_zarr_group(output_path)
-
-    dt_root = xr.DataTree()
-    for group_path in datasets:
-        dt_root[group_path] = xr.DataTree()
-
-    init_zarr_group(output_path=output_path, mode="r+", root_tree=dt_root)
-    log.info("Root zarr group created")
-
-    # Write the store-root spatial footprint (geozarr minispec, Store Root section).
-    # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
-    # and writes the union on the root `zarr.json`.
-    write_store_root_metadata(output_path, attrs=dt_input_attrs)
+#     dt_parent.to_zarr(
+#         output_path,
+#         mode=mode,
+#         zarr_format=constants.ZARR_FORMAT,
+#         consolidated=False,
+#     )
 
 
 def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
@@ -247,14 +274,82 @@ def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
     return subroots or None
 
 
+def write_dataset_geo_metadata(
+    dataset: xr.Dataset,
+    grid_mapping_var_name: str = "spatial_ref",
+    crs: CRS | None = None,
+) -> None:
+    """
+    Write geographic metadata to the dataset.
+    Requires a crs or a dataset from which a CRS can be derived.
+
+    Args:
+        dataset: Dataset to write metadata to
+        grid_mapping_var_name: Name for grid mapping variable
+        crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
+    """
+    # Use provided CRS or try to detect from dataset
+    if crs is None:
+        for var in dataset.data_vars.values():
+            if hasattr(var, "rio") and var.rio.crs:
+                crs = var.rio.crs
+                break
+            if "proj:epsg" in var.attrs:
+                epsg = var.attrs["proj:epsg"]
+                crs = CRS.from_epsg(epsg)
+                break
+
+    if crs is not None:
+        # Write CRS using rioxarray
+        # NOTE: for now rioxarray only supports writing grid mapping using CF conventions
+        dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
+        dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+        dataset.attrs["grid_mapping"] = grid_mapping_var_name
+
+        for var in dataset.data_vars.values():
+            var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+            var.attrs["grid_mapping"] = grid_mapping_var_name
+
+        # Also add proj: and spatial: zarr conventions at dataset level
+        # TODO : Remove once rioxarray supports writing these conventions directly
+        # https://github.com/corteva/rioxarray/pull/883
+
+        # Assemble spatial convention data
+        spatial_data: spatial_cm.SpatialAttrs = {
+            "spatial:dimensions": ["y", "x"],  # Required field
+            "spatial:registration": "pixel",  # Default registration type
+        }
+
+        # Calculate and add spatial bbox if coordinates are available
+        if "x" in dataset.coords and "y" in dataset.coords:
+            spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
+
+            spatial_transform = _preferred_spatial_transform(dataset)
+
+            # Only add spatial:transform if we have valid transform data (not all zeros)
+            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+                spatial_data["spatial:transform"] = list(spatial_transform)
+
+            # Add spatial shape if data variables exist
+            if dataset.data_vars:
+                first_var = next(iter(dataset.data_vars.values()))
+                if first_var.ndim >= 2:
+                    height, width = first_var.shape[-2:]
+                    spatial_data["spatial:shape"] = [height, width]
+
+        # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
+        dataset.attrs.update(build_convention_attrs(spatial=spatial_data, crs=crs))
+
+
 def stream_write_dataset(
     dataset: xr.Dataset,
     *,
     path: str,
     group: zarr.Group,
     encoding: dict[str, XarrayDataArrayEncoding],
-    enable_sharding: bool,
-    chunk_and_shard_coords=True,
+    add_geo_metadata: bool = False,
+    chunk_and_shard_coords: bool = True,
+    crs: CRS | None = None,
 ) -> xr.Dataset:
     """
     Stream write a lazy dataset with advanced chunking and sharding.
@@ -295,6 +390,9 @@ def stream_write_dataset(
     dataset = rechunk_dataset_for_encoding(
         dataset, encoding, chunk_and_shard_coords=chunk_and_shard_coords
     )
+
+    if add_geo_metadata:
+        write_dataset_geo_metadata(dataset, crs=crs)
 
     # Sanitize NaN values in dataset attributes before writing
     dataset = fs_utils.sanitize_dataset_attributes(dataset)
@@ -687,6 +785,38 @@ def build_convention_attrs(
     # generic JSON dict; narrow to the combined convention TypedDict.
     result = zarr_cm.create_many(conventions)
     return cast("MultiConventionAttrs", result)
+
+
+def add_multiscale_pyramids_to_stac_metadata(
+    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    if not stac_attrs:
+        return dt_attributes
+
+    # a bit messy but effective split to get group parent from stac attrs
+    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
+
+    # gEt mismatched ones -> we need pyramids not present
+    missing_group_paths = [
+        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
+    ]
+
+    for group_path in missing_group_paths:
+        ds = datasets[group_path]
+
+        # catch object != datAset for typing
+        if isinstance(ds, xr.Dataset):
+            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+            for var_name in ds.data_vars:
+                if var_name == "spatial_ref":
+                    continue
+                asset_key = f"{var_name}_{resolution}"
+                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
+        else:
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+
+    return dt_attributes
 
 
 def explicit_fill_value(var: xr.DataArray) -> Any:

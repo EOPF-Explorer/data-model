@@ -21,21 +21,20 @@ from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.conversion.utils import (
     _rechunk_ds,
+    calculate_aligned_chunk_size,
     create_uniform_encoding,
     rechunk_dataset_for_encoding,
+    write_dataset_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _AUX_MULTISCALES,
     S2Type,
     _coarsen_variable,
-    calculate_aligned_chunk_size,
-    calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
     create_multiscale_from_datatree,
     generic_multiscales,
     inject_missing_bands,
-    write_geo_metadata,
 )
 
 from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
@@ -90,7 +89,7 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
         ),
         1024,
     )
-    write_geo_metadata(r10m, crs=crs)
+    write_dataset_geo_metadata(r10m, crs=crs)
     # A GeoTransform on `spatial_ref` is carried into every coarsened level, where
     # the rio transform then no longer matches the coordinate grid.
     r10m.rio.write_transform(Affine(10.0, 0.0, 599995.0, 0.0, -10.0, 4900025.0), inplace=True)
@@ -139,31 +138,6 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
 
     # The parent footprint covers the pixel edges of the finest level (#266).
     assert parent_group.attrs["spatial:bbox"] == [599995.0, 4899785.0, 600235.0, 4900025.0]
-
-
-def test_calculate_simple_shard_dimensions() -> None:
-    """Test simplified shard dimensions calculation."""
-    # Test 3D data (time, y, x) - shards are multiples of chunks
-    data_shape: tuple[int, ...] = (5, 1024, 1024)
-    chunks: tuple[int, ...] = (1, 256, 256)
-
-    shard_dims = calculate_simple_shard_dimensions(data_shape, chunks)
-
-    assert len(shard_dims) == 3
-    assert shard_dims[0] == 1  # Time dimension should be 1
-    assert shard_dims[1] == 1024  # Y dimension matches exactly (divisible by 256)
-    assert shard_dims[2] == 1024  # X dimension matches exactly (divisible by 256)
-
-    # Test 2D data (y, x) with non-divisible dimensions
-    data_shape = (1000, 1000)
-    chunks = (256, 256)
-
-    shard_dims = calculate_simple_shard_dimensions(data_shape, chunks)
-
-    assert len(shard_dims) == 2
-    # Should use largest multiple of chunk_size that fits
-    assert shard_dims[0] == 768  # 3 * 256 = 768 (largest multiple that fits in 1000)
-    assert shard_dims[1] == 768  # 3 * 256 = 768
 
 
 @pytest.mark.parametrize("mask_and_scale", [False, True], ids=["raw", "decoded"])

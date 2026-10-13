@@ -95,7 +95,6 @@ def create_generic_geozarr_dataset(
             path=group_path,
             group=output_group,
             encoding=encoding,
-            enable_sharding=enable_sharding,
         )
         processed_groups[group_path] = ds_out
 

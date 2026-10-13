@@ -270,7 +270,6 @@ class GeoZarrWriter(EOWriter):
                 compression_level=compression_level,
                 validate_output=validate_output,
                 scale_offset_codec=scale_offset_codec,
-                max_retries=max_retries,
             )
 
         if selected_pipeline == "s3-olci-optimized":

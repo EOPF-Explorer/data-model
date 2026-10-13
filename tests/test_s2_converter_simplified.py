@@ -13,13 +13,15 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from eopf_geozarr.conversion.utils import (
+    add_multiscale_pyramids_to_stac_metadata,
+    updated_root_consolidation,
+    write_store_geo_metadata,
+)
 from eopf_geozarr.s2_optimization.s2_converter import (
     _validate_s2_input,
-    add_multiscale_pyramids_to_stac_metadata,
     convert_s2_optimized,
     initialize_crs_from_dataset,
-    simple_root_consolidation,
-    write_store_root_bbox,
 )
 
 
@@ -217,28 +219,27 @@ class TestCRSInitialization:
         assert crs.to_epsg() == 32632
 
 
-def test_simple_root_consolidation_success(tmp_path: Path) -> None:
+def test_updated_root_consolidation_success(tmp_path: Path) -> None:
     """
-    Test that simple_root_consolidation produces consolidated metadata at the root, and for the
+    Test that updated_root_consolidation produces consolidated metadata at the root, and for the
     measurements/reflectance group, but not for other groups.
     """
 
-    datasets = {
+    # `None` marks the pyramid parent group, as returned by `generic_multiscales`
+    datasets: dict[str, xr.Dataset | None] = {
         "/measurements/reflectance/r10m": xr.Dataset(),
+        "/measurements/reflectance": None,
         "/quality/atmosphere": xr.Dataset(),
     }
 
-    [
-        v.to_zarr(
-            str(tmp_path / f"test.zarr{k}/"),
-            mode="a",
-            zarr_format=3,
-            consolidated=False,
-        )
-        for k, v in datasets.items()
-    ]
+    # Write every group into one store, as the pipeline does: zarr then creates
+    # the root and all parent groups, which `updated_root_consolidation` expects.
+    output_path = str(tmp_path / "test.zarr")
+    for k, v in datasets.items():
+        if v is not None:
+            v.to_zarr(output_path, group=k.lstrip("/"), mode="a", zarr_format=3, consolidated=False)
 
-    simple_root_consolidation(output_path=str(tmp_path / "test.zarr"), datasets=datasets)
+    updated_root_consolidation(dt_input=xr.DataTree(), output_path=output_path, datasets=datasets)
 
     root_z_meta = json.loads((tmp_path / "test.zarr/zarr.json").read_text())
     reflectance_zmeta = json.loads(
@@ -254,7 +255,7 @@ def test_simple_root_consolidation_success(tmp_path: Path) -> None:
         assert atmos_zmeta["consolidated_metadata"] is None
 
 
-def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     """Store-root bbox unions child-group bboxes and outputs EPSG:4326 coords."""
     import zarr
 
@@ -265,7 +266,7 @@ def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     child.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]
     child.attrs["proj:code"] = "EPSG:32632"
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
     bbox = root_attrs["spatial:bbox"]
@@ -282,7 +283,7 @@ def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     assert root_attrs["proj:code"] == "EPSG:4326"
 
 
-def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_unions_multiple_children(tmp_path: Path) -> None:
     """Store-root bbox is the union across multiple child-group footprints."""
     import zarr
 
@@ -295,14 +296,14 @@ def test_write_store_root_bbox_unions_multiple_children(tmp_path: Path) -> None:
     b.attrs["spatial:bbox"] = [2.0, 2.0, 3.0, 3.0]
     b.attrs["proj:code"] = "EPSG:4326"
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
     assert root_attrs["spatial:bbox"] == [0.0, 0.0, 3.0, 3.0]
     assert root_attrs["proj:code"] == "EPSG:4326"
 
 
-def test_write_store_root_bbox_densifies_edges(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_densifies_edges(tmp_path: Path) -> None:
     """Reprojection uses transform_bounds, not just the two diagonal corners."""
     import zarr
 
@@ -312,7 +313,7 @@ def test_write_store_root_bbox_densifies_edges(tmp_path: Path) -> None:
     child.attrs["spatial:bbox"] = [699960.0, 4890240.0, 809760.0, 5000040.0]
     child.attrs["proj:code"] = "EPSG:32632"
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
     assert isinstance(bbox, list)
@@ -323,7 +324,7 @@ def test_write_store_root_bbox_densifies_edges(tmp_path: Path) -> None:
     assert ymax > 45.11, bbox
 
 
-def test_write_store_root_bbox_resolves_wkt2_only_crs(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_resolves_wkt2_only_crs(tmp_path: Path) -> None:
     """A group carrying only proj:wkt2 is reprojected, not assumed to be degrees."""
     import zarr
     from pyproj import CRS
@@ -334,14 +335,14 @@ def test_write_store_root_bbox_resolves_wkt2_only_crs(tmp_path: Path) -> None:
     child.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]
     child.attrs["proj:wkt2"] = CRS.from_epsg(32632).to_wkt()
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
     assert isinstance(bbox, list)
     assert all(-180.0 <= float(cast("float", v)) <= 180.0 for v in bbox), bbox
 
 
-def test_write_store_root_bbox_skips_group_without_crs(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_skips_group_without_crs(tmp_path: Path) -> None:
     """A bbox with no resolvable CRS must not be unioned as if it were degrees."""
     import zarr
 
@@ -353,13 +354,13 @@ def test_write_store_root_bbox_skips_group_without_crs(tmp_path: Path) -> None:
     bad = root.create_group("bad")
     bad.attrs["spatial:bbox"] = [300000.0, 4890240.0, 409800.0, 5000040.0]  # metres, no CRS
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
     assert root_attrs["spatial:bbox"] == [0.0, 0.0, 1.0, 1.0]
 
 
-def test_write_store_root_bbox_invalid_code_does_not_raise(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_invalid_code_does_not_raise(tmp_path: Path) -> None:
     """An unresolvable proj:code is skipped with a warning, never raised."""
     import zarr
 
@@ -372,13 +373,13 @@ def test_write_store_root_bbox_invalid_code_does_not_raise(tmp_path: Path) -> No
     bad.attrs["spatial:bbox"] = [1.0, 1.0, 2.0, 2.0]
     bad.attrs["proj:code"] = "EPSG:999999"
 
-    write_store_root_bbox(str(store_path))  # must not raise
+    write_store_geo_metadata(str(store_path))  # must not raise
 
     root_attrs = dict(zarr.open_group(store_path, mode="r").attrs)
     assert root_attrs["spatial:bbox"] == [0.0, 0.0, 1.0, 1.0]
 
 
-def test_write_store_root_bbox_antimeridian_falls_back_to_full_range(tmp_path: Path) -> None:
+def test_write_store_geo_metadata_antimeridian_falls_back_to_full_range(tmp_path: Path) -> None:
     """A footprint crossing the antimeridian widens the root bbox to +/-180."""
     import zarr
 
@@ -389,7 +390,7 @@ def test_write_store_root_bbox_antimeridian_falls_back_to_full_range(tmp_path: P
     child.attrs["spatial:bbox"] = [299940.0, 6390220.0, 409740.0, 6500020.0]
     child.attrs["proj:code"] = "EPSG:32601"
 
-    write_store_root_bbox(str(store_path))
+    write_store_geo_metadata(str(store_path))
 
     bbox = dict(zarr.open_group(store_path, mode="r").attrs)["spatial:bbox"]
     assert isinstance(bbox, list)
@@ -405,7 +406,7 @@ class TestConvenienceFunction:
     @patch("eopf_geozarr.s2_optimization.s2_converter.get_zarr_group")
     @patch("eopf_geozarr.s2_optimization.s2_converter.is_sentinel2_dataset")
     @patch("eopf_geozarr.s2_optimization.s2_converter.create_multiscale_from_datatree")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.simple_root_consolidation")
+    @patch("eopf_geozarr.s2_optimization.s2_converter.utils.updated_root_consolidation")
     def test_convert_s2_optimized_convenience_function(
         self,
         mock_consolidation: Mock,
@@ -437,6 +438,9 @@ class TestConvenienceFunction:
         # Test parameter passing - Mock DataTree with groups attribute
         dt_input = Mock()
         dt_input.groups = ["/measurements/reflectance/r10m"]
+        # `S2Type.from_datatree` reads these; a bare Mock attribute is not a string
+        dt_input.attrs = {}
+        dt_input.name = "S2A_MSIL2A_test"
         output_path = "/test/path"
 
         convert_s2_optimized(
@@ -445,7 +449,6 @@ class TestConvenienceFunction:
             enable_sharding=False,
             spatial_chunk=512,
             compression_level=2,
-            max_retries=5,
             validate_output=False,
         )
 
@@ -455,14 +458,23 @@ class TestConvenienceFunction:
         assert call_kwargs["enable_sharding"] is False
         assert call_kwargs["spatial_chunk"] == 512
 
+        # Verify root consolidation runs in S2 mode on the converter output
+        mock_consolidation.assert_called_once()
+        consolidation_kwargs = mock_consolidation.call_args.kwargs
+        assert consolidation_kwargs["is_s2"] is True
+        assert consolidation_kwargs["output_path"] == output_path
 
-def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -> None:
+
+def test_updated_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -> None:
     from pyproj import CRS
 
-    # initialise an empty dataset to mimic the process and write to tmp
+    # initialise an empty dataset to mimic the process and write it into the store as
+    # the pipeline does, so zarr creates the root and parent groups
+    output_path = str(tmp_path / "test.zarr")
     r10m = xr.Dataset(coords={"y": np.arange(10), "x": np.arange(20)})
     r10m.to_zarr(
-        str(tmp_path / "test.zarr/measurements/reflectance/r10m"),
+        output_path,
+        group="measurements/reflectance/r10m",
         mode="a",
         zarr_format=3,
         consolidated=False,
@@ -474,10 +486,11 @@ def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -
     dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
     # test execution of func
-    simple_root_consolidation(
-        output_path=str(tmp_path / "test.zarr"),
+    updated_root_consolidation(
+        output_path=output_path,
         datasets=datasets,
         dt_input=dt_input,
+        is_s2=True,
         crs=CRS.from_epsg(32632),
     )
 

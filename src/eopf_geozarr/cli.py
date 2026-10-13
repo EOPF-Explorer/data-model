@@ -229,7 +229,6 @@ def convert_command(args: argparse.Namespace) -> None:
                 spatial_chunk=args.spatial_chunk,
                 compression_level=3,
                 validate_output=True,
-                max_retries=args.max_retries,
             )
         # Opt-out flag first: skip the structural OLCI detection (a full
         # model validation of the store) when the user already declined it.
