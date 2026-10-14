@@ -95,6 +95,18 @@ class S2Type(StrEnum):
 log = structlog.get_logger()
 
 
+def _spatial_level_attrs(dataset: xr.Dataset) -> dict[str, list[float] | list[int]]:
+    """`spatial:shape` and `spatial:transform` for a multiscales layout entry.
+
+    `write_geo_metadata` leaves out an all-zero transform, but the minispec requires
+    `spatial:transform` on every layout entry, so fall back to the coordinate grid.
+    """
+    transform = dataset.attrs.get("spatial:transform")
+    if transform is None:
+        transform = list(utils._preferred_spatial_transform(dataset) or ())
+    return {"spatial:shape": dataset.attrs["spatial:shape"], "spatial:transform": transform}
+
+
 def _coarsen_variable(var_name: str, var_data: xr.DataArray, factor: int) -> xr.DataArray:
     """Coarsen a single variable using type-aware resampling.
 
@@ -276,10 +288,7 @@ def generic_multiscales(
         )
 
     spatial_levels: dict[str, dict[str, list[float] | list[int]]] = {
-        finest_dataset_key: {
-            "spatial:shape": fine_base.attrs["spatial:shape"],
-            "spatial:transform": fine_base.attrs["spatial:transform"],
-        }
+        finest_dataset_key: _spatial_level_attrs(fine_base)
     }
 
     # predefined layout asset
@@ -352,10 +361,7 @@ def generic_multiscales(
             dst_processed_groups[dest_level_path] = ds_out
 
         # determine multiscale metadata for all datasets
-        spatial_levels[dest_level_path] = {
-            "spatial:shape": ds_out.attrs["spatial:shape"],
-            "spatial:transform": ds_out.attrs["spatial:transform"],
-        }
+        spatial_levels[dest_level_path] = _spatial_level_attrs(ds_out)
 
         # already have a reference -> derive scale factor from it
         transform: Transform = {
