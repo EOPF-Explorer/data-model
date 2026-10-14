@@ -129,6 +129,130 @@ def _preferred_spatial_transform(
     return coordinate_transform or rio_transform
 
 
+def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
+    """Index of the band-like dimension, if var_data has one. Falls back to
+    None (caller should then skip band-axis sharding, not guess)."""
+    if len(var_data.dims) <= 2:
+        log.info(
+            "Not sharding along bandlike dim if its not dim>2", band_like_dim=BAND_LIKE_DIM_NAMES
+        )
+    else:
+        for i, dim in enumerate(var_data.dims):
+            if dim in BAND_LIKE_DIM_NAMES:
+                return i
+    return None
+
+
+def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
+    chunks = {dim: (min(spatial_chunk, size)) for dim, size in ds.sizes.items()}
+    return ds.chunk(chunks)
+
+
+def _rechunk_iterable(
+    iterable: Iterable, encoding: dict[str, XarrayDataArrayEncoding]
+) -> dict[Hashable, xr.DataArray]:
+    collector: dict[Hashable, xr.DataArray] = {}
+    for var_name, var_data in iterable:
+        if str(var_name) in encoding:
+            var_encoding = encoding[str(var_name)]
+
+            # If sharding is enabled, rechunk based on shard dimensions
+            shards_encoding = var_encoding.get("shards")
+            chunks_encoding = var_encoding.get("chunks")
+            if shards_encoding is not None:
+                target_chunks = shards_encoding  # Use shard dimensions for rechunking
+            elif chunks_encoding is not None:
+                target_chunks = chunks_encoding  # Fallback to chunk dimensions
+            else:
+                # No specific chunking needed, use original variable
+                collector[var_name] = var_data
+                continue
+
+            # Create chunk dict using the actual dimensions of the variable
+            if len(var_data.dims) == len(target_chunks):
+                chunk_dict = dict(zip(var_data.dims, target_chunks, strict=True))
+
+                # Rechunk the variable to match the target dimensions
+                collector[var_name] = var_data.chunk(chunk_dict)
+            else:
+                raise ValueError(
+                    f"Given dataarray '{var_name}' with dimension '{var_data.dims}' has different shape than chunks '{target_chunks}'"
+                )
+        else:
+            # No specific chunking needed, use original variable
+            collector[var_name] = var_data
+    return collector
+
+
+def _forward_unpacked_encoding(
+    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
+) -> XarrayDataArrayEncoding:
+    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
+    fv = explicit_fill_value(var_data)
+    if fv is not UNSET:
+        var_encoding["fill_value"] = fv
+    elif "fill_value" in var_data.attrs:
+        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
+        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+
+    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
+        if key in var_data.encoding:
+            var_encoding[key] = var_data.encoding[key]
+
+    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
+    if unknown:
+        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+    return var_encoding
+
+
+def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
+    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
+
+    ``spatial:bbox`` is read from stored metadata, so its type is not known
+    statically; this verifies the shape at runtime rather than asserting it.
+    """
+    if not isinstance(value, (list, tuple)) or len(value) != 4:
+        return None
+    if not all(isinstance(v, (int, float)) for v in value):
+        return None
+    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+
+
+def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
+    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
+
+    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
+    values are logged and treated as unresolvable rather than raised, since the
+    attributes come from stored metadata.
+    """
+    from pyproj import CRS as PyprojCRS
+
+    code = attrs.get("proj:code")
+    if isinstance(code, str):
+        try:
+            return PyprojCRS.from_user_input(code)
+        except Exception as e:  # malformed stored metadata
+            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
+            return None
+    wkt2 = attrs.get("proj:wkt2")
+    if isinstance(wkt2, str):
+        try:
+            return PyprojCRS.from_wkt(wkt2)
+        except Exception as e:
+            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
+            return None
+    projjson = attrs.get("proj:projjson")
+    if isinstance(projjson, dict):
+        try:
+            return PyprojCRS.from_json_dict(projjson)
+        except Exception as e:
+            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
+            return None
+    return None
+
+
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
     """Print optimization summary statistics."""
     # Count groups
@@ -167,35 +291,34 @@ def updated_root_consolidation(
     The root (and subroot) metadata is written from `dt_input.attrs`, so product-specific STAC
     additions (e.g. the S2 assets) have to be applied to them before calling this function.
     Three steps have to be done to achieve a uniform processing of all modes:
-        1.) Create all groups (available and missing ones -> multiscale generated AND non-array containing parent groups) and consolidate 'measurements' for S1, S2 (in reflectance), and S3
+        1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
         3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root
+    Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     """
+    # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
     output_path = output_path.rstrip("/") + "/"
 
-    # step 1
-    dt_tree = xr.DataTree()
+    # step 1: consolidate all /measurements (inlcuding subroots and S2 reflectance)
     for group_path in datasets:
         _, _, name = group_path.rstrip("/").rpartition("/")
         if name in ("measurements", "reflectance"):
             zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
 
-        dt_tree[group_path] = xr.DataTree()
-
-    # step 2
+    # step 2: consolidate any additional groups (multiscales, ...) which are passed to this function
     if additional_consolidate_paths:
         for additional_path in additional_consolidate_paths:
-            # consolidate the additional paths (-> multiscales, /measurement/reflectance for s2)
             zarr.consolidate_metadata(
                 output_path + additional_path, zarr_format=constants.ZARR_FORMAT
             )
 
-    # step 3
+    # step 3: add metadata to subroots and roots, consolidated either one
     # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
     if subroot_groups:
         for subroot in subroot_groups:
+            # add spatial and stac related metadata
             write_store_root_metadata(
                 output_path + subroot,
                 attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
@@ -204,6 +327,7 @@ def updated_root_consolidation(
             # consolidate the subroot itself
             zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
 
+    # also add the geo and stac metadata to the root
     write_store_root_metadata(
         output_path,
         attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
@@ -212,20 +336,6 @@ def updated_root_consolidation(
     # consolidate metadata in root OR in each subroot
     if not subroot_groups:
         zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
-
-
-# def init_zarr_group(
-#     output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
-# ) -> None:
-#     """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
-#     dt_parent = root_tree or xr.DataTree()
-
-#     dt_parent.to_zarr(
-#         output_path,
-#         mode=mode,
-#         zarr_format=constants.ZARR_FORMAT,
-#         consolidated=False,
-#     )
 
 
 def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
@@ -418,61 +528,6 @@ def stream_write_dataset(
     return dataset
 
 
-def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
-    """Index of the band-like dimension, if var_data has one. Falls back to
-    None (caller should then skip band-axis sharding, not guess)."""
-    if len(var_data.dims) <= 2:
-        log.info(
-            "Not sharding along bandlike dim if its not dim>2", band_like_dim=BAND_LIKE_DIM_NAMES
-        )
-    else:
-        for i, dim in enumerate(var_data.dims):
-            if dim in BAND_LIKE_DIM_NAMES:
-                return i
-    return None
-
-
-def _rechunk_ds(ds: xr.Dataset, spatial_chunk: int) -> xr.Dataset:
-    chunks = {dim: (min(spatial_chunk, size)) for dim, size in ds.sizes.items()}
-    return ds.chunk(chunks)
-
-
-def _rechunk_iterable(
-    iterable: Iterable, encoding: dict[str, XarrayDataArrayEncoding]
-) -> dict[Hashable, xr.DataArray]:
-    collector: dict[Hashable, xr.DataArray] = {}
-    for var_name, var_data in iterable:
-        if str(var_name) in encoding:
-            var_encoding = encoding[str(var_name)]
-
-            # If sharding is enabled, rechunk based on shard dimensions
-            shards_encoding = var_encoding.get("shards")
-            chunks_encoding = var_encoding.get("chunks")
-            if shards_encoding is not None:
-                target_chunks = shards_encoding  # Use shard dimensions for rechunking
-            elif chunks_encoding is not None:
-                target_chunks = chunks_encoding  # Fallback to chunk dimensions
-            else:
-                # No specific chunking needed, use original variable
-                collector[var_name] = var_data
-                continue
-
-            # Create chunk dict using the actual dimensions of the variable
-            if len(var_data.dims) == len(target_chunks):
-                chunk_dict = dict(zip(var_data.dims, target_chunks, strict=True))
-
-                # Rechunk the variable to match the target dimensions
-                collector[var_name] = var_data.chunk(chunk_dict)
-            else:
-                raise ValueError(
-                    f"Given dataarray '{var_name}' with dimension '{var_data.dims}' has different shape than chunks '{target_chunks}'"
-                )
-        else:
-            # No specific chunking needed, use original variable
-            collector[var_name] = var_data
-    return collector
-
-
 def rechunk_dataset_for_encoding(
     dataset: xr.Dataset,
     encoding: dict[str, XarrayDataArrayEncoding],
@@ -527,29 +582,6 @@ def get_chunking_for_encoding(
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
-
-
-def _forward_unpacked_encoding(
-    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> XarrayDataArrayEncoding:
-    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
-    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
-    fv = explicit_fill_value(var_data)
-    if fv is not UNSET:
-        var_encoding["fill_value"] = fv
-    elif "fill_value" in var_data.attrs:
-        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
-        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-
-    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
-        if key in var_data.encoding:
-            var_encoding[key] = var_data.encoding[key]
-
-    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
-    if unknown:
-        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
-
-    return var_encoding
 
 
 def build_dataarray_encoding(
@@ -1088,52 +1120,6 @@ def compute_overview_gcps(
         # re-assign original dimensions
         .rename_dims(line="azimuth_time", pixel="ground_range")
     )
-
-
-def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
-    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
-
-    ``spatial:bbox`` is read from stored metadata, so its type is not known
-    statically; this verifies the shape at runtime rather than asserting it.
-    """
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
-        return None
-    if not all(isinstance(v, (int, float)) for v in value):
-        return None
-    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
-
-
-def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
-    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
-
-    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
-    values are logged and treated as unresolvable rather than raised, since the
-    attributes come from stored metadata.
-    """
-    from pyproj import CRS as PyprojCRS
-
-    code = attrs.get("proj:code")
-    if isinstance(code, str):
-        try:
-            return PyprojCRS.from_user_input(code)
-        except Exception as e:  # malformed stored metadata
-            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
-            return None
-    wkt2 = attrs.get("proj:wkt2")
-    if isinstance(wkt2, str):
-        try:
-            return PyprojCRS.from_wkt(wkt2)
-        except Exception as e:
-            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
-            return None
-    projjson = attrs.get("proj:projjson")
-    if isinstance(projjson, dict):
-        try:
-            return PyprojCRS.from_json_dict(projjson)
-        except Exception as e:
-            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
-            return None
-    return None
 
 
 def write_store_geo_metadata(
