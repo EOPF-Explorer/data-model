@@ -19,7 +19,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: developmentseed/action-python-security-auditing@8ebea22ea75dfba2244ed9883c2aa6cb4df8d9a9 # v0.6.0
+    - uses: developmentseed/action-python-security-auditing@74463a5e49cb840c1bf1604f748ffc9bece51171 # v1.0.1
       with:
         package_manager: uv
         comment_on: blocking
