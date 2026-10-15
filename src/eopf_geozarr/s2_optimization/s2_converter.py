@@ -384,9 +384,9 @@ def simple_root_consolidation(
     # add consolidation for other MS arrays
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=ZARR_FORMAT)
     # also cosnolidate the non-measuremetn MS -> only the pyramids that were actually written (i.e. have levels in `datasets`) are consolidated
-    for ms_group_path, *_ in _AUX_MULTISCALES:
-        if any(path.startswith(ms_group_path + "/") for path in datasets):
-            zarr.consolidate_metadata(output_path + ms_group_path, zarr_format=ZARR_FORMAT)
+    for aux in _AUX_MULTISCALES:
+        if any(path.startswith(aux.base_path + "/") for path in datasets):
+            zarr.consolidate_metadata(output_path + aux.base_path, zarr_format=ZARR_FORMAT)
 
     # consolidate root group metadata
     zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)

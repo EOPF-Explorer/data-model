@@ -27,6 +27,7 @@ from eopf_geozarr.conversion.utils import (
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _AUX_MULTISCALES,
+    MultiscaleSpec,
     S2Type,
     _coarsen_variable,
     calculate_aligned_chunk_size,
@@ -99,11 +100,9 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
     base_path = "/measurements/reflectance"
     with capture_logs():
         generic_multiscales(
-            base_path=base_path,
+            MultiscaleSpec(base_path=base_path, scale_levels=(10, 20, 60, 120)),
             src_processed_groups={"r10m": r10m},
             output_group=zarr.create_group(output_path),
-            scale_levels=(10, 20, 60, 120),
-            finest_dataset_key="r10m",
             crs=crs,
         )
 
@@ -454,9 +453,11 @@ def test_create_multiscale_from_datatree(
     # Auxiliary pyramids (L1C cloud mask for every product; SCL and cloud/snow
     # probabilities for L2A): every level exists with the variables and dtypes of
     # the finest level, and the parent group's layout lists exactly those levels.
-    for base_path, finest_key, scale_levels, attrs, product_levels in _AUX_MULTISCALES:
-        if product_levels is not None and s2_type not in product_levels:
+    for aux in _AUX_MULTISCALES:
+        if not aux.applies_to(s2_type):
             continue
+        base_path, finest_key, scale_levels = aux.base_path, aux.finest_key, aux.scale_levels
+        attrs = aux.additional_attributes
         base = base_path.lstrip("/")
         aux_group = observed_group[base]
         assert isinstance(aux_group, zarr.Group), f"missing auxiliary pyramid '{base}'"

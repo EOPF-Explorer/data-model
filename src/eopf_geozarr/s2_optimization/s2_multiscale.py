@@ -5,6 +5,7 @@ Uses lazy evaluation to minimize memory usage during dataset preparation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
 from itertools import pairwise
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -59,24 +60,6 @@ SCL_ATTRS = {
     "flag_meanings": SCL_LABELS,
 }
 
-# Auxiliary (non-reflectance) groups that get their own pyramid:
-# (base_path, finest_dataset_key, scale_levels, additional_attributes, product levels).
-# A product level set of `None` means the group applies to every product.
-# Groups missing from the input are skipped with a warning.
-_AUX_MULTISCALES: tuple[
-    tuple[str, str, tuple[int, ...], dict[str, list[Any]] | None, frozenset[str] | None], ...
-] = (
-    (
-        "/conditions/mask/l2a_classification",
-        "r20m",
-        (20, 60, 120, 360, 720),
-        SCL_ATTRS,
-        frozenset({"L2A"}),
-    ),
-    ("/quality/probability", "r20m", (20, 60, 120, 360, 720), None, frozenset({"L2A"})),
-    ("/conditions/mask/l1c_classification", "r60m", (60, 120, 360, 720), None, None),
-)
-
 
 class S2Type(StrEnum):
     L1C = "L1C"
@@ -101,6 +84,56 @@ class S2Type(StrEnum):
 
 
 log = structlog.get_logger()
+
+
+@dataclass(frozen=True)
+class MultiscaleSpec:
+    """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
+
+    base_path: str
+    """Group holding the pyramid levels, e.g. `/measurements/reflectance`."""
+    scale_levels: tuple[int, ...]
+    """Level resolutions in metres, finest first.
+
+    The finest level must exist in the input. Coarser levels present in the input
+    are reused; the others are coarsened from the level before them.
+    """
+    additional_attributes: dict[str, list[Any]] | None = None
+    """Attributes written on every variable of every level (e.g. SCL flag meanings)."""
+    product_levels: frozenset[S2Type] | None = None
+    """Products the group exists in; `None` means every product."""
+
+    @property
+    def finest_key(self) -> str:
+        return f"r{self.scale_levels[0]}m"
+
+    def applies_to(self, s2_type: S2Type | None) -> bool:
+        return self.product_levels is None or s2_type in self.product_levels
+
+
+REFLECTANCE_MULTISCALE = MultiscaleSpec(
+    base_path="/measurements/reflectance",
+    scale_levels=(10, 20, 60, 120, 360, 720),
+)
+
+# Auxiliary (non-reflectance) groups. Groups missing from the input are skipped with a warning.
+_AUX_MULTISCALES: tuple[MultiscaleSpec, ...] = (
+    MultiscaleSpec(
+        base_path="/conditions/mask/l2a_classification",
+        scale_levels=(20, 60, 120, 360, 720),
+        additional_attributes=SCL_ATTRS,
+        product_levels=frozenset({S2Type.L2A}),
+    ),
+    MultiscaleSpec(
+        base_path="/quality/probability",
+        scale_levels=(20, 60, 120, 360, 720),
+        product_levels=frozenset({S2Type.L2A}),
+    ),
+    MultiscaleSpec(
+        base_path="/conditions/mask/l1c_classification",
+        scale_levels=(60, 120, 360, 720),
+    ),
+)
 
 MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
@@ -353,16 +386,16 @@ def select_unique_variable_type(ds: xr.Dataset) -> str:
 
 
 def generic_multiscales(
-    base_path: str,
+    spec: MultiscaleSpec,
     src_processed_groups: dict[str, Any],
     output_group: zarr.Group,
-    scale_levels: tuple[int, ...],
-    finest_dataset_key: str,
     enable_sharding: bool = True,
     crs: CRS | None = None,
     scale_offset_codec: bool = False,
-    additional_attributes: dict[str, list[Any]] | None = None,
 ) -> dict[str, Any]:
+    base_path, scale_levels = spec.base_path, spec.scale_levels
+    finest_dataset_key = spec.finest_key
+    additional_attributes = spec.additional_attributes
     # Create downsampled resolution groups
     if finest_dataset_key not in src_processed_groups:
         raise KeyError(
@@ -722,10 +755,10 @@ def create_multiscale_from_datatree(
         processed_groups[group_path] = ds_out
 
     # iterate over auxiliary multisacles to generate non-measurement MS
-    for base_path, finest_key, scale_levels, attrs, product_levels in _AUX_MULTISCALES:
-        # product levels defines L2A or L1C to differentiate between cld/snw & l2a_classification which is L2A specific and l1c_classification which runs for both
-        if product_levels is not None and s2_type not in product_levels:
+    for aux in _AUX_MULTISCALES:
+        if not aux.applies_to(s2_type):
             continue
+        base_path, finest_key = aux.base_path, aux.finest_key
         src_path = f"{base_path}/{finest_key}"
         # Not every processing baseline carries every auxiliary group: skip, don't fail.
         if src_path not in processed_groups:
@@ -740,31 +773,25 @@ def create_multiscale_from_datatree(
         log.info("Adding multiscales for S2 auxiliary group", base_path=base_path)
         processed_groups.update(
             generic_multiscales(
-                base_path=base_path,
+                aux,
                 src_processed_groups={finest_key: processed_groups[src_path]},
                 output_group=output_group,
-                scale_levels=scale_levels,
-                finest_dataset_key=finest_key,
                 enable_sharding=enable_sharding,
                 crs=crs,
                 scale_offset_codec=scale_offset_codec,
-                additional_attributes=attrs,
             )
         )
 
-    # generate multiscales for "/measurements/reflectance"
-    log.info("Adding multiscales for S2: Measurements in '/measurements/reflectance/'")
+    # generate multiscales for "/measurements/reflectance" from its native r10m/r20m/r60m levels
+    reflectance_path = REFLECTANCE_MULTISCALE.base_path
+    log.info("Adding multiscales for S2 reflectance", base_path=reflectance_path)
     measurement_processed_groups: dict[str, Any] = {
-        "r10m": processed_groups["/measurements/reflectance/r10m"],
-        "r20m": processed_groups["/measurements/reflectance/r20m"],
-        "r60m": processed_groups["/measurements/reflectance/r60m"],
+        key: processed_groups[f"{reflectance_path}/{key}"] for key in ("r10m", "r20m", "r60m")
     }
     ms_measurement_processed_groups = generic_multiscales(
-        base_path="/measurements/reflectance",
+        REFLECTANCE_MULTISCALE,
         src_processed_groups=measurement_processed_groups,
         output_group=output_group,
-        scale_levels=(10, 20, 60, 120, 360, 720),
-        finest_dataset_key="r10m",
         enable_sharding=enable_sharding,
         crs=crs,
         scale_offset_codec=scale_offset_codec,
