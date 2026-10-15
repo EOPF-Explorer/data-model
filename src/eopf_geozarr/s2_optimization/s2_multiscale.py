@@ -862,9 +862,16 @@ def create_downsampled_resolution_group(source_dataset: xr.Dataset, factor: int)
 
 
 def subsample_2(a: xr.DataArray, axis: tuple[int, ...] | None = None) -> xr.DataArray:
+    """Pick the centre pixel of each coarsening window (nearest-neighbour).
+
+    `coarsen` places the output coordinates at the window centres, so the
+    centre pixel keeps classification aligned with the averaged bands. For an
+    even window there is no single centre pixel and the lower-right one of the
+    middle four is taken.
+    """
     if axis is None:
-        return a[((0,) * a.ndim)]
-    indexer = [0 if i in axis else slice(None) for i in range(a.ndim)]
+        axis = tuple(range(a.ndim))
+    indexer = [a.shape[i] // 2 if i in axis else slice(None) for i in range(a.ndim)]
     return a[tuple(indexer)]
 
 

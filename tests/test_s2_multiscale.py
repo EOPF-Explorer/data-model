@@ -734,16 +734,30 @@ def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Pa
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("factor", [2, 3])
 @pytest.mark.parametrize("var_name", ["scl", "b00"])
-def test_coarsen_variable_classification(var_name: str) -> None:
-    """Classification variables (SCL, L1C cloud bitmask) should be downsampled via subsample."""
-    data = np.arange(16, dtype="uint8").reshape(4, 4)
-    var = xr.DataArray(data, dims=["y", "x"], coords={"y": np.arange(4.0), "x": np.arange(4.0)})
-    result = _coarsen_variable(var_name, var, factor=2)
+def test_coarsen_variable_classification(var_name: str, factor: int) -> None:
+    """Classification variables (SCL, L1C cloud bitmask) take the centre pixel of each block.
+
+    The output coordinates are the block centres, so the centre pixel keeps the
+    classes aligned with the averaged bands. For an even factor there is no single
+    centre pixel and the lower-right one of the middle four is taken.
+    """
+    size = 2 * factor
+    data = np.arange(size * size, dtype="uint8").reshape(size, size)
+    coords = {"y": np.arange(float(size)), "x": np.arange(float(size))}
+    var = xr.DataArray(data, dims=["y", "x"], coords=coords)
+    result = _coarsen_variable(var_name, var, factor=factor)
     assert result.shape == (2, 2)
     assert result.dtype == np.uint8
-    # subsample picks top-left of each 2x2 block
-    np.testing.assert_array_equal(result.values, data[::2, ::2])
+    centre = factor // 2
+    np.testing.assert_array_equal(result.values, data[centre::factor, centre::factor])
+    # The sampled pixel lies on the block centre for odd factors, half a pixel off for even ones.
+    block_centres = np.arange(2) * factor + (factor - 1) / 2
+    np.testing.assert_array_equal(result["x"].values, block_centres)
+    np.testing.assert_array_equal(result["y"].values, block_centres)
+    sampled = coords["x"][centre::factor]
+    assert np.abs(sampled - block_centres).max() == (0 if factor % 2 else 0.5)
 
 
 def test_coarsen_variable_quality_mask() -> None:
