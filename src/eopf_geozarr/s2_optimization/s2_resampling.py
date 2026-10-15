@@ -170,25 +170,27 @@ def downsample_probability(
 
 
 def determine_variable_type(
-    var_name: str, var_data: xr.DataArray
+    var_name: str,
 ) -> Literal["reflectance", "classification", "probability", "quality_mask"]:
     """
     Determine the type of a variable for appropriate resampling.
 
     Args:
         var_name: Name of the variable
-        var_data: The data array
 
     Returns:
         Variable type string
     """
+
+    # Scene classifications for l2a_classification and l1c_classification
+    if (
+        var_name == "scl" or var_name == "b00"
+    ):  # Scene Classification Layer in l2a_classification AND in l1c_classification
+        return "classification"
+
     # Spectral bands
     if var_name.startswith("b") and (var_name[1:].isdigit() or var_name == "b8a"):
         return "reflectance"
-
-    # Quality data
-    if var_name == "scl":  # Scene Classification Layer
-        return "classification"
 
     if var_name in ["cld", "snw"]:  # Probability data
         return "probability"

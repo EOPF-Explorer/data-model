@@ -50,7 +50,7 @@ def create_generic_geozarr_dataset(
     start_time = time.time()
 
     output_group = zarr.open_group(output_path)
-    processed_groups = {}
+    processed_groups: dict[str, xr.Dataset | None] = {}
 
     # rechunk everything
     for group_path in dt_input.groups:
@@ -69,6 +69,11 @@ def create_generic_geozarr_dataset(
             # application of the gener_rechunker to S3 OLC data products as they tend to have data variables on
             # /measurements or other groups, while also having an orphan as a child.
             # This extended check does not limit other products, as verified by the test suite.
+            # As in the S2 multiscales, the parent is recorded as `None`, so that
+            # `updated_root_consolidation` handles it (e.g. consolidates `/measurements` of
+            # S3 SLSTR). Only parents with a written descendant exist in the output store.
+            if any(len(node.data_vars) > 0 for node in group_node.descendants):
+                processed_groups[group_path] = None
             continue
 
         base_dataset = group_node.to_dataset()
@@ -95,7 +100,6 @@ def create_generic_geozarr_dataset(
             path=group_path,
             group=output_group,
             encoding=encoding,
-            enable_sharding=enable_sharding,
         )
         processed_groups[group_path] = ds_out
 

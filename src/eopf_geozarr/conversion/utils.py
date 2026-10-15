@@ -9,6 +9,7 @@ import structlog
 import xarray as xr
 import zarr
 import zarr_cm
+from pyproj import CRS
 from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, SpatialAttrs
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
@@ -21,8 +22,6 @@ from eopf_geozarr.data_api.geozarr.types import (
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Mapping
-
-    from xarray.core.types import ZarrWriteModes
 
 
 from importlib.util import find_spec
@@ -39,231 +38,95 @@ BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
 log = structlog.get_logger()
 
 
-def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
-    """Print optimization summary statistics."""
-    # Count groups
-    input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
-    output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
-
-    log.info(
-        "OPTIMIZATION SUMMARY",
-        input_groups=input_groups,
-        output_groups=output_groups,
-        output_path=output_path,
-        groups=[g for g in dt_output.groups if g != "."],
-    )
-
-
-def create_result_datatree(output_path: str) -> xr.DataTree:
-    """Create result DataTree from written output."""
-    storage_options = fs_utils.get_storage_options(output_path)
-    return xr.open_datatree(
-        output_path,
-        engine="zarr",
-        chunks="auto",
-        storage_options=storage_options,
-    )
-
-
-def updated_root_consolidation(
-    dt_input: xr.DataTree, output_path: str, datasets: Mapping[str, object]
-) -> None:
-    """
-    Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
-    Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
-    """
-    output_path = output_path.rstrip("/") + "/"
-
-    # create missing intermediary groups (/conditions, /quality, etc.) using the keys of the datasets dict
-    # also gather potential measurement groups for consolidating
-    for group_path in datasets:
-        # extract all the parent paths and names
-        parent, _, name = group_path.rstrip("/").rpartition("/")
-        if parent not in datasets:
-            init_zarr_group(output_path + group_path)
-
-        # consolidate 'all measurement groups
-        if name == "measurements":
-            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
-
-    # check and get possible subroots for consolidation
-    subroot_groups = get_subroots(dt_input.groups)
-
-    # also add some geo- and stac-root metadata
-    if subroot_groups:
-        for subroot in subroot_groups:
-            write_store_root_metadata(
-                output_path + subroot,
-                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
-            )
-            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
-
-    # Create root zarr group if it doesn't existand add the subroot/subgroup groups as zarr arrays
-    init_root_zarr_group(
-        output_path,
-        datasets=datasets,
-        dt_input_attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
-    )
-
-    # consolidate metadata in root OR in each subroot
-    if not subroot_groups:
-        zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
-
-
-def init_zarr_group(
-    output_path: str, mode: ZarrWriteModes = "a", root_tree: xr.DataTree | None = None
-) -> None:
-    """Instantiate a new zarr group with xarray. A model `root_tree` can be passed as a reference, which will construct the full tree as the zarr store."""
-    dt_parent = root_tree or xr.DataTree()
-
-    dt_parent.to_zarr(
-        output_path,
-        mode=mode,
-        zarr_format=constants.ZARR_FORMAT,
-        consolidated=False,
-    )
-
-
-def init_root_zarr_group(
-    output_path: str, datasets: Mapping[str, object], dt_input_attrs: dict[str, dict[str, Any]]
-) -> None:
-    """
-    Instantiates an EOPF zarr group with xarray, with a root tree and additional root trees for all datasets passed to this function.
-    Also writes any root store metadata, namely geo metadata and stac metadata.
-    """
-    log.info("Creating root zarr group")
-    init_zarr_group(output_path)
-
-    dt_root = xr.DataTree()
-    for group_path in datasets:
-        dt_root[group_path] = xr.DataTree()
-
-    init_zarr_group(output_path=output_path, mode="r+", root_tree=dt_root)
-    log.info("Root zarr group created")
-
-    # Write the store-root spatial footprint (geozarr minispec, Store Root section).
-    # Aggregates child-group `spatial:bbox` values, reprojects them to EPSG:4326
-    # and writes the union on the root `zarr.json`.
-    write_store_root_metadata(output_path, attrs=dt_input_attrs)
-
-
-def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
-    """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
-    write_store_geo_metadata(output_path, input_root_attrs=attrs)
-    write_store_stac_metadata(output_path, input_root_attrs=attrs)
-
-
-def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
-    subroots = set()
-    for path in groups:
-        parent, _, name = path.rstrip("/").rpartition("/")
-        if name in constants.SUBROOT_MARKERS and parent and parent not in subroots:
-            subroots.add(parent)
-    return subroots or None
-
-
-def stream_write_dataset(
+def _transform_from_coordinates(
     dataset: xr.Dataset,
-    *,
-    path: str,
-    group: zarr.Group,
-    encoding: dict[str, XarrayDataArrayEncoding],
-    enable_sharding: bool,
-    chunk_and_shard_coords=True,
-) -> xr.Dataset:
+) -> tuple[float, float, float, float, float, float] | None:
+    """Construct an affine transform from dataset coordinates when possible."""
+    if "x" not in dataset.coords or "y" not in dataset.coords:
+        return None
+
+    x_coords = dataset.coords["x"].values
+    y_coords = dataset.coords["y"].values
+    if len(x_coords) < 2 or len(y_coords) < 2:
+        return None
+
+    pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
+    pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
+    # Coordinates are pixel centres; the transform origin is the outer pixel edge.
+    x_min = float(x_coords.min()) - pixel_size_x / 2
+    y_max = float(y_coords.max()) + pixel_size_y / 2
+    return (pixel_size_x, 0.0, x_min, 0.0, -pixel_size_y, y_max)
+
+
+def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
+    """Outer pixel edges ``[xmin, ymin, xmax, ymax]`` of the dataset's x/y grid.
+
+    Falls back to the coordinate extent when the grid has fewer than two pixels
+    along an axis, because the pixel size is then unknown.
     """
-    Stream write a lazy dataset with advanced chunking and sharding.
+    transform = _transform_from_coordinates(dataset)
+    if transform is None:
+        x_coords = dataset.coords["x"].values
+        y_coords = dataset.coords["y"].values
+        return [
+            float(x_coords.min()),
+            float(y_coords.min()),
+            float(x_coords.max()),
+            float(y_coords.max()),
+        ]
 
-    This is where the magic happens: all the lazy downsampling operations
-    are executed as the data is streamed to storage with optimal performance.
+    pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = transform
+    x_max = x_min + dataset.sizes["x"] * pixel_size_x
+    y_min = y_max + dataset.sizes["y"] * neg_pixel_size_y
+    return [x_min, y_min, x_max, y_max]
 
-    Args:
-        dataset: Dataset to write
-        dataset_path: Output path for dataset
-        encoding: Encoding dictionary for variables
-        enable_sharding: Enable Zarr v3 sharding
 
-    Returns:
-        Written dataset
-    """
-    # Check if level already exists
-    if path in group:
-        log.info(
-            "Level path {} already exists. Skipping write.",
-            dataset_path=path,
-        )
-        # The zarr backend accepts a zarr `Store` here at runtime, but xarray's
-        # `open_dataset` stub only types the first arg as path/buffer/datastore.
-        return xr.open_dataset(
-            group.store,  # type: ignore[arg-type]
-            engine="zarr",
-            chunks={},
-            decode_coords="all",
-            group=path,
-            mask_and_scale=False,
-        )
+def _rio_transform_matches_coordinates(
+    transform: tuple[float, float, float, float, float, float] | None,
+    coordinate_transform: tuple[float, float, float, float, float, float] | None,
+) -> bool:
+    """Check whether rio-derived metadata matches the current x/y grid."""
+    if transform is None or coordinate_transform is None:
+        return False
 
-    log.info("Streaming computation and write to {}", dataset_path=path)
-    log.info("Variables", variables=list(dataset.data_vars.keys()))
+    return all(np.isclose(a, b) for a, b in zip(transform, coordinate_transform, strict=False))
 
-    # Rechunk dataset to align with encoding
-    dataset = rechunk_dataset_for_encoding(
-        dataset, encoding, chunk_and_shard_coords=chunk_and_shard_coords
-    )
 
-    # Sanitize NaN values in dataset attributes before writing
-    dataset = fs_utils.sanitize_dataset_attributes(dataset)
+def _preferred_spatial_transform(
+    dataset: xr.Dataset,
+) -> tuple[float, float, float, float, float, float] | None:
+    """Prefer rio metadata only when it matches the current coordinate grid."""
+    coordinate_transform = _transform_from_coordinates(dataset)
+    rio_transform: tuple[float, float, float, float, float, float] | None = None
 
-    # Write with streaming computation and progress tracking
-    # The to_zarr operation will trigger all lazy computations
-
-    write_job = dataset.to_zarr(
-        store=group.store,
-        mode="w",
-        consolidated=False,
-        zarr_format=constants.ZARR_FORMAT,
-        encoding=encoding,
-        group=path,
-        compute=False,  # Create job first for progress tracking
-    )
-    write_job = write_job.persist()
-
-    if DISTRIBUTED_AVAILABLE:
+    if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
         try:
-            import distributed
+            rio_value = dataset.rio.transform
+            if callable(rio_value):
+                rio_value = rio_value()
+            # rio transform value is dynamically typed; it is iterable at runtime.
+            rio_iter = cast("tuple[float, ...]", tuple(rio_value))  # pyright: ignore[reportArgumentType]
+            rio_values = tuple(float(value) for value in rio_iter[:6])
+            if len(rio_values) == 6:
+                rio_transform = (
+                    rio_values[0],
+                    rio_values[1],
+                    rio_values[2],
+                    rio_values[3],
+                    rio_values[4],
+                    rio_values[5],
+                )
+        except (AttributeError, TypeError, ValueError):
+            rio_transform = None
 
-            # Try to get current client for better status monitoring
-            try:
-                client = distributed.Client.current()
-                # client.compute is untyped (returns Any); verify we got a
-                # Future rather than asserting it with a cast.
-                future = client.compute(write_job)
-                if not isinstance(future, distributed.Future):
-                    raise TypeError(f"expected a distributed.Future, got {type(future).__name__}")
-                log.info("Using distributed client for write job monitoring")
+    if (
+        rio_transform is not None
+        and not all(value == 0 for value in rio_transform)
+        and _rio_transform_matches_coordinates(rio_transform, coordinate_transform)
+    ):
+        return rio_transform
 
-                try:
-                    distributed.progress(future, notebook=False)
-                except Exception as progress_error:
-                    log.warning("Could not display progress bar: {}", e=progress_error)
-
-                # Get result and raise if computation failed
-                future.result()
-            except ValueError:
-                # No current client, fall back to regular distributed.progress
-                log.info("No distributed client available, using regular progress")
-                distributed.progress(write_job, notebook=False)
-                write_job.compute()
-
-        except Exception as e:
-            log.warning("Could not use distributed features: {}", e=e)
-            write_job.compute()
-    else:
-        log.info("Writing zarr file...")
-        write_job.compute()
-
-    log.info("Streaming write complete for dataset {}", dataset_path=path)
-    return dataset
+    return coordinate_transform or rio_transform
 
 
 def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
@@ -321,6 +184,350 @@ def _rechunk_iterable(
     return collector
 
 
+def _forward_unpacked_encoding(
+    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
+) -> XarrayDataArrayEncoding:
+    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
+    fv = explicit_fill_value(var_data)
+    if fv is not UNSET:
+        var_encoding["fill_value"] = fv
+    elif "fill_value" in var_data.attrs:
+        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
+        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+
+    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
+        if key in var_data.encoding:
+            var_encoding[key] = var_data.encoding[key]
+
+    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
+    if unknown:
+        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+    return var_encoding
+
+
+def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
+    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
+
+    ``spatial:bbox`` is read from stored metadata, so its type is not known
+    statically; this verifies the shape at runtime rather than asserting it.
+    """
+    if not isinstance(value, (list, tuple)) or len(value) != 4:
+        return None
+    if not all(isinstance(v, (int, float)) for v in value):
+        return None
+    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+
+
+def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
+    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
+
+    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
+    values are logged and treated as unresolvable rather than raised, since the
+    attributes come from stored metadata.
+    """
+    from pyproj import CRS as PyprojCRS
+
+    code = attrs.get("proj:code")
+    if isinstance(code, str):
+        try:
+            return PyprojCRS.from_user_input(code)
+        except Exception as e:  # malformed stored metadata
+            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
+            return None
+    wkt2 = attrs.get("proj:wkt2")
+    if isinstance(wkt2, str):
+        try:
+            return PyprojCRS.from_wkt(wkt2)
+        except Exception as e:
+            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
+            return None
+    projjson = attrs.get("proj:projjson")
+    if isinstance(projjson, dict):
+        try:
+            return PyprojCRS.from_json_dict(projjson)
+        except Exception as e:
+            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
+            return None
+    return None
+
+
+def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
+    """Print optimization summary statistics."""
+    # Count groups
+    input_groups = len(dt_input.groups) if hasattr(dt_input, "groups") else 0
+    output_groups = len(dt_output.groups) if hasattr(dt_output, "groups") else 0
+
+    log.info(
+        "OPTIMIZATION SUMMARY",
+        input_groups=input_groups,
+        output_groups=output_groups,
+        output_path=output_path,
+        groups=[g for g in dt_output.groups if g != "."],
+    )
+
+
+def create_result_datatree(output_path: str) -> xr.DataTree:
+    """Create result DataTree from written output."""
+    storage_options = fs_utils.get_storage_options(output_path)
+    return xr.open_datatree(
+        output_path,
+        engine="zarr",
+        chunks="auto",
+        storage_options=storage_options,
+    )
+
+
+def updated_root_consolidation(
+    dt_input: xr.DataTree,
+    output_path: str,
+    datasets: Mapping[str, object],
+    additional_consolidate_paths: list[str] | None = None,
+) -> None:
+    """
+    Simple root-level and sub-root level metadata consolidation with proper zarr group creation.
+    Consolidation has to happen from child first to prevent possible overwriting issues if root is consolidated first.
+    The root (and subroot) metadata is written from `dt_input.attrs`, so product-specific STAC
+    additions (e.g. the S2 assets) have to be applied to them before calling this function.
+    Three steps have to be done to achieve a uniform processing of all modes:
+        1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
+        2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
+        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root
+    Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
+    """
+    # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
+    output_path = output_path.rstrip("/") + "/"
+
+    # step 1: consolidate all /measurements (inlcuding subroots and S2 reflectance)
+    for group_path in datasets:
+        _, _, name = group_path.rstrip("/").rpartition("/")
+        if name in ("measurements", "reflectance"):
+            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
+
+    # step 2: consolidate any additional groups (multiscales, ...) which are passed to this function
+    if additional_consolidate_paths:
+        for additional_path in additional_consolidate_paths:
+            zarr.consolidate_metadata(
+                output_path + additional_path, zarr_format=constants.ZARR_FORMAT
+            )
+
+    # step 3: add metadata to subroots and roots, consolidated either one
+    # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
+    # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
+    subroot_groups = get_subroots(dt_input.groups)
+    if subroot_groups:
+        for subroot in subroot_groups:
+            # add spatial and stac related metadata
+            write_store_root_metadata(
+                output_path + subroot,
+                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+            )
+
+            # consolidate the subroot itself
+            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
+
+    # also add the geo and stac metadata to the root
+    write_store_root_metadata(
+        output_path,
+        attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+    )
+
+    # consolidate metadata in root OR in each subroot
+    if not subroot_groups:
+        zarr.consolidate_metadata(output_path, zarr_format=constants.ZARR_FORMAT)
+
+
+def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
+    """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
+    write_store_geo_metadata(output_path, input_root_attrs=attrs)
+    write_store_stac_metadata(output_path, input_root_attrs=attrs)
+
+
+def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
+    subroots = set()
+    for path in groups:
+        parent, _, name = path.rstrip("/").rpartition("/")
+        if name in constants.SUBROOT_MARKERS and parent and parent not in subroots:
+            subroots.add(parent)
+    return subroots or None
+
+
+def write_dataset_geo_metadata(
+    dataset: xr.Dataset,
+    grid_mapping_var_name: str = "spatial_ref",
+    crs: CRS | None = None,
+) -> None:
+    """
+    Write geographic metadata to the dataset.
+    Requires a crs or a dataset from which a CRS can be derived.
+
+    Args:
+        dataset: Dataset to write metadata to
+        grid_mapping_var_name: Name for grid mapping variable
+        crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
+    """
+    # Use provided CRS or try to detect from dataset
+    if crs is None:
+        for var in dataset.data_vars.values():
+            if hasattr(var, "rio") and var.rio.crs:
+                crs = var.rio.crs
+                break
+            if "proj:epsg" in var.attrs:
+                epsg = var.attrs["proj:epsg"]
+                crs = CRS.from_epsg(epsg)
+                break
+
+    if crs is not None:
+        # Write CRS using rioxarray
+        # NOTE: for now rioxarray only supports writing grid mapping using CF conventions
+        dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
+        dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+        dataset.attrs["grid_mapping"] = grid_mapping_var_name
+
+        for var in dataset.data_vars.values():
+            var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
+            var.attrs["grid_mapping"] = grid_mapping_var_name
+
+        # Also add proj: and spatial: zarr conventions at dataset level
+        # TODO : Remove once rioxarray supports writing these conventions directly
+        # https://github.com/corteva/rioxarray/pull/883
+
+        # Assemble spatial convention data
+        spatial_data: spatial_cm.SpatialAttrs = {
+            "spatial:dimensions": ["y", "x"],  # Required field
+            "spatial:registration": "pixel",  # Default registration type
+        }
+
+        # Calculate and add spatial bbox if coordinates are available
+        if "x" in dataset.coords and "y" in dataset.coords:
+            spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
+
+            spatial_transform = _preferred_spatial_transform(dataset)
+
+            # Only add spatial:transform if we have valid transform data (not all zeros)
+            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
+                spatial_data["spatial:transform"] = list(spatial_transform)
+
+            # Add spatial shape if data variables exist
+            if dataset.data_vars:
+                first_var = next(iter(dataset.data_vars.values()))
+                if first_var.ndim >= 2:
+                    height, width = first_var.shape[-2:]
+                    spatial_data["spatial:shape"] = [height, width]
+
+        # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
+        dataset.attrs.update(build_convention_attrs(spatial=spatial_data, crs=crs))
+
+
+def stream_write_dataset(
+    dataset: xr.Dataset,
+    *,
+    path: str,
+    group: zarr.Group,
+    encoding: dict[str, XarrayDataArrayEncoding],
+    add_geo_metadata: bool = False,
+    chunk_and_shard_coords: bool = True,
+    crs: CRS | None = None,
+) -> xr.Dataset:
+    """
+    Stream write a lazy dataset with advanced chunking and sharding.
+
+    This is where the magic happens: all the lazy downsampling operations
+    are executed as the data is streamed to storage with optimal performance.
+
+    Args:
+        dataset: Dataset to write
+        dataset_path: Output path for dataset
+        encoding: Encoding dictionary for variables
+        enable_sharding: Enable Zarr v3 sharding
+
+    Returns:
+        Written dataset
+    """
+    # Check if level already exists
+    if path in group:
+        log.info(
+            "Level path {} already exists. Skipping write.",
+            dataset_path=path,
+        )
+        # The zarr backend accepts a zarr `Store` here at runtime, but xarray's
+        # `open_dataset` stub only types the first arg as path/buffer/datastore.
+        return xr.open_dataset(
+            group.store,  # type: ignore[arg-type]
+            engine="zarr",
+            chunks={},
+            decode_coords="all",
+            group=path,
+            mask_and_scale=False,
+        )
+
+    log.info("Streaming computation and write to {}", dataset_path=path)
+    log.info("Variables", variables=list(dataset.data_vars.keys()))
+
+    # Rechunk dataset to align with encoding
+    dataset = rechunk_dataset_for_encoding(
+        dataset, encoding, chunk_and_shard_coords=chunk_and_shard_coords
+    )
+
+    if add_geo_metadata:
+        write_dataset_geo_metadata(dataset, crs=crs)
+
+    # Sanitize NaN values in dataset attributes before writing
+    dataset = fs_utils.sanitize_dataset_attributes(dataset)
+
+    # Write with streaming computation and progress tracking
+    # The to_zarr operation will trigger all lazy computations
+
+    write_job = dataset.to_zarr(
+        store=group.store,
+        mode="w",
+        consolidated=False,
+        zarr_format=constants.ZARR_FORMAT,
+        encoding=encoding,
+        group=path,
+        compute=False,  # Create job first for progress tracking
+    )
+    write_job = write_job.persist()
+
+    if DISTRIBUTED_AVAILABLE:
+        try:
+            import distributed
+
+            # Try to get current client for better status monitoring
+            try:
+                client = distributed.Client.current()
+                # client.compute is untyped (returns Any); verify we got a
+                # Future rather than asserting it with a cast.
+                future = client.compute(write_job)
+                if not isinstance(future, distributed.Future):
+                    raise TypeError(f"expected a distributed.Future, got {type(future).__name__}")
+                log.info("Using distributed client for write job monitoring")
+
+                try:
+                    distributed.progress(future, notebook=False)
+                except Exception as progress_error:
+                    log.warning("Could not display progress bar: {}", e=progress_error)
+
+                # Get result and raise if computation failed
+                future.result()
+            except ValueError:
+                # No current client, fall back to regular distributed.progress
+                log.info("No distributed client available, using regular progress")
+                distributed.progress(write_job, notebook=False)
+                write_job.compute()
+
+        except Exception as e:
+            log.warning("Could not use distributed features: {}", e=e)
+            write_job.compute()
+    else:
+        log.info("Writing zarr file...")
+        write_job.compute()
+
+    log.info("Streaming write complete for dataset {}", dataset_path=path)
+    return dataset
+
+
 def rechunk_dataset_for_encoding(
     dataset: xr.Dataset,
     encoding: dict[str, XarrayDataArrayEncoding],
@@ -375,29 +582,6 @@ def get_chunking_for_encoding(
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
-
-
-def _forward_unpacked_encoding(
-    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> XarrayDataArrayEncoding:
-    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
-    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
-    fv = explicit_fill_value(var_data)
-    if fv is not UNSET:
-        var_encoding["fill_value"] = fv
-    elif "fill_value" in var_data.attrs:
-        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
-        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-
-    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
-        if key in var_data.encoding:
-            var_encoding[key] = var_data.encoding[key]
-
-    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
-    if unknown:
-        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
-
-    return var_encoding
 
 
 def build_dataarray_encoding(
@@ -602,6 +786,38 @@ def build_convention_attrs(
     # generic JSON dict; narrow to the combined convention TypedDict.
     result = zarr_cm.create_many(conventions)
     return cast("MultiConventionAttrs", result)
+
+
+def add_multiscale_pyramids_to_stac_metadata(
+    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    if not stac_attrs:
+        return dt_attributes
+
+    # a bit messy but effective split to get group parent from stac attrs
+    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
+
+    # gEt mismatched ones -> we need pyramids not present
+    missing_group_paths = [
+        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
+    ]
+
+    for group_path in missing_group_paths:
+        ds = datasets[group_path]
+
+        # catch object != datAset for typing
+        if isinstance(ds, xr.Dataset):
+            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+            for var_name in ds.data_vars:
+                if var_name == "spatial_ref":
+                    continue
+                asset_key = f"{var_name}_{resolution}"
+                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
+        else:
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+
+    return dt_attributes
 
 
 def explicit_fill_value(var: xr.DataArray) -> Any:
@@ -904,52 +1120,6 @@ def compute_overview_gcps(
         # re-assign original dimensions
         .rename_dims(line="azimuth_time", pixel="ground_range")
     )
-
-
-def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
-    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
-
-    ``spatial:bbox`` is read from stored metadata, so its type is not known
-    statically; this verifies the shape at runtime rather than asserting it.
-    """
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
-        return None
-    if not all(isinstance(v, (int, float)) for v in value):
-        return None
-    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
-
-
-def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
-    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
-
-    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
-    values are logged and treated as unresolvable rather than raised, since the
-    attributes come from stored metadata.
-    """
-    from pyproj import CRS as PyprojCRS
-
-    code = attrs.get("proj:code")
-    if isinstance(code, str):
-        try:
-            return PyprojCRS.from_user_input(code)
-        except Exception as e:  # malformed stored metadata
-            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
-            return None
-    wkt2 = attrs.get("proj:wkt2")
-    if isinstance(wkt2, str):
-        try:
-            return PyprojCRS.from_wkt(wkt2)
-        except Exception as e:
-            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
-            return None
-    projjson = attrs.get("proj:projjson")
-    if isinstance(projjson, dict):
-        try:
-            return PyprojCRS.from_json_dict(projjson)
-        except Exception as e:
-            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
-            return None
-    return None
 
 
 def write_store_geo_metadata(

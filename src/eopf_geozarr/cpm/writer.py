@@ -207,6 +207,7 @@ class GeoZarrWriter(EOWriter):
         """
         # Everything that can fail from arguments alone must run before
         # _prepare_target, which is destructive for existing mode="w" targets.
+
         self._validate_options(
             mode=mode,
             zarr_format=zarr_format,
@@ -263,7 +264,6 @@ class GeoZarrWriter(EOWriter):
                 compression_level=compression_level,
                 validate_output=validate_output,
                 scale_offset_codec=scale_offset_codec,
-                max_retries=max_retries,
             )
 
         if selected_pipeline == "s3-olci-optimized":

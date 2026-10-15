@@ -7,31 +7,33 @@ import os
 import pathlib
 from collections.abc import Mapping, Sequence
 from itertools import pairwise
-from unittest.mock import patch
 
 import numpy as np
 import pytest
 import xarray as xr
 import zarr
+from affine import Affine
 from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
+from pyproj import CRS
 from structlog.testing import capture_logs
 from zarr.core.metadata import ArrayV3Metadata
 
 from eopf_geozarr.conversion.utils import (
     _rechunk_ds,
+    calculate_aligned_chunk_size,
     create_uniform_encoding,
     rechunk_dataset_for_encoding,
+    write_dataset_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
+    _AUX_MULTISCALES,
     S2Type,
     _coarsen_variable,
-    add_multiscales_metadata_to_parent,
-    calculate_aligned_chunk_size,
-    calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
     create_multiscale_from_datatree,
+    generic_multiscales,
     inject_missing_bands,
 )
 
@@ -57,7 +59,7 @@ def sample_dataset(s2_group_example: pathlib.Path) -> xr.Dataset:
 
 
 def test_create_downsampled_resolution_group_quality_mask() -> None:
-    """Quality-mask downsampling should not crash and should preserve dtype."""
+    """Quality-mask downsampling is disabled, so it should raise."""
     x = np.arange(8)
     y = np.arange(6)
     quality = xr.DataArray(
@@ -68,90 +70,74 @@ def test_create_downsampled_resolution_group_quality_mask() -> None:
     )
     ds = xr.Dataset({"quality_clouds": quality})
 
-    out = create_downsampled_resolution_group(ds, factor=2)
-
-    assert "quality_clouds" in out.data_vars
-    assert out["quality_clouds"].dtype == np.uint8
-    assert out["quality_clouds"].shape == (3, 4)
+    with pytest.raises(ValueError, match="quality_mask"):
+        create_downsampled_resolution_group(ds, factor=2)
 
 
-def test_add_multiscales_metadata_prefers_coordinate_transform_for_inconsistent_rio(
+def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Derived levels should not reuse a stale rio transform."""
-
-    def _dataset(resolution: int, size: int, x0: float, y0: float) -> xr.Dataset:
-        x = x0 + np.arange(size, dtype="float64") * resolution
-        y = y0 - np.arange(size, dtype="float64") * resolution
-        ds = xr.Dataset(
+    """Derived levels should not reuse the stale rio transform inherited from the finest level."""
+    crs = CRS.from_epsg(32631)
+    size = 24  # 24 px at 10 m -> 12 px at 20 m -> 4 px at 60 m -> 2 px at 120 m
+    x = 600000.0 + np.arange(size, dtype="float64") * 10
+    y = 4900020.0 - np.arange(size, dtype="float64") * 10
+    r10m = _rechunk_ds(
+        xr.Dataset(
             {"band": (["y", "x"], np.ones((size, size), dtype=np.uint16))},
             coords={"x": x, "y": y},
+        ),
+        1024,
+    )
+    write_dataset_geo_metadata(r10m, crs=crs)
+    # A GeoTransform on `spatial_ref` is carried into every coarsened level, where
+    # the rio transform then no longer matches the coordinate grid.
+    r10m.rio.write_transform(Affine(10.0, 0.0, 599995.0, 0.0, -10.0, 4900025.0), inplace=True)
+
+    output_path = tmp_path / "multiscales.zarr"
+    base_path = "/measurements/reflectance"
+    with capture_logs():
+        generic_multiscales(
+            base_path=base_path,
+            src_processed_groups={"r10m": r10m},
+            output_path=str(output_path),
+            output_group=zarr.create_group(output_path),
+            scale_levels=(10, 20, 60, 120),
+            finest_dataset_key="r10m",
+            crs=crs,
         )
-        crs_ds = ds.rio.write_crs("EPSG:32631")
-        assert isinstance(crs_ds, xr.Dataset)
-        return crs_ds
 
-    r10m = _dataset(10, 12, 600000.0, 4900020.0)
-    r120m = _dataset(120, 3, 600030.0, 4899990.0)
-
-    parent_group = zarr.create_group(tmp_path / "multiscales.zarr")
-
-    def stale_transform() -> tuple[float, float, float, float, float, float]:
-        return (60.0, 0.0, 600030.0, 0.0, -60.0, 4899990.0)
-
-    with patch.object(r120m.rio, "transform", stale_transform):
-        add_multiscales_metadata_to_parent(
-            parent_group,
-            {"r10m": r10m, "r120m": r120m},
-        )
-
+    parent_group = zarr.open_group(output_path, path=base_path)
     multiscales = parent_group.attrs["multiscales"]
     assert isinstance(multiscales, Mapping)
     layout = multiscales["layout"]
     assert isinstance(layout, Sequence)
+    assert [level["asset"] for level in layout if isinstance(level, Mapping)] == [
+        "r10m",
+        "r20m",
+        "r60m",
+        "r120m",
+    ]
     derived_level = next(
         level for level in layout if isinstance(level, Mapping) and level["asset"] == "r120m"
     )
     assert isinstance(derived_level, Mapping)
+    assert derived_level["derived_from"] == "r60m"
+    assert derived_level["spatial:shape"] == [2, 2]
     transform = derived_level["spatial:transform"]
     assert isinstance(transform, Sequence)
     # Origin is the outer pixel edge, half of the 120 m pixel outside the first centre.
     assert tuple(transform) == (
         120.0,
         0.0,
-        599970.0,
+        599995.0,
         0.0,
         -120.0,
-        4900050.0,
+        4900025.0,
     )
 
     # The parent footprint covers the pixel edges of the finest level (#266).
-    assert parent_group.attrs["spatial:bbox"] == [599995.0, 4899905.0, 600115.0, 4900025.0]
-
-
-def test_calculate_simple_shard_dimensions() -> None:
-    """Test simplified shard dimensions calculation."""
-    # Test 3D data (time, y, x) - shards are multiples of chunks
-    data_shape: tuple[int, ...] = (5, 1024, 1024)
-    chunks: tuple[int, ...] = (1, 256, 256)
-
-    shard_dims = calculate_simple_shard_dimensions(data_shape, chunks)
-
-    assert len(shard_dims) == 3
-    assert shard_dims[0] == 1  # Time dimension should be 1
-    assert shard_dims[1] == 1024  # Y dimension matches exactly (divisible by 256)
-    assert shard_dims[2] == 1024  # X dimension matches exactly (divisible by 256)
-
-    # Test 2D data (y, x) with non-divisible dimensions
-    data_shape = (1000, 1000)
-    chunks = (256, 256)
-
-    shard_dims = calculate_simple_shard_dimensions(data_shape, chunks)
-
-    assert len(shard_dims) == 2
-    # Should use largest multiple of chunk_size that fits
-    assert shard_dims[0] == 768  # 3 * 256 = 768 (largest multiple that fits in 1000)
-    assert shard_dims[1] == 768  # 3 * 256 = 768
+    assert parent_group.attrs["spatial:bbox"] == [599995.0, 4899785.0, 600235.0, 4900025.0]
 
 
 @pytest.mark.parametrize("mask_and_scale", [False, True], ids=["raw", "decoded"])
@@ -262,6 +248,25 @@ def _band_names(group: zarr.Group) -> set[str]:
 # L1C r60m is filled with every finer band, so it and its overviews carry all 13.
 _L1C_ALL_BANDS = {f"b{i:02d}" for i in range(1, 13)} | {"b8a"}
 
+# Footprint of an S2 tile (109.8 km square) in UTM, used to give the JSON fixtures
+# real coordinates: they carry no chunk data, so every x/y value is the fill value.
+_TILE_CRS = CRS.from_epsg(32632)
+_TILE_X_MIN = 300000.0
+_TILE_Y_MAX = 5000040.0
+_TILE_EXTENT = 109800.0
+
+
+def _with_tile_coordinates(ds: xr.Dataset) -> xr.Dataset:
+    """Replace the x/y coordinates with pixel centres covering `_TILE_EXTENT`."""
+    if "x" not in ds.dims or "y" not in ds.dims:
+        return ds
+    res_x = _TILE_EXTENT / ds.sizes["x"]
+    res_y = _TILE_EXTENT / ds.sizes["y"]
+    return ds.assign_coords(
+        x=_TILE_X_MIN + (np.arange(ds.sizes["x"]) + 0.5) * res_x,
+        y=_TILE_Y_MAX - (np.arange(ds.sizes["y"]) + 0.5) * res_y,
+    )
+
 
 @pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:.*:FutureWarning")
@@ -284,14 +289,16 @@ def test_create_multiscale_from_datatree_snapshot(
         chunks={},
         mask_and_scale=False,
         decode_coords="all",
-    )
+    ).map_over_datasets(_with_tile_coordinates)
     output_path = str(tmp_path / "output.zarr")
     with capture_logs():
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
+            output_path=output_path,
             enable_sharding=True,
             spatial_chunk=1024,
+            crs=_TILE_CRS,
         )
 
     observed_json = GroupSpec.from_zarr(
@@ -420,6 +427,37 @@ def test_create_multiscale_from_datatree(
             assert isinstance(level_group, zarr.Group)
             assert _band_names(level_group) == _L1C_ALL_BANDS, f"{level}: incomplete L1C bands"
 
+    # Auxiliary pyramids (L1C cloud mask for every product; SCL and cloud/snow
+    # probabilities for L2A): every level exists with the variables and dtypes of
+    # the finest level, and the parent group's layout lists exactly those levels.
+    for base_path, finest_key, scale_levels, attrs, product_levels in _AUX_MULTISCALES:
+        if product_levels is not None and s2_type not in product_levels:
+            continue
+        base = base_path.lstrip("/")
+        aux_group = observed_group[base]
+        assert isinstance(aux_group, zarr.Group), f"missing auxiliary pyramid '{base}'"
+        finest_group = aux_group[finest_key]
+        assert isinstance(finest_group, zarr.Group)
+        finest_vars = _band_names(finest_group)
+        assert finest_vars, f"{base}/{finest_key} has no variables"
+        level_names = [f"r{level}m" for level in scale_levels]
+        for level in level_names:
+            assert level in aux_group, f"missing level '{base}/{level}'"
+            level_group = aux_group[level]
+            assert isinstance(level_group, zarr.Group)
+            assert _band_names(level_group) == finest_vars, f"{base}/{level}: variable mismatch"
+            for name in finest_vars:
+                level_array = level_group[name]
+                finest_array = finest_group[name]
+                assert isinstance(level_array, zarr.Array)
+                assert isinstance(finest_array, zarr.Array)
+                assert level_array.dtype == finest_array.dtype, f"{base}/{level}/{name}: dtype"
+                if attrs is not None:
+                    for key, value in attrs.items():
+                        assert level_array.attrs[key] == value, f"{base}/{level}/{name}: {key}"
+        layout = aux_group.attrs["multiscales"]["layout"]  # type: ignore[index, call-overload]
+        assert [lo["asset"] for lo in layout] == level_names, f"{base}: layout assets"
+
     # All multiscale levels must agree on dtype for the bands they share.
     _, res_groups = zip(*reflectance_group.groups(), strict=False)
     dtype_mismatch: set[object] = set()
@@ -491,11 +529,24 @@ def _make_minimal_s2_datatree(*, raw: bool) -> xr.DataTree:
     r10m = xr.Dataset({"b02": _band(120)})
     r20m = xr.Dataset({"b05": _band(60)})
     r60m = xr.Dataset({"b01": _band(20, nodata_block=_NODATA_BLOCK)})
+    # L1C cloud classification bitmask (OPAQUE | CIRRUS | SNOW_ICE), unpacked uint8
+    # on the r60m grid, as in ESA products. Required by `create_multiscale_from_datatree`.
+    l1c_classification = xr.Dataset(
+        {
+            "b00": xr.DataArray(
+                rng.integers(0, 8, size=(20, 20), dtype="uint8"),
+                dims=["y", "x"],
+                coords=r60m.coords,
+                attrs={"flag_masks": [1, 2, 4], "flag_meanings": ["OPAQUE", "CIRRUS", "SNOW_ICE"]},
+            )
+        }
+    )
 
     dt = xr.DataTree()
     dt["measurements/reflectance/r10m"] = xr.DataTree(r10m)
     dt["measurements/reflectance/r20m"] = xr.DataTree(r20m)
     dt["measurements/reflectance/r60m"] = xr.DataTree(r60m)
+    dt["conditions/mask/l1c_classification/r60m"] = xr.DataTree(l1c_classification)
     return dt
 
 
@@ -556,8 +607,11 @@ def test_create_multiscale_from_datatree_behavior(
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
+            output_path=output_path,
             enable_sharding=False,
             spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            # The spatial convention attrs that the pyramid layout needs are only written with a CRS.
+            crs=CRS.from_epsg(32632),
             scale_offset_codec=scale_offset_codec,
         )
 
@@ -624,11 +678,12 @@ def test_create_multiscale_from_datatree_behavior(
 # ---------------------------------------------------------------------------
 
 
-def test_coarsen_variable_classification() -> None:
-    """Classification variables should be downsampled via subsample."""
+@pytest.mark.parametrize("var_name", ["scl", "b00"])
+def test_coarsen_variable_classification(var_name: str) -> None:
+    """Classification variables (SCL, L1C cloud bitmask) should be downsampled via subsample."""
     data = np.arange(16, dtype="uint8").reshape(4, 4)
     var = xr.DataArray(data, dims=["y", "x"], coords={"y": np.arange(4.0), "x": np.arange(4.0)})
-    result = _coarsen_variable("scl", var, factor=2)
+    result = _coarsen_variable(var_name, var, factor=2)
     assert result.shape == (2, 2)
     assert result.dtype == np.uint8
     # subsample picks top-left of each 2x2 block
@@ -636,12 +691,11 @@ def test_coarsen_variable_classification() -> None:
 
 
 def test_coarsen_variable_quality_mask() -> None:
-    """Quality mask variables should be downsampled via max."""
+    """Quality mask downsampling is disabled, so it should raise."""
     data = np.array([[0, 1], [2, 3]], dtype="uint8")
     var = xr.DataArray(data, dims=["y", "x"], coords={"y": np.arange(2.0), "x": np.arange(2.0)})
-    result = _coarsen_variable("quality_cirrus", var, factor=2)
-    assert result.shape == (1, 1)
-    assert result.values.item() == 3
+    with pytest.raises(ValueError, match="quality_mask"):
+        _coarsen_variable("quality_cirrus", var, factor=2)
 
 
 # ---------------------------------------------------------------------------
