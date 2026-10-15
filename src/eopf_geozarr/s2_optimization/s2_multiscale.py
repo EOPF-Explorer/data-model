@@ -10,11 +10,12 @@ from itertools import pairwise
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
-import rasterio  # Import to enable .rio accessor
 import rasterio.transform
+import rioxarray  # noqa: F401  # enables the .rio accessor
 import structlog
 import xarray as xr
 import zarr
+from affine import Affine
 from pyproj import CRS
 from zarr_cm import LayoutObject, MultiscalesAttrs, SpatialAttrs, Transform
 
@@ -29,9 +30,7 @@ from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 from .s2_resampling import determine_variable_type
 
 if TYPE_CHECKING:
-    from affine import Affine
     from zarr.core.common import JSON
-    from zarr_cm import MultiscalesAttrs, SpatialAttrs, Transform
     from zarr_cm import spatial as spatial_cm
 
     from eopf_geozarr.data_api.geozarr.types import (
@@ -62,7 +61,8 @@ SCL_ATTRS = {
 
 # Auxiliary (non-reflectance) groups that get their own pyramid:
 # (base_path, finest_dataset_key, scale_levels, additional_attributes, product levels).
-# A product level set of `None` means the group is required for every product.
+# A product level set of `None` means the group applies to every product.
+# Groups missing from the input are skipped with a warning.
 _AUX_MULTISCALES: tuple[
     tuple[str, str, tuple[int, ...], dict[str, list[Any]] | None, frozenset[str] | None], ...
 ] = (
@@ -341,10 +341,20 @@ def inject_missing_bands(
     return utils._rechunk_ds(dataset, spatial_chunk)
 
 
+def select_unique_variable_type(ds: xr.Dataset) -> str:
+    variable_types = {
+        s2_resampling.determine_variable_type(str(data_var)) for data_var in ds.data_vars
+    }
+    if len(variable_types) > 1:
+        err_msg = f"The given dataset contains multiple data variable types: {variable_types}. It is not possible to map them to a single variable type."
+        raise ValueError(err_msg)
+
+    return next(iter(variable_types))
+
+
 def generic_multiscales(
     base_path: str,
     src_processed_groups: dict[str, Any],
-    output_path: str,
     output_group: zarr.Group,
     scale_levels: tuple[int, ...],
     finest_dataset_key: str,
@@ -364,12 +374,12 @@ def generic_multiscales(
     fine_base: xr.Dataset = src_processed_groups[finest_dataset_key]
 
     # determine variable type and subsequent resampling method for MS layout
-    variable_type = s2_resampling.determine_variable_type(str(next(iter(fine_base.data_vars))))
+    variable_type = select_unique_variable_type(fine_base)
     resampling_method = (
         "average"
         if variable_type in ("reflectance", "probability")
         else "nearest"
-        if variable_type in ("classification")
+        if variable_type == "classification"
         else None
     )
 
@@ -401,14 +411,15 @@ def generic_multiscales(
         dest_level_name = f"r{dest_level}m"
         dest_level_path = f"{base_path}/{dest_level_name}"
 
-        # incorrect downsample factor
+        # each step must be an exact integer factor (20->60 = 3, 60->120 = 2, ...)
+        if dest_level % source_level:
+            raise ValueError(f"{dest_level} m is not an integer multiple of {source_level} m")
         downsample_factor = dest_level // source_level
 
-        if dest_level_path in src_processed_groups:
-            # just assign already existing group as we dont need any coarsening
-            # loadly fails afterwards, if `src_processed_groups[dest_level_name]`
-            # was not procesed correctly as its geo metadata is queryied
-            ds_out = src_processed_groups[dest_level_path]
+        if dest_level_name in src_processed_groups:
+            # reuse the native group (e.g. reflectance r20m/r60m), no coarsening needed.
+            # Fails loudly afterwards if its geo metadata is missing.
+            ds_out = src_processed_groups[dest_level_name]
 
             # Store results
             dst_processed_groups[dest_level_path] = ds_out
@@ -482,21 +493,18 @@ def generic_multiscales(
             f"expected a zarr.Group at {base_path!r}, got {type(parent_group).__name__}"
         )
 
-    # add metadata to root and multiscale-parent node
-    root_rw = zarr.open_group(output_path, mode="a")
-
-    # create layoutobjects -> also checks accordance (i think)
+    # LayoutObject is a TypedDict (no validation); zarr_cm validates in build_convention_attrs
     layout: list[LayoutObject] = [LayoutObject(**lo) for lo in layout_]
     ms: MultiscalesAttrs = {"layout": layout, "resampling_method": resampling_method}
 
     # add geozarr attrs to base of /multiscales
     fine_base_spatial = grid_spatial_attrs(
-        transform=fine_base.rio.transform(recalc=True),
+        transform=Affine(*spatial_levels[finest_dataset_key]["spatial:transform"]),
         shape=(fine_base.sizes["y"], fine_base.sizes["x"]),
     )
 
     conv = utils.build_convention_attrs(multiscales=ms, spatial=fine_base_spatial, crs=crs)
-    root_rw[base_path].attrs.update(cast("dict[str, JSON]", conv))
+    parent_group.attrs.update(cast("dict[str, JSON]", conv))
 
     # Add `additional_attributes` to every level in one place. The finest level and
     # levels reused from the source were written before this function ran, so the
@@ -505,7 +513,7 @@ def generic_multiscales(
         for level_path, level_ds in dst_processed_groups.items():
             for data_var in level_ds.data_vars:
                 level_ds[data_var].attrs.update(additional_attributes)
-                level_array = root_rw[f"{level_path.lstrip('/')}/{data_var}"]
+                level_array = output_group[f"{level_path.lstrip('/')}/{data_var}"]
                 level_array.attrs.update(cast("dict[str, JSON]", additional_attributes))
 
     # add it as none here to be recognized later and can be created as a zarr root with necessary metadata
@@ -541,7 +549,6 @@ def grid_spatial_attrs(transform: Affine, shape: tuple[int, int]) -> SpatialAttr
 def create_multiscale_from_datatree(
     dt_input: xr.DataTree,
     *,
-    output_path: str,
     output_group: zarr.Group,
     enable_sharding: bool,
     spatial_chunk: int,
@@ -720,18 +727,21 @@ def create_multiscale_from_datatree(
         if product_levels is not None and s2_type not in product_levels:
             continue
         src_path = f"{base_path}/{finest_key}"
+        # Not every processing baseline carries every auxiliary group: skip, don't fail.
         if src_path not in processed_groups:
-            raise KeyError(
-                f"Group {src_path!r} is required to build the multiscales of {base_path!r} "
-                f"(product level {s2_type}), but it is missing from the input DataTree."
+            log.warning(
+                "Skipping S2 auxiliary multiscales: source group missing from input",
+                base_path=base_path,
+                src_path=src_path,
+                product_level=s2_type,
             )
+            continue
 
         log.info("Adding multiscales for S2 auxiliary group", base_path=base_path)
         processed_groups.update(
             generic_multiscales(
                 base_path=base_path,
                 src_processed_groups={finest_key: processed_groups[src_path]},
-                output_path=output_path,
                 output_group=output_group,
                 scale_levels=scale_levels,
                 finest_dataset_key=finest_key,
@@ -752,7 +762,6 @@ def create_multiscale_from_datatree(
     ms_measurement_processed_groups = generic_multiscales(
         base_path="/measurements/reflectance",
         src_processed_groups=measurement_processed_groups,
-        output_path=output_path,
         output_group=output_group,
         scale_levels=(10, 20, 60, 120, 360, 720),
         finest_dataset_key="r10m",

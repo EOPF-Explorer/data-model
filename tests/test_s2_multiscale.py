@@ -101,7 +101,6 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
         generic_multiscales(
             base_path=base_path,
             src_processed_groups={"r10m": r10m},
-            output_path=str(output_path),
             output_group=zarr.create_group(output_path),
             scale_levels=(10, 20, 60, 120),
             finest_dataset_key="r10m",
@@ -321,7 +320,6 @@ def test_create_multiscale_from_datatree_snapshot(
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
-            output_path=output_path,
             enable_sharding=True,
             spatial_chunk=1024,
             crs=_TILE_CRS,
@@ -633,7 +631,6 @@ def test_create_multiscale_from_datatree_behavior(
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
-            output_path=output_path,
             enable_sharding=False,
             spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
             # The spatial convention attrs that the pyramid layout needs are only written with a CRS.
