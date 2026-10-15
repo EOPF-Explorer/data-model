@@ -696,6 +696,39 @@ def test_create_multiscale_from_datatree_behavior(
         assert np.isnan(decoded).sum() == block.size, f"{group_path}: unexpected NaN outside block"
 
 
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*:FutureWarning")
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Path) -> None:
+    """Native r20m/r60m reflectance groups are reused, not coarsened again from r10m.
+
+    The "skip existing path" guard in `stream_write_s2dataset` would hide a
+    regression on disk, so the created levels are checked through the logs and
+    the native groups through their variables and values.
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    output_path = str(tmp_path / "output.zarr")
+
+    with capture_logs() as logs:
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            crs=CRS.from_epsg(32632),
+        )
+
+    created = {e["level"] for e in logs if e["event"] == "Creating level with resolution"}
+    assert created == {"r120m", "r360m", "r720m"}
+
+    # The native levels hold their own band with their own values, not a coarsened r10m band.
+    for group_path, var_name in _ORIGINAL_GROUPS.items():
+        ds = xr.open_dataset(output_path, engine="zarr", group=group_path, decode_coords="all")
+        assert set(ds.data_vars) == {var_name}, f"{group_path}: {set(ds.data_vars)}"
+        expected = _decoded(dt_input[group_path].to_dataset()[var_name])
+        np.testing.assert_allclose(ds[var_name].values, expected, atol=_SCALE_FACTOR, rtol=0)
+
+
 # ---------------------------------------------------------------------------
 # _coarsen_variable
 # ---------------------------------------------------------------------------
