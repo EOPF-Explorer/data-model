@@ -295,53 +295,35 @@ class TestS2ResamplingEngine:
 class TestDetermineVariableType:
     """Test cases for determine_variable_type function."""
 
-    def test_spectral_bands(self) -> None:
-        """Test recognition of spectral bands."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        # Test standard bands
-        assert determine_variable_type("b01", dummy_data) == "reflectance"
-        assert determine_variable_type("b02", dummy_data) == "reflectance"
-        assert determine_variable_type("b8a", dummy_data) == "reflectance"
-
-        # Test specific non-band variables that should be classified differently
-        assert determine_variable_type("scl", dummy_data) == "classification"
-        assert determine_variable_type("cld", dummy_data) == "probability"
-        assert determine_variable_type("quality_b01", dummy_data) == "quality_mask"
-
-    def test_classification_data(self) -> None:
-        """Test recognition of classification data."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        assert determine_variable_type("scl", dummy_data) == "classification"
-
-    def test_probability_data(self) -> None:
-        """Test recognition of probability data."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        assert determine_variable_type("cld", dummy_data) == "probability"
-        assert determine_variable_type("snw", dummy_data) == "probability"
-
-    def test_atmospheric_quality(self) -> None:
-        """Test recognition of atmospheric quality data."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        assert determine_variable_type("aot", dummy_data) == "reflectance"
-        assert determine_variable_type("wvp", dummy_data) == "reflectance"
-
-    def test_quality_masks(self) -> None:
-        """Test recognition of quality mask data."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        assert determine_variable_type("detector_footprint_b01", dummy_data) == "quality_mask"
-        assert determine_variable_type("quality_b02", dummy_data) == "quality_mask"
-
-    def test_unknown_variable_defaults_to_reflectance(self) -> None:
-        """Test that unknown variables default to reflectance."""
-        dummy_data = xr.DataArray([1, 2, 3])
-
-        assert determine_variable_type("unknown_var", dummy_data) == "reflectance"
-        assert determine_variable_type("custom_band", dummy_data) == "reflectance"
+    @pytest.mark.parametrize(
+        ("var_name", "expected"),
+        [
+            # Spectral bands
+            ("b01", "reflectance"),
+            ("b02", "reflectance"),
+            ("b8a", "reflectance"),
+            # Classification data
+            ("scl", "classification"),
+            # L1C cloud bitmask: named like a band, but must not be averaged
+            ("b00", "classification"),
+            # Probability data
+            ("cld", "probability"),
+            ("snw", "probability"),
+            # Atmospheric quality, treated as reflectance
+            ("aot", "reflectance"),
+            ("wvp", "reflectance"),
+            # Quality masks
+            ("detector_footprint_b01", "quality_mask"),
+            ("quality_b01", "quality_mask"),
+            ("quality_b02", "quality_mask"),
+            # Unknown variables default to reflectance
+            ("unknown_var", "reflectance"),
+            ("custom_band", "reflectance"),
+        ],
+    )
+    def test_variable_type(self, var_name: str, expected: str) -> None:
+        """Test that the variable type is derived from the variable name alone."""
+        assert determine_variable_type(var_name) == expected
 
 
 class TestEdgeCases:

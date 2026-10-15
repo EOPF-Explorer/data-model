@@ -19,7 +19,7 @@ from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
-from .s2_multiscale import create_multiscale_from_datatree
+from .s2_multiscale import _AUX_MULTISCALES, create_multiscale_from_datatree
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping
@@ -171,6 +171,7 @@ def convert_s2(
     log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)")
     datasets = create_multiscale_from_datatree(
         dt_input,
+        output_path=output_path,
         output_group=zarr.open_group(output_path),
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
@@ -260,6 +261,7 @@ def convert_s2_optimized(
 
     datasets = create_multiscale_from_datatree(
         dt_input,
+        output_path=output_path,
         output_group=output_group,
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
@@ -301,6 +303,7 @@ def simple_root_consolidation(
     scale_offset_codec: bool = False,
 ) -> None:
     """Simple root-level metadata consolidation with proper zarr group creation."""
+
     # create missing intermediary groups (/conditions, /quality, etc.)
     # using the keys of the datasets dict
     missing_groups = set()
@@ -380,7 +383,12 @@ def simple_root_consolidation(
         )
 
     # consolidate reflectance group metadata
+    # add consolidation for other MS arrays
     zarr.consolidate_metadata(output_path + "/measurements/reflectance", zarr_format=ZARR_FORMAT)
+    # also cosnolidate the non-measuremetn MS -> only the pyramids that were actually written (i.e. have levels in `datasets`) are consolidated
+    for ms_group_path, *_ in _AUX_MULTISCALES:
+        if any(path.startswith(ms_group_path + "/") for path in datasets):
+            zarr.consolidate_metadata(output_path + ms_group_path, zarr_format=ZARR_FORMAT)
 
     # consolidate root group metadata
     zarr.consolidate_metadata(output_path, zarr_format=ZARR_FORMAT)

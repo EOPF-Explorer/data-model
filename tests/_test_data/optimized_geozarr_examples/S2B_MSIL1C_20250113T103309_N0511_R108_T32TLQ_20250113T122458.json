@@ -436,7 +436,9 @@
               "zarr_format": 3
             },
             "x": {
-              "attributes": {},
+              "attributes": {
+                "_FillValue": "AAAAAAAA+H8="
+              },
               "chunk_grid": {
                 "configuration": {
                   "chunk_shape": [
@@ -459,11 +461,11 @@
                   "name": "bytes"
                 }
               ],
-              "data_type": "int64",
+              "data_type": "float64",
               "dimension_names": [
                 "x"
               ],
-              "fill_value": 0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 23
@@ -472,7 +474,9 @@
               "zarr_format": 3
             },
             "y": {
-              "attributes": {},
+              "attributes": {
+                "_FillValue": "AAAAAAAA+H8="
+              },
               "chunk_grid": {
                 "configuration": {
                   "chunk_shape": [
@@ -495,11 +499,11 @@
                   "name": "bytes"
                 }
               ],
-              "data_type": "int64",
+              "data_type": "float64",
               "dimension_names": [
                 "y"
               ],
-              "fill_value": 0,
+              "fill_value": "NaN",
               "node_type": "array",
               "shape": [
                 23
@@ -522,10 +526,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -535,6 +539,14 @@
                     "spatial:shape": [
                       10980,
                       10980
+                    ],
+                    "spatial:transform": [
+                      10.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -10.0,
+                      5000040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -990,7 +1002,9 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1013,11 +1027,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         10980
@@ -1026,7 +1040,9 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1049,11 +1065,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         10980
@@ -1070,10 +1086,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -1083,6 +1099,14 @@
                     "spatial:shape": [
                       5490,
                       5490
+                    ],
+                    "spatial:transform": [
+                      20.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -20.0,
+                      5000040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -1728,7 +1752,9 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1751,11 +1777,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         5490
@@ -1764,7 +1790,9 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1787,11 +1815,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         5490
@@ -1808,10 +1836,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -1821,6 +1849,14 @@
                     "spatial:shape": [
                       1830,
                       1830
+                    ],
+                    "spatial:transform": [
+                      60.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -60.0,
+                      5000040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -2181,7 +2217,9 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2204,11 +2242,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         1830
@@ -2217,7 +2255,9 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2240,11 +2280,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         1830
@@ -2261,17 +2301,715 @@
               "zarr_format": 3
             },
             "l1c_classification": {
-              "attributes": {},
+              "attributes": {
+                "multiscales": {
+                  "layout": [
+                    {
+                      "asset": "r60m",
+                      "spatial:shape": [
+                        1830,
+                        1830
+                      ],
+                      "spatial:transform": [
+                        60.0,
+                        0.0,
+                        300000.0,
+                        0.0,
+                        -60.0,
+                        5000040.0
+                      ]
+                    },
+                    {
+                      "asset": "r120m",
+                      "derived_from": "r60m",
+                      "spatial:shape": [
+                        915,
+                        915
+                      ],
+                      "spatial:transform": [
+                        120.0,
+                        0.0,
+                        300000.0,
+                        0.0,
+                        -120.0,
+                        5000040.0
+                      ],
+                      "transform": {
+                        "scale": [
+                          2,
+                          2
+                        ],
+                        "translation": [
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    {
+                      "asset": "r360m",
+                      "derived_from": "r120m",
+                      "spatial:shape": [
+                        305,
+                        305
+                      ],
+                      "spatial:transform": [
+                        360.0,
+                        0.0,
+                        300000.0,
+                        0.0,
+                        -360.0,
+                        5000040.0
+                      ],
+                      "transform": {
+                        "scale": [
+                          3,
+                          3
+                        ],
+                        "translation": [
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    {
+                      "asset": "r720m",
+                      "derived_from": "r360m",
+                      "spatial:shape": [
+                        152,
+                        152
+                      ],
+                      "spatial:transform": [
+                        720.0,
+                        0.0,
+                        300000.0,
+                        0.0,
+                        -720.0,
+                        5000040.0
+                      ],
+                      "transform": {
+                        "scale": [
+                          2,
+                          2
+                        ],
+                        "translation": [
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    }
+                  ],
+                  "resampling_method": "nearest"
+                },
+                "proj:code": "EPSG:32632",
+                "spatial:bbox": [
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
+                ],
+                "spatial:dimensions": [
+                  "y",
+                  "x"
+                ],
+                "spatial:registration": "pixel",
+                "spatial:transform": [
+                  60.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -60.0,
+                  5000040.0
+                ],
+                "zarr_conventions": [
+                  {
+                    "description": "Multiscale layout of zarr datasets",
+                    "name": "multiscales",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/multiscales/refs/tags/v0.1/schema.json",
+                    "spec_url": "https://github.com/zarr-conventions/multiscales/blob/v0.1/README.md",
+                    "uuid": "d35379db-88df-4056-af3a-620245f8e347"
+                  },
+                  {
+                    "description": "Spatial coordinate information",
+                    "name": "spatial",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+                    "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+                    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
+                  },
+                  {
+                    "description": "Coordinate reference system information for geospatial data",
+                    "name": "proj",
+                    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+                    "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+                    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f"
+                  }
+                ]
+              },
               "members": {
+                "r120m": {
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "proj:code": "EPSG:32632",
+                    "spatial:bbox": [
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
+                    ],
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:shape": [
+                      915,
+                      915
+                    ],
+                    "spatial:transform": [
+                      120.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -120.0,
+                      5000040.0
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "description": "Spatial coordinate information",
+                        "name": "spatial",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
+                      },
+                      {
+                        "description": "Coordinate reference system information for geospatial data",
+                        "name": "proj",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f"
+                      }
+                    ]
+                  },
+                  "members": {
+                    "b00": {
+                      "attributes": {
+                        "dtype": "<u1",
+                        "flag_masks": [
+                          1,
+                          2,
+                          4
+                        ],
+                        "flag_meanings": [
+                          "OPAQUE",
+                          "CIRRUS",
+                          "SNOW_ICE"
+                        ],
+                        "grid_mapping": "spatial_ref",
+                        "long_name": "cloud classification mask provided in the final reference frame (ground geometry)",
+                        "proj:bbox": [
+                          300000.0,
+                          4890240.0,
+                          409800.0,
+                          5000040.0
+                        ],
+                        "proj:epsg": 32632,
+                        "proj:shape": [
+                          1830,
+                          1830
+                        ],
+                        "proj:transform": [
+                          60.0,
+                          0.0,
+                          300000.0,
+                          0.0,
+                          -60.0,
+                          5000040.0,
+                          0.0,
+                          0.0,
+                          1.0
+                        ]
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            915,
+                            915
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "chunk_shape": [
+                              915,
+                              915
+                            ],
+                            "codecs": [
+                              {
+                                "name": "bytes"
+                              },
+                              {
+                                "configuration": {
+                                  "blocksize": 0,
+                                  "clevel": 3,
+                                  "cname": "zstd",
+                                  "shuffle": "shuffle",
+                                  "typesize": 1
+                                },
+                                "name": "blosc"
+                              }
+                            ],
+                            "index_codecs": [
+                              {
+                                "configuration": {
+                                  "endian": "little"
+                                },
+                                "name": "bytes"
+                              },
+                              {
+                                "name": "crc32c"
+                              }
+                            ],
+                            "index_location": "end"
+                          },
+                          "name": "sharding_indexed"
+                        }
+                      ],
+                      "data_type": "uint8",
+                      "dimension_names": [
+                        "y",
+                        "x"
+                      ],
+                      "fill_value": 0,
+                      "node_type": "array",
+                      "shape": [
+                        915,
+                        915
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "spatial_ref": {
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "geographic_crs_name": "WGS 84",
+                        "grid_mapping_name": "transverse_mercator",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "inverse_flattening": 298.257223563,
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "reference_ellipsoid_name": "WGS 84",
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": []
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "int64",
+                      "dimension_names": null,
+                      "fill_value": 0,
+                      "node_type": "array",
+                      "shape": [],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "x": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            915
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "x"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        915
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "y": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            915
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "y"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        915
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    }
+                  },
+                  "node_type": "group",
+                  "zarr_format": 3
+                },
+                "r360m": {
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "proj:code": "EPSG:32632",
+                    "spatial:bbox": [
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
+                    ],
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:shape": [
+                      305,
+                      305
+                    ],
+                    "spatial:transform": [
+                      360.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -360.0,
+                      5000040.0
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "description": "Spatial coordinate information",
+                        "name": "spatial",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
+                      },
+                      {
+                        "description": "Coordinate reference system information for geospatial data",
+                        "name": "proj",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f"
+                      }
+                    ]
+                  },
+                  "members": {
+                    "b00": {
+                      "attributes": {
+                        "dtype": "<u1",
+                        "flag_masks": [
+                          1,
+                          2,
+                          4
+                        ],
+                        "flag_meanings": [
+                          "OPAQUE",
+                          "CIRRUS",
+                          "SNOW_ICE"
+                        ],
+                        "grid_mapping": "spatial_ref",
+                        "long_name": "cloud classification mask provided in the final reference frame (ground geometry)",
+                        "proj:bbox": [
+                          300000.0,
+                          4890240.0,
+                          409800.0,
+                          5000040.0
+                        ],
+                        "proj:epsg": 32632,
+                        "proj:shape": [
+                          1830,
+                          1830
+                        ],
+                        "proj:transform": [
+                          60.0,
+                          0.0,
+                          300000.0,
+                          0.0,
+                          -60.0,
+                          5000040.0,
+                          0.0,
+                          0.0,
+                          1.0
+                        ]
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            305,
+                            305
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "chunk_shape": [
+                              305,
+                              305
+                            ],
+                            "codecs": [
+                              {
+                                "name": "bytes"
+                              },
+                              {
+                                "configuration": {
+                                  "blocksize": 0,
+                                  "clevel": 3,
+                                  "cname": "zstd",
+                                  "shuffle": "shuffle",
+                                  "typesize": 1
+                                },
+                                "name": "blosc"
+                              }
+                            ],
+                            "index_codecs": [
+                              {
+                                "configuration": {
+                                  "endian": "little"
+                                },
+                                "name": "bytes"
+                              },
+                              {
+                                "name": "crc32c"
+                              }
+                            ],
+                            "index_location": "end"
+                          },
+                          "name": "sharding_indexed"
+                        }
+                      ],
+                      "data_type": "uint8",
+                      "dimension_names": [
+                        "y",
+                        "x"
+                      ],
+                      "fill_value": 0,
+                      "node_type": "array",
+                      "shape": [
+                        305,
+                        305
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "spatial_ref": {
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "geographic_crs_name": "WGS 84",
+                        "grid_mapping_name": "transverse_mercator",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "inverse_flattening": 298.257223563,
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "reference_ellipsoid_name": "WGS 84",
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": []
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "int64",
+                      "dimension_names": null,
+                      "fill_value": 0,
+                      "node_type": "array",
+                      "shape": [],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "x": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            305
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "x"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        305
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "y": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            305
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "y"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        305
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    }
+                  },
+                  "node_type": "group",
+                  "zarr_format": 3
+                },
                 "r60m": {
                   "attributes": {
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
+                      300000.0,
+                      4890240.0,
+                      409800.0,
+                      5000040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -2281,6 +3019,14 @@
                     "spatial:shape": [
                       1830,
                       1830
+                    ],
+                    "spatial:transform": [
+                      60.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -60.0,
+                      5000040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -2461,7 +3207,9 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2484,11 +3232,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": 0,
+                      "fill_value": "NaN",
                       "node_type": "array",
                       "shape": [
                         1830
@@ -2497,7 +3245,9 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {},
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2520,14 +3270,292 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "int64",
+                      "data_type": "float64",
                       "dimension_names": [
                         "y"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        1830
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    }
+                  },
+                  "node_type": "group",
+                  "zarr_format": 3
+                },
+                "r720m": {
+                  "attributes": {
+                    "grid_mapping": "spatial_ref",
+                    "proj:code": "EPSG:32632",
+                    "spatial:bbox": [
+                      300000.0,
+                      4890600.0,
+                      409440.0,
+                      5000040.0
+                    ],
+                    "spatial:dimensions": [
+                      "y",
+                      "x"
+                    ],
+                    "spatial:registration": "pixel",
+                    "spatial:shape": [
+                      152,
+                      152
+                    ],
+                    "spatial:transform": [
+                      720.0,
+                      0.0,
+                      300000.0,
+                      0.0,
+                      -720.0,
+                      5000040.0
+                    ],
+                    "zarr_conventions": [
+                      {
+                        "description": "Spatial coordinate information",
+                        "name": "spatial",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+                        "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4"
+                      },
+                      {
+                        "description": "Coordinate reference system information for geospatial data",
+                        "name": "proj",
+                        "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+                        "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+                        "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f"
+                      }
+                    ]
+                  },
+                  "members": {
+                    "b00": {
+                      "attributes": {
+                        "dtype": "<u1",
+                        "flag_masks": [
+                          1,
+                          2,
+                          4
+                        ],
+                        "flag_meanings": [
+                          "OPAQUE",
+                          "CIRRUS",
+                          "SNOW_ICE"
+                        ],
+                        "grid_mapping": "spatial_ref",
+                        "long_name": "cloud classification mask provided in the final reference frame (ground geometry)",
+                        "proj:bbox": [
+                          300000.0,
+                          4890240.0,
+                          409800.0,
+                          5000040.0
+                        ],
+                        "proj:epsg": 32632,
+                        "proj:shape": [
+                          1830,
+                          1830
+                        ],
+                        "proj:transform": [
+                          60.0,
+                          0.0,
+                          300000.0,
+                          0.0,
+                          -60.0,
+                          5000040.0,
+                          0.0,
+                          0.0,
+                          1.0
+                        ]
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            152,
+                            152
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "chunk_shape": [
+                              152,
+                              152
+                            ],
+                            "codecs": [
+                              {
+                                "name": "bytes"
+                              },
+                              {
+                                "configuration": {
+                                  "blocksize": 0,
+                                  "clevel": 3,
+                                  "cname": "zstd",
+                                  "shuffle": "shuffle",
+                                  "typesize": 1
+                                },
+                                "name": "blosc"
+                              }
+                            ],
+                            "index_codecs": [
+                              {
+                                "configuration": {
+                                  "endian": "little"
+                                },
+                                "name": "bytes"
+                              },
+                              {
+                                "name": "crc32c"
+                              }
+                            ],
+                            "index_location": "end"
+                          },
+                          "name": "sharding_indexed"
+                        }
+                      ],
+                      "data_type": "uint8",
+                      "dimension_names": [
+                        "y",
+                        "x"
                       ],
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [
-                        1830
+                        152,
+                        152
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "spatial_ref": {
+                      "attributes": {
+                        "crs_wkt": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]",
+                        "false_easting": 500000.0,
+                        "false_northing": 0.0,
+                        "geographic_crs_name": "WGS 84",
+                        "grid_mapping_name": "transverse_mercator",
+                        "horizontal_datum_name": "World Geodetic System 1984",
+                        "inverse_flattening": 298.257223563,
+                        "latitude_of_projection_origin": 0.0,
+                        "longitude_of_central_meridian": 9.0,
+                        "longitude_of_prime_meridian": 0.0,
+                        "prime_meridian_name": "Greenwich",
+                        "projected_crs_name": "WGS 84 / UTM zone 32N",
+                        "reference_ellipsoid_name": "WGS 84",
+                        "scale_factor_at_central_meridian": 0.9996,
+                        "semi_major_axis": 6378137.0,
+                        "semi_minor_axis": 6356752.314245179,
+                        "spatial_ref": "PROJCS[\"WGS 84 / UTM zone 32N\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",9],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"32632\"]]"
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": []
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "int64",
+                      "dimension_names": null,
+                      "fill_value": 0,
+                      "node_type": "array",
+                      "shape": [],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "x": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            152
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "x"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        152
+                      ],
+                      "storage_transformers": [],
+                      "zarr_format": 3
+                    },
+                    "y": {
+                      "attributes": {
+                        "_FillValue": "AAAAAAAA+H8="
+                      },
+                      "chunk_grid": {
+                        "configuration": {
+                          "chunk_shape": [
+                            152
+                          ]
+                        },
+                        "name": "regular"
+                      },
+                      "chunk_key_encoding": {
+                        "configuration": {
+                          "separator": "/"
+                        },
+                        "name": "default"
+                      },
+                      "codecs": [
+                        {
+                          "configuration": {
+                            "endian": "little"
+                          },
+                          "name": "bytes"
+                        }
+                      ],
+                      "data_type": "float64",
+                      "dimension_names": [
+                        "y"
+                      ],
+                      "fill_value": "NaN",
+                      "node_type": "array",
+                      "shape": [
+                        152
                       ],
                       "storage_transformers": [],
                       "zarr_format": 3
@@ -4550,12 +5578,12 @@
                     10980
                   ],
                   "spatial:transform": [
+                    10.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -10.0,
+                    5000040.0
                   ]
                 },
                 {
@@ -4566,17 +5594,17 @@
                     5490
                   ],
                   "spatial:transform": [
+                    20.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -20.0,
+                    5000040.0
                   ],
                   "transform": {
                     "scale": [
-                      2.0,
-                      2.0
+                      2,
+                      2
                     ],
                     "translation": [
                       0.0,
@@ -4586,23 +5614,23 @@
                 },
                 {
                   "asset": "r60m",
-                  "derived_from": "r10m",
+                  "derived_from": "r20m",
                   "spatial:shape": [
                     1830,
                     1830
                   ],
                   "spatial:transform": [
+                    60.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -60.0,
+                    5000040.0
                   ],
                   "transform": {
                     "scale": [
-                      6.0,
-                      6.0
+                      3,
+                      3
                     ],
                     "translation": [
                       0.0,
@@ -4618,17 +5646,17 @@
                     915
                   ],
                   "spatial:transform": [
+                    120.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -120.0,
+                    5000040.0
                   ],
                   "transform": {
                     "scale": [
-                      2.0,
-                      2.0
+                      2,
+                      2
                     ],
                     "translation": [
                       0.0,
@@ -4644,17 +5672,17 @@
                     305
                   ],
                   "spatial:transform": [
+                    360.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -360.0,
+                    5000040.0
                   ],
                   "transform": {
                     "scale": [
-                      3.0,
-                      3.0
+                      3,
+                      3
                     ],
                     "translation": [
                       0.0,
@@ -4670,17 +5698,17 @@
                     152
                   ],
                   "spatial:transform": [
+                    720.0,
                     0.0,
+                    300000.0,
                     0.0,
-                    0.0,
-                    0.0,
-                    -0.0,
-                    0.0
+                    -720.0,
+                    5000040.0
                   ],
                   "transform": {
                     "scale": [
-                      2.0065789473684212,
-                      2.0065789473684212
+                      2,
+                      2
                     ],
                     "translation": [
                       0.0,
@@ -4693,16 +5721,24 @@
             },
             "proj:code": "EPSG:32632",
             "spatial:bbox": [
-              0.0,
-              0.0,
-              0.0,
-              0.0
+              300000.0,
+              4890240.0,
+              409800.0,
+              5000040.0
             ],
             "spatial:dimensions": [
               "y",
               "x"
             ],
             "spatial:registration": "pixel",
+            "spatial:transform": [
+              10.0,
+              0.0,
+              300000.0,
+              0.0,
+              -10.0,
+              5000040.0
+            ],
             "zarr_conventions": [
               {
                 "description": "Multiscale layout of zarr datasets",
@@ -4733,10 +5769,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -4746,6 +5782,14 @@
                 "spatial:shape": [
                   10980,
                   10980
+                ],
+                "spatial:transform": [
+                  10.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -10.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -5233,7 +6277,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -5256,11 +6302,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980
@@ -5269,7 +6315,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -5292,11 +6340,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980
@@ -5313,10 +6361,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -5326,6 +6374,14 @@
                 "spatial:shape": [
                   915,
                   915
+                ],
+                "spatial:transform": [
+                  120.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -120.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -6817,10 +7873,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -6830,6 +7886,14 @@
                 "spatial:shape": [
                   5490,
                   5490
+                ],
+                "spatial:transform": [
+                  20.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -20.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -7935,7 +8999,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -7958,11 +9024,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490
@@ -7971,7 +9037,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -7994,11 +9062,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490
@@ -8015,10 +9083,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -8028,6 +9096,14 @@
                 "spatial:shape": [
                   305,
                   305
+                ],
+                "spatial:transform": [
+                  360.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -360.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -9519,10 +10595,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -9532,6 +10608,14 @@
                 "spatial:shape": [
                   1830,
                   1830
+                ],
+                "spatial:transform": [
+                  60.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -60.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -10946,7 +12030,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -10969,11 +12055,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830
@@ -10982,7 +12068,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -11005,11 +12093,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830
@@ -11026,10 +12114,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890600.0,
+                  409440.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -11039,6 +12127,14 @@
                 "spatial:shape": [
                   152,
                   152
+                ],
+                "spatial:transform": [
+                  720.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -720.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -12544,10 +13640,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -12557,6 +13653,14 @@
                 "spatial:shape": [
                   10980,
                   10980
+                ],
+                "spatial:transform": [
+                  10.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -10.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -13092,7 +14196,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -13115,11 +14221,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980
@@ -13128,7 +14234,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -13151,11 +14259,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     10980
@@ -13172,10 +14280,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -13185,6 +14293,14 @@
                 "spatial:shape": [
                   5490,
                   5490
+                ],
+                "spatial:transform": [
+                  20.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -20.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -13950,7 +15066,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -13973,11 +15091,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490
@@ -13986,7 +15104,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -14009,11 +15129,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     5490
@@ -14030,10 +15150,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0
+                  300000.0,
+                  4890240.0,
+                  409800.0,
+                  5000040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -14043,6 +15163,14 @@
                 "spatial:shape": [
                   1830,
                   1830
+                ],
+                "spatial:transform": [
+                  60.0,
+                  0.0,
+                  300000.0,
+                  0.0,
+                  -60.0,
+                  5000040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -14463,7 +15591,9 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -14486,11 +15616,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830
@@ -14499,7 +15629,9 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {},
+                  "attributes": {
+                    "_FillValue": "AAAAAAAA+H8="
+                  },
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -14522,11 +15654,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "int64",
+                  "data_type": "float64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": 0,
+                  "fill_value": "NaN",
                   "node_type": "array",
                   "shape": [
                     1830
