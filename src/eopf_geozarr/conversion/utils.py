@@ -82,7 +82,7 @@ def updated_root_consolidation(
         if parent not in datasets:
             init_zarr_group(output_path + group_path)
 
-        # consolidate 'all measurement groups
+        # consolidate all measurement groups
         if name == "measurements":
             zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
 
@@ -151,6 +151,7 @@ def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]
     """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
     write_store_geo_metadata(output_path, input_root_attrs=attrs)
     write_store_stac_metadata(output_path, input_root_attrs=attrs)
+    write_store_geozarr_version_metadata(output_path, input_root_attrs=attrs)
 
 
 def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
@@ -1106,3 +1107,55 @@ def write_store_stac_metadata(
         "Updated root metadata attributes for STAC ingestion",
         root_attrs=list(input_root_attrs.keys()),
     )
+
+
+def write_store_geozarr_version_metadata(
+    output_path: str,
+    input_root_attrs: dict[str, dict[str, Any]],
+    storage_options: dict[str, Any] | None = None,
+) -> None:
+    """Adds the current git tag to the processing history of stac_discovery."""
+    import copy
+
+    from eopf_geozarr.conversion import fs_utils
+
+    def git_version() -> str | None:
+        from pathlib import Path
+
+        import pygit2
+
+        try:
+            repo_path = pygit2.discover_repository(str(Path(__file__).resolve().parent))
+            repo = pygit2.Repository(repo_path)
+            return repo.describe(
+                describe_strategy=pygit2.enums.DescribeStrategy.TAGS,
+                show_commit_oid_as_fallback=True,
+                always_use_long_format=True,
+                dirty_suffix="-dirty",
+            )
+        except (ImportError, LookupError, pygit2.GitError):
+            return None
+
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+
+    root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
+
+    stac = input_root_attrs.get("stac_discovery")
+    if stac is None:
+        log.info(
+            "Could not find `stac_discovery` in passed down attributes, not applying geozarr verisoning."
+        )
+        return
+
+    eopf_geozarr_version = git_version()
+    if not eopf_geozarr_version:
+        raise ValueError("Could not derive EOPF_GEOZARR tag from git version history.")
+
+    stac = copy.deepcopy(stac)
+    software = stac.setdefault("properties", {}).setdefault("processing:software", {})
+    software["EOPF_GEOZARR"] = eopf_geozarr_version
+
+    root.attrs["stac_discovery"] = stac
+
+    return
