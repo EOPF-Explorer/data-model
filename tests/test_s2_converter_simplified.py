@@ -254,6 +254,56 @@ def test_simple_root_consolidation_success(tmp_path: Path) -> None:
         assert atmos_zmeta["consolidated_metadata"] is None
 
 
+@pytest.mark.parametrize(
+    "aux_groups",
+    [
+        (
+            "/conditions/mask/l2a_classification",
+            "/quality/probability",
+            "/conditions/mask/l1c_classification",
+        ),
+        ("/conditions/mask/l1c_classification",),
+    ],
+    ids=["l2a", "l1c"],
+)
+def test_simple_root_consolidation_aux_multiscales(
+    tmp_path: Path, aux_groups: tuple[str, ...]
+) -> None:
+    """Each written auxiliary pyramid gets its own consolidated metadata listing its levels.
+
+    Pyramids missing from `datasets` (the L2A-only ones for an L1C product) are skipped.
+    """
+    output_path = tmp_path / "test.zarr"
+    levels = ("r60m", "r120m")
+    datasets = {"/measurements/reflectance/r10m": xr.Dataset()}
+    for base_path in aux_groups:
+        for level in levels:
+            datasets[f"{base_path}/{level}"] = xr.Dataset({"b00": (["y", "x"], np.zeros((2, 2)))})
+
+    for k, v in datasets.items():
+        v.to_zarr(str(output_path) + k, mode="a", zarr_format=3, consolidated=False)
+
+    simple_root_consolidation(output_path=str(output_path), datasets=datasets)
+
+    for base_path in aux_groups:
+        zmeta = json.loads((output_path / base_path.lstrip("/") / "zarr.json").read_text())
+        consolidated = zmeta.get("consolidated_metadata")
+        assert isinstance(consolidated, dict), f"{base_path}: not consolidated"
+        assert set(consolidated["metadata"]) >= {
+            *levels,
+            *(f"{level}/b00" for level in levels),
+        }, f"{base_path}: {sorted(consolidated['metadata'])}"
+
+    # Intermediate parents of the pyramids are not consolidated on their own.
+    for parent in ("conditions", "conditions/mask", "quality"):
+        zarr_json = output_path / parent / "zarr.json"
+        if zarr_json.exists():
+            assert json.loads(zarr_json.read_text()).get("consolidated_metadata") is None, parent
+
+    if "/quality/probability" not in aux_groups:
+        assert not (output_path / "quality/probability").exists()
+
+
 def test_write_store_root_bbox_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     """Store-root bbox unions child-group bboxes and outputs EPSG:4326 coords."""
     import zarr
