@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.0 (2026-10-15)
+
+## What's Changed
+* revert: undo #281 work pushed to main by mistake by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/286
+* ci: publish release-please releases to PyPI by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/290
+* feat!: one scale/offset encoding switch by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/287
+* Enhance documentation for STAC integration and Zarr asset access by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/130
+* Integrate/cpm geozarr main feat generic conversion s1slc by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/292
+* chore(deps): group pending Dependabot updates by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/308
+* Removing band injection metadata and aligning with Sentinel PSD in docstrings by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/311
+* ci(deps): bump the actions group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/317
+* Adding EOPF-GEOZARR flag to all 'stac_discovery/processing:software' attributes by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/310
+* fix(olci): write spatial:shape per level and consolidate measurements by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/306
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.12.0...v0.13.0
+
 ## 0.12.0 (2026-09-28)
 
 ## What's Changed
