@@ -2306,12 +2306,20 @@
         "multiscales": {
           "layout": [
             {
-              "asset": "r0"
+              "asset": "r0",
+              "spatial:shape": [
+                16,
+                16
+              ]
             },
             {
               "asset": "r2",
               "derived_from": "r0",
               "resampling_method": "average",
+              "spatial:shape": [
+                8,
+                8
+              ],
               "transform": {
                 "scale": [
                   2.0,
@@ -2331,6 +2339,10 @@
           "columns"
         ],
         "spatial:registration": "pixel",
+        "spatial:shape": [
+          16,
+          16
+        ],
         "zarr_conventions": [
           {
             "description": "Multiscale layout of zarr datasets",
@@ -4253,6 +4265,10 @@
               "columns"
             ],
             "spatial:registration": "pixel",
+            "spatial:shape": [
+              16,
+              16
+            ],
             "zarr_conventions": [
               {
                 "description": "Spatial coordinate information",
@@ -5644,6 +5660,10 @@
               "columns"
             ],
             "spatial:registration": "pixel",
+            "spatial:shape": [
+              8,
+              8
+            ],
             "zarr_conventions": [
               {
                 "description": "Spatial coordinate information",

@@ -190,7 +190,7 @@ def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
     assert isinstance(multiscales, dict)
     layout = multiscales["layout"]
     assert isinstance(layout, list)
-    assert layout[0] == {"asset": "r0"}
+    assert layout[0] == {"asset": "r0", "spatial:shape": [512, 512]}
     r0_group = meas_group["r0"]
     assert isinstance(r0_group, zarr.Group)
     r0_attrs = dict(r0_group.attrs)
@@ -264,20 +264,23 @@ def test_convert_olci_regridded_output_opens_as_datatree(tmp_path: object) -> No
     assert "/measurements/r2" in result.groups
 
 
-def test_convert_olci_regridded_layout_and_consolidation(tmp_path: pathlib.Path) -> None:
-    """Gridded output meets the GeoZarr store model under `measurements` and is consolidated.
+@pytest.mark.parametrize("output_grid", ["native", "EPSG:4326"])
+def test_convert_olci_layout_and_consolidation(tmp_path: pathlib.Path, output_grid: str) -> None:
+    """Every level declares its shape in the layout, and `measurements` is consolidated.
 
-    Every layout entry carries its level's spatial:shape and spatial:transform
-    (readers take the zoom range and the level to read from the layout), and
-    `measurements` and the root each carry a consolidated block, so a reader can
-    open `measurements` without listing it (#291, #303).
+    Every layout entry carries its level's spatial:shape (readers take the zoom
+    range and the level to read from the layout). Gridded entries also carry the
+    level's spatial:transform; swath entries never do, as a swath is geolocated by
+    its 2-D lat/lon arrays. `measurements` and the root each carry a consolidated
+    block, so a reader can open `measurements` without listing it (#291, #303).
     """
+    gridded = output_grid != "native"
     out = tmp_path / "olci_geozarr.zarr"
     convert_olci_optimized(
         build_synthetic_olci(rows=256, cols=256),
         output_path=str(out),
         min_dimension=64,
-        output_grid="EPSG:4326",
+        output_grid=output_grid,
     )
 
     def meta(path: str) -> Any:
@@ -294,10 +297,14 @@ def test_convert_olci_regridded_layout_and_consolidation(tmp_path: pathlib.Path)
             == attrs["spatial:shape"]
             == meta(f"{level}/oa01_radiance")["shape"]
         )
-        assert entry["spatial:transform"] == attrs["spatial:transform"]
+        assert ("spatial:transform" in entry) is gridded
+        assert entry.get("spatial:transform") == attrs.get("spatial:transform")
 
-    # The store root's own minispec metadata is a separate, older gap.
-    assert [i for i in validate_store(str(out)).issues if i.path.startswith("/measurements")] == []
+    if gridded:
+        # The store root's own minispec metadata is a separate, older gap. A swath
+        # is outside the store model, which assumes a regular grid.
+        issues = validate_store(str(out)).issues
+        assert [i for i in issues if i.path.startswith("/measurements")] == []
 
     for path in ("", "measurements"):
         assert meta(path)["consolidated_metadata"] is not None, f"/{path}: no consolidated block"
@@ -542,6 +549,16 @@ def test_olci_conversion_matches_snapshot(
     )
     out = str(tmp_path / "out.zarr")
     convert_olci_optimized(dt_in, output_path=out, min_dimension=8, output_grid=output_grid)
+
+    # Each consolidated block is a snapshot, and GroupSpec.from_zarr below reads the
+    # levels through the `measurements` block, so a stale block would hide a late
+    # write. Re-consolidating a current store rewrites the same bytes (#303).
+    for path in ("measurements", ""):
+        meta = Path(out, path, "zarr.json")
+        before = meta.read_bytes()
+        assert json.loads(before).get("consolidated_metadata"), f"/{path}: no block"
+        zarr.consolidate_metadata(out, path=path or None, zarr_format=3)
+        assert meta.read_bytes() == before, f"/{path}: consolidated block is stale"
 
     observed_group = zarr.open_group(out, use_consolidated=False)
     observed_structure_json = GroupSpec.from_zarr(observed_group).model_dump()

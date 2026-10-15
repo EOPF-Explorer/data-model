@@ -381,7 +381,12 @@ def convert_olci_optimized(
 
     def _level_spatial(name: str, level_ds: xr.Dataset) -> SpatialAttrs:
         if base_transform is None:
-            return swath_spatial_attrs()
+            # A swath has no affine transform (pixels are geolocated by the 2-D lat/lon
+            # arrays), but its shape is well defined.
+            return {
+                **swath_spatial_attrs(),
+                "spatial:shape": [int(level_ds.sizes[d]) for d in pyramid_dims],
+            }
         # Scale the r0 transform rather than recompute it from the level's coords:
         # rio.transform(recalc=True) returns the identity for a 1-pixel level.
         step = int(name[1:]) or 1
@@ -398,9 +403,9 @@ def convert_olci_optimized(
 
     # Build and attach GeoZarr convention metadata (spatial + multiscales CMO)
     # to the measurements group attrs. Each layout entry repeats its level's
-    # spatial:shape/spatial:transform (gridded output only: swath levels carry no
-    # transform): the GeoZarr store model requires them, and titiler-eopf reads them
-    # to work out the zoom range and to pick the level a tile is read from.
+    # spatial:shape, plus its spatial:transform on gridded output (a swath has none):
+    # the GeoZarr store model requires them, and titiler-eopf reads them to work out
+    # the zoom range and to pick the level a tile is read from.
     layout: list[LayoutObject] = []
     parent: str | None = None
     for name, spatial in level_spatial.items():
@@ -408,8 +413,9 @@ def convert_olci_optimized(
         if parent:
             transform: Transform = {"scale": [2.0, 2.0], "translation": [0.0, 0.0]}
             lo.update(derived_from=parent, transform=transform, resampling_method="average")
-        if "spatial:shape" in spatial and "spatial:transform" in spatial:
+        if "spatial:shape" in spatial:
             lo["spatial:shape"] = spatial["spatial:shape"]
+        if "spatial:transform" in spatial:
             lo["spatial:transform"] = spatial["spatial:transform"]
         layout.append(lo)
         parent = name
@@ -445,9 +451,10 @@ def convert_olci_optimized(
             log.info("Copying measurements subgroup", group=f"measurements/{child.name}")
             _copy_subtree(child, output_path, root_group=f"measurements/{child.name}")
 
-    # Consolidate the multiscales group, then the root (#291, #303): a reader that
+    # Consolidate the multiscales group and the root (#291, #303): a reader that
     # opens `measurements` over HTTP cannot list it, so without a block it cannot
-    # open it. Consolidating the root afterwards leaves the child's block in place.
+    # open it. Each block is a snapshot of the nodes below its group, so these must
+    # stay the last writes to the store. Neither call touches the other's zarr.json.
     zarr.consolidate_metadata(output_path, path="measurements", zarr_format=3)
     zarr.consolidate_metadata(output_path, zarr_format=3)
 
