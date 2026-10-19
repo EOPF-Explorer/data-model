@@ -498,7 +498,8 @@ def generic_multiscales(
         # determine multiscale metadata for all datasets
         spatial_levels[dest_level_path] = _spatial_level_attrs(ds_out)
 
-        # already have a reference -> derive scale factor from it
+        # Nominal factor (ratio of pixel spacings), not the ratio of shapes: boundary="trim"
+        # gives e.g. 305 -> 152 px at r720m. Intentional, see #313.
         transform: Transform = {
             "scale": [downsample_factor, downsample_factor],
             "translation": [0.0, 0.0],
