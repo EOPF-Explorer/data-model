@@ -343,7 +343,7 @@ def test_reduce_swath_on_grid_dims() -> None:
 
 
 def test_grid_spatial_attrs() -> None:
-    """grid_spatial_attrs derives dimensions, bbox, and 6-element transform."""
+    """grid_spatial_attrs derives dimensions, shape, bbox, and 6-element transform."""
     transform = rasterio.transform.from_origin(10.0, 46.0, 0.01, 0.01)
     attrs = grid_spatial_attrs(transform, (100, 200))
     _, extracted = zarr_cm.extract_many(attrs, ["spatial"])
@@ -351,6 +351,7 @@ def test_grid_spatial_attrs() -> None:
     assert extracted["spatial"] == {
         "spatial:dimensions": ["y", "x"],
         "spatial:registration": "pixel",
+        "spatial:shape": [100, 200],
         "spatial:transform": [0.01, 0.0, 10.0, 0.0, -0.01, 46.0],
         "spatial:bbox": [10.0, 45.0, 12.0, 46.0],
     }
