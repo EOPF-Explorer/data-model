@@ -30,6 +30,7 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     MultiscaleSpec,
     S2Type,
     _coarsen_variable,
+    _declare_scl_nodata,
     calculate_aligned_chunk_size,
     calculate_simple_shard_dimensions,
     create_downsampled_resolution_group,
@@ -759,6 +760,21 @@ def test_coarsen_variable_classification(var_name: str, factor: int) -> None:
     np.testing.assert_array_equal(result["y"].values, block_centres)
     sampled = coords["x"][centre::factor]
     assert np.abs(sampled - block_centres).max() == (0 if factor % 2 else 0.5)
+
+
+@pytest.mark.parametrize(
+    ("attrs", "expected_fill"),
+    [({}, 0), ({"fill_value": 255}, None)],
+    ids=["undeclared", "declared"],
+)
+def test_declare_scl_nodata(attrs: dict, expected_fill: int | None) -> None:
+    """SCL gets its NO_DATA class as `_FillValue` only when the source declares no nodata."""
+    scl = xr.DataArray(np.zeros((2, 2), dtype="uint8"), dims=["y", "x"], attrs=attrs)
+    cld = xr.DataArray(np.zeros((2, 2), dtype="uint8"), dims=["y", "x"])
+    result = _declare_scl_nodata(xr.Dataset({"scl": scl, "cld": cld}))
+    assert result["scl"].encoding.get("_FillValue") == expected_fill
+    # 0 is a valid probability, so other variables are left alone.
+    assert "_FillValue" not in result["cld"].encoding
 
 
 def test_coarsen_variable_quality_mask() -> None:

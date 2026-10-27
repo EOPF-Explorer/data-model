@@ -389,6 +389,16 @@ def _forward_unpacked_encoding(
         # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
         var_encoding["_FillValue"] = var_data.attrs["fill_value"]
 
+    # Integer variables without CF packing (e.g. SCL) also need a CF `_FillValue`,
+    # as packed variables have, since some clients require it. Only a declared
+    # nodata value is used: the Zarr fill value (often 0) can be valid data, e.g.
+    # for probabilities and bitmasks.
+    if np.issubdtype(var_data.dtype, np.integer):
+        nodata = var_encoding.get("_FillValue", encoding_utils.find_fill_value(var_data))
+        if nodata is not None:
+            var_encoding["_FillValue"] = int(nodata)
+            var_encoding.setdefault("fill_value", int(nodata))
+
     for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
         if key in var_data.encoding:
             var_encoding[key] = var_data.encoding[key]

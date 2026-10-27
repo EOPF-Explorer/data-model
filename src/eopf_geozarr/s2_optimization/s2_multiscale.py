@@ -59,6 +59,18 @@ SCL_ATTRS = {
     "flag_values": SCL_VALUES,
     "flag_meanings": SCL_LABELS,
 }
+SCL_NODATA = SCL_VALUES[SCL_LABELS.index("NO_DATA")]
+
+
+def _declare_scl_nodata(dataset: xr.Dataset) -> xr.Dataset:
+    """Set the SCL NO_DATA class as `_FillValue` when the source declares no nodata value.
+
+    Not all products declare one on SCL (e.g. Zarr v2 products and the r60m SCL of
+    Zarr v3 products), but some clients require a CF `_FillValue`.
+    """
+    if "scl" in dataset.data_vars and encoding_utils.find_fill_value(dataset["scl"]) is None:
+        dataset["scl"].encoding["_FillValue"] = SCL_NODATA
+    return dataset
 
 
 class S2Type(StrEnum):
@@ -645,7 +657,7 @@ def create_multiscale_from_datatree(
 
         log.info("Copying original group", group_path=group_path)
 
-        dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
+        dataset = _declare_scl_nodata(utils._rechunk_ds(base_dataset, spatial_chunk))
 
         # Determine if this is a measurement-related resolution group
         group_name = group_path.split("/")[-1]

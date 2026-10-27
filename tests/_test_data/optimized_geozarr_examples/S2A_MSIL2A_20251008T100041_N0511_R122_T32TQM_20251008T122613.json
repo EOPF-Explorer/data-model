@@ -3786,6 +3786,7 @@
                   "members": {
                     "scl": {
                       "attributes": {
+                        "_FillValue": 0,
                         "flag_meanings": [
                           "NO_DATA",
                           "SATURATED_OR_DEFECTIVE",
@@ -4080,6 +4081,7 @@
                   "members": {
                     "scl": {
                       "attributes": {
+                        "_FillValue": 0,
                         "flag_meanings": [
                           "NO_DATA",
                           "SATURATED_OR_DEFECTIVE",
@@ -4381,6 +4383,7 @@
                   "members": {
                     "scl": {
                       "attributes": {
+                        "_FillValue": 0,
                         "flag_meanings": [
                           "NO_DATA",
                           "SATURATED_OR_DEFECTIVE",
@@ -4675,6 +4678,7 @@
                   "members": {
                     "scl": {
                       "attributes": {
+                        "_FillValue": 0,
                         "flag_meanings": [
                           "NO_DATA",
                           "SATURATED_OR_DEFECTIVE",
@@ -4976,6 +4980,7 @@
                   "members": {
                     "scl": {
                       "attributes": {
+                        "_FillValue": 0,
                         "flag_meanings": [
                           "NO_DATA",
                           "SATURATED_OR_DEFECTIVE",
