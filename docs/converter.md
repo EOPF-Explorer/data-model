@@ -140,8 +140,8 @@ S2 L2A). One option selects how that packing is stored:
 
 | Mode | Option | On disk | Metadata |
 |---|---|---|---|
-| Default: ESA layout | none | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays; `raster:scale`, `raster:offset` and `nodata` on the STAC `reflectance` asset |
-| Zarr codec | `--scale-offset-codec` / `scale_offset_codec=True` | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes and no STAC scale fields: Zarr readers return decoded values |
+| Default: ESA layout | none | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays |
+| Zarr codec | `--scale-offset-codec` / `scale_offset_codec=True` | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes: Zarr readers return decoded values |
 
 What a reader needs:
 

@@ -17,7 +17,7 @@ and multiscale pyramids.
 
 ### Should I use the CPM driver or the standalone converter?
 
-Both run the same pipelines and write the same output.
+For Sentinel-2, Sentinel-3 OLCI and the generic pipeline, both run the same code and write the same output.
 
 - Use the [CPM driver](cpm-driver.md) (`eopf convert-geozarr`) when you start
   from a native product such as a `.SAFE`, or when your processing already runs

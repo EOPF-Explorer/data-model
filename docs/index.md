@@ -14,7 +14,7 @@ projections and the OGC GeoZarr conventions.
 
 ## Two ways to convert
 
-Both paths run the same pipelines and write the same GeoZarr output.
+For Sentinel-2, Sentinel-3 OLCI and the generic pipeline, both paths run the same code and write the same GeoZarr output.
 
 === "CPM driver"
 
@@ -50,6 +50,7 @@ Both paths run the same pipelines and write the same GeoZarr output.
 | Sentinel-3 OLCI | L1 EFR, L1 ERR | `S03OLCEFR`, `S03OLCERR` | Sentinel-3 OLCI optimized: native swath geometry, or a regular grid |
 | Sentinel-1 | GRD | — | Generic pipeline with ground control points |
 | Sentinel-1 | GRD RTC (S1Tiling / Orfeo ToolBox COGs) | — | `eopf-geozarr ingest-s1` and related commands (standalone only) |
+| Sentinel-1 and other products CPM reads | for example SLC | for example `S01SIWSLC` | Generic rechunker (CPM driver only, `--generic-rechunker`): rechunked, optionally sharded, no multiscales |
 
 ## What the output looks like
 

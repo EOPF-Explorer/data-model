@@ -54,9 +54,9 @@ eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/path/out.zarr --stage-outpu
 
 | Option | Pipelines | Description |
 |---|---|---|
-| `--spatial-chunk INTEGER` | all | Spatial chunk size. Default: 256 (Sentinel-2), 1024 (Sentinel-3 OLCI), 4096 (generic). |
-| `--enable-sharding` | all | Enable Zarr v3 sharding. |
-| `--scale-offset-codec` | Sentinel-2 | Pack reflectance with the Zarr `scale_offset` + `cast_value` codecs instead of the default ESA layout (CF `scale_factor`/`add_offset`/`_FillValue`). See [Encoding](converter.md#encoding). |
+| `--spatial-chunk INTEGER` | all but Sentinel-3 OLCI | Spatial chunk size. Default: 256 (Sentinel-2), 4096 (generic), 1024 (generic rechunker). Sentinel-3 OLCI accepts it but does not apply it yet. |
+| `--enable-sharding` | all but Sentinel-3 OLCI | Enable Zarr v3 sharding. Sentinel-3 OLCI accepts it but does not apply it yet. |
+| `--scale-offset-codec` | Sentinel-2, generic rechunker | Pack reflectance (or, on the generic rechunker, every packed variable) with the Zarr `scale_offset` + `cast_value` codecs instead of the default ESA layout (CF `scale_factor`/`add_offset`/`_FillValue`). See [Encoding](converter.md#encoding). |
 | `--output-grid TEXT` | Sentinel-3 OLCI | `native` (default) keeps the instrument swath geometry. A CRS string (for example `EPSG:4326`) warps the swath onto a regular grid. |
 | `--min-dimension INTEGER` | Sentinel-3 OLCI, generic | Minimum dimension of the coarsest overview level. Default: 256. |
 | `--groups TEXT` | generic | DataTree group to convert. Repeat the option for more groups. Required on the generic pipeline. |
@@ -64,6 +64,7 @@ eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/path/out.zarr --stage-outpu
 | `--gcp-group TEXT` | generic | Group that holds the ground control points (Sentinel-1). |
 | `--no-s2-optimized` | — | Force the generic pipeline for Sentinel-2 inputs. |
 | `--no-s3-olci-optimized` | — | Do not use the OLCI pipeline for Sentinel-3 OLCI inputs; fall back to Sentinel-2 or generic detection. |
+| `--generic-rechunker` | — | Send products other than Sentinel-2 and Sentinel-3 OLCI (for example Sentinel-1 SLC) to the generic rechunker. Sentinel-2 and OLCI products still go to their optimized pipelines. Cannot be combined with `--no-s2-optimized` or `--no-s3-olci-optimized`. |
 | `--stage-source` | — | Download the source product to a local temporary folder before converting. |
 | `--stage-output` | — | Write locally first, then upload to the target path. Required for S3 targets. |
 
@@ -106,11 +107,12 @@ arguments (with `write_datatree`). Unknown options raise `NotImplementedError`.
 |---|---|---|
 | `mode` | `"w"` | `"w"` replaces an existing store; `"w-"` fails if the target exists. |
 | `s2_optimized` | `None` | `True` forces the Sentinel-2 pipeline, `False` forces the generic pipeline, `None` detects the product. |
-| `s3_olci_optimized` | `None` | `True` forces the Sentinel-3 OLCI pipeline, `False` falls back to Sentinel-2 or generic detection, `None` detects the product. Cannot be `True` together with `s2_optimized=True`. |
-| `spatial_chunk` | per pipeline | 256 (Sentinel-2), 1024 (Sentinel-3 OLCI), 4096 (generic). |
-| `enable_sharding` | `False` | Enable Zarr v3 sharding. |
-| `scale_offset_codec` | `False` | Sentinel-2: `True` packs reflectance with the Zarr `scale_offset` + `cast_value` codecs. `False` keeps the ESA layout with CF and STAC scale fields. |
-| `compression_level` | `3` | Sentinel-2: Blosc zstd compression level. |
+| `s3_olci_optimized` | `None` | `True` forces the Sentinel-3 OLCI pipeline, `False` falls back to Sentinel-2 or generic detection, `None` detects the product. |
+| `generic_rechunker` | `None` | `True` sends products other than Sentinel-2 and Sentinel-3 OLCI to the generic rechunker; Sentinel-2 and OLCI products still go to their optimized pipelines, so it cannot be combined with `s2_optimized=False` or `s3_olci_optimized=False`. Only one of `s2_optimized`, `s3_olci_optimized` and `generic_rechunker` may be `True`. |
+| `spatial_chunk` | per pipeline | 256 (Sentinel-2), 4096 (generic), 1024 (generic rechunker). Sentinel-3 OLCI: accepted, not applied yet. |
+| `enable_sharding` | `False` | Enable Zarr v3 sharding. Sentinel-3 OLCI: accepted, not applied yet. |
+| `scale_offset_codec` | `False` | Sentinel-2 and generic rechunker: `True` packs reflectance (or every packed variable) with the Zarr `scale_offset` + `cast_value` codecs. `False` keeps the ESA layout with CF scale attributes. |
+| `compression_level` | `3` | Sentinel-2 and generic rechunker: Blosc zstd compression level. Sentinel-3 OLCI: accepted, not applied yet. |
 | `validate_output` | `False` | Sentinel-2: validate the output after writing. |
 | `output_grid` | `"native"` | Sentinel-3 OLCI: `native` or a CRS string to warp onto. |
 | `min_dimension` | `256` | Sentinel-3 OLCI and generic: minimum dimension of the coarsest overview level. |
@@ -130,6 +132,7 @@ The driver selects a pipeline from the product type that CPM declares in
 | `S02MSIL1C`, `S02MSIL2A` | Sentinel-2 optimized |
 | `S03OLCEFR`, `S03OLCERR` | Sentinel-3 OLCI optimized |
 | anything else | generic (needs `groups`) |
+| anything else, with `generic_rechunker=True` | generic rechunker: every data group is rechunked (and sharded with `enable_sharding`) and written without multiscales |
 
 When a product has no `product:type`, the driver checks its structure: a
 `measurements/reflectance` group with `r10m`, `r20m` and `r60m` is Sentinel-2,

@@ -78,6 +78,7 @@ for every command, including Sentinel-1 GRD RTC ingestion.
 | Sentinel-3 OLCI | L1 EFR, L1 ERR | `S03OLCEFR`, `S03OLCERR` | OLCI optimized: native swath geometry, or a regular grid with `--output-grid` |
 | Sentinel-1 | GRD | — | Generic pipeline with ground control points (`--groups`, `--gcp-group`) |
 | Sentinel-1 | GRD RTC (S1Tiling / Orfeo ToolBox COGs) | — | `eopf-geozarr ingest-s1` and related commands (standalone only) |
+| Sentinel-1 and other products CPM reads | for example SLC | for example `S01SIWSLC` | Generic rechunker (CPM driver only, `--generic-rechunker`): rechunked, optionally sharded, no multiscales |
 
 ## Output
 
@@ -88,8 +89,7 @@ for every command, including Sentinel-1 GRD RTC ingestion.
 - **Native projections**: no reprojection to Web Mercator.
 - **Multiscale pyramids** for fast visualization at every zoom level.
 - **Source packing kept**: reflectance stays as packed integers with CF
-  `scale_factor`/`add_offset`/`_FillValue` and STAC
-  `raster:scale`/`raster:offset`/`nodata`, as in the ESA products.
+  `scale_factor`/`add_offset`/`_FillValue`, as in the ESA products.
   `--scale-offset-codec` stores the packing with the Zarr `scale_offset` +
   `cast_value` codecs instead, so Zarr readers get decoded values.
 - **Validation**: `eopf-geozarr validate` checks a store against the mini spec.

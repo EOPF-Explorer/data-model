@@ -58,7 +58,7 @@ without a default are required.
 | `spatial_chunk` | Spatial chunk size (the CLI default is 256). |
 | `compression_level` | Blosc zstd level, 1–9. |
 | `validate_output` | Validate the output after writing. |
-| `scale_offset_codec` | `False` (default): ESA layout with CF and STAC scale fields. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
+| `scale_offset_codec` | `False` (default): ESA layout with CF scale attributes. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
 | `max_retries` | Retries for network operations. |
 
 `create_multiscale_from_datatree(dt_input, *, output_group, enable_sharding,

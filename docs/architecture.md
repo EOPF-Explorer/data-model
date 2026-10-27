@@ -8,6 +8,8 @@ description: Architecture of eopf-geozarr — the GeoZarr driver for EOPF CPM an
 eopf-geozarr has two entry points, the GeoZarr driver for EOPF CPM and the
 standalone `eopf-geozarr` CLI. Both select one of three conversion pipelines
 and write a GeoZarr store that follows the [GeoZarr mini spec](geozarr-minispec.md).
+The CPM driver can also send other products to a generic rechunker, which
+writes no multiscales.
 
 ## Design principles
 
@@ -32,9 +34,11 @@ graph LR
     ROUTE -->|S02MSIL1C / S02MSIL2A| S2[Sentinel-2 pipeline]
     ROUTE -->|S03OLCEFR / S03OLCERR| S3[Sentinel-3 OLCI pipeline]
     ROUTE -->|other, e.g. Sentinel-1 GRD| GEN[Generic pipeline]
+    ROUTE -->|other, with generic_rechunker<br/>CPM driver only| RECH[Generic rechunker]
     S2 --> OUT[(GeoZarr store)]
     S3 --> OUT
     GEN --> OUT
+    RECH --> OUT
     TIF[S1Tiling OTB COGs] --> S1[Sentinel-1 RTC ingestion] --> OUT
 ```
 
@@ -46,6 +50,7 @@ graph LR
 | `cli.py` | Standalone `eopf-geozarr` command line. |
 | `s2_optimization/` | Sentinel-2 pipeline: native levels, overviews, encoding, band injection. |
 | `s3_olci_optimization/` | Sentinel-3 OLCI pipeline: swath or regular grid, overviews. |
+| `generic_optimization/` | Generic rechunker (`generic_converter.py`), CPM driver only: rechunks and optionally shards every data group, without multiscales. |
 | `conversion/` | Generic pipeline (`geozarr.py`), Sentinel-1 GRD RTC ingestion (`s1_ingest.py`), Sentinel-1 reprojection, source opening, storage and metadata utilities. |
 | `stac/` | STAC item builders (Sentinel-1 GRD RTC). |
 | `data_api/` | pydantic-zarr models of the EOPF products and of GeoZarr, and the mini spec validator (`data_api/geozarr/validation.py`). |
