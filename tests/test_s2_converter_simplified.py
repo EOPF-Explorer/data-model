@@ -543,6 +543,8 @@ def test_simple_root_consolidation_adds_reflectance_stac_asset(tmp_path: Path) -
         "proj:code": "EPSG:32632",
         "proj:shape": [10, 20],
     }
+    # geozarr version is added to the processing history alongside the stac metadata
+    assert root_attrs["stac_discovery"]["properties"]["processing:software"]["EOPF_GEOZARR"]
 
 
 def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:

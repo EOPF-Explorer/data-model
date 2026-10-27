@@ -148,10 +148,9 @@ def init_root_zarr_group(
 
 
 def write_store_root_metadata(output_path: str, attrs: dict[str, dict[str, Any]]) -> None:
-    """Function wrapper for calling two metadata writing functions to add geo and stac metadata to zarr groups."""
+    """Function wrapper for calling two metadata writing functions to add geo and stac (incl. geozarr version) metadata to zarr groups."""
     write_store_geo_metadata(output_path, input_root_attrs=attrs)
     write_store_stac_metadata(output_path, input_root_attrs=attrs)
-    write_store_geozarr_version_metadata(output_path, input_root_attrs=attrs)
 
 
 def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
@@ -1108,10 +1107,15 @@ def write_store_stac_metadata(
         root_attrs=list(input_root_attrs.keys()),
     )
 
+    # use the merged root attrs, since `stac_discovery` may have been popped from `input_root_attrs` above
+    write_store_geozarr_version_metadata(
+        output_path, input_root_attrs=dict(root.attrs), storage_options=storage_options
+    )
+
 
 def write_store_geozarr_version_metadata(
     output_path: str,
-    input_root_attrs: dict[str, dict[str, Any]],
+    input_root_attrs: Mapping[str, Any],
     storage_options: dict[str, Any] | None = None,
 ) -> None:
     """Adds the current git tag to the processing history of stac_discovery."""
@@ -1122,10 +1126,15 @@ def write_store_geozarr_version_metadata(
     def git_version() -> str | None:
         from pathlib import Path
 
-        import pygit2
+        try:
+            import pygit2
+        except ImportError:
+            return None
 
         try:
             repo_path = pygit2.discover_repository(str(Path(__file__).resolve().parent))
+            if repo_path is None:
+                return None
             repo = pygit2.Repository(repo_path)
             return repo.describe(
                 describe_strategy=pygit2.enums.DescribeStrategy.TAGS,
@@ -1133,7 +1142,7 @@ def write_store_geozarr_version_metadata(
                 always_use_long_format=True,
                 dirty_suffix="-dirty",
             )
-        except (ImportError, LookupError, pygit2.GitError):
+        except (LookupError, pygit2.GitError):
             return None
 
     if storage_options is None:
@@ -1148,9 +1157,20 @@ def write_store_geozarr_version_metadata(
         )
         return
 
-    eopf_geozarr_version = git_version()
+    def package_version() -> str | None:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            return version("eopf-geozarr")
+        except PackageNotFoundError:
+            return None
+
+    # fall back to the installed package version if there is no git history (e.g. installed from a wheel)
+    eopf_geozarr_version = git_version() or package_version()
     if not eopf_geozarr_version:
-        raise ValueError("Could not derive EOPF_GEOZARR tag from git version history.")
+        raise ValueError(
+            "Could not derive EOPF_GEOZARR version from git version history or the installed package."
+        )
 
     stac = copy.deepcopy(stac)
     software = stac.setdefault("properties", {}).setdefault("processing:software", {})
