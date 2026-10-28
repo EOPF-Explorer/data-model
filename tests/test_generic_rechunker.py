@@ -7,6 +7,7 @@ install. The CPM writer's ``generic_rechunker=True`` option is tested in
 
 from __future__ import annotations
 
+import json
 import pathlib
 from typing import Any
 
@@ -217,6 +218,25 @@ def test_root_metadata_is_consolidated(tmp_path: pathlib.Path) -> None:
 
     root = zarr.open_group(str(output_path), mode="r")
     assert root.metadata.consolidated_metadata is not None
+
+
+def test_parent_measurements_group_is_consolidated(tmp_path: pathlib.Path) -> None:
+    """A `measurements` group with only child groups (as in S3 SLSTR) gets its own consolidated metadata.
+
+    The converter records such a parent as `None`, so `updated_root_consolidation`
+    consolidates it although it holds no data itself.
+    """
+    tree = xr.DataTree()
+    tree["measurements/inadir"] = xr.Dataset(
+        {"s7_bt": (("rows", "columns"), np.ones((4, 4), "float32"))}
+    )
+
+    _, output_path = convert(tree, tmp_path)
+
+    zmeta = json.loads((output_path / "measurements" / "zarr.json").read_text())
+    consolidated = zmeta.get("consolidated_metadata")
+    assert isinstance(consolidated, dict), "measurements: not consolidated"
+    assert {"inadir", "inadir/s7_bt"} <= set(consolidated["metadata"])
 
 
 def test_returns_the_written_output(tmp_path: pathlib.Path) -> None:
