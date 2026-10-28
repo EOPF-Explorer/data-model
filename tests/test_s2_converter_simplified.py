@@ -19,6 +19,7 @@ from eopf_geozarr.conversion.utils import (
     write_store_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import (
+    _aux_multiscale_paths,
     _validate_s2_input,
     add_s2_stac_assets,
     convert_s2_optimized,
@@ -256,6 +257,58 @@ def test_updated_root_consolidation_success(tmp_path: Path) -> None:
         assert atmos_zmeta["consolidated_metadata"] is None
 
 
+@pytest.mark.parametrize(
+    "aux_groups",
+    [
+        (
+            "/conditions/mask/l2a_classification",
+            "/quality/probability",
+            "/conditions/mask/l1c_classification",
+        ),
+        ("/conditions/mask/l1c_classification",),
+    ],
+    ids=["all", "l1c_classification_only"],
+)
+def test_updated_root_consolidation_aux_multiscales(
+    tmp_path: Path, aux_groups: tuple[str, ...]
+) -> None:
+    """Each written auxiliary pyramid gets its own consolidated metadata listing its levels.
+
+    Pyramids missing from `datasets` (e.g. an L2A product whose processing baseline
+    lacks a group) are not passed on for consolidation.
+    """
+    output_path = tmp_path / "test.zarr"
+    levels = ("r60m", "r120m")
+    datasets = {"/measurements/reflectance/r10m": xr.Dataset()}
+    for base_path in aux_groups:
+        for level in levels:
+            datasets[f"{base_path}/{level}"] = xr.Dataset({"b00": (["y", "x"], np.zeros((2, 2)))})
+
+    # Write every group into one store, as the pipeline does.
+    for k, v in datasets.items():
+        v.to_zarr(output_path, group=k.lstrip("/"), mode="a", zarr_format=3, consolidated=False)
+
+    dt_input = xr.DataTree(name="S2A_MSIL2A_20250811T112131")
+    updated_root_consolidation(
+        dt_input=dt_input,
+        output_path=str(output_path),
+        datasets=datasets,
+        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
+    )
+
+    for base_path in aux_groups:
+        zmeta = json.loads((output_path / base_path.lstrip("/") / "zarr.json").read_text())
+        consolidated = zmeta.get("consolidated_metadata")
+        assert isinstance(consolidated, dict), f"{base_path}: not consolidated"
+        assert set(consolidated["metadata"]) >= {
+            *levels,
+            *(f"{level}/b00" for level in levels),
+        }, f"{base_path}: {sorted(consolidated['metadata'])}"
+
+    if "/quality/probability" not in aux_groups:
+        assert not (output_path / "quality/probability").exists()
+
+
 def test_write_store_geo_metadata_reprojects_utm_to_wgs84(tmp_path: Path) -> None:
     """Store-root bbox unions child-group bboxes and outputs EPSG:4326 coords."""
     import zarr
@@ -420,7 +473,12 @@ class TestConvenienceFunction:
     ) -> None:
         """Test the convenience function parameter passing."""
         # Setup mocks
-        mock_multiscale.return_value = {}
+        # Only pyramids with written levels are consolidated, so return one level of each
+        mock_multiscale.return_value = {
+            "/conditions/mask/l2a_classification/r20m": xr.Dataset(),
+            "/quality/probability/r20m": xr.Dataset(),
+            "/conditions/mask/l1c_classification/r60m": xr.Dataset(),
+        }
         mock_is_s2.return_value = True
         mock_get_zarr_group.return_value = Mock()
         mock_init_crs.return_value = None  # Return None for CRS
@@ -511,6 +569,8 @@ def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> 
         "proj:code": "EPSG:32632",
         "proj:shape": [10, 20],
     }
+    # geozarr version is added to the processing history alongside the stac metadata
+    assert root_attrs["stac_discovery"]["properties"]["processing:software"]["EOPF_GEOZARR"]
 
 
 def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:

@@ -6507,9 +6507,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
@@ -6613,9 +6610,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
@@ -6719,9 +6713,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
@@ -6825,9 +6816,6 @@
                 "b05": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
@@ -6931,9 +6919,6 @@
                 "b06": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
@@ -7037,9 +7022,6 @@
                 "b07": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
@@ -7143,9 +7125,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
@@ -7455,9 +7434,6 @@
                 "b11": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
@@ -7561,9 +7537,6 @@
                 "b12": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
@@ -7667,9 +7640,6 @@
                 "b8a": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
@@ -7946,9 +7916,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 2,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
@@ -8052,9 +8019,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 2,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
@@ -8158,9 +8122,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 2,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
@@ -8573,9 +8534,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 2,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
@@ -9271,9 +9229,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
@@ -9377,9 +9332,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
@@ -9483,9 +9435,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
@@ -9589,9 +9538,6 @@
                 "b05": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
@@ -9695,9 +9641,6 @@
                 "b06": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
@@ -9801,9 +9744,6 @@
                 "b07": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
@@ -9907,9 +9847,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
@@ -10219,9 +10156,6 @@
                 "b11": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
@@ -10325,9 +10259,6 @@
                 "b12": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
@@ -10431,9 +10362,6 @@
                 "b8a": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
@@ -10813,9 +10741,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
@@ -10919,9 +10844,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
@@ -11025,9 +10947,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
@@ -11131,9 +11050,6 @@
                 "b05": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
@@ -11237,9 +11153,6 @@
                 "b06": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
@@ -11343,9 +11256,6 @@
                 "b07": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
@@ -11449,9 +11359,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
@@ -11761,9 +11668,6 @@
                 "b11": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
@@ -11867,9 +11771,6 @@
                 "b12": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
@@ -11973,9 +11874,6 @@
                 "b8a": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",
@@ -12362,9 +12260,6 @@
                 "b02": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b02 492.3 nm",
@@ -12468,9 +12363,6 @@
                 "b03": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b03 559.0 nm",
@@ -12574,9 +12466,6 @@
                 "b04": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b04 665.0 nm",
@@ -12680,9 +12569,6 @@
                 "b05": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b05 703.8 nm",
@@ -12786,9 +12672,6 @@
                 "b06": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b06 739.1 nm",
@@ -12892,9 +12775,6 @@
                 "b07": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b07 779.7 nm",
@@ -12998,9 +12878,6 @@
                 "b08": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r10m",
-                    "_factor": 6,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b08 833.0 nm",
@@ -13310,9 +13187,6 @@
                 "b11": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b11 1610.4 nm",
@@ -13416,9 +13290,6 @@
                 "b12": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b12 2185.7 nm",
@@ -13522,9 +13393,6 @@
                 "b8a": {
                   "attributes": {
                     "_FillValue": 0,
-                    "_derived_from": "r20m",
-                    "_factor": 3,
-                    "_resampling_mode": "mean",
                     "add_offset": -0.1,
                     "grid_mapping": "spatial_ref",
                     "long_name": "TOA reflectance from MSI acquisition at spectral band b8a 864.0 nm",

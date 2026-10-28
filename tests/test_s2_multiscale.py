@@ -29,8 +29,10 @@ from eopf_geozarr.conversion.utils import (
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 from eopf_geozarr.s2_optimization.s2_multiscale import (
     _AUX_MULTISCALES,
+    MultiscaleSpec,
     S2Type,
     _coarsen_variable,
+    _declare_scl_nodata,
     create_downsampled_resolution_group,
     create_multiscale_from_datatree,
     generic_multiscales,
@@ -98,12 +100,9 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
     base_path = "/measurements/reflectance"
     with capture_logs():
         generic_multiscales(
-            base_path=base_path,
+            MultiscaleSpec(base_path=base_path, scale_levels=(10, 20, 60, 120)),
             src_processed_groups={"r10m": r10m},
-            output_path=str(output_path),
             output_group=zarr.create_group(output_path),
-            scale_levels=(10, 20, 60, 120),
-            finest_dataset_key="r10m",
             crs=crs,
         )
 
@@ -430,9 +429,11 @@ def test_create_multiscale_from_datatree(
     # Auxiliary pyramids (L1C cloud mask for every product; SCL and cloud/snow
     # probabilities for L2A): every level exists with the variables and dtypes of
     # the finest level, and the parent group's layout lists exactly those levels.
-    for base_path, finest_key, scale_levels, attrs, product_levels in _AUX_MULTISCALES:
-        if product_levels is not None and s2_type not in product_levels:
+    for aux in _AUX_MULTISCALES:
+        if not aux.applies_to(s2_type):
             continue
+        base_path, finest_key, scale_levels = aux.base_path, aux.finest_key, aux.scale_levels
+        attrs = aux.additional_attributes
         base = base_path.lstrip("/")
         aux_group = observed_group[base]
         assert isinstance(aux_group, zarr.Group), f"missing auxiliary pyramid '{base}'"
@@ -673,21 +674,84 @@ def test_create_multiscale_from_datatree_behavior(
         assert np.isnan(decoded).sum() == block.size, f"{group_path}: unexpected NaN outside block"
 
 
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*:FutureWarning")
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Path) -> None:
+    """Native r20m/r60m reflectance groups are reused, not coarsened again from r10m.
+
+    The "skip existing path" guard in `stream_write_s2dataset` would hide a
+    regression on disk, so the created levels are checked through the logs and
+    the native groups through their variables and values.
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    output_path = str(tmp_path / "output.zarr")
+
+    with capture_logs() as logs:
+        create_multiscale_from_datatree(
+            dt_input,
+            output_path=output_path,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            crs=CRS.from_epsg(32632),
+        )
+
+    created = {e["level"] for e in logs if e["event"] == "Creating level with resolution"}
+    assert created == {"r120m", "r360m", "r720m"}
+
+    # The native levels hold their own band with their own values, not a coarsened r10m band.
+    for group_path, var_name in _ORIGINAL_GROUPS.items():
+        ds = xr.open_dataset(output_path, engine="zarr", group=group_path, decode_coords="all")
+        assert set(ds.data_vars) == {var_name}, f"{group_path}: {set(ds.data_vars)}"
+        expected = _decoded(dt_input[group_path].to_dataset()[var_name])
+        np.testing.assert_allclose(ds[var_name].values, expected, atol=_SCALE_FACTOR, rtol=0)
+
+
 # ---------------------------------------------------------------------------
 # _coarsen_variable
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("factor", [2, 3])
 @pytest.mark.parametrize("var_name", ["scl", "b00"])
-def test_coarsen_variable_classification(var_name: str) -> None:
-    """Classification variables (SCL, L1C cloud bitmask) should be downsampled via subsample."""
-    data = np.arange(16, dtype="uint8").reshape(4, 4)
-    var = xr.DataArray(data, dims=["y", "x"], coords={"y": np.arange(4.0), "x": np.arange(4.0)})
-    result = _coarsen_variable(var_name, var, factor=2)
+def test_coarsen_variable_classification(var_name: str, factor: int) -> None:
+    """Classification variables (SCL, L1C cloud bitmask) take the centre pixel of each block.
+
+    The output coordinates are the block centres, so the centre pixel keeps the
+    classes aligned with the averaged bands. For an even factor there is no single
+    centre pixel and the lower-right one of the middle four is taken.
+    """
+    size = 2 * factor
+    data = np.arange(size * size, dtype="uint8").reshape(size, size)
+    coords = {"y": np.arange(float(size)), "x": np.arange(float(size))}
+    var = xr.DataArray(data, dims=["y", "x"], coords=coords)
+    result = _coarsen_variable(var_name, var, factor=factor)
     assert result.shape == (2, 2)
     assert result.dtype == np.uint8
-    # subsample picks top-left of each 2x2 block
-    np.testing.assert_array_equal(result.values, data[::2, ::2])
+    centre = factor // 2
+    np.testing.assert_array_equal(result.values, data[centre::factor, centre::factor])
+    # The sampled pixel lies on the block centre for odd factors, half a pixel off for even ones.
+    block_centres = np.arange(2) * factor + (factor - 1) / 2
+    np.testing.assert_array_equal(result["x"].values, block_centres)
+    np.testing.assert_array_equal(result["y"].values, block_centres)
+    sampled = coords["x"][centre::factor]
+    assert np.abs(sampled - block_centres).max() == (0 if factor % 2 else 0.5)
+
+
+@pytest.mark.parametrize(
+    ("attrs", "expected_fill"),
+    [({}, 0), ({"fill_value": 255}, None)],
+    ids=["undeclared", "declared"],
+)
+def test_declare_scl_nodata(attrs: dict, expected_fill: int | None) -> None:
+    """SCL gets its NO_DATA class as `_FillValue` only when the source declares no nodata."""
+    scl = xr.DataArray(np.zeros((2, 2), dtype="uint8"), dims=["y", "x"], attrs=attrs)
+    cld = xr.DataArray(np.zeros((2, 2), dtype="uint8"), dims=["y", "x"])
+    result = _declare_scl_nodata(xr.Dataset({"scl": scl, "cld": cld}))
+    assert result["scl"].encoding.get("_FillValue") == expected_fill
+    # 0 is a valid probability, so other variables are left alone.
+    assert "_FillValue" not in result["cld"].encoding
 
 
 def test_coarsen_variable_quality_mask() -> None:

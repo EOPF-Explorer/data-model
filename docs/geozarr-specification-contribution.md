@@ -1,3 +1,8 @@
+---
+title: GeoZarr specification contribution
+description: "How eopf-geozarr, the GeoZarr driver for EOPF CPM, contributes to the OGC GeoZarr specification: native CRS support, chunking and multiscale hierarchy, from converting Sentinel data."
+---
+
 # GeoZarr Specification Contribution
 
 This document outlines our contribution to the GeoZarr specification based on our implementation experience with the EOPF GeoZarr data model.
@@ -54,7 +59,7 @@ def calculate_aligned_chunk_size(dimension_size: int, target_chunk_size: int) ->
 
 **Problem:** The current draft does not define how a GeoZarr store is bounded as a set of paths. The base Zarr spec treats the `.zarr` suffix as advisory only, so two implementations can disagree on whether nested stores (e.g. `a.zarr/b/c.zarr/`) are allowed, how a client given a deep URL recovers the root, and where a traversal should stop.
 
-**Our Solution:** We adopted an explicit set of rules in our [Store Root section](geozarr-minispec.md#hierarchy--identification): single root, root prefix ends with `.zarr`, the suffix occurs at most once in the hierarchy, and an enumerated list of terminal-path conditions.
+**Our Solution:** We adopted an explicit set of rules in our [Store Root section](geozarr-minispec.md#hierarchy-identification): single root, root prefix ends with `.zarr`, the suffix occurs at most once in the hierarchy, and an enumerated list of terminal-path conditions.
 
 **Impact:** Clients reading a sub-path like `https://example.org/foo.zarr/measurements/reflectance/r10m` can now reliably recover the store root and read its summary `spatial:bbox` + `proj:code`. This also resolves a recurring URL-parsing question raised in [EOPF-Explorer/data-model#124](https://github.com/EOPF-Explorer/data-model/issues/124) without needing fragment-based URL workarounds.
 

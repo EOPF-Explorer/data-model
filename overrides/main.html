@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if page and page.is_homepage %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "eopf-geozarr",
+    "alternateName": "GeoZarr driver for EOPF CPM",
+    "description": "{{ config.site_description | striptags | trim }}",
+    "url": "{{ config.site_url }}",
+    "codeRepository": "{{ config.repo_url }}",
+    "programmingLanguage": "Python",
+    "license": "https://www.apache.org/licenses/LICENSE-2.0",
+    "keywords": ["GeoZarr", "EOPF", "EOPF CPM", "Zarr", "Sentinel-1", "Sentinel-2", "Sentinel-3", "Copernicus", "cloud-optimized", "multiscale"],
+    "applicationCategory": "Earth observation data conversion",
+    "author": {"@type": "Organization", "name": "EOPF Explorer", "url": "https://github.com/EOPF-Explorer"}
+  }
+  </script>
+  {% endif %}
+{% endblock %}

@@ -5,16 +5,18 @@ Uses lazy evaluation to minimize memory usage during dataset preparation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
-import rasterio  # Import to enable .rio accessor
 import rasterio.transform
+import rioxarray  # noqa: F401  # enables the .rio accessor
 import structlog
 import xarray as xr
 import zarr
+from affine import Affine
 from zarr_cm import LayoutObject
 
 from eopf_geozarr.conversion import encoding_utils, utils
@@ -25,7 +27,6 @@ from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 from .s2_resampling import determine_variable_type
 
 if TYPE_CHECKING:
-    from affine import Affine
     from pyproj import CRS
     from zarr.core.common import JSON
     from zarr_cm import MultiscalesAttrs, SpatialAttrs, Transform
@@ -51,23 +52,18 @@ SCL_ATTRS = {
     "flag_values": SCL_VALUES,
     "flag_meanings": SCL_LABELS,
 }
+SCL_NODATA = SCL_VALUES[SCL_LABELS.index("NO_DATA")]
 
-# Auxiliary (non-reflectance) groups that get their own pyramid:
-# (base_path, finest_dataset_key, scale_levels, additional_attributes, product levels).
-# A product level set of `None` means the group is required for every product.
-_AUX_MULTISCALES: tuple[
-    tuple[str, str, tuple[int, ...], dict[str, list[Any]] | None, frozenset[str] | None], ...
-] = (
-    (
-        "/conditions/mask/l2a_classification",
-        "r20m",
-        (20, 60, 120, 360, 720),
-        SCL_ATTRS,
-        frozenset({"L2A"}),
-    ),
-    ("/quality/probability", "r20m", (20, 60, 120, 360, 720), None, frozenset({"L2A"})),
-    ("/conditions/mask/l1c_classification", "r60m", (60, 120, 360, 720), None, None),
-)
+
+def _declare_scl_nodata(dataset: xr.Dataset) -> xr.Dataset:
+    """Set the SCL NO_DATA class as `_FillValue` when the source declares no nodata value.
+
+    Not all products declare one on SCL (e.g. Zarr v2 products and the r60m SCL of
+    Zarr v3 products), but some clients require a CF `_FillValue`.
+    """
+    if "scl" in dataset.data_vars and encoding_utils.find_fill_value(dataset["scl"]) is None:
+        dataset["scl"].encoding["_FillValue"] = SCL_NODATA
+    return dataset
 
 
 class S2Type(StrEnum):
@@ -93,6 +89,58 @@ class S2Type(StrEnum):
 
 
 log = structlog.get_logger()
+
+
+@dataclass(frozen=True)
+class MultiscaleSpec:
+    """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
+
+    base_path: str
+    """Group holding the pyramid levels, e.g. `/measurements/reflectance`."""
+    scale_levels: tuple[int, ...]
+    """Level resolutions in metres, finest first.
+
+    The finest level must exist in the input. Coarser levels present in the input
+    are reused; the others are coarsened from the level before them.
+    """
+    additional_attributes: dict[str, list[Any]] | None = None
+    """Attributes written on every variable of every level (e.g. SCL flag meanings)."""
+    product_levels: frozenset[S2Type] | None = None
+    """Products the group exists in; `None` means every product."""
+
+    @property
+    def finest_key(self) -> str:
+        return f"r{self.scale_levels[0]}m"
+
+    def applies_to(self, s2_type: S2Type | None) -> bool:
+        return self.product_levels is None or s2_type in self.product_levels
+
+
+REFLECTANCE_MULTISCALE = MultiscaleSpec(
+    base_path="/measurements/reflectance",
+    scale_levels=(10, 20, 60, 120, 360, 720),
+)
+
+# Auxiliary (non-reflectance) groups. Groups missing from the input are skipped with a warning.
+_AUX_MULTISCALES: tuple[MultiscaleSpec, ...] = (
+    MultiscaleSpec(
+        base_path="/conditions/mask/l2a_classification",
+        scale_levels=(20, 60, 120, 360, 720),
+        additional_attributes=SCL_ATTRS,
+        product_levels=frozenset({S2Type.L2A}),
+    ),
+    MultiscaleSpec(
+        base_path="/quality/probability",
+        scale_levels=(20, 60, 120, 360, 720),
+        product_levels=frozenset({S2Type.L2A}),
+    ),
+    MultiscaleSpec(
+        base_path="/conditions/mask/l1c_classification",
+        scale_levels=(60, 120, 360, 720),
+    ),
+)
+
+MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
 
 def _spatial_level_attrs(dataset: xr.Dataset) -> dict[str, list[float] | list[int]]:
@@ -167,8 +215,8 @@ def inject_missing_bands(
     finer than `target_resolution`, this function checks whether the band is
     already present in `dataset`.  If not, it looks for the band in the
     appropriate source group (e.g. `/measurements/reflectance/r10m`),
-    downsamples it to the target grid using the type-aware resampling from
-    `determine_variable_type`, and merges it into `dataset`.
+    downsamples it by the coarsening operation aligned to ESA's S2-PDGS-MPC-ATBD-L2A
+    (block-mean), and merges it into `dataset`.
 
     Args:
         dataset: The target-resolution dataset (e.g. the r20m or r60m
@@ -215,21 +263,13 @@ def inject_missing_bands(
         factor = target_resolution // native_res
         band_ds = _coarsen_variable(band_name, band_src, factor)
 
-        # Copy: updating `band_src.attrs` in place would tag the native source band too.
-        trgt_attrs = {
-            **band_src.attrs,
-            "_derived_from": f"r{native_res}m",
-            "_factor": factor,
-            "_resampling_mode": "mean",
-        }
-
         # Replace coordinates with the target dataset's coordinates so that
         # xarray.Dataset.assign does not try to align on mismatched values.
         band_ds = xr.DataArray(
             band_ds.values,
             dims=band_ds.dims,
             coords={d: dataset.coords[d] for d in band_ds.dims if d in dataset.coords},
-            attrs=trgt_attrs,
+            attrs=band_src.attrs,
             name=band_name,
         )
 
@@ -248,19 +288,29 @@ def inject_missing_bands(
     return utils._rechunk_ds(dataset, spatial_chunk)
 
 
+def select_unique_variable_type(ds: xr.Dataset) -> str:
+    variable_types = {
+        s2_resampling.determine_variable_type(str(data_var)) for data_var in ds.data_vars
+    }
+    if len(variable_types) > 1:
+        err_msg = f"The given dataset contains multiple data variable types: {variable_types}. It is not possible to map them to a single variable type."
+        raise ValueError(err_msg)
+
+    return next(iter(variable_types))
+
+
 def generic_multiscales(
-    base_path: str,
+    spec: MultiscaleSpec,
     src_processed_groups: dict[str, Any],
-    output_path: str,
     output_group: zarr.Group,
-    scale_levels: tuple[int, ...],
-    finest_dataset_key: str,
     enable_sharding: bool = True,
     crs: CRS | None = None,
     scale_offset_codec: bool = False,
-    additional_attributes: dict[str, list[Any]] | None = None,
     compression_level: int = 3,
 ) -> dict[str, Any]:
+    base_path, scale_levels = spec.base_path, spec.scale_levels
+    finest_dataset_key = spec.finest_key
+    additional_attributes = spec.additional_attributes
     # Create downsampled resolution groups
     if finest_dataset_key not in src_processed_groups:
         raise KeyError(
@@ -272,12 +322,12 @@ def generic_multiscales(
     fine_base: xr.Dataset = src_processed_groups[finest_dataset_key]
 
     # determine variable type and subsequent resampling method for MS layout
-    variable_type = s2_resampling.determine_variable_type(str(next(iter(fine_base.data_vars))))
+    variable_type = select_unique_variable_type(fine_base)
     resampling_method = (
         "average"
         if variable_type in ("reflectance", "probability")
         else "nearest"
-        if variable_type in ("classification")
+        if variable_type == "classification"
         else None
     )
 
@@ -309,13 +359,14 @@ def generic_multiscales(
         dest_level_name = f"r{dest_level}m"
         dest_level_path = f"{base_path}/{dest_level_name}"
 
-        # incorrect downsample factor
+        # each step must be an exact integer factor (20->60 = 3, 60->120 = 2, ...)
+        if dest_level % source_level:
+            raise ValueError(f"{dest_level} m is not an integer multiple of {source_level} m")
         downsample_factor = dest_level // source_level
 
         if dest_level_name in src_processed_groups:
-            # just assign already existing group as we dont need any coarsening
-            # loadly fails afterwards, if `src_processed_groups[dest_level_name]`
-            # was not procesed correctly as its geo metadata is queryied
+            # reuse the native group (e.g. reflectance r20m/r60m), no coarsening needed.
+            # Fails loudly afterwards if its geo metadata is missing.
             ds_out = src_processed_groups[dest_level_name]
 
             # Store results
@@ -344,9 +395,6 @@ def generic_multiscales(
                 compression_level=compression_level,
             )
 
-            # add geo metadata
-            # write_geo_metadata(downsampled_dataset, crs=crs)
-
             # Write dataset
             ds_out = utils.stream_write_dataset(
                 downsampled_dataset,
@@ -363,7 +411,8 @@ def generic_multiscales(
         # determine multiscale metadata for all datasets
         spatial_levels[dest_level_path] = _spatial_level_attrs(ds_out)
 
-        # already have a reference -> derive scale factor from it
+        # Nominal factor (ratio of pixel spacings), not the ratio of shapes: boundary="trim"
+        # gives e.g. 305 -> 152 px at r720m. Intentional, see #313.
         transform: Transform = {
             "scale": [downsample_factor, downsample_factor],
             "translation": [0.0, 0.0],
@@ -382,21 +431,27 @@ def generic_multiscales(
     # Step 3: Add multiscales metadata to parent groups
     log.info("Adding multiscales metadata to parent groups")
 
-    # add metadata to root and multiscale-parent node
-    root_rw = zarr.open_group(output_path, mode="a")
+    # Get the parent group (it was created when writing the resolution groups).
+    # `output_group[base_path]` is typed `Array | Group`; `base_path` always
+    # addresses a group (the reflectance parent), so verify that at runtime.
+    parent_group = output_group[base_path]
+    if not isinstance(parent_group, zarr.Group):
+        raise TypeError(
+            f"expected a zarr.Group at {base_path!r}, got {type(parent_group).__name__}"
+        )
 
-    # create layoutobjects -> also checks accordance (i think)
+    # LayoutObject is a TypedDict (no validation); zarr_cm validates in build_convention_attrs
     layout: list[LayoutObject] = [LayoutObject(**lo) for lo in layout_]
     ms: MultiscalesAttrs = {"layout": layout, "resampling_method": resampling_method}
 
     # add geozarr attrs to base of /multiscales
     fine_base_spatial = grid_spatial_attrs(
-        transform=fine_base.rio.transform(recalc=True),
+        transform=Affine(*spatial_levels[finest_dataset_key]["spatial:transform"]),
         shape=(fine_base.sizes["y"], fine_base.sizes["x"]),
     )
 
     conv = utils.build_convention_attrs(multiscales=ms, spatial=fine_base_spatial, crs=crs)
-    root_rw[base_path].attrs.update(cast("dict[str, JSON]", conv))
+    parent_group.attrs.update(cast("dict[str, JSON]", conv))
 
     # Add `additional_attributes` to every level in one place. The finest level and
     # levels reused from the source were written before this function ran, so the
@@ -405,7 +460,7 @@ def generic_multiscales(
         for level_path, level_ds in dst_processed_groups.items():
             for data_var in level_ds.data_vars:
                 level_ds[data_var].attrs.update(additional_attributes)
-                level_array = root_rw[f"{level_path.lstrip('/')}/{data_var}"]
+                level_array = output_group[f"{level_path.lstrip('/')}/{data_var}"]
                 level_array.attrs.update(cast("dict[str, JSON]", additional_attributes))
 
     # add it as none here to be recognized later and can be created as a zarr root with necessary metadata
@@ -505,7 +560,7 @@ def create_multiscale_from_datatree(
 
         log.info("Copying original group", group_path=group_path)
 
-        dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
+        dataset = _declare_scl_nodata(utils._rechunk_ds(base_dataset, spatial_chunk))
 
         # Determine if this is a measurement-related resolution group
         group_name = group_path.split("/")[-1]
@@ -624,9 +679,19 @@ def create_multiscale_from_datatree(
         processed_groups[group_path] = ds_out
 
     # iterate over auxiliary multisacles to generate non-measurement MS
-    for base_path, finest_key, scale_levels, attrs, product_levels in _AUX_MULTISCALES:
-        # product levels defines L2A or L1C to differentiate between cld/snw & l2a_classification which is L2A specific and l1c_classification which runs for both
-        if product_levels is not None and s2_type not in product_levels:
+    for aux in _AUX_MULTISCALES:
+        if not aux.applies_to(s2_type):
+            continue
+        base_path, finest_key = aux.base_path, aux.finest_key
+        src_path = f"{base_path}/{finest_key}"
+        # Not every processing baseline carries every auxiliary group: skip, don't fail.
+        if src_path not in processed_groups:
+            log.warning(
+                "Skipping S2 auxiliary multiscales: source group missing from input",
+                base_path=base_path,
+                src_path=src_path,
+                product_level=s2_type,
+            )
             continue
         src_path = f"{base_path}/{finest_key}"
         if src_path not in processed_groups:
@@ -638,33 +703,25 @@ def create_multiscale_from_datatree(
         log.info("Adding multiscales for S2 auxiliary group", base_path=base_path)
         processed_groups.update(
             generic_multiscales(
-                base_path=base_path,
+                aux,
                 src_processed_groups={finest_key: processed_groups[src_path]},
-                output_path=output_path,
                 output_group=output_group,
-                scale_levels=scale_levels,
-                finest_dataset_key=finest_key,
                 enable_sharding=enable_sharding,
                 crs=crs,
                 scale_offset_codec=scale_offset_codec,
-                additional_attributes=attrs,
             )
         )
 
-    # generate multiscales for "/measurements/reflectance"
-    log.info("Adding multiscales for S2: Measurements in '/measurements/reflectance/'")
+    # generate multiscales for "/measurements/reflectance" from its native r10m/r20m/r60m levels
+    reflectance_path = REFLECTANCE_MULTISCALE.base_path
+    log.info("Adding multiscales for S2 reflectance", base_path=reflectance_path)
     measurement_processed_groups: dict[str, Any] = {
-        "r10m": processed_groups["/measurements/reflectance/r10m"],
-        "r20m": processed_groups["/measurements/reflectance/r20m"],
-        "r60m": processed_groups["/measurements/reflectance/r60m"],
+        key: processed_groups[f"{reflectance_path}/{key}"] for key in ("r10m", "r20m", "r60m")
     }
     ms_measurement_processed_groups = generic_multiscales(
-        base_path="/measurements/reflectance",
+        REFLECTANCE_MULTISCALE,
         src_processed_groups=measurement_processed_groups,
-        output_path=output_path,
         output_group=output_group,
-        scale_levels=(10, 20, 60, 120, 360, 720),
-        finest_dataset_key="r10m",
         enable_sharding=enable_sharding,
         crs=crs,
         scale_offset_codec=scale_offset_codec,
@@ -709,7 +766,14 @@ def create_downsampled_resolution_group(source_dataset: xr.Dataset, factor: int)
 
 
 def subsample_2(a: xr.DataArray, axis: tuple[int, ...] | None = None) -> xr.DataArray:
+    """Pick the centre pixel of each coarsening window (nearest-neighbour).
+
+    `coarsen` places the output coordinates at the window centres, so the
+    centre pixel keeps classification aligned with the averaged bands. For an
+    even window there is no single centre pixel and the lower-right one of the
+    middle four is taken.
+    """
     if axis is None:
-        return a[((0,) * a.ndim)]
-    indexer = [0 if i in axis else slice(None) for i in range(a.ndim)]
+        axis = tuple(range(a.ndim))
+    indexer = [a.shape[i] // 2 if i in axis else slice(None) for i in range(a.ndim)]
     return a[tuple(indexer)]

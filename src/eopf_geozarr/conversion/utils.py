@@ -184,29 +184,6 @@ def _rechunk_iterable(
     return collector
 
 
-def _forward_unpacked_encoding(
-    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
-) -> XarrayDataArrayEncoding:
-    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
-    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
-    fv = explicit_fill_value(var_data)
-    if fv is not UNSET:
-        var_encoding["fill_value"] = fv
-    elif "fill_value" in var_data.attrs:
-        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
-        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
-
-    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
-        if key in var_data.encoding:
-            var_encoding[key] = var_data.encoding[key]
-
-    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
-    if unknown:
-        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
-
-    return var_encoding
-
-
 def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
     """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
 
@@ -582,6 +559,42 @@ def get_chunking_for_encoding(
     raise ValueError(
         f"Datavariable {var_data.name!r} is not chunked already, cannot derive Zarr encoding chunks -> will lead to unchunked array"
     )
+
+
+def _forward_unpacked_encoding(
+    var_name: Hashable, var_data: xr.DataArray, var_encoding: XarrayDataArrayEncoding
+) -> XarrayDataArrayEncoding:
+    """Update the source encoding of an unpacked variable, with an explicit Zarr fill value."""
+    # Pin the Zarr fill_value rather than letting xarray versions infer different ones.
+    fv = explicit_fill_value(var_data)
+    if fv is not UNSET:
+        var_encoding["fill_value"] = fv
+    elif "fill_value" in var_data.attrs:
+        # On Zarr v3 CPM products the EOPF `fill_value` attribute is the only nodata value.
+        var_encoding["_FillValue"] = var_data.attrs["fill_value"]
+
+    # Integer variables without CF packing (e.g. SCL) also need a CF `_FillValue`,
+    # as packed variables have, since some clients require it. Only a declared
+    # nodata value is used: the Zarr fill value (often 0) can be valid data, e.g.
+    # for probabilities and bitmasks.
+    if np.issubdtype(var_data.dtype, np.integer):
+        nodata = var_encoding.get("_FillValue", encoding_utils.find_fill_value(var_data))
+        if nodata is not None:
+            var_encoding["_FillValue"] = int(nodata)
+            var_encoding.setdefault("fill_value", int(nodata))
+            # Keep it on the variable too: the attributes are sanitized afterwards,
+            # and the coarser pyramid levels are built from this variable.
+            var_data.encoding["_FillValue"] = int(nodata)
+
+    for key in XARRAY_ENCODING_KEYS - {"compressors", "shards", "chunks", "fill_value"}:
+        if key in var_data.encoding:
+            var_encoding[key] = var_data.encoding[key]
+
+    unknown = set(var_data.encoding) - XARRAY_ENCODING_KEYS
+    if unknown:
+        log.warning("Unknown encoding keys in %s: %s", var_name, unknown)
+
+    return var_encoding
 
 
 def build_dataarray_encoding(
@@ -1276,3 +1289,76 @@ def write_store_stac_metadata(
         "Updated root metadata attributes for STAC ingestion",
         root_attrs=list(input_root_attrs.keys()),
     )
+
+    # use the merged root attrs, since `stac_discovery` may have been popped from `input_root_attrs` above
+    write_store_geozarr_version_metadata(
+        output_path, input_root_attrs=dict(root.attrs), storage_options=storage_options
+    )
+
+
+def write_store_geozarr_version_metadata(
+    output_path: str,
+    input_root_attrs: Mapping[str, Any],
+    storage_options: dict[str, Any] | None = None,
+) -> None:
+    """Adds the current git tag to the processing history of stac_discovery."""
+    import copy
+
+    from eopf_geozarr.conversion import fs_utils
+
+    def git_version() -> str | None:
+        from pathlib import Path
+
+        try:
+            import pygit2
+        except ImportError:
+            return None
+
+        try:
+            repo_path = pygit2.discover_repository(str(Path(__file__).resolve().parent))
+            if repo_path is None:
+                return None
+            repo = pygit2.Repository(repo_path)
+            return repo.describe(
+                describe_strategy=pygit2.enums.DescribeStrategy.TAGS,
+                show_commit_oid_as_fallback=True,
+                always_use_long_format=True,
+                dirty_suffix="-dirty",
+            )
+        except (LookupError, pygit2.GitError):
+            return None
+
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+
+    root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
+
+    stac = input_root_attrs.get("stac_discovery")
+    if stac is None:
+        log.info(
+            "Could not find `stac_discovery` in passed down attributes, not applying geozarr verisoning."
+        )
+        return
+
+    def package_version() -> str | None:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            return version("eopf-geozarr")
+        except PackageNotFoundError:
+            return None
+
+    # fall back to the installed package version if there is no git history (e.g. installed from a wheel)
+    eopf_geozarr_version = git_version() or package_version()
+    if not eopf_geozarr_version:
+        raise ValueError(
+            "Could not derive EOPF_GEOZARR version from git version history or the installed package."
+        )
+
+    stac = copy.deepcopy(stac)
+    software = stac.setdefault("properties", {}).setdefault("processing:software", {})
+    software["EOPF_GEOZARR"] = eopf_geozarr_version
+
+    root.attrs["stac_discovery"] = stac
+
+    return

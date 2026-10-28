@@ -134,17 +134,20 @@ def _validate_s2_input(dt_input: xr.DataTree) -> None:
         raise ValueError("Input dataset is not a Sentinel-2 product")
 
 
-def _aux_multiscale_paths(dt_input: xr.DataTree) -> list[str]:
+def _aux_multiscale_paths(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> list[str]:
     """Pyramid parent groups of the auxiliary multiscales built for this product level.
 
+    Only pyramids that were actually written (i.e. have levels in `datasets`) are
+    listed: not every processing baseline carries every auxiliary group.
     `/measurements/reflectance` is not listed: `updated_root_consolidation`
     consolidates it on its own.
     """
     s2_type = S2Type.from_datatree(dt_input)
     return [
-        ms_group_path
-        for ms_group_path, _, _, _, product_levels in _AUX_MULTISCALES
-        if product_levels is None or s2_type in product_levels
+        aux.base_path
+        for aux in _AUX_MULTISCALES
+        if aux.applies_to(s2_type)
+        and any(path.startswith(aux.base_path + "/") for path in datasets)
     ]
 
 
@@ -242,7 +245,7 @@ def convert_s2(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
-        additional_consolidate_paths=_aux_multiscale_paths(dt_input),
+        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
     )
 
     # Step 4: Validation
@@ -332,7 +335,7 @@ def convert_s2_optimized(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
-        additional_consolidate_paths=_aux_multiscale_paths(dt_input),
+        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
     )
 
     # Step 4: Validation

@@ -1,4 +1,4 @@
-"""Pipeline routing for DataTree products handed to the CPM writer plugin.
+"""Pipeline routing for DataTree products handed to the GeoZarr driver for EOPF CPM.
 
 CPM products carry their identity in the ``stac_discovery`` root attributes
 (see ``StacProductConvention`` in eopf-cpm), so routing prefers the declared
