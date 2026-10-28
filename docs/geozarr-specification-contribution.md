@@ -115,8 +115,8 @@ Our implementation provides concrete evidence for these improvements:
 
 ### Native CRS Preservation
 
-- **Function:** `create_native_crs_tile_matrix_set()`
-- **Purpose:** Creates custom tile matrix sets for arbitrary coordinate reference systems
+- **Functions:** `proj_attrs_for_crs()`, `build_convention_attrs()`
+- **Purpose:** Declare the native coordinate reference system of each group with the `proj:` convention (EPSG code, else WKT2)
 - **Benefit:** Maintains scientific accuracy without unnecessary reprojection
 
 ### Robust Processing

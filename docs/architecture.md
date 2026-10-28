@@ -487,14 +487,25 @@ s3_options = {
 
 ### 3. Metadata Consolidation
 
-Zarr metadata consolidation for improved performance:
+Zarr metadata consolidation for improved performance. After all groups are
+written, `eopf_geozarr.conversion.utils.updated_root_consolidation` consolidates
+the stores from the leaves up, so every consolidated view is complete:
 
 ```python
-def consolidate_metadata(output_path: str, **storage_kwargs) -> None:
-    """Consolidate Zarr metadata for faster access."""
-    store = get_zarr_store(output_path, **storage_kwargs)
-    zarr.consolidate_metadata(store)
+# test: skip
+def updated_root_consolidation(
+    dt_input: xr.DataTree,
+    output_path: str,
+    datasets: Mapping[str, object],
+    additional_consolidate_paths: list[str] | None = None,
+) -> None
 ```
+
+1. Each `measurements` group is consolidated.
+2. Each group in `additional_consolidate_paths` is consolidated (the
+   multiscale pyramid groups, e.g. `/measurements/reflectance`).
+3. The store-root (or Sentinel-1 subroot) GeoZarr and STAC metadata is written
+   from `dt_input.attrs`, and the root (or each subroot) is consolidated last.
 
 ## Error Handling and Validation
 

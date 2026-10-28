@@ -43,7 +43,6 @@ convert_s2_optimized(
     compression_level: int,
     validate_output: bool,
     scale_offset_codec: bool = False,
-    max_retries: int = 3,
 ) -> xr.DataTree
 ```
 
@@ -59,10 +58,9 @@ without a default are required.
 | `compression_level` | Blosc zstd level, 1–9. |
 | `validate_output` | Validate the output after writing. |
 | `scale_offset_codec` | `False` (default): ESA layout with CF scale attributes. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
-| `max_retries` | Retries for network operations. |
 
 `create_multiscale_from_datatree(dt_input, *, output_group, enable_sharding,
-spatial_chunk, crs=None, scale_offset_codec=False)` in
+spatial_chunk, crs=None, scale_offset_codec=False, compression_level=3)` in
 `eopf_geozarr.s2_optimization.s2_multiscale` is the lower-level function that
 writes the pyramid into an open `zarr.Group`.
 
@@ -157,8 +155,8 @@ In `eopf_geozarr.conversion.utils`:
 
 - `calculate_aligned_chunk_size(dimension_size, target_chunk_size)`: the
   largest chunk size up to the target that divides the dimension evenly.
-- `write_store_root_geo_metadata(output_path, storage_options=None)`: write the
-  store-root GeoZarr metadata (`zarr_conventions`, `spatial:bbox`,
+- `write_store_geo_metadata(output_path, input_root_attrs=None, storage_options=None)`:
+  write the store-root GeoZarr metadata (`zarr_conventions`, `spatial:bbox`,
   `proj:code`), for example on stores from older releases.
 - `downsample_2d_array(source_data, target_height, target_width, nodata_value=None)`:
   block average with nodata handling.

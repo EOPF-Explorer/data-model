@@ -250,7 +250,7 @@ when the store is not compliant.
     These stores do not have the store-root `zarr_conventions` declaration, so
     `validate` reports them as non-compliant. Convert them again, or add the
     root metadata with
-    `eopf_geozarr.conversion.utils.write_store_root_geo_metadata`.
+    `eopf_geozarr.conversion.utils.write_store_geo_metadata`.
 
 ## `info`
 

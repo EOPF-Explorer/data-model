@@ -119,7 +119,7 @@ arguments (with `write_datatree`). Unknown options raise `NotImplementedError`.
 | `groups` | — | Generic: DataTree groups to convert (required). |
 | `crs_groups` | `None` | Generic: groups that get CRS information added. |
 | `gcp_group` | `None` | Generic: group with ground control points (Sentinel-1). |
-| `max_retries` | `3` | Retries for network operations. |
+| `max_retries` | `3` | Generic: retries for network operations. |
 | `keep_scale_offset` | — | Deprecated. `keep_scale_offset=True` is the default ESA layout; `keep_scale_offset=False` is `scale_offset_codec=True`. |
 
 ## Product routing
