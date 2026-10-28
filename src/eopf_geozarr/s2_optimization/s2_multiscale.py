@@ -378,7 +378,12 @@ def generic_multiscales(
                 else dst_processed_groups[src_level_path]
             )
 
-            log.info("Creating level with resolution", level=dest_level_name, resolution=dest_level)
+            log.info(
+                "Creating level with resolution",
+                base_path=base_path,
+                level=dest_level_name,
+                resolution=dest_level,
+            )
 
             # Create downsampled dataset by coarsening
             downsampled_dataset = create_downsampled_resolution_group(
@@ -496,7 +501,6 @@ def grid_spatial_attrs(transform: Affine, shape: tuple[int, int]) -> SpatialAttr
 def create_multiscale_from_datatree(
     dt_input: xr.DataTree,
     *,
-    output_path: str,
     output_group: zarr.Group,
     enable_sharding: bool,
     spatial_chunk: int,
@@ -693,18 +697,19 @@ def create_multiscale_from_datatree(
                 product_level=s2_type,
             )
             continue
-        src_path = f"{base_path}/{finest_key}"
-        if src_path not in processed_groups:
-            raise KeyError(
-                f"Group {src_path!r} is required to build the multiscales of {base_path!r} "
-                f"(product level {s2_type}), but it is missing from the input DataTree."
-            )
 
         log.info("Adding multiscales for S2 auxiliary group", base_path=base_path)
+        # Pass every native level, so `generic_multiscales` reuses them instead of
+        # coarsening them again from the finest level.
+        native_levels = {
+            f"r{level}m": processed_groups[f"{base_path}/r{level}m"]
+            for level in aux.scale_levels
+            if f"{base_path}/r{level}m" in processed_groups
+        }
         processed_groups.update(
             generic_multiscales(
                 aux,
-                src_processed_groups={finest_key: processed_groups[src_path]},
+                src_processed_groups=native_levels,
                 output_group=output_group,
                 enable_sharding=enable_sharding,
                 crs=crs,

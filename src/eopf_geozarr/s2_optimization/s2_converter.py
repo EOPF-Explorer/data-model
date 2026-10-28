@@ -18,7 +18,12 @@ from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 
-from .s2_multiscale import _AUX_MULTISCALES, S2Type, create_multiscale_from_datatree
+from .s2_multiscale import (
+    _AUX_MULTISCALES,
+    REFLECTANCE_MULTISCALE,
+    S2Type,
+    create_multiscale_from_datatree,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -134,20 +139,19 @@ def _validate_s2_input(dt_input: xr.DataTree) -> None:
         raise ValueError("Input dataset is not a Sentinel-2 product")
 
 
-def _aux_multiscale_paths(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> list[str]:
-    """Pyramid parent groups of the auxiliary multiscales built for this product level.
+def _multiscale_paths(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> list[str]:
+    """Pyramid parent groups of the multiscales built for this product level.
 
-    Only pyramids that were actually written (i.e. have levels in `datasets`) are
-    listed: not every processing baseline carries every auxiliary group.
-    `/measurements/reflectance` is not listed: `updated_root_consolidation`
-    consolidates it on its own.
+    Lists `/measurements/reflectance` and the auxiliary pyramids, each only if it
+    was actually written (i.e. has levels in `datasets`): not every processing
+    baseline carries every auxiliary group.
     """
     s2_type = S2Type.from_datatree(dt_input)
     return [
-        aux.base_path
-        for aux in _AUX_MULTISCALES
-        if aux.applies_to(s2_type)
-        and any(path.startswith(aux.base_path + "/") for path in datasets)
+        spec.base_path
+        for spec in (REFLECTANCE_MULTISCALE, *_AUX_MULTISCALES)
+        if spec.applies_to(s2_type)
+        and any(path.startswith(spec.base_path + "/") for path in datasets)
     ]
 
 
@@ -230,7 +234,6 @@ def convert_s2(
     log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)")
     datasets = create_multiscale_from_datatree(
         dt_input,
-        output_path=output_path,
         output_group=zarr.open_group(output_path),
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
@@ -245,7 +248,7 @@ def convert_s2(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
-        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
+        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
     )
 
     # Step 4: Validation
@@ -317,7 +320,6 @@ def convert_s2_optimized(
 
     datasets = create_multiscale_from_datatree(
         dt_input,
-        output_path=output_path,
         output_group=output_group,
         spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
@@ -335,7 +337,7 @@ def convert_s2_optimized(
         dt_input=dt_input,
         output_path=output_path,
         datasets=datasets,
-        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
+        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
     )
 
     # Step 4: Validation

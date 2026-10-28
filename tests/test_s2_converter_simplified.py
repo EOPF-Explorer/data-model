@@ -5,6 +5,7 @@ Tests the new simplified approach that uses only xarray and proper metadata cons
 """
 
 import json
+import uuid
 from pathlib import Path
 from typing import cast
 from unittest.mock import Mock, patch
@@ -12,6 +13,8 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import xarray as xr
+import zarr
+from zarr.core.group import ConsolidatedMetadata
 
 from eopf_geozarr.conversion.utils import (
     add_multiscale_pyramids_to_stac_metadata,
@@ -19,7 +22,7 @@ from eopf_geozarr.conversion.utils import (
     write_store_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import (
-    _aux_multiscale_paths,
+    _multiscale_paths,
     _validate_s2_input,
     add_s2_stac_assets,
     convert_s2_optimized,
@@ -221,40 +224,64 @@ class TestCRSInitialization:
         assert crs.to_epsg() == 32632
 
 
-def test_updated_root_consolidation_success(tmp_path: Path) -> None:
+@pytest.mark.parametrize("store", ["local", "memory"])
+def test_updated_root_consolidation_success(tmp_path: Path, store: str) -> None:
     """
-    Test that updated_root_consolidation produces consolidated metadata at the root, and for the
-    measurements/reflectance group, but not for other groups.
+    Test that updated_root_consolidation consolidates the root and each group passed in
+    `additional_consolidate_paths` (here the reflectance and an auxiliary pyramid), but
+    not other groups. Also runs on an fsspec store, where a `//` in a group path fails.
     """
-
-    # `None` marks the pyramid parent group, as returned by `generic_multiscales`
+    # `None` marks the pyramid parent groups, as returned by `generic_multiscales`
     datasets: dict[str, xr.Dataset | None] = {
         "/measurements/reflectance/r10m": xr.Dataset(),
         "/measurements/reflectance": None,
+        "/conditions/mask/l2a_classification/r20m": xr.Dataset(),
+        "/conditions/mask/l2a_classification": None,
         "/quality/atmosphere": xr.Dataset(),
     }
 
     # Write every group into one store, as the pipeline does: zarr then creates
     # the root and all parent groups, which `updated_root_consolidation` expects.
-    output_path = str(tmp_path / "test.zarr")
+    output_path = (
+        str(tmp_path / "test.zarr") if store == "local" else f"memory://{uuid.uuid4().hex}.zarr"
+    )
     for k, v in datasets.items():
         if v is not None:
             v.to_zarr(output_path, group=k.lstrip("/"), mode="a", zarr_format=3, consolidated=False)
+    zarr.open_group(f"{output_path}/measurements/reflectance", mode="r+").attrs["title"] = "refl"
 
-    updated_root_consolidation(dt_input=xr.DataTree(), output_path=output_path, datasets=datasets)
-
-    root_z_meta = json.loads((tmp_path / "test.zarr/zarr.json").read_text())
-    reflectance_zmeta = json.loads(
-        (tmp_path / "test.zarr/measurements/reflectance/zarr.json").read_text()
+    updated_root_consolidation(
+        dt_input=xr.DataTree(),
+        output_path=output_path,
+        datasets=datasets,
+        additional_consolidate_paths=[
+            "/measurements/reflectance",
+            "/conditions/mask/l2a_classification",
+        ],
     )
-    atmos_zmeta = json.loads((tmp_path / "test.zarr/quality/zarr.json").read_text())
 
-    assert "consolidated_metadata" in root_z_meta
-    assert isinstance(root_z_meta["consolidated_metadata"], dict)
-    assert "consolidated_metadata" in reflectance_zmeta
-    assert isinstance(reflectance_zmeta["consolidated_metadata"], dict)
-    if "consolidated_metadata" in atmos_zmeta:
-        assert atmos_zmeta["consolidated_metadata"] is None
+    def consolidated_metadata(group_path: str) -> ConsolidatedMetadata | None:
+        group = zarr.open_group(f"{output_path}/{group_path}".rstrip("/"), mode="r")
+        return group.metadata.consolidated_metadata
+
+    root_consolidated = consolidated_metadata("")
+    assert root_consolidated is not None
+    for group_path, level in [
+        ("measurements/reflectance", "r10m"),
+        ("conditions/mask/l2a_classification", "r20m"),
+    ]:
+        group_consolidated = consolidated_metadata(group_path)
+        assert group_consolidated is not None, f"{group_path}: not consolidated"
+        assert level in group_consolidated.metadata
+    assert consolidated_metadata("quality") is None
+
+    # Order guard: the root is consolidated last, so its view of the reflectance
+    # group has the same attributes as the group itself.
+    reflectance = zarr.open_group(
+        f"{output_path}/measurements/reflectance", mode="r", use_consolidated=False
+    )
+    root_view = root_consolidated.flattened_metadata["measurements/reflectance"]
+    assert root_view.attributes == reflectance.metadata.attributes == {"title": "refl"}
 
 
 @pytest.mark.parametrize(
@@ -293,7 +320,7 @@ def test_updated_root_consolidation_aux_multiscales(
         dt_input=dt_input,
         output_path=str(output_path),
         datasets=datasets,
-        additional_consolidate_paths=_aux_multiscale_paths(dt_input, datasets),
+        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
     )
 
     for base_path in aux_groups:
@@ -304,6 +331,10 @@ def test_updated_root_consolidation_aux_multiscales(
             *levels,
             *(f"{level}/b00" for level in levels),
         }, f"{base_path}: {sorted(consolidated['metadata'])}"
+
+    # The reflectance pyramid is consolidated through the same list.
+    zmeta = json.loads((output_path / "measurements/reflectance/zarr.json").read_text())
+    assert "r10m" in zmeta["consolidated_metadata"]["metadata"]
 
     if "/quality/probability" not in aux_groups:
         assert not (output_path / "quality/probability").exists()
@@ -475,6 +506,7 @@ class TestConvenienceFunction:
         # Setup mocks
         # Only pyramids with written levels are consolidated, so return one level of each
         mock_multiscale.return_value = {
+            "/measurements/reflectance/r10m": xr.Dataset(),
             "/conditions/mask/l2a_classification/r20m": xr.Dataset(),
             "/quality/probability/r20m": xr.Dataset(),
             "/conditions/mask/l1c_classification/r60m": xr.Dataset(),
@@ -522,6 +554,7 @@ class TestConvenienceFunction:
         consolidation_kwargs = mock_consolidation.call_args.kwargs
         assert consolidation_kwargs["output_path"] == output_path
         assert consolidation_kwargs["additional_consolidate_paths"] == [
+            "/measurements/reflectance",
             "/conditions/mask/l2a_classification",
             "/quality/probability",
             "/conditions/mask/l1c_classification",

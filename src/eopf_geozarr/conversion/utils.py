@@ -204,26 +204,25 @@ def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
     values are logged and treated as unresolvable rather than raised, since the
     attributes come from stored metadata.
     """
-    from pyproj import CRS as PyprojCRS
 
     code = attrs.get("proj:code")
     if isinstance(code, str):
         try:
-            return PyprojCRS.from_user_input(code)
+            return CRS.from_user_input(code)
         except Exception as e:  # malformed stored metadata
             log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
             return None
     wkt2 = attrs.get("proj:wkt2")
     if isinstance(wkt2, str):
         try:
-            return PyprojCRS.from_wkt(wkt2)
+            return CRS.from_wkt(wkt2)
         except Exception as e:
             log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
             return None
     projjson = attrs.get("proj:projjson")
     if isinstance(projjson, dict):
         try:
-            return PyprojCRS.from_json_dict(projjson)
+            return CRS.from_json_dict(projjson)
         except Exception as e:
             log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
             return None
@@ -272,21 +271,25 @@ def updated_root_consolidation(
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
         3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root
     Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
+    Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
     # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
-    output_path = output_path.rstrip("/") + "/"
+    output_path = output_path.rstrip("/")
+
+    def _group_url(group_path: str) -> str:
+        return f"{output_path}/{group_path.strip('/')}"
 
     # step 1: consolidate all /measurements (inlcuding subroots and S2 reflectance)
     for group_path in datasets:
         _, _, name = group_path.rstrip("/").rpartition("/")
-        if name in ("measurements", "reflectance"):
-            zarr.consolidate_metadata(output_path + group_path, zarr_format=constants.ZARR_FORMAT)
+        if name == "measurements":
+            zarr.consolidate_metadata(_group_url(group_path), zarr_format=constants.ZARR_FORMAT)
 
     # step 2: consolidate any additional groups (multiscales, ...) which are passed to this function
     if additional_consolidate_paths:
         for additional_path in additional_consolidate_paths:
             zarr.consolidate_metadata(
-                output_path + additional_path, zarr_format=constants.ZARR_FORMAT
+                _group_url(additional_path), zarr_format=constants.ZARR_FORMAT
             )
 
     # step 3: add metadata to subroots and roots, consolidated either one
@@ -297,12 +300,12 @@ def updated_root_consolidation(
         for subroot in subroot_groups:
             # add spatial and stac related metadata
             write_store_root_metadata(
-                output_path + subroot,
+                _group_url(subroot),
                 attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
             )
 
             # consolidate the subroot itself
-            zarr.consolidate_metadata(output_path + subroot, zarr_format=constants.ZARR_FORMAT)
+            zarr.consolidate_metadata(_group_url(subroot), zarr_format=constants.ZARR_FORMAT)
 
     # also add the geo and stac metadata to the root
     write_store_root_metadata(

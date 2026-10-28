@@ -3842,8 +3842,8 @@
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
-                            1024,
-                            1024
+                            915,
+                            915
                           ]
                         },
                         "name": "regular"
@@ -3858,8 +3858,8 @@
                         {
                           "configuration": {
                             "chunk_shape": [
-                              512,
-                              512
+                              915,
+                              915
                             ],
                             "codecs": [
                               {

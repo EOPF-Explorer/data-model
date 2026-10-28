@@ -294,7 +294,6 @@ def test_create_multiscale_from_datatree_snapshot(
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
-            output_path=output_path,
             enable_sharding=True,
             spatial_chunk=1024,
             crs=_TILE_CRS,
@@ -608,7 +607,6 @@ def test_create_multiscale_from_datatree_behavior(
         create_multiscale_from_datatree(
             dt_input,
             output_group=zarr.create_group(output_path),
-            output_path=output_path,
             enable_sharding=False,
             spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
             # The spatial convention attrs that the pyramid layout needs are only written with a CRS.
@@ -680,7 +678,7 @@ def test_create_multiscale_from_datatree_behavior(
 def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Path) -> None:
     """Native r20m/r60m reflectance groups are reused, not coarsened again from r10m.
 
-    The "skip existing path" guard in `stream_write_s2dataset` would hide a
+    The "skip existing path" guard in `stream_write_dataset` would hide a
     regression on disk, so the created levels are checked through the logs and
     the native groups through their variables and values.
     """
@@ -690,7 +688,6 @@ def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Pa
     with capture_logs() as logs:
         create_multiscale_from_datatree(
             dt_input,
-            output_path=output_path,
             output_group=zarr.create_group(output_path),
             enable_sharding=False,
             spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
@@ -706,6 +703,51 @@ def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Pa
         assert set(ds.data_vars) == {var_name}, f"{group_path}: {set(ds.data_vars)}"
         expected = _decoded(dt_input[group_path].to_dataset()[var_name])
         np.testing.assert_allclose(ds[var_name].values, expected, atol=_SCALE_FACTOR, rtol=0)
+
+
+def test_create_multiscale_reuses_native_aux_levels(tmp_path: pathlib.Path) -> None:
+    """Native r60m levels of the auxiliary pyramids are reused, not coarsened again from r20m.
+
+    Checked through the logs and the stored values, so the test does not rely on
+    the "skip existing path" guard in `stream_write_dataset`, which would hide a
+    coarsened level on disk.
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    dt_input.name = "S2A_MSIL2A_20250811T112131"
+    rng = np.random.default_rng(1)
+    aux_vars = {"conditions/mask/l2a_classification": "scl", "quality/probability": "cld"}
+    for base_path, var_name in aux_vars.items():
+        for level, size in (("r20m", 60), ("r60m", 20)):
+            coords = {"x": np.arange(float(size)), "y": np.arange(float(size))}
+            data = rng.integers(0, 12, size=(size, size), dtype="uint8")
+            band = xr.DataArray(data, dims=["y", "x"], coords=coords)
+            dt_input[f"{base_path}/{level}"] = xr.DataTree(xr.Dataset({var_name: band}))
+    output_path = str(tmp_path / "output.zarr")
+
+    with capture_logs() as logs:
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            crs=CRS.from_epsg(32632),
+        )
+
+    for base_path, var_name in aux_vars.items():
+        created = {
+            e["level"]
+            for e in logs
+            if e["event"] == "Creating level with resolution" and e["base_path"] == f"/{base_path}"
+        }
+        assert created == {"r120m", "r360m", "r720m"}, base_path
+
+        # The native r60m level holds the source values, not r20m values sampled down.
+        group_path = f"{base_path}/r60m"
+        ds = xr.open_dataset(
+            output_path, engine="zarr", group=group_path, mask_and_scale=False, decode_coords="all"
+        )
+        expected = dt_input[group_path].to_dataset()[var_name].values
+        np.testing.assert_array_equal(ds[var_name].values, expected)
 
 
 # ---------------------------------------------------------------------------
