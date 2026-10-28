@@ -714,6 +714,7 @@ def create_multiscale_from_datatree(
                 enable_sharding=enable_sharding,
                 crs=crs,
                 scale_offset_codec=scale_offset_codec,
+                compression_level=compression_level,
             )
         )
 
@@ -730,6 +731,7 @@ def create_multiscale_from_datatree(
         enable_sharding=enable_sharding,
         crs=crs,
         scale_offset_codec=scale_offset_codec,
+        compression_level=compression_level,
     )
 
     # update processed groups with multiscale included groups, old instances of dataset are replaced,

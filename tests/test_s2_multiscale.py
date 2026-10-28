@@ -705,6 +705,43 @@ def test_create_multiscale_reuses_native_reflectance_levels(tmp_path: pathlib.Pa
         np.testing.assert_allclose(ds[var_name].values, expected, atol=_SCALE_FACTOR, rtol=0)
 
 
+@pytest.mark.parametrize("enable_sharding", [False, True])
+def test_create_multiscale_applies_compression_level_to_all_levels(
+    tmp_path: pathlib.Path, enable_sharding: bool
+) -> None:
+    """A non-default `compression_level` reaches the coarsened levels, not only the native ones."""
+    from zarr.codecs import BloscCodec
+
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    output_path = str(tmp_path / "output.zarr")
+    create_multiscale_from_datatree(
+        dt_input,
+        output_group=zarr.create_group(output_path),
+        enable_sharding=enable_sharding,
+        spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+        crs=CRS.from_epsg(32632),
+        compression_level=7,
+    )
+
+    levels: dict[str, set[int]] = {}
+    for group_path in (*_ORIGINAL_GROUPS, *_DOWNSAMPLED_GROUPS):
+        level = zarr.open_group(f"{output_path}/{group_path}", mode="r")
+        for name, array in level.arrays():
+            if name in ("x", "y", "spatial_ref"):
+                continue
+            assert isinstance(array.metadata, ArrayV3Metadata)
+            codecs = [
+                inner
+                for codec in array.metadata.codecs
+                for inner in (codec, *getattr(codec, "codecs", ()))
+            ]
+            levels[f"{group_path}/{name}"] = {
+                codec.clevel for codec in codecs if isinstance(codec, BloscCodec)
+            }
+    assert levels, "no data arrays found"
+    assert all(clevels == {7} for clevels in levels.values()), levels
+
+
 def test_create_multiscale_reuses_native_aux_levels(tmp_path: pathlib.Path) -> None:
     """Native r60m levels of the auxiliary pyramids are reused, not coarsened again from r20m.
 
