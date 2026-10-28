@@ -91,7 +91,7 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
         ),
         1024,
     )
-    write_dataset_geo_metadata(r10m, crs=crs)
+    r10m = write_dataset_geo_metadata(r10m, crs=crs)
     # A GeoTransform on `spatial_ref` is carried into every coarsened level, where
     # the rio transform then no longer matches the coordinate grid.
     r10m.rio.write_transform(Affine(10.0, 0.0, 599995.0, 0.0, -10.0, 4900025.0), inplace=True)

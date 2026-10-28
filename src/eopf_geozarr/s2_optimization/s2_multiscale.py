@@ -146,12 +146,16 @@ MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 def _spatial_level_attrs(dataset: xr.Dataset) -> dict[str, list[float] | list[int]]:
     """`spatial:shape` and `spatial:transform` for a multiscales layout entry.
 
-    `write_geo_metadata` leaves out an all-zero transform, but the minispec requires
+    `write_dataset_geo_metadata` leaves out an all-zero transform, but the minispec requires
     `spatial:transform` on every layout entry, so fall back to the coordinate grid.
     """
     transform = dataset.attrs.get("spatial:transform")
     if transform is None:
-        transform = list(utils._preferred_spatial_transform(dataset) or ())
+        transform = (
+            list(utils._preferred_spatial_transform(dataset))
+            if utils._has_spatial_transform(dataset)
+            else []
+        )
     return {"spatial:shape": dataset.attrs["spatial:shape"], "spatial:transform": transform}
 
 

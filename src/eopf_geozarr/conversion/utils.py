@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, TypeGuard, cast, runtime_checkable
 
 import numpy as np
 import structlog
@@ -10,6 +10,7 @@ import xarray as xr
 import zarr
 import zarr_cm
 from pyproj import CRS
+from pyproj.exceptions import CRSError
 from zarr_cm import GeoProjAttrs, MultiConventionAttrs, MultiscalesAttrs, SpatialAttrs
 from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
@@ -21,7 +22,7 @@ from eopf_geozarr.data_api.geozarr.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Mapping
+    from collections.abc import Hashable, Iterable, Mapping, Sequence
 
 
 from importlib.util import find_spec
@@ -38,18 +39,29 @@ BAND_LIKE_DIM_NAMES = frozenset({"polarization"})
 log = structlog.get_logger()
 
 
-def _transform_from_coordinates(
-    dataset: xr.Dataset,
-) -> tuple[float, float, float, float, float, float] | None:
-    """Construct an affine transform from dataset coordinates when possible."""
-    if "x" not in dataset.coords or "y" not in dataset.coords:
-        return None
+GeoTransform = tuple[float, float, float, float, float, float]
+"""Affine transform as GDAL-style 6-tuple `(a, b, c, d, e, f)`."""
+Bbox = tuple[float, float, float, float]
+"""Bounding box `(xmin, ymin, xmax, ymax)`."""
 
+
+def _has_regular_xy_grid(dataset: xr.Dataset) -> bool:
+    """Whether `dataset` has x/y coordinates with at least two pixels along each axis.
+
+    Then the pixel size is known and `_transform_from_coordinates` can be called.
+    """
+    return (
+        "x" in dataset.coords
+        and "y" in dataset.coords
+        and len(dataset.coords["x"].values) >= 2
+        and len(dataset.coords["y"].values) >= 2
+    )
+
+
+def _transform_from_coordinates(dataset: xr.Dataset) -> GeoTransform:
+    """Affine transform of the dataset's x/y grid. Requires `_has_regular_xy_grid(dataset)`."""
     x_coords = dataset.coords["x"].values
     y_coords = dataset.coords["y"].values
-    if len(x_coords) < 2 or len(y_coords) < 2:
-        return None
-
     pixel_size_x = float(np.abs(x_coords[1] - x_coords[0]))
     pixel_size_y = float(np.abs(y_coords[1] - y_coords[0]))
     # Coordinates are pixel centres; the transform origin is the outer pixel edge.
@@ -64,8 +76,7 @@ def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
     Falls back to the coordinate extent when the grid has fewer than two pixels
     along an axis, because the pixel size is then unknown.
     """
-    transform = _transform_from_coordinates(dataset)
-    if transform is None:
+    if not _has_regular_xy_grid(dataset):
         x_coords = dataset.coords["x"].values
         y_coords = dataset.coords["y"].values
         return [
@@ -75,66 +86,78 @@ def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
             float(y_coords.max()),
         ]
 
-    pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = transform
+    pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = _transform_from_coordinates(dataset)
     x_max = x_min + dataset.sizes["x"] * pixel_size_x
     y_min = y_max + dataset.sizes["y"] * neg_pixel_size_y
     return [x_min, y_min, x_max, y_max]
 
 
+def _rio_transform(dataset: xr.Dataset) -> GeoTransform:
+    """Affine transform from the rio accessor.
+
+    Raises AttributeError, TypeError or ValueError when the dataset has no usable
+    one; check `_has_rio_transform(dataset)` first.
+    """
+    rio_value = dataset.rio.transform
+    if callable(rio_value):
+        rio_value = rio_value()
+    # rio transform value is dynamically typed; it is iterable at runtime.
+    rio_iter = cast("tuple[float, ...]", tuple(rio_value))  # pyright: ignore[reportArgumentType]
+    a, b, c, d, e, f = (float(value) for value in rio_iter[:6])
+    return (a, b, c, d, e, f)
+
+
+def _has_rio_transform(dataset: xr.Dataset) -> bool:
+    """Whether `_rio_transform(dataset)` can be called."""
+    try:
+        _rio_transform(dataset)
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return True
+
+
+def _has_spatial_transform(dataset: xr.Dataset) -> bool:
+    """Whether `_preferred_spatial_transform(dataset)` can be called."""
+    return _has_regular_xy_grid(dataset) or _has_rio_transform(dataset)
+
+
 def _rio_transform_matches_coordinates(
-    transform: tuple[float, float, float, float, float, float] | None,
-    coordinate_transform: tuple[float, float, float, float, float, float] | None,
+    transform: GeoTransform, coordinate_transform: GeoTransform
 ) -> bool:
     """Check whether rio-derived metadata matches the current x/y grid."""
-    if transform is None or coordinate_transform is None:
-        return False
-
     return all(np.isclose(a, b) for a, b in zip(transform, coordinate_transform, strict=False))
 
 
-def _preferred_spatial_transform(
-    dataset: xr.Dataset,
-) -> tuple[float, float, float, float, float, float] | None:
-    """Prefer rio metadata only when it matches the current coordinate grid."""
-    coordinate_transform = _transform_from_coordinates(dataset)
-    rio_transform: tuple[float, float, float, float, float, float] | None = None
+def _preferred_spatial_transform(dataset: xr.Dataset) -> GeoTransform:
+    """Prefer rio metadata only when it matches the current coordinate grid.
 
-    if hasattr(dataset, "rio") and hasattr(dataset.rio, "transform"):
-        try:
-            rio_value = dataset.rio.transform
-            if callable(rio_value):
-                rio_value = rio_value()
-            # rio transform value is dynamically typed; it is iterable at runtime.
-            rio_iter = cast("tuple[float, ...]", tuple(rio_value))  # pyright: ignore[reportArgumentType]
-            rio_values = tuple(float(value) for value in rio_iter[:6])
-            if len(rio_values) == 6:
-                rio_transform = (
-                    rio_values[0],
-                    rio_values[1],
-                    rio_values[2],
-                    rio_values[3],
-                    rio_values[4],
-                    rio_values[5],
-                )
-        except (AttributeError, TypeError, ValueError):
-            rio_transform = None
-
-    if (
-        rio_transform is not None
-        and not all(value == 0 for value in rio_transform)
-        and _rio_transform_matches_coordinates(rio_transform, coordinate_transform)
-    ):
+    Requires `_has_spatial_transform(dataset)`.
+    """
+    if not _has_rio_transform(dataset):
+        return _transform_from_coordinates(dataset)
+    rio_transform = _rio_transform(dataset)
+    if not _has_regular_xy_grid(dataset):
         return rio_transform
 
-    return coordinate_transform or rio_transform
+    coordinate_transform = _transform_from_coordinates(dataset)
+    if not all(value == 0 for value in rio_transform) and _rio_transform_matches_coordinates(
+        rio_transform, coordinate_transform
+    ):
+        return rio_transform
+    return coordinate_transform
 
 
 def _band_like_dim_index(var_data: xr.DataArray) -> int | None:
-    """Index of the band-like dimension, if var_data has one. Falls back to
-    None (caller should then skip band-axis sharding, not guess)."""
+    """Index of the band-like dimension (see `BAND_LIKE_DIM_NAMES`) of `var_data`.
+
+    Only arrays with more than two dimensions can have one; returns None otherwise
+    or when no dimension is band-like.
+    """
     if len(var_data.dims) <= 2:
         log.info(
-            "Not sharding along bandlike dim if its not dim>2", band_like_dim=BAND_LIKE_DIM_NAMES
+            "Band-like dimension index is only looked up for arrays with more than two dimensions",
+            dims=var_data.dims,
+            band_like_dim=BAND_LIKE_DIM_NAMES,
         )
     else:
         for i, dim in enumerate(var_data.dims):
@@ -184,49 +207,47 @@ def _rechunk_iterable(
     return collector
 
 
-def _as_bbox(value: object) -> tuple[float, float, float, float] | None:
-    """Return *value* as a 4-tuple of floats, or ``None`` if it is not one.
+def _is_bbox(value: object) -> TypeGuard[Sequence[float]]:
+    """Whether *value* is a ``spatial:bbox``: a list or tuple of four numbers.
 
     ``spatial:bbox`` is read from stored metadata, so its type is not known
     statically; this verifies the shape at runtime rather than asserting it.
     """
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
-        return None
-    if not all(isinstance(v, (int, float)) for v in value):
-        return None
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 4
+        and all(isinstance(v, (int, float)) for v in value)
+    )
+
+
+def _as_bbox(value: Sequence[float]) -> Bbox:
+    """Return *value* as a 4-tuple of floats. Requires `_is_bbox(value)`."""
     return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
 
 
-def _crs_from_attrs(attrs: dict[str, Any]) -> Any | None:
-    """Resolve a pyproj CRS from a group's ``proj:*`` attributes, else ``None``.
+def _has_proj_crs(attrs: Mapping[str, Any]) -> bool:
+    """Whether a group's attributes declare a CRS with ``proj:code``, ``proj:wkt2`` or ``proj:projjson``."""
+    return (
+        isinstance(attrs.get("proj:code"), str)
+        or isinstance(attrs.get("proj:wkt2"), str)
+        or isinstance(attrs.get("proj:projjson"), dict)
+    )
 
-    Tries ``proj:code``, then ``proj:wkt2``, then ``proj:projjson``. Malformed
-    values are logged and treated as unresolvable rather than raised, since the
-    attributes come from stored metadata.
+
+def _crs_from_attrs(attrs: Mapping[str, Any]) -> CRS:
+    """Resolve a pyproj CRS from a group's ``proj:*`` attributes. Requires `_has_proj_crs(attrs)`.
+
+    Uses ``proj:code``, else ``proj:wkt2``, else ``proj:projjson``. Raises
+    `pyproj.exceptions.CRSError` for a malformed value, since the attributes come
+    from stored metadata.
     """
-
     code = attrs.get("proj:code")
     if isinstance(code, str):
-        try:
-            return CRS.from_user_input(code)
-        except Exception as e:  # malformed stored metadata
-            log.warning("Unresolvable proj:code; skipping group bbox", code=code, error=str(e))
-            return None
+        return CRS.from_user_input(code)
     wkt2 = attrs.get("proj:wkt2")
     if isinstance(wkt2, str):
-        try:
-            return CRS.from_wkt(wkt2)
-        except Exception as e:
-            log.warning("Unresolvable proj:wkt2; skipping group bbox", error=str(e))
-            return None
-    projjson = attrs.get("proj:projjson")
-    if isinstance(projjson, dict):
-        try:
-            return CRS.from_json_dict(projjson)
-        except Exception as e:
-            log.warning("Unresolvable proj:projjson; skipping group bbox", error=str(e))
-            return None
-    return None
+        return CRS.from_wkt(wkt2)
+    return CRS.from_json_dict(attrs["proj:projjson"])
 
 
 def optimization_summary(dt_input: xr.DataTree, dt_output: xr.DataTree, output_path: str) -> None:
@@ -337,16 +358,22 @@ def write_dataset_geo_metadata(
     dataset: xr.Dataset,
     grid_mapping_var_name: str = "spatial_ref",
     crs: CRS | None = None,
-) -> None:
+) -> xr.Dataset:
     """
-    Write geographic metadata to the dataset.
+    Return a copy of the dataset with geographic metadata added; `dataset` is not modified.
     Requires a crs or a dataset from which a CRS can be derived.
 
     Args:
-        dataset: Dataset to write metadata to
+        dataset: Dataset to add metadata to
         grid_mapping_var_name: Name for grid mapping variable
         crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
+
+    Returns:
+        The dataset with the metadata, or an unchanged copy if no CRS is found.
     """
+    # Shallow copy: new variables with their own attrs and encoding, data is shared.
+    dataset = dataset.copy(deep=False)
+
     # Use provided CRS or try to detect from dataset
     if crs is None:
         for var in dataset.data_vars.values():
@@ -383,11 +410,11 @@ def write_dataset_geo_metadata(
         if "x" in dataset.coords and "y" in dataset.coords:
             spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
 
-            spatial_transform = _preferred_spatial_transform(dataset)
-
-            # Only add spatial:transform if we have valid transform data (not all zeros)
-            if spatial_transform is not None and not all(t == 0 for t in spatial_transform):
-                spatial_data["spatial:transform"] = list(spatial_transform)
+            if _has_spatial_transform(dataset):
+                spatial_transform = _preferred_spatial_transform(dataset)
+                # Only add spatial:transform if we have valid transform data (not all zeros)
+                if not all(t == 0 for t in spatial_transform):
+                    spatial_data["spatial:transform"] = list(spatial_transform)
 
             # Add spatial shape if data variables exist
             if dataset.data_vars:
@@ -398,6 +425,8 @@ def write_dataset_geo_metadata(
 
         # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
         dataset.attrs.update(build_convention_attrs(spatial=spatial_data, crs=crs))
+
+    return dataset
 
 
 def stream_write_dataset(
@@ -451,7 +480,7 @@ def stream_write_dataset(
     )
 
     if add_geo_metadata:
-        write_dataset_geo_metadata(dataset, crs=crs)
+        dataset = write_dataset_geo_metadata(dataset, crs=crs)
 
     # Sanitize NaN values in dataset attributes before writing
     dataset = fs_utils.sanitize_dataset_attributes(dataset)
@@ -1166,37 +1195,41 @@ def write_store_geo_metadata(
 
     root = zarr.open_group(output_path, mode="r+", storage_options=storage_options)
 
-    bboxes_4326: list[tuple[float, float, float, float]] = []
+    bboxes_4326: list[Bbox] = []
+
+    def _collect_bbox_4326(group: zarr.Group, attrs: Mapping[str, Any], corners: Bbox) -> None:
+        """Append the group's bbox in EPSG:4326, or log why it is skipped."""
+        if not _has_proj_crs(attrs):
+            log.warning(
+                "Group has spatial:bbox but no proj:* CRS; skipping it for the store-root footprint",
+                group=group.path,
+            )
+            return
+        try:
+            crs = _crs_from_attrs(attrs)
+        except CRSError as e:  # malformed stored metadata
+            log.warning(
+                "Unresolvable proj:* CRS; skipping group bbox", group=group.path, error=str(e)
+            )
+            return
+        if crs.to_epsg() == 4326:
+            bboxes_4326.append(corners)
+            return
+        try:
+            transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+            # transform_bounds densifies the edges, which corner-wise
+            # transformation misses (projected edges curve in lon/lat).
+            bboxes_4326.append(transformer.transform_bounds(*corners, densify_pts=21))
+        except Exception as e:  # never abort the write for one group
+            log.warning(
+                "Failed to reproject group bbox; skipping it", group=group.path, error=str(e)
+            )
 
     def _walk(group: zarr.Group) -> None:
         attrs = dict(group.attrs)
-        corners = _as_bbox(attrs.get("spatial:bbox"))
-        if corners is not None:
-            crs = _crs_from_attrs(attrs)
-            if crs is None:
-                if any(k in attrs for k in ("proj:code", "proj:wkt2", "proj:projjson")):
-                    # warning already logged by _crs_from_attrs
-                    pass
-                else:
-                    log.warning(
-                        "Group has spatial:bbox but no proj:* CRS; skipping it "
-                        "for the store-root footprint",
-                        group=group.path,
-                    )
-            elif crs.to_epsg() == 4326:
-                bboxes_4326.append(corners)
-            else:
-                try:
-                    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
-                    # transform_bounds densifies the edges, which corner-wise
-                    # transformation misses (projected edges curve in lon/lat).
-                    bboxes_4326.append(transformer.transform_bounds(*corners, densify_pts=21))
-                except Exception as e:  # never abort the write for one group
-                    log.warning(
-                        "Failed to reproject group bbox; skipping it",
-                        group=group.path,
-                        error=str(e),
-                    )
+        bbox = attrs.get("spatial:bbox")
+        if _is_bbox(bbox):
+            _collect_bbox_4326(group, attrs, _as_bbox(bbox))
         for child in group.groups():
             _walk(child[1])
 
