@@ -19488,8 +19488,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        1830,
-                        1830
+                        2048,
+                        2048
                       ]
                     },
                     "name": "regular"
@@ -19504,8 +19504,8 @@
                     {
                       "configuration": {
                         "chunk_shape": [
-                          1830,
-                          1830
+                          1024,
+                          1024
                         ],
                         "codecs": [
                           {
@@ -19582,8 +19582,8 @@
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
-                        1830,
-                        1830
+                        2048,
+                        2048
                       ]
                     },
                     "name": "regular"
@@ -19598,8 +19598,8 @@
                     {
                       "configuration": {
                         "chunk_shape": [
-                          1830,
-                          1830
+                          1024,
+                          1024
                         ],
                         "codecs": [
                           {

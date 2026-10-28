@@ -103,6 +103,7 @@ def test_generic_multiscales_prefers_coordinate_transform_for_inconsistent_rio(
             MultiscaleSpec(base_path=base_path, scale_levels=(10, 20, 60, 120)),
             src_processed_groups={"r10m": r10m},
             output_group=zarr.create_group(output_path),
+            spatial_chunk=1024,
             crs=crs,
         )
 
@@ -785,6 +786,47 @@ def test_create_multiscale_reuses_native_aux_levels(tmp_path: pathlib.Path) -> N
         )
         expected = dt_input[group_path].to_dataset()[var_name].values
         np.testing.assert_array_equal(ds[var_name].values, expected)
+
+
+@pytest.mark.parametrize("enable_sharding", [False, True])
+def test_create_multiscale_chunks_coarsened_levels_like_native_levels(
+    tmp_path: pathlib.Path, enable_sharding: bool
+) -> None:
+    """Every level, native or coarsened, is chunked by `spatial_chunk`.
+
+    `quality/probability` has no native r60m level, so its r60m is coarsened from
+    r20m by a factor of 3 and would otherwise take its chunks from the r20m dask
+    chunks (the r20m shard, or a third of `spatial_chunk`).
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    dt_input.name = "S2A_MSIL2A_20250811T112131"
+    rng = np.random.default_rng(2)
+    coords = {"x": np.arange(60.0), "y": np.arange(60.0)}
+    cld = xr.DataArray(rng.integers(0, 101, size=(60, 60), dtype="uint8"), dims=["y", "x"])
+    dt_input["quality/probability/r20m"] = xr.DataTree(xr.Dataset({"cld": cld}, coords=coords))
+    output_path = str(tmp_path / "output.zarr")
+    create_multiscale_from_datatree(
+        dt_input,
+        output_group=zarr.create_group(output_path),
+        enable_sharding=enable_sharding,
+        spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+        crs=CRS.from_epsg(32632),
+    )
+
+    root = zarr.open_group(output_path, mode="r")
+    chunks = {
+        path: (array.shape, array.chunks)
+        for path, array in root.members(max_depth=None)
+        if isinstance(array, zarr.Array) and array.ndim == 2
+    }
+    assert "quality/probability/r60m/cld" in chunks
+    assert "quality/probability/r120m/cld" in chunks
+    mismatched = {
+        path: (shape, chunk)
+        for path, (shape, chunk) in chunks.items()
+        if chunk != tuple(min(_BEHAVIOR_SPATIAL_CHUNK, size) for size in shape)
+    }
+    assert not mismatched, mismatched
 
 
 # ---------------------------------------------------------------------------

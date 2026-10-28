@@ -307,6 +307,7 @@ def generic_multiscales(
     spec: MultiscaleSpec,
     src_processed_groups: dict[str, Any],
     output_group: zarr.Group,
+    spatial_chunk: int,
     enable_sharding: bool = True,
     crs: CRS | None = None,
     scale_offset_codec: bool = False,
@@ -389,9 +390,12 @@ def generic_multiscales(
                 resolution=dest_level,
             )
 
-            # Create downsampled dataset by coarsening
-            downsampled_dataset = create_downsampled_resolution_group(
-                source_ds, factor=downsample_factor
+            # Create downsampled dataset by coarsening. The coarsened dask chunks follow
+            # the source level (rechunked to its shards on write), so rechunk to
+            # `spatial_chunk` like the native levels before deriving the encoding.
+            downsampled_dataset = utils._rechunk_ds(
+                create_downsampled_resolution_group(source_ds, factor=downsample_factor),
+                spatial_chunk,
             )
 
             log.info("Writing level to path", level=dest_level_name, output_path=dest_level_path)
@@ -715,6 +719,7 @@ def create_multiscale_from_datatree(
                 aux,
                 src_processed_groups=native_levels,
                 output_group=output_group,
+                spatial_chunk=spatial_chunk,
                 enable_sharding=enable_sharding,
                 crs=crs,
                 scale_offset_codec=scale_offset_codec,
@@ -732,6 +737,7 @@ def create_multiscale_from_datatree(
         REFLECTANCE_MULTISCALE,
         src_processed_groups=measurement_processed_groups,
         output_group=output_group,
+        spatial_chunk=spatial_chunk,
         enable_sharding=enable_sharding,
         crs=crs,
         scale_offset_codec=scale_offset_codec,
