@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eopf-geozarr"
-version = "0.12.0"
+version = "0.13.0"
 description = "GeoZarr driver for ESA's EOPF CPM: convert Sentinel-1, -2 and -3 products to cloud-optimized GeoZarr (Zarr v3)"
 readme = "README.md"
 license = { text = "Apache-2.0" }

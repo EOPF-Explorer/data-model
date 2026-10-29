@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.0 (2026-10-29)
+
+## What's Changed
+* revert: undo #281 work pushed to main by mistake by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/286
+* ci: publish release-please releases to PyPI by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/290
+* feat!: one scale/offset encoding switch by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/287
+* Enhance documentation for STAC integration and Zarr asset access by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/130
+* Integrate/cpm geozarr main feat generic conversion s1slc by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/292
+* chore(deps): group pending Dependabot updates by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/308
+* Removing band injection metadata and aligning with Sentinel PSD in docstrings by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/311
+* ci(deps): bump the actions group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/317
+* Adding EOPF-GEOZARR flag to all 'stac_discovery/processing:software' attributes by @shollendEODC in https://github.com/EOPF-Explorer/data-model/pull/310
+* fix(olci): write spatial:shape per level and consolidate measurements by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/306
+* deps(deps): bump the uv-security group across 1 directory with 6 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/321
+* deps(deps): bump the uv-security group across 1 directory with 3 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/323
+* feat: addition of multiscale pyramids for cloud/snow probability and classification layers (supersedes #313) by @claxn in https://github.com/EOPF-Explorer/data-model/pull/318
+* docs: present eopf-geozarr as the GeoZarr driver for EOPF CPM by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/322
+* deps(deps): bump the uv-minor-patch group across 1 directory with 7 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/327
+* ci(deps): bump the actions group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/329
+* refactor!: Adding refactoring and harmonization of root consolidation (supersedes #314) by @claxn in https://github.com/EOPF-Explorer/data-model/pull/328
+* fix: consistent spatial chunking for Sentinel-2 multiscales by @claxn in https://github.com/EOPF-Explorer/data-model/pull/331
+
+## New Contributors
+* @claxn made their first contribution in https://github.com/EOPF-Explorer/data-model/pull/318
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.12.0...v0.13.0
+
 ## 0.12.0 (2026-09-28)
 
 ## What's Changed
