@@ -5,28 +5,27 @@ Main S2 optimization converter.
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import structlog
-import xarray as xr
 import zarr
 from pydantic import TypeAdapter
+from pydantic_zarr.v3 import is_array_spec, is_group_spec
 from pyproj import CRS
 
 from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
-
-from .s2_multiscale import (
-    _AUX_MULTISCALES,
-    REFLECTANCE_MULTISCALE,
-    S2Type,
-    create_multiscale_from_datatree,
-)
+from eopf_geozarr.data_api.s2_plan import load_sentinel2
+from eopf_geozarr.data_api.s2_write import write_geozarr
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Sequence
+
+    import xarray as xr
+    from pydantic_zarr.v3 import AnyGroupSpec
 
 log = structlog.get_logger()
 
@@ -139,32 +138,193 @@ def _validate_s2_input(dt_input: xr.DataTree) -> None:
         raise ValueError("Input dataset is not a Sentinel-2 product")
 
 
-def _multiscale_paths(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> list[str]:
-    """Pyramid parent groups of the multiscales built for this product level.
+#: The write policy the spec-level plan fixes; `convert_s2_optimized` refuses
+#: option values that deviate from it.
+_PLAN_POLICY = (
+    "sharding enabled, 1024-pixel inner chunks, blosc-zstd level 3, "
+    "and the ESA packed-integer layout (no scale_offset codec)"
+)
 
-    Lists `/measurements/reflectance` and the auxiliary pyramids, each only if it
-    was actually written (i.e. has levels in `datasets`): not every processing
-    baseline carries every auxiliary group.
+
+def convert_s2_optimized(
+    dt_input: xr.DataTree,
+    *,
+    output_path: str,
+    enable_sharding: bool = True,
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    validate_output: bool = True,
+    scale_offset_codec: bool = False,
+) -> xr.DataTree:
     """
-    s2_type = S2Type.from_datatree(dt_input)
-    return [
-        spec.base_path
-        for spec in (REFLECTANCE_MULTISCALE, *_AUX_MULTISCALES)
-        if spec.applies_to(s2_type)
-        and any(path.startswith(spec.base_path + "/") for path in datasets)
+    Convert a Sentinel-2 product to the optimized GeoZarr layout.
+
+    The conversion is plan-driven: the input store is validated into the
+    `Sentinel2Root` model, `plan_geozarr` derives the output hierarchy from
+    the model's own metadata, and `write_geozarr` writes the planned
+    documents first and then fills in the chunk data. The write policy is
+    the plan's fixed policy, so the layout options must hold their default
+    values; a deviating value is refused.
+
+    Args:
+        dt_input: Input Sentinel-2 DataTree. A tree opened from a Zarr V2
+            store is read through its backing store; any other tree (built in
+            memory by the CPM SAFE reader, or backed by a Zarr V3 store) is
+            read through the tree itself, with its variables taken as
+            xarray's zarr writer would store them.
+        output_path: Output path
+        enable_sharding: Must be True (the plan's policy).
+        spatial_chunk: Must be 1024 (the plan's policy).
+        compression_level: Must be 3 (the plan's policy).
+        validate_output: Whether to validate the output
+        scale_offset_codec: Must be False: the output is written as in the
+            ESA product (packed integers with CF `scale_factor` /
+            `add_offset` / `_FillValue`).
+
+    Returns:
+        Optimized DataTree
+    """
+
+    start_time = time.time()
+
+    log.info(
+        "Starting S2 optimized conversion",
+        num_groups=len(dt_input.groups),
+        output_path=output_path,
+    )
+
+    deviations = [
+        name
+        for name, held in (
+            ("enable_sharding=False", not enable_sharding),
+            (f"spatial_chunk={spatial_chunk}", spatial_chunk != 1024),
+            (f"compression_level={compression_level}", compression_level != 3),
+            ("scale_offset_codec=True", scale_offset_codec),
+        )
+        if held
     ]
+    if deviations:
+        msg = (
+            f"The plan-driven S2 writer has a fixed write policy ({_PLAN_POLICY}); "
+            f"unsupported option(s): {', '.join(deviations)}"
+        )
+        raise ValueError(msg)
+
+    _validate_s2_input(dt_input)
+
+    # Initialize CRS from dataset
+    crs = initialize_crs_from_dataset(dt_input)
+
+    try:
+        backing: zarr.Group | None = get_zarr_group(dt_input)
+    except TypeError:
+        # A tree built in memory (the CPM SAFE reader) has no backing store.
+        backing = None
+    # A Zarr V2 store is the input model's native domain and is read directly;
+    # everything else (an in-memory tree, a V3-backed tree) is read through
+    # the tree's GroupSpec-shaped view — no scratch copy.
+    source: zarr.Group | xr.DataTree = (
+        backing if backing is not None and backing.metadata.zarr_format == 2 else dt_input
+    )
+
+    log.info("Step 1: Validating the input against the Sentinel-2 model")
+    root = load_sentinel2(source)
+
+    log.info("Step 2: Writing the planned GeoZarr hierarchy")
+    plan = write_geozarr(root, source, output_path)
+
+    # Step 3: Root-level consolidation
+    log.info("Step 3: Final root-level metadata consolidation")
+    datasets = _planned_dataset_index(plan)
+    add_s2_stac_assets(
+        dt_input, datasets, crs=crs, reflectance_shape=_planned_reflectance_shape(plan)
+    )
+    utils.updated_root_consolidation(
+        dt_input=dt_input,
+        output_path=output_path,
+        datasets=datasets,
+        # the paths the plan maps to None are the multiscale pyramid roots
+        # (reflectance and the written aux pyramids alike), so the consolidated
+        # set follows the plan instead of a second policy table
+        additional_consolidate_paths=[
+            path for path, variable_names in datasets.items() if variable_names is None
+        ],
+    )
+
+    # Step 4: Validation
+    if validate_output:
+        log.info("Step 4: Validating optimized dataset")
+        validation_results = validate_optimized_dataset(output_path)
+        if not validation_results["is_valid"]:
+            log.warning("Validation issues found", issues=validation_results["issues"])
+
+    # Create result DataTree
+    result_dt = utils.create_result_datatree(output_path)
+
+    total_time = time.time() - start_time
+    log.info("Optimization complete", duration_seconds=round(total_time, 2))
+
+    utils.optimization_summary(dt_input, result_dt, output_path)
+
+    return result_dt
+
+
+def _planned_dataset_index(plan: AnyGroupSpec) -> dict[str, tuple[str, ...] | None]:
+    """
+    The planned dataset paths, each mapped to its data variable names (an
+    array that is not a coordinate or the grid mapping), with multiscale
+    roots mapped to None — the bookkeeping the root consolidation reads,
+    matching what the DataTree writer's `processed_groups` carried.
+    """
+    index: dict[str, tuple[str, ...] | None] = {}
+
+    def walk(spec: AnyGroupSpec, path: str) -> None:
+        attributes = spec.attributes
+        if path and isinstance(attributes, Mapping) and "multiscales" in attributes:
+            index[path] = None
+        names = tuple(
+            name
+            for name, member in spec.members.items()
+            if is_array_spec(member)
+            and name != "spatial_ref"
+            and (member.dimension_names or ()) != (name,)
+        )
+        if names:
+            index[path] = names
+        for name, member in spec.members.items():
+            if is_group_spec(member):
+                walk(member, f"{path}/{name}")
+
+    walk(plan, "")
+    return index
+
+
+def _planned_reflectance_shape(plan: AnyGroupSpec) -> tuple[int, ...] | None:
+    """The (rows, cols) of the finest planned reflectance level, if present."""
+    level = plan.get_path("measurements/reflectance/r10m")
+    if not is_group_spec(level):
+        return None
+    for member in level.members.values():
+        if is_array_spec(member) and len(member.shape) == 2:
+            return tuple(member.shape)
+    return None
 
 
 def add_s2_stac_assets(
     dt_input: xr.DataTree,
-    datasets: Mapping[str, object],
+    datasets: Mapping[str, Sequence[str] | None],
     crs: CRS | None = None,
+    reflectance_shape: tuple[int, ...] | None = None,
 ) -> None:
     """Add the S2 pyramid levels and the reflectance pyramid as STAC assets.
 
-    Updates `dt_input.attrs["stac_discovery"]` in place, so call it before
-    `updated_root_consolidation` writes the root metadata from those attributes.
-    This is a temporary fix that should move to eopf-stac.
+    `datasets` is the planned dataset index: every dataset group path mapped
+    to its data variable names, with multiscale roots mapped to None.
+    `reflectance_shape` is the finest reflectance level's (rows, cols) for the
+    asset's proj:shape. Updates `dt_input.attrs["stac_discovery"]` in place,
+    so call it before `updated_root_consolidation` writes the root metadata
+    from those attributes. This is a temporary fix that should move to
+    eopf-stac.
     """
     if not dt_input.attrs:
         return
@@ -191,171 +351,10 @@ def add_s2_stac_assets(
     if crs is not None and crs.to_epsg() is not None:
         reflectance_asset.update(utils.proj_attrs_for_crs(crs))
 
-    base = datasets.get("/measurements/reflectance/r10m")
-    if isinstance(base, xr.Dataset):
-        reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+    if reflectance_shape is not None:
+        reflectance_asset["proj:shape"] = list(reflectance_shape)
 
     stac.setdefault("assets", {})["reflectance"] = reflectance_asset
-
-
-def convert_s2(
-    dt_input: xr.DataTree,
-    output_path: str,
-    validate_output: bool,
-    enable_sharding: bool,
-    spatial_chunk: int,
-) -> xr.DataTree:
-    """
-    Convert S2 dataset to optimized structure.
-
-        Args:
-            dt_input: Input Sentinel-2 DataTree
-            output_path: Output path for optimized dataset
-            validate_output: Whether to validate the output
-            verbose: Enable verbose logging
-
-        Returns:
-            Optimized DataTree
-    """
-    start_time = time.time()
-
-    log.info(
-        "Starting S2 optimized conversion",
-        num_groups=len(dt_input.groups),
-        output_path=output_path,
-    )
-
-    _validate_s2_input(dt_input)
-
-    # Step 1: Process data while preserving original structure
-    log.info("Step 1: Processing data with original structure preserved")
-
-    # Step 2: Create multiscale pyramids for each group in the original structure
-    log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)")
-    datasets = create_multiscale_from_datatree(
-        dt_input,
-        output_group=zarr.open_group(output_path),
-        spatial_chunk=spatial_chunk,
-        enable_sharding=enable_sharding,
-    )
-
-    log.info("Created multiscale pyramids", num_groups=len(datasets))
-
-    # Step 3: Root-level consolidation
-    log.info("Step 3: Final root-level metadata consolidation")
-    add_s2_stac_assets(dt_input, datasets)
-    utils.updated_root_consolidation(
-        dt_input=dt_input,
-        output_path=output_path,
-        datasets=datasets,
-        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
-    )
-
-    # Step 4: Validation
-    if validate_output:
-        log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
-
-    # Create result DataTree
-    result_dt = utils.create_result_datatree(output_path)
-
-    total_time = time.time() - start_time
-    log.info("Optimization complete", duration_seconds=round(total_time, 2))
-
-    utils.optimization_summary(dt_input, result_dt, output_path)
-
-    return result_dt
-
-
-def convert_s2_optimized(
-    dt_input: xr.DataTree,
-    *,
-    output_path: str,
-    enable_sharding: bool,
-    spatial_chunk: int,
-    compression_level: int,
-    validate_output: bool,
-    scale_offset_codec: bool = False,
-) -> xr.DataTree:
-    """
-    Convenience function for S2 optimization.
-
-    Args:
-        dt_input: Input Sentinel-2 DataTree
-        output_path: Output path
-        enable_sharding: Enable Zarr v3 sharding
-        spatial_chunk: Spatial chunk size
-        compression_level: Compression level 1-9
-        validate_output: Whether to validate the output
-        scale_offset_codec: Pack reflectance with the Zarr `scale_offset` +
-            `cast_value` codecs. By default it is written as in the ESA
-            product: packed integers with CF `scale_factor` / `add_offset` /
-            `_FillValue` and STAC `raster:scale` / `raster:offset` / `nodata`.
-
-    Returns:
-        Optimized DataTree
-    """
-
-    start_time = time.time()
-
-    log.info(
-        "Starting S2 optimized conversion",
-        num_groups=len(dt_input.groups),
-        output_path=output_path,
-    )
-    _validate_s2_input(dt_input)
-
-    # Initialize CRS from dataset
-    crs = initialize_crs_from_dataset(dt_input)
-
-    # Step 1: Process data while preserving original structure
-    log.info("Step 1: Processing data with original structure preserved")
-
-    # Step 2: Create multiscale pyramids for each group in the original structure
-    log.info("Step 2: Creating multiscale pyramids (preserving original hierarchy)")
-
-    output_group = zarr.open_group(output_path)
-
-    datasets = create_multiscale_from_datatree(
-        dt_input,
-        output_group=output_group,
-        spatial_chunk=spatial_chunk,
-        enable_sharding=enable_sharding,
-        crs=crs,
-        scale_offset_codec=scale_offset_codec,
-        compression_level=compression_level,
-    )
-
-    log.info("Created multiscale pyramids", num_groups=len(datasets))
-
-    # Step 3: Root-level consolidation
-    log.info("Step 3: Final root-level metadata consolidation")
-    add_s2_stac_assets(dt_input, datasets, crs=crs)
-    utils.updated_root_consolidation(
-        dt_input=dt_input,
-        output_path=output_path,
-        datasets=datasets,
-        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
-    )
-
-    # Step 4: Validation
-    if validate_output:
-        log.info("Step 4: Validating optimized dataset")
-        validation_results = validate_optimized_dataset(output_path)
-        if not validation_results["is_valid"]:
-            log.warning("Validation issues found", issues=validation_results["issues"])
-
-    # Create result DataTree
-    result_dt = utils.create_result_datatree(output_path)
-
-    total_time = time.time() - start_time
-    log.info("Optimization complete", duration_seconds=round(total_time, 2))
-
-    utils.optimization_summary(dt_input, result_dt, output_path)
-
-    return result_dt
 
 
 def is_sentinel2_dataset(group: zarr.Group) -> bool:

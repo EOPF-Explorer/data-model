@@ -54,9 +54,9 @@ eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/path/out.zarr --stage-outpu
 
 | Option | Pipelines | Description |
 |---|---|---|
-| `--spatial-chunk INTEGER` | all but Sentinel-3 OLCI | Spatial chunk size. Default: 256 (Sentinel-2), 4096 (generic), 1024 (generic rechunker). Sentinel-3 OLCI accepts it but does not apply it yet. |
-| `--enable-sharding` | all but Sentinel-3 OLCI | Enable Zarr v3 sharding. Sentinel-3 OLCI accepts it but does not apply it yet. |
-| `--scale-offset-codec` | Sentinel-2, generic rechunker | Pack reflectance (or, on the generic rechunker, every packed variable) with the Zarr `scale_offset` + `cast_value` codecs instead of the default ESA layout (CF `scale_factor`/`add_offset`/`_FillValue`). See [Encoding](converter.md#encoding). |
+| `--spatial-chunk INTEGER` | all but Sentinel-3 OLCI | Spatial chunk size. Default: 4096 (generic), 1024 (generic rechunker, Sentinel-2). For Sentinel-2 the value is fixed by the write policy: anything other than 1024 is refused. Sentinel-3 OLCI accepts it but does not apply it yet. |
+| `--enable-sharding` | generic, generic rechunker | Enable Zarr v3 sharding. Sentinel-2 output is always sharded (the flag is not applied); Sentinel-3 OLCI accepts it but does not apply it yet. |
+| `--scale-offset-codec` | generic rechunker | Pack every packed variable with the Zarr `scale_offset` + `cast_value` codecs instead of the default ESA layout (CF `scale_factor`/`add_offset`/`_FillValue`). Refused for Sentinel-2, whose write policy fixes the ESA layout. See [Encoding](converter.md#encoding). |
 | `--output-grid TEXT` | Sentinel-3 OLCI | `native` (default) keeps the instrument swath geometry. A CRS string (for example `EPSG:4326`) warps the swath onto a regular grid. |
 | `--min-dimension INTEGER` | Sentinel-3 OLCI, generic | Minimum dimension of the coarsest overview level. Default: 256. |
 | `--groups TEXT` | generic | DataTree group to convert. Repeat the option for more groups. Required on the generic pipeline. |

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Self, cast
+from typing import Self, cast
 
 from pydantic import model_validator
-from pydantic_zarr.v3 import ArraySpec, GroupSpec
+from pydantic_zarr.v3 import AnyGroupSpec, ArraySpec, GroupSpec
 
 from eopf_geozarr.data_api.geozarr.common import (
     BaseDataArrayAttrs,
@@ -16,6 +16,7 @@ from eopf_geozarr.data_api.geozarr.common import (
     check_valid_coordinates,
 )
 from eopf_geozarr.data_api.geozarr.multiscales import MultiscaleGroupAttrs
+from eopf_geozarr.data_api.geozarr.scope import GEOZARR_SCOPE
 
 
 class DataArray(ArraySpec[BaseDataArrayAttrs]):
@@ -35,12 +36,22 @@ class DataArray(ArraySpec[BaseDataArrayAttrs]):
     # `tuple[str | None, ...] | None` field to a required tuple of strings.
     dimension_names: tuple[str, ...]  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
+    # Every extension-point name (data type, chunk grid, chunk key encoding,
+    # codecs, storage transformers) must be claimed by a definition in the
+    # validation scope, instead of passing unjudged: a GeoZarr DataArray is a
+    # conformance contract, so a typo'd or unknown codec or data type name is
+    # refused at validation. The scope is the default plus the data types
+    # zarr-python writes that it lacks (fixed_length_utf32 band/angle
+    # coordinates); an explicit pydantic validation context still overrides.
+    zarr_scope = GEOZARR_SCOPE
+    zarr_scope_strict = True
+
     @property
     def array_dimensions(self) -> tuple[str, ...]:
         return self.dimension_names
 
 
-class Dataset(GroupSpec[DatasetAttrs, GroupSpec[Any, Any] | DataArray]):
+class Dataset(GroupSpec[DatasetAttrs, AnyGroupSpec | DataArray]):
     """
     A GeoZarr Dataset.
     """
@@ -55,7 +66,7 @@ class Dataset(GroupSpec[DatasetAttrs, GroupSpec[Any, Any] | DataArray]):
 
         Returns
         -------
-        GroupSpec[Any, Any]
+        AnyGroupSpec
             The validated GeoZarr DataSet.
         """
         # ``self`` structurally satisfies the ``GroupLike`` protocol, but mypy cannot bind the
@@ -71,7 +82,7 @@ class Dataset(GroupSpec[DatasetAttrs, GroupSpec[Any, Any] | DataArray]):
         return self
 
 
-class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, DataArray | GroupSpec[Any, Any]]):
+class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, DataArray | AnyGroupSpec]):
     """
     A GeoZarr Multiscale Group.
     """

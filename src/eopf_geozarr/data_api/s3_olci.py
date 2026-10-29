@@ -30,32 +30,32 @@ class Sentinel3OlciMeasurementsMembers(TypedDict, closed=True, total=False):
     validate; the converter checks for the bands it needs.
     """
 
-    latitude: ArraySpec[object]
-    longitude: ArraySpec[object]
-    altitude: ArraySpec[object]
-    time_stamp: ArraySpec[object]
-    orphans: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[object]]]
-    oa01_radiance: ArraySpec[object]
-    oa02_radiance: ArraySpec[object]
-    oa03_radiance: ArraySpec[object]
-    oa04_radiance: ArraySpec[object]
-    oa05_radiance: ArraySpec[object]
-    oa06_radiance: ArraySpec[object]
-    oa07_radiance: ArraySpec[object]
-    oa08_radiance: ArraySpec[object]
-    oa09_radiance: ArraySpec[object]
-    oa10_radiance: ArraySpec[object]
-    oa11_radiance: ArraySpec[object]
-    oa12_radiance: ArraySpec[object]
-    oa13_radiance: ArraySpec[object]
-    oa14_radiance: ArraySpec[object]
-    oa15_radiance: ArraySpec[object]
-    oa16_radiance: ArraySpec[object]
-    oa17_radiance: ArraySpec[object]
-    oa18_radiance: ArraySpec[object]
-    oa19_radiance: ArraySpec[object]
-    oa20_radiance: ArraySpec[object]
-    oa21_radiance: ArraySpec[object]
+    latitude: ArraySpec[Mapping[str, object]]
+    longitude: ArraySpec[Mapping[str, object]]
+    altitude: ArraySpec[Mapping[str, object]]
+    time_stamp: ArraySpec[Mapping[str, object]]
+    orphans: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+    oa01_radiance: ArraySpec[Mapping[str, object]]
+    oa02_radiance: ArraySpec[Mapping[str, object]]
+    oa03_radiance: ArraySpec[Mapping[str, object]]
+    oa04_radiance: ArraySpec[Mapping[str, object]]
+    oa05_radiance: ArraySpec[Mapping[str, object]]
+    oa06_radiance: ArraySpec[Mapping[str, object]]
+    oa07_radiance: ArraySpec[Mapping[str, object]]
+    oa08_radiance: ArraySpec[Mapping[str, object]]
+    oa09_radiance: ArraySpec[Mapping[str, object]]
+    oa10_radiance: ArraySpec[Mapping[str, object]]
+    oa11_radiance: ArraySpec[Mapping[str, object]]
+    oa12_radiance: ArraySpec[Mapping[str, object]]
+    oa13_radiance: ArraySpec[Mapping[str, object]]
+    oa14_radiance: ArraySpec[Mapping[str, object]]
+    oa15_radiance: ArraySpec[Mapping[str, object]]
+    oa16_radiance: ArraySpec[Mapping[str, object]]
+    oa17_radiance: ArraySpec[Mapping[str, object]]
+    oa18_radiance: ArraySpec[Mapping[str, object]]
+    oa19_radiance: ArraySpec[Mapping[str, object]]
+    oa20_radiance: ArraySpec[Mapping[str, object]]
+    oa21_radiance: ArraySpec[Mapping[str, object]]
 
 
 class Sentinel3OlciMeasurementsGroup(GroupSpec[DatasetAttrs, Sentinel3OlciMeasurementsMembers]):
@@ -70,14 +70,16 @@ class Sentinel3OlciRootMembers(TypedDict, closed=True, total=False):
         Mapping[str, object],
         Mapping[
             str,
-            GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[object]]] | ArraySpec[object],
+            GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+            | ArraySpec[Mapping[str, object]],
         ],
     ]
     conditions: GroupSpec[
         Mapping[str, object],
         Mapping[
             str,
-            GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[object]]] | ArraySpec[object],
+            GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+            | ArraySpec[Mapping[str, object]],
         ],
     ]
 

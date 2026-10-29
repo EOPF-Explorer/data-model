@@ -526,10 +526,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -543,10 +543,10 @@
                     "spatial:transform": [
                       10.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -10.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -994,7 +994,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -1086,10 +1085,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -1103,10 +1102,10 @@
                     "spatial:transform": [
                       20.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -20.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -1744,7 +1743,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -1836,10 +1834,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -1853,10 +1851,10 @@
                     "spatial:transform": [
                       60.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -60.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -2209,7 +2207,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -2313,10 +2310,10 @@
                       "spatial:transform": [
                         60.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -60.0,
-                        5000040.0
+                        4700040.0
                       ]
                     },
                     {
@@ -2329,10 +2326,10 @@
                       "spatial:transform": [
                         120.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -120.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -2355,10 +2352,10 @@
                       "spatial:transform": [
                         360.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -360.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -2381,10 +2378,10 @@
                       "spatial:transform": [
                         720.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -720.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -2402,10 +2399,10 @@
                 },
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -2415,10 +2412,10 @@
                 "spatial:transform": [
                   60.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -60.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -2450,10 +2447,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -2467,10 +2464,10 @@
                     "spatial:transform": [
                       120.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -120.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -2636,7 +2633,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -2728,10 +2724,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -2745,10 +2741,10 @@
                     "spatial:transform": [
                       360.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -360.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -2914,7 +2910,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -3006,10 +3001,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -3023,10 +3018,10 @@
                     "spatial:transform": [
                       60.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -60.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -3199,7 +3194,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -3291,10 +3285,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890600.0,
-                      409440.0,
-                      5000040.0
+                      699960.0,
+                      4590600.0,
+                      809400.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -3308,10 +3302,10 @@
                     "spatial:transform": [
                       720.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -720.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -3477,7 +3471,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -3581,10 +3574,10 @@
                       "spatial:transform": [
                         20.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -20.0,
-                        5000040.0
+                        4700040.0
                       ]
                     },
                     {
@@ -3597,10 +3590,10 @@
                       "spatial:transform": [
                         60.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -60.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -3623,10 +3616,10 @@
                       "spatial:transform": [
                         120.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -120.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -3649,10 +3642,10 @@
                       "spatial:transform": [
                         360.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -360.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -3675,10 +3668,10 @@
                       "spatial:transform": [
                         720.0,
                         0.0,
-                        300000.0,
+                        699960.0,
                         0.0,
                         -720.0,
-                        5000040.0
+                        4700040.0
                       ],
                       "transform": {
                         "scale": [
@@ -3696,10 +3689,10 @@
                 },
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -3709,10 +3702,10 @@
                 "spatial:transform": [
                   20.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -20.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -3744,10 +3737,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -3761,10 +3754,10 @@
                     "spatial:transform": [
                       120.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -120.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -3947,7 +3940,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -4039,10 +4031,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -4056,10 +4048,10 @@
                     "spatial:transform": [
                       20.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -20.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -4249,7 +4241,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -4341,10 +4332,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -4358,10 +4349,10 @@
                     "spatial:transform": [
                       360.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -360.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -4544,7 +4535,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -4636,10 +4626,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890240.0,
-                      409800.0,
-                      5000040.0
+                      699960.0,
+                      4590240.0,
+                      809760.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -4653,10 +4643,10 @@
                     "spatial:transform": [
                       60.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -60.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -4846,7 +4836,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -4938,10 +4927,10 @@
                     "grid_mapping": "spatial_ref",
                     "proj:code": "EPSG:32632",
                     "spatial:bbox": [
-                      300000.0,
-                      4890600.0,
-                      409440.0,
-                      5000040.0
+                      699960.0,
+                      4590600.0,
+                      809400.0,
+                      4700040.0
                     ],
                     "spatial:dimensions": [
                       "y",
@@ -4955,10 +4944,10 @@
                     "spatial:transform": [
                       720.0,
                       0.0,
-                      300000.0,
+                      699960.0,
                       0.0,
                       -720.0,
-                      5000040.0
+                      4700040.0
                     ],
                     "zarr_conventions": [
                       {
@@ -5141,7 +5130,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -7244,10 +7232,10 @@
                   "spatial:transform": [
                     10.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -10.0,
-                    5000040.0
+                    4700040.0
                   ]
                 },
                 {
@@ -7260,10 +7248,10 @@
                   "spatial:transform": [
                     20.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -20.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -7286,10 +7274,10 @@
                   "spatial:transform": [
                     60.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -60.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -7312,10 +7300,10 @@
                   "spatial:transform": [
                     120.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -120.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -7338,10 +7326,10 @@
                   "spatial:transform": [
                     360.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -360.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -7364,10 +7352,10 @@
                   "spatial:transform": [
                     720.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -720.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -7385,10 +7373,10 @@
             },
             "proj:code": "EPSG:32632",
             "spatial:bbox": [
-              300000.0,
-              4890240.0,
-              409800.0,
-              5000040.0
+              699960.0,
+              4590240.0,
+              809760.0,
+              4700040.0
             ],
             "spatial:dimensions": [
               "y",
@@ -7398,10 +7386,10 @@
             "spatial:transform": [
               10.0,
               0.0,
-              300000.0,
+              699960.0,
               0.0,
               -10.0,
-              5000040.0
+              4700040.0
             ],
             "zarr_conventions": [
               {
@@ -7433,10 +7421,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -7450,10 +7438,10 @@
                 "spatial:transform": [
                   10.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -10.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -7933,7 +7921,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -8025,10 +8012,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -8042,10 +8029,10 @@
                 "spatial:transform": [
                   120.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -120.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -9342,7 +9329,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -9434,10 +9420,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -9451,10 +9437,10 @@
                 "spatial:transform": [
                   20.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -20.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -10655,7 +10641,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -10747,10 +10732,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -10764,10 +10749,10 @@
                 "spatial:transform": [
                   360.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -360.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -12064,7 +12049,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -12156,10 +12140,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -12173,10 +12157,10 @@
                 "spatial:transform": [
                   60.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -60.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -13480,7 +13464,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -13572,10 +13555,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890600.0,
-                  409440.0,
-                  5000040.0
+                  699960.0,
+                  4590600.0,
+                  809400.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -13589,10 +13572,10 @@
                 "spatial:transform": [
                   720.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -720.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -14889,7 +14872,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -14995,10 +14977,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -15012,10 +14994,10 @@
                 "spatial:transform": [
                   10.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -10.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -15179,7 +15161,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -15367,10 +15348,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -15384,10 +15365,10 @@
                 "spatial:transform": [
                   20.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -20.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -15551,7 +15532,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -15739,10 +15719,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -15756,10 +15736,10 @@
                 "spatial:transform": [
                   60.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -60.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -15923,7 +15903,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -16118,10 +16097,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -16135,10 +16114,10 @@
                 "spatial:transform": [
                   10.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -10.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -16666,7 +16645,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -16758,10 +16736,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -16775,10 +16753,10 @@
                 "spatial:transform": [
                   20.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -20.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -17536,7 +17514,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -17628,10 +17605,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -17645,10 +17622,10 @@
                 "spatial:transform": [
                   60.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -60.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -18061,7 +18038,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -18165,10 +18141,10 @@
                   "spatial:transform": [
                     20.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -20.0,
-                    5000040.0
+                    4700040.0
                   ]
                 },
                 {
@@ -18181,10 +18157,10 @@
                   "spatial:transform": [
                     60.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -60.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -18207,10 +18183,10 @@
                   "spatial:transform": [
                     120.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -120.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -18233,10 +18209,10 @@
                   "spatial:transform": [
                     360.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -360.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -18259,10 +18235,10 @@
                   "spatial:transform": [
                     720.0,
                     0.0,
-                    300000.0,
+                    699960.0,
                     0.0,
                     -720.0,
-                    5000040.0
+                    4700040.0
                   ],
                   "transform": {
                     "scale": [
@@ -18280,10 +18256,10 @@
             },
             "proj:code": "EPSG:32632",
             "spatial:bbox": [
-              300000.0,
-              4890240.0,
-              409800.0,
-              5000040.0
+              699960.0,
+              4590240.0,
+              809760.0,
+              4700040.0
             ],
             "spatial:dimensions": [
               "y",
@@ -18293,10 +18269,10 @@
             "spatial:transform": [
               20.0,
               0.0,
-              300000.0,
+              699960.0,
               0.0,
               -20.0,
-              5000040.0
+              4700040.0
             ],
             "zarr_conventions": [
               {
@@ -18328,10 +18304,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -18345,10 +18321,10 @@
                 "spatial:transform": [
                   120.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -120.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -18597,7 +18573,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -18689,10 +18664,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -18706,10 +18681,10 @@
                 "spatial:transform": [
                   20.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -20.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -18965,7 +18940,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -19057,10 +19031,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -19074,10 +19048,10 @@
                 "spatial:transform": [
                   360.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -360.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -19326,7 +19300,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -19418,10 +19391,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890240.0,
-                  409800.0,
-                  5000040.0
+                  699960.0,
+                  4590240.0,
+                  809760.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -19435,10 +19408,10 @@
                 "spatial:transform": [
                   60.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -60.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -19687,7 +19660,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -19779,10 +19751,10 @@
                 "grid_mapping": "spatial_ref",
                 "proj:code": "EPSG:32632",
                 "spatial:bbox": [
-                  300000.0,
-                  4890600.0,
-                  409440.0,
-                  5000040.0
+                  699960.0,
+                  4590600.0,
+                  809400.0,
+                  4700040.0
                 ],
                 "spatial:dimensions": [
                   "y",
@@ -19796,10 +19768,10 @@
                 "spatial:transform": [
                   720.0,
                   0.0,
-                  300000.0,
+                  699960.0,
                   0.0,
                   -720.0,
-                  5000040.0
+                  4700040.0
                 ],
                 "zarr_conventions": [
                   {
@@ -20048,7 +20020,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],

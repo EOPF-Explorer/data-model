@@ -8,7 +8,6 @@ import json
 import uuid
 from pathlib import Path
 from typing import cast
-from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -22,7 +21,6 @@ from eopf_geozarr.conversion.utils import (
     write_store_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import (
-    _multiscale_paths,
     _validate_s2_input,
     add_s2_stac_assets,
     convert_s2_optimized,
@@ -301,26 +299,32 @@ def test_updated_root_consolidation_aux_multiscales(
 ) -> None:
     """Each written auxiliary pyramid gets its own consolidated metadata listing its levels.
 
-    Pyramids missing from `datasets` (e.g. an L2A product whose processing baseline
-    lacks a group) are not passed on for consolidation.
+    The converter derives the consolidated set from the paths the plan maps to
+    None, so a pyramid missing from `datasets` (e.g. an L2A product whose
+    processing baseline lacks a group) is never passed on for consolidation.
     """
     output_path = tmp_path / "test.zarr"
     levels = ("r60m", "r120m")
-    datasets = {"/measurements/reflectance/r10m": xr.Dataset()}
+    datasets: dict[str, xr.Dataset | None] = {
+        "/measurements/reflectance/r10m": xr.Dataset(),
+        "/measurements/reflectance": None,
+    }
     for base_path in aux_groups:
+        datasets[base_path] = None
         for level in levels:
             datasets[f"{base_path}/{level}"] = xr.Dataset({"b00": (["y", "x"], np.zeros((2, 2)))})
 
     # Write every group into one store, as the pipeline does.
     for k, v in datasets.items():
-        v.to_zarr(output_path, group=k.lstrip("/"), mode="a", zarr_format=3, consolidated=False)
+        if v is not None:
+            v.to_zarr(output_path, group=k.lstrip("/"), mode="a", zarr_format=3, consolidated=False)
 
     dt_input = xr.DataTree(name="S2A_MSIL2A_20250811T112131")
     updated_root_consolidation(
         dt_input=dt_input,
         output_path=str(output_path),
         datasets=datasets,
-        additional_consolidate_paths=_multiscale_paths(dt_input, datasets),
+        additional_consolidate_paths=[path for path, ds in datasets.items() if ds is None],
     )
 
     for base_path in aux_groups:
@@ -482,83 +486,26 @@ def test_write_store_geo_metadata_antimeridian_falls_back_to_full_range(tmp_path
     assert bbox == [-180.0, bbox[1], 180.0, bbox[3]], bbox
 
 
-class TestConvenienceFunction:
-    """Test the convenience function."""
-
-    @patch("eopf_geozarr.conversion.utils.create_result_datatree")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.zarr.open_group")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.initialize_crs_from_dataset")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.get_zarr_group")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.is_sentinel2_dataset")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.create_multiscale_from_datatree")
-    @patch("eopf_geozarr.s2_optimization.s2_converter.utils.updated_root_consolidation")
-    def test_convert_s2_optimized_convenience_function(
-        self,
-        mock_consolidation: Mock,
-        mock_multiscale: Mock,
-        mock_is_s2: Mock,
-        mock_get_zarr_group: Mock,
-        mock_init_crs: Mock,
-        mock_zarr_open_group: Mock,
-        mock_create_result_datatree: Mock,
-    ) -> None:
-        """Test the convenience function parameter passing."""
-        # Setup mocks
-        # Only pyramids with written levels are consolidated, so return one level of each
-        mock_multiscale.return_value = {
-            "/measurements/reflectance/r10m": xr.Dataset(),
-            "/conditions/mask/l2a_classification/r20m": xr.Dataset(),
-            "/quality/probability/r20m": xr.Dataset(),
-            "/conditions/mask/l1c_classification/r60m": xr.Dataset(),
-        }
-        mock_is_s2.return_value = True
-        mock_get_zarr_group.return_value = Mock()
-        mock_init_crs.return_value = None  # Return None for CRS
-
-        # Mock zarr.open_group to return a group with proper groups() and members() methods
-        mock_zarr_group = Mock()
-        mock_zarr_group.groups.return_value = iter([])  # Return empty iterator for groups
-        mock_zarr_group.members.return_value = {}  # Return empty dict for members
-        mock_zarr_open_group.return_value = mock_zarr_group
-
-        # Mock create_result_datatree to return a mock DataTree with groups attribute
-        mock_result_dt = Mock()
-        mock_result_dt.groups = []  # Empty list for groups
-        mock_create_result_datatree.return_value = mock_result_dt
-
-        # Test parameter passing - Mock DataTree with groups attribute
-        dt_input = Mock()
-        dt_input.groups = ["/measurements/reflectance/r10m"]
-        # `S2Type.from_datatree` reads these; a bare Mock attribute is not a string
-        dt_input.attrs = {}
-        dt_input.name = "S2A_MSIL2A_test"
-        output_path = "/test/path"
-
+@pytest.mark.parametrize(
+    "deviation",
+    [
+        {"enable_sharding": False},
+        {"spatial_chunk": 512},
+        {"compression_level": 2},
+        {"scale_offset_codec": True},
+    ],
+    ids=lambda d: next(iter(d)),
+)
+def test_convert_s2_optimized_refuses_non_policy_options(deviation: dict) -> None:
+    """The plan-driven writer has a fixed write policy; a deviating layout
+    option is refused before any work happens."""
+    with pytest.raises(ValueError, match="fixed write policy"):
         convert_s2_optimized(
-            dt_input,
-            output_path=output_path,
-            enable_sharding=False,
-            spatial_chunk=512,
-            compression_level=2,
+            xr.DataTree(),
+            output_path="/unused",
             validate_output=False,
+            **deviation,
         )
-
-        # Verify multiscale function was called with correct args
-        mock_multiscale.assert_called_once()
-        call_kwargs = mock_multiscale.call_args.kwargs
-        assert call_kwargs["enable_sharding"] is False
-        assert call_kwargs["spatial_chunk"] == 512
-
-        # Verify root consolidation runs on the converter output, with the L2A pyramids
-        mock_consolidation.assert_called_once()
-        consolidation_kwargs = mock_consolidation.call_args.kwargs
-        assert consolidation_kwargs["output_path"] == output_path
-        assert consolidation_kwargs["additional_consolidate_paths"] == [
-            "/measurements/reflectance",
-            "/conditions/mask/l2a_classification",
-            "/quality/probability",
-            "/conditions/mask/l1c_classification",
-        ]
 
 
 def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> None:
@@ -576,14 +523,14 @@ def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> 
         zarr_format=3,
         consolidated=False,
     )
-    datasets = {"/measurements/reflectance/r10m": r10m}
+    datasets: dict[str, tuple[str, ...] | None] = {"/measurements/reflectance/r10m": ()}
 
     # adding dummy data to dt_input to mimic input reference dtreee
     dt_input = xr.DataTree(xr.Dataset({"dummy": (["y"], np.zeros(10))}))
     dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
     # test execution of func: the S2 assets are added before the root metadata is written
-    add_s2_stac_assets(dt_input, datasets, crs=CRS.from_epsg(32632))
+    add_s2_stac_assets(dt_input, datasets, crs=CRS.from_epsg(32632), reflectance_shape=(10, 20))
     updated_root_consolidation(
         output_path=output_path,
         datasets=datasets,
@@ -607,10 +554,11 @@ def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> 
 
 
 def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:
-    """Pyramid levels absent from existing STAC assets get one asset per data variable."""
+    """Pyramid levels absent from existing STAC assets get one asset per data
+    variable, whether the level is given as a dataset or as its variable names."""
     existing_asset = {"href": "/measurements/reflectance/r10m/b02", "title": "B02"}
     attrs: dict = {"stac_discovery": {"assets": {"b02": dict(existing_asset)}}}
-    datasets = {
+    datasets: dict[str, xr.Dataset | tuple[str, ...] | None] = {
         # already referenced by an existing asset -> must not be duplicated
         "/measurements/reflectance/r10m": xr.Dataset({"b02": (["y", "x"], np.zeros((4, 4)))}),
         # new pyramid level -> assets added, spatial_ref skipped
@@ -621,7 +569,9 @@ def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:
                 "spatial_ref": ((), 0),
             }
         ),
-        "/measurements/reflectance/r60m": None,
+        # the plan-driven converter passes variable names instead of datasets
+        "/measurements/reflectance/r60m": ("b01", "spatial_ref"),
+        "/measurements/reflectance": None,
     }
 
     result = add_multiscale_pyramids_to_stac_metadata(datasets, attrs)
@@ -631,6 +581,7 @@ def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:
         "b02": existing_asset,
         "b02_r20m": {"href": "/measurements/reflectance/r20m/b02", "title": "b02_r20m"},
         "b05_r20m": {"href": "/measurements/reflectance/r20m/b05", "title": "b05_r20m"},
+        "b01_r60m": {"href": "/measurements/reflectance/r60m/b01", "title": "b01_r60m"},
     }
 
 

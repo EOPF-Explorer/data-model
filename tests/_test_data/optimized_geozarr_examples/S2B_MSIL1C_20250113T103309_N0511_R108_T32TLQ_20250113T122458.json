@@ -994,7 +994,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -1744,7 +1743,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -2209,7 +2207,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -2636,7 +2633,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -2914,7 +2910,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -3199,7 +3194,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -3477,7 +3471,6 @@
                         }
                       ],
                       "data_type": "int64",
-                      "dimension_names": null,
                       "fill_value": 0,
                       "node_type": "array",
                       "shape": [],
@@ -6269,7 +6262,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -7781,7 +7773,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -8991,7 +8982,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -10503,7 +10493,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -12022,7 +12011,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -13534,7 +13522,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -14188,7 +14175,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -15058,7 +15044,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],
@@ -15583,7 +15568,6 @@
                     }
                   ],
                   "data_type": "int64",
-                  "dimension_names": null,
                   "fill_value": 0,
                   "node_type": "array",
                   "shape": [],

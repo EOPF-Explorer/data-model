@@ -97,19 +97,19 @@ output.zarr/
 - Coarser levels also get the finer bands (for example b08 at r20m, and all
   bands at r60m for L1C), so every level has a complete band set.
 - Each variable type gets its own resampling: mean for reflectance and
-  probabilities (nodata excluded), subsampling for classifications, maximum
-  for quality masks.
+  probabilities (nodata excluded), subsampling for classifications; quality
+  masks are carried at their native resolution, not resampled.
+
+The write layout is fixed: Zarr v3 sharding with 1024-pixel inner chunks,
+blosc-zstd level 3, and the ESA packed-integer layout (see
+[Encoding](#encoding)). There are no layout options.
 
 ```bash
-eopf-geozarr convert-s2-optimized S2B_MSIL2A_….zarr output.zarr --enable-sharding
+eopf-geozarr convert-s2-optimized S2B_MSIL2A_….zarr output.zarr
 ```
 
 | Option | Default | Description |
 |---|---|---|
-| `--spatial-chunk N` | 256 | Spatial chunk size. |
-| `--enable-sharding` | off | Enable Zarr v3 sharding. |
-| `--compression-level 1-9` | 3 | Blosc zstd compression level. |
-| `--scale-offset-codec` | off | Store the packing with the Zarr scale-offset codecs instead of the ESA layout (see [Encoding](#encoding)). |
 | `--skip-validation` | off | Do not validate the output. |
 | `--dask-cluster` | off | Start a local Dask cluster. |
 | `--verbose` | off | Print more details. |
@@ -124,24 +124,25 @@ dt_input = xr.open_datatree("S2B_MSIL2A_….zarr", engine="zarr", chunks={})
 dt_output = convert_s2_optimized(
     dt_input,
     output_path="output.zarr",
-    enable_sharding=True,
-    spatial_chunk=256,
-    compression_level=3,
     validate_output=True,
-    scale_offset_codec=False,  # default: ESA layout; True packs with Zarr codecs
 )
+# The layout keyword arguments (enable_sharding, spatial_chunk,
+# compression_level, scale_offset_codec) are still accepted, but only at
+# their default values — the write policy is fixed, and a deviating value
+# raises ValueError.
 ```
 
 ### Encoding
 
 Every level of the reflectance pyramid keeps the packing of the source product
 (for example `uint16`, `scale_factor` 0.0001, `add_offset` -0.1, nodata 0 for
-S2 L2A). One option selects how that packing is stored:
+S2 L2A). The Sentinel-2 pipeline always writes the ESA layout; the Zarr codec
+mode remains available on the generic rechunker pipeline:
 
-| Mode | Option | On disk | Metadata |
+| Mode | Where | On disk | Metadata |
 |---|---|---|---|
-| Default: ESA layout | none | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays |
-| Zarr codec | `--scale-offset-codec` / `scale_offset_codec=True` | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes: Zarr readers return decoded values |
+| ESA layout | Sentinel-2 (always), generic rechunker (default) | Source integer dtype, no scale codecs | CF `scale_factor`, `add_offset` and `_FillValue` on the arrays |
+| Zarr codec | generic rechunker with `--scale-offset-codec` / `scale_offset_codec=True` | Source integer dtype, packed by the Zarr `scale_offset` + `cast_value` codecs; the array's logical dtype is `float32` and its fill value is NaN | No CF scale attributes: Zarr readers return decoded values |
 
 What a reader needs:
 
@@ -162,9 +163,12 @@ such as the classification and quality masks, keep their integer dtype and
 fill value in both modes.
 
 In the CPM writer (`eopf convert-geozarr --scale-offset-codec` or
-`target_store_kwargs={"scale_offset_codec": True}`), the former
-`keep_scale_offset` option is still accepted for one release with a
-`DeprecationWarning`: `keep_scale_offset=False` selects the codecs.
+`target_store_kwargs={"scale_offset_codec": True}`), the option applies to the
+generic rechunker; on a Sentinel-2 product it deviates from the fixed write
+policy and is refused with a `ValueError`. The former `keep_scale_offset`
+option is still accepted for one release with a `DeprecationWarning`:
+`keep_scale_offset=False` selects the codecs (and is therefore also refused
+for Sentinel-2).
 
 ## Sentinel-3 OLCI conversion
 

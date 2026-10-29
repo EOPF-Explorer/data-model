@@ -27,6 +27,8 @@ from fastapi import FastAPI
 from starlette.testclient import TestClient
 from titiler.xarray.factory import TilerFactory
 
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+
 s2_source_path = pathlib.Path("/tmp/s2_source.zarr")
 
 pytestmark = [
@@ -44,8 +46,6 @@ def converted_s2_path() -> pathlib.Path:
 
     This fixture is module-scoped so the conversion only runs once for all tests.
     """
-    from eopf_geozarr.s2_optimization.s2_converter import convert_s2
-
     tmpdir = tempfile.mkdtemp(prefix="titiler_test_")
     output_path = str(pathlib.Path(tmpdir) / "s2_optimized.zarr")
 
@@ -55,12 +55,10 @@ def converted_s2_path() -> pathlib.Path:
         chunks="auto",
     )
 
-    convert_s2(
+    convert_s2_optimized(
         dt_input,
         output_path=output_path,
         validate_output=False,
-        enable_sharding=False,
-        spatial_chunk=512,
     )
 
     return pathlib.Path(output_path)

@@ -259,4 +259,12 @@ constraint-dependencies = [
     "pygments>=2.20.0",
 ]
 
+[tool.uv.sources]
+# pydantic-zarr main (pinned to the validated commit, so installs without this
+# repo's lock stay reproducible): scoped whole-document metadata validation
+# (zarr-metadata), the zarr_scope / zarr_scope_strict class variables, and
+# MISSING-based attribute models. Swap back to PyPI once the next
+# pydantic-zarr releases.
+pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", rev = "9f2e847ce7fe2c98119699ddcf3e090fba688e1f" }
+
 
