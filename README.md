@@ -89,9 +89,10 @@ for every command, including Sentinel-1 GRD RTC ingestion.
 - **Native projections**: no reprojection to Web Mercator.
 - **Multiscale pyramids** for fast visualization at every zoom level.
 - **Source packing kept**: reflectance stays as packed integers with CF
-  `scale_factor`/`add_offset`/`_FillValue`, as in the ESA products.
-  `--scale-offset-codec` stores the packing with the Zarr `scale_offset` +
-  `cast_value` codecs instead, so Zarr readers get decoded values.
+  `scale_factor`/`add_offset`/`_FillValue`, as in the ESA products. On the
+  generic rechunker pipeline, `--scale-offset-codec` stores the packing with
+  the Zarr `scale_offset` + `cast_value` codecs instead, so Zarr readers get
+  decoded values.
 - **Validation**: `eopf-geozarr validate` checks a store against the mini spec.
 
 GeoZarr is a set of modular [Zarr conventions](https://geozarr.org/conventions)

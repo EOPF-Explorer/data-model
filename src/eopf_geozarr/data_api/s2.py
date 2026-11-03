@@ -6,7 +6,7 @@ Uses the new pyz.GroupSpec with TypedDict members to enforce strict structure va
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NotRequired
 
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
@@ -621,11 +621,13 @@ class Sentinel2ConditionsMembers(TypedDict, closed=True):
     """Members for conditions group.
 
     Closed TypedDict - only geometry, mask, meteorology keys are allowed.
+    `meteorology` is optional: not every processing baseline carries it
+    (e.g. the N0512 Zarr V3 products).
     """
 
     geometry: Sentinel2GeometryGroup
     mask: Sentinel2ConditionsMaskGroup
-    meteorology: Sentinel2MeteorologyGroup
+    meteorology: NotRequired[Sentinel2MeteorologyGroup]
 
 
 class Sentinel2ConditionsGroup(GroupSpec[DatasetAttrs, Sentinel2ConditionsMembers]):

@@ -20,10 +20,12 @@ class MyGroup(GroupSpec[Any, MyMembers])
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeAlias, TypeVar, Union
+from typing import Any, TypeAlias, Union
 
+from pydantic import Field
 from pydantic_zarr.v2 import ArraySpec as ArraySpecV2
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
+from pydantic_zarr.v2 import TBaseItem as TBaseItemV2
 
 from eopf_geozarr.pyz.common import (
     TBaseAttr,
@@ -35,18 +37,17 @@ from eopf_geozarr.pyz.common import (
 
 TBaseMember: TypeAlias = Mapping[str, Union["GroupSpec[Any, Any]", "ArraySpec[Any]"]]  # noqa: UP040
 
-TAttr = TypeVar("TAttr", bound=TBaseAttr)
-TMembers = TypeVar("TMembers", bound=TBaseMember)
-TArraySpecType = TypeVar("TArraySpecType")
 
-
-class GroupSpec(GroupSpecV2[TAttr, TMembers]):  # type: ignore[type-var]
-    # TMembers is bound to the full members mapping (e.g. a TypedDict) by design,
-    # whereas the parent's second type parameter expects a single member item type.
-    attributes: TAttr
-    # members holds the full mapping (TMembers) rather than the parent's
-    # Mapping[str, TItem] | None; this is the intended structure for this subclass.
-    members: TMembers  # type: ignore[assignment]
+class GroupSpec[TAttr: TBaseAttr, TMembers: TBaseMember](GroupSpecV2[TAttr, TBaseItemV2]):
+    # The parent is parameterized at its widest member type, and TMembers (the
+    # full members mapping, e.g. a closed TypedDict) narrows the *field*: a
+    # legal override, since pydantic-zarr's parameters are covariant and the
+    # specs frozen. members is required here, unlike the parent's
+    # (Mapping | None) with its empty default: modeling the exact member set
+    # is this class's purpose. (attributes needs no redeclaration: the parent
+    # parameterization binds TAttr, and its validated empty-dict default keeps
+    # narrowed attribute types that refuse {} effectively required.)
+    members: TMembers = Field(...)  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __repr__(self) -> str:
         """Return a condensed text representation of the GroupSpec."""
@@ -67,8 +68,14 @@ class GroupSpec(GroupSpecV2[TAttr, TMembers]):  # type: ignore[type-var]
         )
 
 
-class ArraySpec[TArraySpecType](ArraySpecV2[Any]):
-    """Zarr V2 ArraySpec with enhanced HTML representation for Jupyter/IPython."""
+class ArraySpec[TAttr: TBaseAttr](ArraySpecV2[TAttr]):
+    """
+    Zarr V2 ArraySpec with enhanced HTML representation for Jupyter/IPython.
+
+    The type parameter is the attributes type and is enforced: it previously
+    subclassed ``ArraySpecV2[Any]``, which made ``ArraySpec[MyAttrs]``
+    decorative — any attributes validated.
+    """
 
     def _repr_html_(self) -> str:
         """Return an HTML representation for Jupyter/IPython."""

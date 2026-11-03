@@ -38,31 +38,34 @@ convert_s2_optimized(
     dt_input: xr.DataTree,
     *,
     output_path: str,
-    enable_sharding: bool,
-    spatial_chunk: int,
-    compression_level: int,
-    validate_output: bool,
+    enable_sharding: bool = True,
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    validate_output: bool = True,
     scale_offset_codec: bool = False,
 ) -> xr.DataTree
 ```
 
 Converts a Sentinel-2 L1C or L2A DataTree to the optimized pyramid
-(`r10m` … `r720m`). All arguments after `dt_input` are keyword-only, and all
-without a default are required.
+(`r10m` … `r720m`). All arguments after `dt_input` are keyword-only.
 
 | Argument | Description |
 |---|---|
 | `output_path` | Local path or `s3://` URL of the output store. |
-| `enable_sharding` | Enable Zarr v3 sharding. |
-| `spatial_chunk` | Spatial chunk size (the CLI default is 256). |
-| `compression_level` | Blosc zstd level, 1–9. |
+| `enable_sharding` | Must be `True` (the default): the write policy fixes sharding on. |
+| `spatial_chunk` | Must be `1024` (the default): the policy's inner chunk size. |
+| `compression_level` | Must be `3` (the default): the policy's blosc zstd level. |
 | `validate_output` | Validate the output after writing. |
-| `scale_offset_codec` | `False` (default): ESA layout with CF scale attributes. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
+| `scale_offset_codec` | Must be `False` (the default): the output keeps the ESA layout with CF scale attributes. See [Encoding](converter.md#encoding). |
 
-`create_multiscale_from_datatree(dt_input, *, output_group, enable_sharding,
-spatial_chunk, crs=None, scale_offset_codec=False, compression_level=3)` in
-`eopf_geozarr.s2_optimization.s2_multiscale` is the lower-level function that
-writes the pyramid into an open `zarr.Group`.
+The layout arguments are accepted only at their defaults — the write policy is
+fixed, and a deviating value raises `ValueError`.
+
+The lower-level, spec-level API lives in `eopf_geozarr.data_api`:
+`load_sentinel2(source)` validates a Zarr group or an xarray DataTree into the
+`Sentinel2Root` input model, `plan_geozarr(root)` derives the output hierarchy
+as a Zarr V3 `GroupSpec` tree, and `write_geozarr(root, source, store)` writes
+the planned documents and fills in the chunk data.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 

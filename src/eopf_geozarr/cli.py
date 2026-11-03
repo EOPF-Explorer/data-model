@@ -220,14 +220,12 @@ def convert_command(args: argparse.Namespace) -> None:
             log.info(
                 "Detected Sentinel-2 input; using optimized flat multiscale layout "
                 "(per-group options such as --groups/--crs-groups/--gcp-group/--min-dimension "
-                "do not apply; pass --no-s2-optimized to force the generic path)"
+                "do not apply, and the layout options --spatial-chunk/--enable-sharding are "
+                "fixed by the S2 write policy; pass --no-s2-optimized to force the generic path)"
             )
             dt_geozarr = convert_s2_optimized(
                 dt_input=dt,
                 output_path=output_path,
-                enable_sharding=args.enable_sharding,
-                spatial_chunk=args.spatial_chunk,
-                compression_level=3,
                 validate_output=True,
             )
         # Opt-out flag first: skip the structural OLCI detection (a full
@@ -1394,31 +1392,8 @@ def add_s2_optimization_commands(subparsers: argparse._SubParsersAction) -> None
         "input_path", type=str, help="Path to input Sentinel-2 dataset (Zarr format)"
     )
     s2_parser.add_argument("output_path", type=str, help="Path for output optimized dataset")
-    s2_parser.add_argument(
-        "--spatial-chunk",
-        type=int,
-        default=256,
-        help="Spatial chunk size (default: 256)",
-    )
-    s2_parser.add_argument("--enable-sharding", action="store_true", help="Enable Zarr v3 sharding")
-    s2_parser.add_argument(
-        "--compression-level",
-        type=int,
-        default=3,
-        choices=range(1, 10),
-        help="Compression level 1-9 (default: 3)",
-    )
     s2_parser.add_argument("--skip-validation", action="store_true", help="Skip output validation")
     s2_parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    s2_parser.add_argument(
-        "--scale-offset-codec",
-        action="store_true",
-        help=(
-            "Pack reflectance with the Zarr scale_offset + cast_value codecs. By default it "
-            "is written as in the ESA product: source integers with CF "
-            "scale_factor/add_offset/_FillValue and STAC raster:scale/raster:offset/nodata."
-        ),
-    )
     s2_parser.add_argument(
         "--dask-cluster",
         action="store_true",
@@ -1443,11 +1418,7 @@ def convert_s2_optimized_command(args: argparse.Namespace) -> None:
         convert_s2_optimized(
             dt_input=dt_input,
             output_path=args.output_path,
-            enable_sharding=args.enable_sharding,
-            spatial_chunk=args.spatial_chunk,
-            compression_level=args.compression_level,
             validate_output=not args.skip_validation,
-            scale_offset_codec=args.scale_offset_codec,
         )
 
         log.info("S2 optimization completed", output_path=args.output_path)

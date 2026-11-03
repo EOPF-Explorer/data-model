@@ -103,26 +103,21 @@ def test_write_s2_default_writes_esa_layout(tmp_path: pathlib.Path) -> None:
     assert asset["gsd"] == 10
 
 
-def test_write_s2_scale_offset_codec(tmp_path: pathlib.Path) -> None:
-    """`scale_offset_codec=True` stores the packing in Zarr codecs, without CF or STAC scale fields."""
-    root = _write_s2(tmp_path, scale_offset_codec=True)
-    b04 = root["measurements/reflectance/r10m/b04"]
-    assert isinstance(b04, zarr.Array)
-    assert b04.dtype == np.float32
-    assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
-    assert "scale_factor" not in b04.attrs
-    asset = _reflectance_asset(root)
-    assert "raster:scale" not in asset
+def test_write_s2_scale_offset_codec_is_refused(tmp_path: pathlib.Path) -> None:
+    """`scale_offset_codec=True` deviates from the plan-driven S2 writer's
+    fixed policy (the ESA packed-integer layout) and is refused."""
+    with pytest.raises(ValueError, match="fixed write policy"):
+        _write_s2(tmp_path, scale_offset_codec=True)
 
 
 def test_write_s2_keep_scale_offset_is_deprecated(tmp_path: pathlib.Path) -> None:
-    """`keep_scale_offset` still works for one release; `False` selects the codecs."""
-    with pytest.warns(DeprecationWarning, match="scale_offset_codec"):
-        root = _write_s2(tmp_path, keep_scale_offset=False)
-    b04 = root["measurements/reflectance/r10m/b04"]
-    assert isinstance(b04, zarr.Array)
-    assert b04.dtype == np.float32
-    assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
+    """`keep_scale_offset=False` still maps to `scale_offset_codec=True` with a
+    deprecation warning, which the S2 write policy then refuses."""
+    with (
+        pytest.warns(DeprecationWarning, match="scale_offset_codec"),
+        pytest.raises(ValueError, match="fixed write policy"),
+    ):
+        _write_s2(tmp_path, keep_scale_offset=False)
 
 
 def test_write_olci_end_to_end(tmp_path: pathlib.Path) -> None:

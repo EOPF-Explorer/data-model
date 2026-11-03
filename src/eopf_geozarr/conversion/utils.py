@@ -834,8 +834,13 @@ def build_convention_attrs(
 
 
 def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+    datasets: Mapping[str, xr.Dataset | Sequence[str] | None], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
+    """Add one STAC asset per data variable of each pyramid level not yet referenced.
+
+    `datasets` maps each written dataset group path to the dataset itself or to
+    its data variable names, with multiscale pyramid roots mapped to None.
+    """
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
     if not stac_attrs:
         return dt_attributes
@@ -843,24 +848,18 @@ def add_multiscale_pyramids_to_stac_metadata(
     # a bit messy but effective split to get group parent from stac attrs
     existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
 
-    # gEt mismatched ones -> we need pyramids not present
-    missing_group_paths = [
-        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
-    ]
-
-    for group_path in missing_group_paths:
-        ds = datasets[group_path]
-
-        # catch object != datAset for typing
-        if isinstance(ds, xr.Dataset):
-            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-            for var_name in ds.data_vars:
-                if var_name == "spatial_ref":
-                    continue
-                asset_key = f"{var_name}_{resolution}"
-                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
-        else:
-            log.warning("Found non-dataset object in datasets!", dataset=ds)
+    for group_path, ds in datasets.items():
+        # datasets the input's own assets reference need no new entries, and
+        # multiscale roots (mapped to None) hold no variables of their own
+        if group_path in existing_group_paths or ds is None:
+            continue
+        var_names = tuple(str(name) for name in ds.data_vars) if isinstance(ds, xr.Dataset) else ds
+        resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+        for var_name in var_names:
+            if var_name == "spatial_ref":
+                continue
+            asset_key = f"{var_name}_{resolution}"
+            stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
 
     return dt_attributes
 
