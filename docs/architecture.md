@@ -254,6 +254,8 @@ This is indicated in the STAC asset using the [Zarr STAC Extension](https://gith
 }
 ```
 
+The [GeoZarr mini spec](geozarr-minispec.md#consolidated-metadata) defines the role of consolidated metadata, the full list of groups that carry it, and its status in the Zarr V3 specification.
+
 ### Role of the `rel: store` Link
 
 The [STAC Zarr Best Practices](https://github.com/radiantearth/stac-best-practices/blob/main/best-practices-zarr.md#store-link-relationship) define a `"store"` relationship for exactly this purpose. All EOPF-produced STAC Items and Collections **MUST** include this link:
