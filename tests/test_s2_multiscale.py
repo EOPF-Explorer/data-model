@@ -804,6 +804,71 @@ def test_create_multiscale_reuses_native_aux_levels(tmp_path: pathlib.Path) -> N
         np.testing.assert_array_equal(ds[var_name].values, expected)
 
 
+def test_create_multiscale_builds_atmosphere_pyramid(tmp_path: pathlib.Path) -> None:
+    """`quality/atmosphere` (aot, wvp) gets a pyramid like the reflectance bands.
+
+    Its native r10m/r20m/r60m levels are reused, r120m/r360m/r720m are block means
+    of the level before them with nodata (0) skipped, and the parent group lists all
+    six levels in its `multiscales` layout.
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    dt_input.name = "S2A_MSIL2A_20250811T112131"
+    rng = np.random.default_rng(3)
+    for level, size in (("r10m", 120), ("r20m", 60), ("r60m", 20)):
+        coords = {"x": np.arange(float(size)), "y": np.arange(float(size))}
+        variables = {}
+        for name in ("aot", "wvp"):
+            data = rng.integers(1, 3000, size=(size, size)).astype("float64") * 0.001
+            data[:2, :2] = np.nan
+            da = xr.DataArray(data, dims=["y", "x"], coords=coords)
+            da.encoding = {"scale_factor": 0.001, "_FillValue": 0, "dtype": np.dtype("uint16")}
+            variables[name] = da
+        dt_input[f"quality/atmosphere/{level}"] = xr.DataTree(xr.Dataset(variables))
+    output_path = str(tmp_path / "output.zarr")
+
+    with capture_logs() as logs:
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            crs=CRS.from_epsg(32632),
+        )
+
+    created = {
+        e["level"]
+        for e in logs
+        if e["event"] == "Creating level with resolution"
+        and e["base_path"] == "/quality/atmosphere"
+    }
+    assert created == {"r120m", "r360m", "r720m"}
+
+    parent = zarr.open_group(output_path, path="quality/atmosphere", mode="r")
+    multiscales: Any = parent.attrs["multiscales"]
+    assert [lo["asset"] for lo in multiscales["layout"]] == [
+        "r10m",
+        "r20m",
+        "r60m",
+        "r120m",
+        "r360m",
+        "r720m",
+    ]
+    assert multiscales["resampling_method"] == "average"
+
+    def open_level(name: str) -> xr.Dataset:
+        return xr.open_dataset(
+            output_path, engine="zarr", group=f"quality/atmosphere/{name}", decode_coords="all"
+        )
+
+    r60m, r120m = open_level("r60m"), open_level("r120m")
+    source_r60m = dt_input["quality/atmosphere/r60m"].to_dataset()
+    for name in ("aot", "wvp"):
+        expected = r60m[name].coarsen(x=2, y=2, boundary="trim").mean(skipna=True)  # type: ignore[attr-defined]
+        np.testing.assert_allclose(r120m[name].values, expected.values, atol=0.001)
+        # the native r60m values are kept, not coarsened again from r20m
+        np.testing.assert_allclose(r60m[name].values, source_r60m[name].values, atol=0.001)
+
+
 @pytest.mark.parametrize("enable_sharding", [False, True])
 def test_create_multiscale_chunks_coarsened_levels_like_native_levels(
     tmp_path: pathlib.Path, enable_sharding: bool
