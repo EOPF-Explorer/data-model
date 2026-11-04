@@ -50,7 +50,7 @@ dependencies = [
     # location/API may change between minor releases; bump deliberately.
     "zarr[cast-value-rs]>=3.2.0,<3.5.0",
     "xarray>=2025.7.1",
-    "dask[array,distributed]>=2026.1.0",
+    "dask[array,distributed]>=2026.8.0",
     "numpy>=2.3.1",
     "rioxarray>=0.13.0",
     "cf-xarray>=0.8.0",

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'win32'",
@@ -1662,6 +1662,7 @@ wheels = [
 name = "eopf-geozarr"
 version = "0.12.0"
 source = { editable = "." }
+default-groups = ["dev", "test"]
 dependencies = [
     { name = "aiohttp" },
     { name = "boto3" },
@@ -1728,7 +1729,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.5" },
     { name = "boto3", specifier = ">=1.43.116" },
     { name = "cf-xarray", specifier = ">=0.8.0" },
-    { name = "dask", extras = ["array", "distributed"], specifier = ">=2026.1.0" },
+    { name = "dask", extras = ["array", "distributed"], specifier = ">=2026.8.0" },
     { name = "defusedxml", marker = "python_full_version >= '3.13' and extra == 'cpm'" },
     { name = "eopf", marker = "python_full_version >= '3.13' and extra == 'cpm'", specifier = ">=3.0.0" },
     { name = "numpy", specifier = ">=2.3.1" },
