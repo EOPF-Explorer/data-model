@@ -135,6 +135,11 @@ _AUX_MULTISCALES: tuple[MultiscaleSpec, ...] = (
         product_levels=frozenset({S2Type.L2A}),
     ),
     MultiscaleSpec(
+        base_path="/quality/atmosphere",
+        scale_levels=(10, 20, 60, 120, 360, 720),
+        product_levels=frozenset({S2Type.L2A}),
+    ),
+    MultiscaleSpec(
         base_path="/conditions/mask/l1c_classification",
         scale_levels=(60, 120, 360, 720),
     ),
