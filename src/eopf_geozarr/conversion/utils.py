@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, TypeGuard, cast, runtime_checkable
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict, TypeGuard, cast, runtime_checkable
 
 import numpy as np
 import structlog
@@ -22,7 +23,7 @@ from eopf_geozarr.data_api.geozarr.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Mapping, Sequence
+    from collections.abc import Hashable, Iterable, Sequence
 
 
 from importlib.util import find_spec
@@ -290,7 +291,8 @@ def updated_root_consolidation(
     Three steps have to be done to achieve a uniform processing of all modes:
         1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
-        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root
+        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root.
+            Every `stac_discovery` asset that references an array gets its STAC `statistics`.
     Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
@@ -317,12 +319,27 @@ def updated_root_consolidation(
     # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
+
+    # STAC statistics of every asset array. Asset hrefs are relative to the store root
+    # (also in S1 subroots), so the statistics are computed once for root and subroots.
+    stac_attrs = {
+        group: dt_input[group].attrs if group else dt_input.attrs
+        for group in ("", *sorted(subroot_groups or ()))
+    }
+    statistics = compute_array_statistics(
+        output_path,
+        {path for attrs in stac_attrs.values() for path in stac_asset_array_paths(attrs)},
+    )
+
     if subroot_groups:
         for subroot in subroot_groups:
             # add spatial and stac related metadata
             write_store_root_metadata(
                 _group_url(subroot),
-                attrs=cast("dict[str, dict[str, Any]]", dt_input[subroot].attrs),
+                attrs=cast(
+                    "dict[str, dict[str, Any]]",
+                    with_stac_asset_statistics(stac_attrs[subroot], statistics),
+                ),
             )
 
             # consolidate the subroot itself
@@ -331,7 +348,9 @@ def updated_root_consolidation(
     # also add the geo and stac metadata to the root
     write_store_root_metadata(
         output_path,
-        attrs=cast("dict[str, dict[str, Any]]", dt_input.attrs),
+        attrs=cast(
+            "dict[str, dict[str, Any]]", with_stac_asset_statistics(stac_attrs[""], statistics)
+        ),
     )
 
     # consolidate metadata in root OR in each subroot
@@ -836,33 +855,208 @@ def build_convention_attrs(
 def add_multiscale_pyramids_to_stac_metadata(
     datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
+    """Add a `stac_discovery` asset for every written array that no asset references yet.
+
+    Covers the multiscale levels and the bands injected into native levels (e.g. b08
+    in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
+    `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
+    """
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
     if not stac_attrs:
         return dt_attributes
 
-    # a bit messy but effective split to get group parent from stac attrs
-    existing_group_paths = {"/".join(v["href"].split("/")[:-1]) for v in stac_attrs.values()}
+    existing_hrefs = {
+        asset["href"].strip("/")
+        for asset in stac_attrs.values()
+        if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
+    }
 
-    # gEt mismatched ones -> we need pyramids not present
-    missing_group_paths = [
-        path for path, ds in datasets.items() if path not in existing_group_paths and ds is not None
-    ]
-
-    for group_path in missing_group_paths:
-        ds = datasets[group_path]
-
-        # catch object != datAset for typing
-        if isinstance(ds, xr.Dataset):
-            resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-            for var_name in ds.data_vars:
-                if var_name == "spatial_ref":
-                    continue
-                asset_key = f"{var_name}_{resolution}"
-                stac_attrs[asset_key] = {"href": f"{group_path}/{var_name}", "title": asset_key}
-        else:
+    for group_path, ds in datasets.items():
+        if ds is None:
+            continue
+        # catch object != dataset for typing
+        if not isinstance(ds, xr.Dataset):
             log.warning("Found non-dataset object in datasets!", dataset=ds)
+            continue
+        resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+        for var_name in ds.data_vars:
+            href = f"{group_path}/{var_name}"
+            if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
+                continue
+            asset_key = f"{var_name}_{resolution}"
+            if asset_key in stac_attrs:
+                log.warning(
+                    "STAC asset key already in use, not adding an asset", asset=asset_key, href=href
+                )
+                continue
+            stac_attrs[asset_key] = {"href": href, "title": asset_key}
 
     return dt_attributes
+
+
+class StacStatistics(TypedDict, total=False):
+    """STAC Statistics Object (STAC 1.1 common metadata).
+
+    Computed from the values as stored in the array, i.e. before a CF scale/offset
+    (`raster:scale`/`raster:offset`) is applied, with the nodata value masked. For
+    packed bands they are in counts, which is what clients that do not apply the
+    scale/offset (e.g. ol-stac) need. With the Zarr scale-offset codecs the array
+    itself returns decoded values, so the statistics are in physical units there.
+    `count` is the number of valid (non-nodata) values the statistics are computed from.
+    """
+
+    minimum: float
+    maximum: float
+    mean: float
+    stddev: float
+    count: int
+    valid_percent: float
+
+
+def _is_store_href(href: object) -> TypeGuard[str]:
+    """Whether a STAC asset href is a path inside the store (not a URL)."""
+    return isinstance(href, str) and "://" not in href and bool(href.strip("/"))
+
+
+def stac_asset_array_paths(attrs: Mapping[Hashable, Any]) -> set[str]:
+    """Store paths (relative to the store root) referenced by the `stac_discovery` assets."""
+    stac = attrs.get("stac_discovery")
+    assets = stac.get("assets") if isinstance(stac, Mapping) else None
+    if not isinstance(assets, Mapping):
+        return set()
+    return {
+        asset["href"].strip("/")
+        for asset in assets.values()
+        if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
+    }
+
+
+def _has_statistics_dtype(var: xr.DataArray) -> bool:
+    """Whether statistics can be computed for the values of `var` (real numbers, not bools)."""
+    return np.issubdtype(var.dtype, np.integer) or np.issubdtype(var.dtype, np.floating)
+
+
+def _lazy_statistics(var: xr.DataArray) -> dict[str, xr.DataArray]:
+    """Lazy reductions of the stored values of `var` for a `StacStatistics`.
+
+    `var` is opened without CF decoding. Its nodata value (see
+    `encoding_utils.find_fill_value`) and NaN are masked out: the masked values are
+    replaced by a neutral value of the array's own dtype (no float cast), and the mean
+    and stddev are derived from the sums and the number of valid values. Only the
+    squares are taken in float64, because they overflow the stored integer dtype.
+    """
+    valid = var.notnull()
+    fill_value = encoding_utils.find_fill_value(var)
+    if fill_value is not None and not np.isnan(fill_value):
+        valid &= var != fill_value
+    limits = np.iinfo(var.dtype) if np.issubdtype(var.dtype, np.integer) else np.finfo(var.dtype)
+    zeroed = var.where(valid, 0)
+    return {
+        "minimum": var.where(valid, limits.max).min(),
+        "maximum": var.where(valid, limits.min).max(),
+        "count": valid.sum(),
+        "sum": zeroed.sum(dtype="float64"),
+        "sum_of_squares": (zeroed.astype("float64") ** 2).sum(),
+    }
+
+
+def _statistics_object(values: Mapping[str, Any], size: int) -> StacStatistics:
+    """Statistics Object from computed reductions.
+
+    Without valid values only `count` and `valid_percent` are given; non-finite
+    values (e.g. infinities in float data) are left out.
+    """
+    statistics: StacStatistics = {}
+    count = int(values["count"])
+    if count:
+        mean = float(values["sum"]) / count
+        variance = max(float(values["sum_of_squares"]) / count - mean**2, 0.0)
+        candidates = {
+            "minimum": np.asarray(values["minimum"]).item(),
+            "maximum": np.asarray(values["maximum"]).item(),
+            "mean": mean,
+            "stddev": variance**0.5,
+        }
+        for key, value in candidates.items():
+            if np.isfinite(value):
+                statistics[key] = value
+    statistics["count"] = count
+    if size:
+        statistics["valid_percent"] = 100.0 * count / size
+    return statistics
+
+
+def compute_array_statistics(
+    output_path: str,
+    array_paths: Iterable[str],
+    storage_options: dict[str, Any] | None = None,
+) -> dict[str, StacStatistics]:
+    """Statistics of the numeric arrays at `array_paths` (relative to the store root).
+
+    Paths that are not arrays (e.g. groups) or hold non-numeric values are left out.
+    All arrays are reduced in one dask computation, so each chunk is read once.
+    """
+    from dask.base import compute
+
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+
+    root = zarr.open_group(output_path, mode="r", storage_options=storage_options)
+    names_by_group: dict[str, list[str]] = {}
+    for path in sorted(set(array_paths)):
+        if isinstance(root.get(path), zarr.Array):
+            group, _, name = path.rpartition("/")
+            names_by_group.setdefault(group, []).append(name)
+
+    lazy: dict[str, dict[str, xr.DataArray]] = {}
+    sizes: dict[str, int] = {}
+    for group, names in names_by_group.items():
+        dataset = xr.open_dataset(
+            output_path,
+            engine="zarr",
+            group=group or None,
+            chunks={},
+            consolidated=False,
+            mask_and_scale=False,
+            decode_times=False,
+            decode_timedelta=False,
+            storage_options=storage_options,
+        )
+        for name in names:
+            var = dataset.variables.get(name)
+            if var is None or not _has_statistics_dtype(dataset[name]):
+                continue
+            path = f"{group}/{name}" if group else name
+            lazy[path] = _lazy_statistics(dataset[name])
+            sizes[path] = dataset[name].size
+
+    (computed,) = compute(lazy)
+    log.info("Computed array statistics", arrays=len(computed))
+    return {path: _statistics_object(values, sizes[path]) for path, values in computed.items()}
+
+
+def with_stac_asset_statistics(
+    attrs: Mapping[Hashable, Any], statistics: Mapping[str, StacStatistics]
+) -> dict[Hashable, Any]:
+    """Return a copy of `attrs` with `statistics` added to each `stac_discovery` asset it covers.
+
+    Each asset references a single array, so the statistics go on the asset itself
+    rather than into a one-element `bands` array (STAC 1.1 common metadata).
+    """
+    import copy
+
+    attrs = copy.deepcopy(dict(attrs))
+    stac = attrs.get("stac_discovery")
+    assets = stac.get("assets") if isinstance(stac, Mapping) else None
+    if not isinstance(assets, Mapping):
+        return attrs
+    for asset in assets.values():
+        if not isinstance(asset, dict) or not _is_store_href(asset.get("href")):
+            continue
+        path = asset["href"].strip("/")
+        if path in statistics:
+            asset["statistics"] = dict(statistics[path])
+    return attrs
 
 
 def explicit_fill_value(var: xr.DataArray) -> Any:

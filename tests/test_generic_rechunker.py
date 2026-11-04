@@ -105,6 +105,12 @@ def read_array(output_path: pathlib.Path, path: str) -> zarr.Array:
     return array
 
 
+def stac_assets(output_path: pathlib.Path, group: str = "") -> dict[str, dict[str, Any]]:
+    """The `stac_discovery` assets of a group (the root by default) of the output store."""
+    stac: Any = zarr.open_group(str(output_path), path=group, mode="r").attrs["stac_discovery"]
+    return stac["assets"]
+
+
 def convert(
     tree: xr.DataTree, tmp_path: pathlib.Path, **overrides: Any
 ) -> tuple[xr.DataTree, pathlib.Path]:
@@ -239,6 +245,45 @@ def test_parent_measurements_group_is_consolidated(tmp_path: pathlib.Path) -> No
     assert {"inadir", "inadir/s7_bt"} <= set(consolidated["metadata"])
 
 
+@pytest.mark.parametrize("scale_offset_codec", [False, True], ids=["cf", "codec"])
+def test_stac_assets_get_statistics_of_stored_values(
+    tmp_path: pathlib.Path, scale_offset_codec: bool
+) -> None:
+    """Each `stac_discovery` asset of an array gets a STAC Statistics Object.
+
+    The statistics are of the values as stored, with nodata masked: counts in the CF
+    layout (scale/offset not applied), physical values with the Zarr scale-offset
+    codecs (which decode them). Assets that reference a group get none.
+    """
+    tree = build_scaled_tree()
+    reflectance = tree["measurements"].dataset["reflectance"]
+    values = reflectance.values.copy()
+    values[0, :10] = np.nan  # written as the `_FillValue` 0
+    tree["measurements"] = tree["measurements"].dataset.assign(
+        reflectance=reflectance.copy(data=values)
+    )
+    tree.attrs["stac_discovery"] = {
+        "assets": {
+            "reflectance": {"href": "/measurements/reflectance"},
+            "measurements": {"href": "/measurements"},
+        }
+    }
+
+    _, output_path = convert(tree, tmp_path, scale_offset_codec=scale_offset_codec)
+
+    assets = stac_assets(output_path)
+    assert "statistics" not in assets["measurements"]
+    statistics = assets["reflectance"]["statistics"]
+    counts = np.round((values[~np.isnan(values)] - 1.0) / 0.5)
+    valid = counts * 0.5 + 1.0 if scale_offset_codec else counts
+    assert statistics["count"] == valid.size
+    assert statistics["valid_percent"] == pytest.approx(100.0 * valid.size / values.size)
+    assert statistics["minimum"] == pytest.approx(valid.min())
+    assert statistics["maximum"] == pytest.approx(valid.max())
+    assert statistics["mean"] == pytest.approx(valid.mean())
+    assert statistics["stddev"] == pytest.approx(valid.std())
+
+
 def test_returns_the_written_output(tmp_path: pathlib.Path) -> None:
     """The result is the tree read back from the output, not the input tree."""
     result, _ = convert(build_synthetic_tree(), tmp_path, spatial_chunk=128)
@@ -280,3 +325,16 @@ def test_s1_grdh_example_converts(
         grd = read_array(output_path, f"{product}/measurements/grd")
         assert grd.shape == tree[f"{product}/measurements/grd"].shape
         assert grd.chunks[1:] == (1024, 1024)
+
+    # The root and each subroot STAC get statistics for every asset of a numeric array
+    # (asset hrefs are relative to the store root, also in the subroots).
+    for group in ("", *tree.children):
+        assets = stac_assets(output_path, group)
+        numeric = {
+            key
+            for key, asset in assets.items()
+            if isinstance(node := root.get(asset["href"].strip("/")), zarr.Array)
+            and np.issubdtype(node.dtype, np.number)
+        }
+        assert numeric, f"{group or '/'}: no assets of numeric arrays"
+        assert {key for key, asset in assets.items() if "statistics" in asset} == numeric
