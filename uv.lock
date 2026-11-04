@@ -1752,7 +1752,7 @@ provides-extras = ["cpm"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bandit", extras = ["toml"], specifier = ">=1.7.0" },
+    { name = "bandit", extras = ["toml"], specifier = ">=1.9.4" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=7.0.0" },
