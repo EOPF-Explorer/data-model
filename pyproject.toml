@@ -82,7 +82,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "pyright>=1.1.390",
     "pre-commit>=4.7.0",
-    "bandit[toml]>=1.7.0",
+    "bandit[toml]>=1.9.4",
 ]
 test = [
     "jsondiff>=2.2.1",

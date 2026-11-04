@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'win32'",
@@ -1662,6 +1662,7 @@ wheels = [
 name = "eopf-geozarr"
 version = "0.12.0"
 source = { editable = "." }
+default-groups = ["dev", "test"]
 dependencies = [
     { name = "aiohttp" },
     { name = "boto3" },
@@ -1751,7 +1752,7 @@ provides-extras = ["cpm"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bandit", extras = ["toml"], specifier = ">=1.7.0" },
+    { name = "bandit", extras = ["toml"], specifier = ">=1.9.4" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=7.0.0" },
