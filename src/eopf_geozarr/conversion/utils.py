@@ -292,7 +292,8 @@ def updated_root_consolidation(
         1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
         3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root.
-            Every `stac_discovery` asset that references an array gets its STAC `statistics`.
+            Every `stac_discovery` asset of a band array (measurements and multiscale levels,
+            see `band_array_paths`) gets its STAC `statistics`.
     Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
@@ -320,15 +321,19 @@ def updated_root_consolidation(
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
 
-    # STAC statistics of every asset array. Asset hrefs are relative to the store root
-    # (also in S1 subroots), so the statistics are computed once for root and subroots.
+    # STAC statistics of the band assets (measurements and multiscale levels). Asset hrefs
+    # are relative to the store root (also in S1 subroots), so the statistics are computed
+    # once for root and subroots.
     stac_attrs = {
         group: dt_input[group].attrs if group else dt_input.attrs
         for group in ("", *sorted(subroot_groups or ()))
     }
     statistics = compute_array_statistics(
         output_path,
-        {path for attrs in stac_attrs.values() for path in stac_asset_array_paths(attrs)},
+        band_array_paths(
+            output_path,
+            {path for attrs in stac_attrs.values() for path in stac_asset_array_paths(attrs)},
+        ),
     )
 
     if subroot_groups:
@@ -929,6 +934,34 @@ def stac_asset_array_paths(attrs: Mapping[Hashable, Any]) -> set[str]:
         for asset in assets.values()
         if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
     }
+
+
+def band_array_paths(
+    output_path: str,
+    array_paths: Iterable[str],
+    storage_options: dict[str, Any] | None = None,
+) -> set[str]:
+    """The `array_paths` that hold band data, i.e. get STAC statistics.
+
+    These are arrays in a `measurements` group (at any depth, e.g. S2 reflectance
+    or S1 `<subroot>/measurements/grd`) and the levels of a multiscale pyramid
+    (an array whose group's parent carries `multiscales`, e.g. `quality/atmosphere/r120m/aot`).
+    Small metadata arrays (angles, footprints, calibration tables, ...) are left out.
+    """
+    if storage_options is None:
+        storage_options = cast("dict[str, Any] | None", fs_utils.get_storage_options(output_path))
+    root = zarr.open_group(output_path, mode="r", storage_options=storage_options)
+
+    def is_pyramid(path: str) -> bool:
+        group = root.get(path) if path else root
+        return isinstance(group, zarr.Group) and "multiscales" in group.attrs
+
+    selected = set()
+    for path in array_paths:
+        level_path = path.rpartition("/")[0]
+        if "measurements" in level_path.split("/") or is_pyramid(level_path.rpartition("/")[0]):
+            selected.add(path)
+    return selected
 
 
 def _has_statistics_dtype(var: xr.DataArray) -> bool:

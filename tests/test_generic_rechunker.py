@@ -18,6 +18,7 @@ import zarr
 from structlog.testing import capture_logs
 from zarr.codecs import BloscCodec
 
+from eopf_geozarr.conversion.utils import band_array_paths
 from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 
 from .conftest import create_zarrv3_group_from_json, get_stem
@@ -284,6 +285,29 @@ def test_stac_assets_get_statistics_of_stored_values(
     assert statistics["stddev"] == pytest.approx(valid.std())
 
 
+def test_band_array_paths_selects_measurements_and_multiscale_levels(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Statistics are computed for measurement arrays and multiscale levels only."""
+    output_path = tmp_path / "store.zarr"
+    root = zarr.open_group(str(output_path), mode="w")
+    paths = {
+        "measurements/reflectance/r10m/b02": True,  # measurement
+        "S01SIWGRD_X/measurements/grd": True,  # measurement in an S1 subroot
+        "quality/atmosphere/r120m/aot": True,  # level of a multiscale pyramid
+        "conditions/geometry/sun_angles": False,  # metadata
+        "S01SIWGRD_X/quality/calibration/beta_nought": False,  # metadata in a subroot
+        "conditions/mask/detector_footprint/r10m/b02": False,  # level group, but no pyramid
+    }
+    for path in paths:
+        root.create_array(path, shape=(2, 2), dtype="uint16")
+    root["quality/atmosphere"].attrs["multiscales"] = {"layout": []}
+
+    selected = band_array_paths(str(output_path), paths)
+
+    assert selected == {path for path, is_band in paths.items() if is_band}
+
+
 def test_returns_the_written_output(tmp_path: pathlib.Path) -> None:
     """The result is the tree read back from the output, not the input tree."""
     result, _ = convert(build_synthetic_tree(), tmp_path, spatial_chunk=128)
@@ -326,15 +350,18 @@ def test_s1_grdh_example_converts(
         assert grd.shape == tree[f"{product}/measurements/grd"].shape
         assert grd.chunks[1:] == (1024, 1024)
 
-    # The root and each subroot STAC get statistics for every asset of a numeric array
-    # (asset hrefs are relative to the store root, also in the subroots).
+    # The root and each subroot STAC get statistics for the assets of the numeric
+    # measurement arrays only, not for the small metadata arrays (calibration, ...).
+    # Asset hrefs are relative to the store root, also in the subroots.
     for group in ("", *tree.children):
         assets = stac_assets(output_path, group)
         numeric = {
-            key
+            key: asset["href"].strip("/")
             for key, asset in assets.items()
             if isinstance(node := root.get(asset["href"].strip("/")), zarr.Array)
             and np.issubdtype(node.dtype, np.number)
         }
-        assert numeric, f"{group or '/'}: no assets of numeric arrays"
-        assert {key for key, asset in assets.items() if "statistics" in asset} == numeric
+        measurements = {key for key, href in numeric.items() if "/measurements/" in f"/{href}"}
+        assert measurements, f"{group or '/'}: no assets of measurement arrays"
+        assert set(numeric) - measurements, f"{group or '/'}: no metadata assets to skip"
+        assert {key for key, asset in assets.items() if "statistics" in asset} == measurements
