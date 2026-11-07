@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'win32'",
@@ -1660,9 +1660,8 @@ wheels = [
 
 [[package]]
 name = "eopf-geozarr"
-version = "0.12.0"
+version = "0.13.0"
 source = { editable = "." }
-default-groups = ["dev", "test"]
 dependencies = [
     { name = "aiohttp" },
     { name = "boto3" },
