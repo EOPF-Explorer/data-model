@@ -508,7 +508,8 @@ def updated_root_consolidation(
    multiscale pyramid groups, e.g. `/measurements/reflectance`).
 3. The store-root (or Sentinel-1 subroot) GeoZarr and STAC metadata is written
    from `dt_input.attrs`, and the root (or each subroot) is consolidated last.
-   Every `stac_discovery` asset that references an array gets a STAC
+   Every `stac_discovery` asset of a band array (in a `measurements` group or a
+   multiscale pyramid level; small metadata arrays are skipped) gets a STAC
    [Statistics Object](https://github.com/radiantearth/stac-spec/blob/master/commons/common-metadata.md#statistics-object)
    (`statistics`), computed from the written values as stored (before a CF
    scale/offset is applied, nodata excluded).
