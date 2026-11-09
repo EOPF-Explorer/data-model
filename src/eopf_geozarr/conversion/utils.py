@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict, TypeGuard, cast, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    TypedDict,
+    TypeGuard,
+    cast,
+    runtime_checkable,
+)
 
 import numpy as np
 import structlog
@@ -78,14 +87,7 @@ def _bbox_from_coordinates(dataset: xr.Dataset) -> list[float]:
     along an axis, because the pixel size is then unknown.
     """
     if not _has_regular_xy_grid(dataset):
-        x_coords = dataset.coords["x"].values
-        y_coords = dataset.coords["y"].values
-        return [
-            float(x_coords.min()),
-            float(y_coords.min()),
-            float(x_coords.max()),
-            float(y_coords.max()),
-        ]
+        return _coordinate_extent(dataset)
 
     pixel_size_x, _, x_min, _, neg_pixel_size_y, y_max = _transform_from_coordinates(dataset)
     x_max = x_min + dataset.sizes["x"] * pixel_size_x
@@ -378,10 +380,36 @@ def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
     return subroots or None
 
 
+def _node_transform_from_coordinates(dataset: xr.Dataset) -> GeoTransform:
+    """Affine transform from array indices to the x/y node coordinates.
+
+    For a node-registered grid, index `(0, 0)` is at `(x[0], y[0])`: the coordinates
+    are not moved by a half cell. Requires `_has_regular_xy_grid(dataset)`.
+    """
+    x_coords = dataset.coords["x"].values
+    y_coords = dataset.coords["y"].values
+    step_x = float(x_coords[1] - x_coords[0])
+    step_y = float(y_coords[1] - y_coords[0])
+    return (step_x, 0.0, float(x_coords[0]), 0.0, step_y, float(y_coords[0]))
+
+
+def _coordinate_extent(dataset: xr.Dataset) -> list[float]:
+    """Extent ``[xmin, ymin, xmax, ymax]`` of the x/y coordinate values."""
+    x_coords = dataset.coords["x"].values
+    y_coords = dataset.coords["y"].values
+    return [
+        float(x_coords.min()),
+        float(y_coords.min()),
+        float(x_coords.max()),
+        float(y_coords.max()),
+    ]
+
+
 def write_dataset_geo_metadata(
     dataset: xr.Dataset,
     grid_mapping_var_name: str = "spatial_ref",
     crs: CRS | None = None,
+    registration: Literal["pixel", "node"] = "pixel",
 ) -> xr.Dataset:
     """
     Return a copy of the dataset with geographic metadata added; `dataset` is not modified.
@@ -391,6 +419,11 @@ def write_dataset_geo_metadata(
         dataset: Dataset to add metadata to
         grid_mapping_var_name: Name for grid mapping variable
         crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
+        registration: `spatial:registration` of the grid. With `"pixel"`, the x/y
+            coordinates are cell centres, and `spatial:bbox` and `spatial:transform`
+            refer to the outer cell edges. With `"node"`, the values are at the x/y
+            coordinates, and `spatial:bbox` and `spatial:transform` refer to these
+            coordinates (e.g. the Sentinel-2 sun and viewing angle grids).
 
     Returns:
         The dataset with the metadata, or an unchanged copy if no CRS is found.
@@ -416,7 +449,14 @@ def write_dataset_geo_metadata(
         dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
         dataset.attrs["grid_mapping"] = grid_mapping_var_name
 
+        has_xy_dims = "x" in dataset.dims and "y" in dataset.dims
         for var in dataset.data_vars.values():
+            # A variable without the x/y dimensions (e.g. a mean angle per band)
+            # is not on the grid, so it gets no grid mapping.
+            if has_xy_dims and not {"x", "y"} <= set(var.dims):
+                var.attrs.pop("grid_mapping", None)
+                var.encoding.pop("grid_mapping", None)
+                continue
             var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
             var.attrs["grid_mapping"] = grid_mapping_var_name
 
@@ -427,25 +467,36 @@ def write_dataset_geo_metadata(
         # Assemble spatial convention data
         spatial_data: spatial_cm.SpatialAttrs = {
             "spatial:dimensions": ["y", "x"],  # Required field
-            "spatial:registration": "pixel",  # Default registration type
+            "spatial:registration": registration,
         }
 
         # Calculate and add spatial bbox if coordinates are available
         if "x" in dataset.coords and "y" in dataset.coords:
-            spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
+            if registration == "node":
+                spatial_data["spatial:bbox"] = _coordinate_extent(dataset)
+                if _has_regular_xy_grid(dataset):
+                    spatial_data["spatial:transform"] = list(
+                        _node_transform_from_coordinates(dataset)
+                    )
+            else:
+                spatial_data["spatial:bbox"] = _bbox_from_coordinates(dataset)
 
-            if _has_spatial_transform(dataset):
-                spatial_transform = _preferred_spatial_transform(dataset)
-                # Only add spatial:transform if we have valid transform data (not all zeros)
-                if not all(t == 0 for t in spatial_transform):
-                    spatial_data["spatial:transform"] = list(spatial_transform)
+                if _has_spatial_transform(dataset):
+                    spatial_transform = _preferred_spatial_transform(dataset)
+                    # Only add spatial:transform if we have valid transform data (not all zeros)
+                    if not all(t == 0 for t in spatial_transform):
+                        spatial_data["spatial:transform"] = list(spatial_transform)
 
-            # Add spatial shape if data variables exist
+            # Add spatial shape if data variables exist. Take it from the x/y
+            # dimensions: the first variable is not always on the grid.
             if dataset.data_vars:
-                first_var = next(iter(dataset.data_vars.values()))
-                if first_var.ndim >= 2:
-                    height, width = first_var.shape[-2:]
-                    spatial_data["spatial:shape"] = [height, width]
+                if has_xy_dims:
+                    spatial_data["spatial:shape"] = [dataset.sizes["y"], dataset.sizes["x"]]
+                else:
+                    first_var = next(iter(dataset.data_vars.values()))
+                    if first_var.ndim >= 2:
+                        height, width = first_var.shape[-2:]
+                        spatial_data["spatial:shape"] = [height, width]
 
         # Build validated spatial + proj convention attrs (data + CMOs) via zarr-cm
         dataset.attrs.update(build_convention_attrs(spatial=spatial_data, crs=crs))
@@ -462,6 +513,7 @@ def stream_write_dataset(
     add_geo_metadata: bool = False,
     chunk_and_shard_coords: bool = True,
     crs: CRS | None = None,
+    registration: Literal["pixel", "node"] = "pixel",
 ) -> xr.Dataset:
     """
     Stream write a lazy dataset with advanced chunking and sharding.
@@ -474,6 +526,8 @@ def stream_write_dataset(
         dataset_path: Output path for dataset
         encoding: Encoding dictionary for variables
         enable_sharding: Enable Zarr v3 sharding
+        registration: `spatial:registration` of the grid, used with
+            `add_geo_metadata` (see `write_dataset_geo_metadata`)
 
     Returns:
         Written dataset
@@ -504,7 +558,7 @@ def stream_write_dataset(
     )
 
     if add_geo_metadata:
-        dataset = write_dataset_geo_metadata(dataset, crs=crs)
+        dataset = write_dataset_geo_metadata(dataset, crs=crs, registration=registration)
 
     # Sanitize NaN values in dataset attributes before writing
     dataset = fs_utils.sanitize_dataset_attributes(dataset)
