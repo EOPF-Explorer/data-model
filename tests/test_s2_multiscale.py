@@ -7,7 +7,7 @@ import os
 import pathlib
 from collections.abc import Mapping, Sequence
 from itertools import pairwise
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -802,6 +802,89 @@ def test_create_multiscale_reuses_native_aux_levels(tmp_path: pathlib.Path) -> N
         )
         expected = dt_input[group_path].to_dataset()[var_name].values
         np.testing.assert_array_equal(ds[var_name].values, expected)
+
+
+def _convention_names(attrs: Mapping[str, Any]) -> set[str]:
+    """Names of the conventions declared in `zarr_conventions`."""
+    return {c["name"] for c in cast("list[dict[str, Any]]", attrs["zarr_conventions"])}
+
+
+def test_create_multiscale_declares_crs_on_conditions_groups(tmp_path: pathlib.Path) -> None:
+    """`conditions/geometry` and `conditions/mask/detector_footprint/r*` declare the tile CRS.
+
+    The angle grids are node-registered: `(x[0], y[0])` is the upper-left corner of
+    the tile, so `spatial:transform` starts there and is not moved by a half cell.
+    Arrays without the x/y dimensions get no grid mapping.
+    See EOPF-Explorer/data-model#346.
+    """
+    dt_input = _make_minimal_s2_datatree(raw=False)
+    rng = np.random.default_rng(2)
+
+    # 23 x 23 nodes with a step of 5000 m, from the upper-left corner of the tile.
+    size, step, ulx, uly = 23, 5000.0, 600000.0, 7800000.0
+    x = ulx + step * np.arange(size)
+    y = uly - step * np.arange(size)
+    dt_input["conditions/geometry"] = xr.DataTree(
+        xr.Dataset(
+            {
+                "mean_sun_angles": (["angle"], rng.uniform(0, 180, 2)),
+                "sun_angles": (["angle", "y", "x"], rng.uniform(0, 180, (2, size, size))),
+                "mean_viewing_incidence_angles": (["band", "angle"], rng.uniform(0, 180, (3, 2))),
+                "viewing_incidence_angles": (
+                    ["band", "detector", "angle", "y", "x"],
+                    rng.uniform(0, 180, (3, 2, 2, size, size)),
+                ),
+            },
+            coords={
+                "x": x,
+                "y": y,
+                "angle": ["zenith", "azimuth"],
+                "band": ["b01", "b02", "b03"],
+                "detector": [1, 2],
+            },
+        )
+    )
+    r60m_coords = dt_input["measurements/reflectance/r60m"].to_dataset().coords
+    footprint = xr.DataArray(
+        rng.integers(0, 3, size=(20, 20), dtype="uint8"), dims=["y", "x"], coords=r60m_coords
+    )
+    dt_input["conditions/mask/detector_footprint/r60m"] = xr.DataTree(
+        xr.Dataset({"b01": footprint})
+    )
+    output_path = str(tmp_path / "output.zarr")
+
+    with capture_logs():
+        create_multiscale_from_datatree(
+            dt_input,
+            output_group=zarr.create_group(output_path),
+            enable_sharding=False,
+            spatial_chunk=_BEHAVIOR_SPATIAL_CHUNK,
+            crs=CRS.from_epsg(32636),
+        )
+
+    geometry = zarr.open_group(output_path, path="conditions/geometry", mode="r")
+    attrs = geometry.attrs.asdict()
+    assert _convention_names(attrs) == {"spatial", "proj"}
+    assert attrs["proj:code"] == "EPSG:32636"
+    assert attrs["spatial:dimensions"] == ["y", "x"]
+    assert attrs["spatial:registration"] == "node"
+    assert attrs["spatial:shape"] == [size, size]
+    assert attrs["spatial:transform"] == [step, 0.0, ulx, 0.0, -step, uly]
+    assert attrs["spatial:bbox"] == [ulx, uly - step * (size - 1), ulx + step * (size - 1), uly]
+
+    assert geometry["sun_angles"].attrs["grid_mapping"] == "spatial_ref"
+    assert geometry["viewing_incidence_angles"].attrs["grid_mapping"] == "spatial_ref"
+    assert "grid_mapping" not in geometry["mean_sun_angles"].attrs
+    assert "grid_mapping" not in geometry["mean_viewing_incidence_angles"].attrs
+
+    detector_footprint = zarr.open_group(
+        output_path, path="conditions/mask/detector_footprint/r60m", mode="r"
+    ).attrs.asdict()
+    assert _convention_names(detector_footprint) == {"spatial", "proj"}
+    assert detector_footprint["proj:code"] == "EPSG:32636"
+    assert detector_footprint["spatial:registration"] == "pixel"
+    assert detector_footprint["spatial:shape"] == [20, 20]
+    assert "spatial:transform" in detector_footprint
 
 
 def test_create_multiscale_builds_atmosphere_pyramid(tmp_path: pathlib.Path) -> None:

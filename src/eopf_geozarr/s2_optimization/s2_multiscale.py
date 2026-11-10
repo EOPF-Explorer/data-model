@@ -145,6 +145,9 @@ _AUX_MULTISCALES: tuple[MultiscaleSpec, ...] = (
     ),
 )
 
+GEOMETRY_PATH = "/conditions/geometry"
+"""Group of the sun and viewing angle grids (node-registered, in the tile CRS)."""
+
 MultiscalesFlavor = Literal["experimental_multiscales_convention"]
 
 
@@ -681,7 +684,11 @@ def create_multiscale_from_datatree(
             for name in scalar_coords:
                 encoding.pop(str(name), None)
 
-        add_geo_metadata = any(
+        # The sun and viewing angle grids in `/conditions/geometry` are in the tile CRS.
+        # Their values are at the grid nodes: `(x[0], y[0])` is the upper-left corner
+        # of the tile, not the centre of a cell.
+        is_geometry_group = group_path == GEOMETRY_PATH
+        add_geo_metadata = is_geometry_group or any(
             m in group_path for m in ("/measurements/", "/quality/", "/conditions/mask")
         )
         ds_out = utils.stream_write_dataset(
@@ -691,6 +698,7 @@ def create_multiscale_from_datatree(
             encoding=encoding,
             add_geo_metadata=add_geo_metadata,
             crs=crs,
+            registration="node" if is_geometry_group else "pixel",
         )
 
         processed_groups[group_path] = ds_out
