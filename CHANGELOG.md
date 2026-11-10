@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.1 (2026-11-10)
+
+## What's Changed
+* fix: limited band statistics to multiscales and measurement arrays by @claxn in https://github.com/EOPF-Explorer/data-model/pull/344
+* fix: geometry handling in multiscale creation by @emmanuelmathot in https://github.com/EOPF-Explorer/data-model/pull/347
+* deps(deps-dev): update mkdocs-material[imaging] requirement from >=9.1.0 to >=9.8.0 by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/339
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.13.0...v0.13.1
+
 ## 0.13.0 (2026-11-04)
 
 ## What's Changed
