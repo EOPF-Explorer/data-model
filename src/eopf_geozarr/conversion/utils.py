@@ -725,8 +725,12 @@ def build_dataarray_encoding(
     _encoding["chunks"] = encoding_chunks
     _encoding["compressors"] = (compressor,)
 
+    # check if the given array is small enough to fit into the given encoding chunk size
+    # this ensures no single-chunk-array is unneccessarily sharded, resulting in reduced http requests
+    array_fits_into_chunk = all(s <= c for s, c in zip(var.shape, encoding_chunks, strict=True))
+
     # --- Shards: cover the whole array, one shard per array -----------
-    if enable_sharding:
+    if enable_sharding and not array_fits_into_chunk:
         # select next largest mutliple of chunksize to fit full array
         shards_ = [
             math.ceil(shape / chunk) * chunk
