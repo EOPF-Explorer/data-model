@@ -162,6 +162,36 @@ def test_plan_carries_a_mixed_groups_own_arrays() -> None:
     assert any("members" in member for member in planned_mixed.values())
 
 
+def test_plan_carries_a_datetime_array_in_its_v3_form() -> None:
+    """A carried V2 datetime array is planned with the Zarr V3 form zarr-python
+    writes, `numpy.datetime64` with its unit, which the GeoZarr scope claims."""
+    path = _INPUT_PATHS[0]
+    document = _read(path)
+    mixed = document["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"]
+    mixed["members"]["time"] = {
+        "zarr_format": 2,
+        "shape": [3],
+        "chunks": [3],
+        "dtype": "<M8[ns]",
+        "fill_value": 0,
+        "order": "C",
+        "filters": None,
+        "compressor": None,
+        "dimension_separator": "/",
+        "attributes": {"_ARRAY_DIMENSIONS": ["time"]},
+    }
+    root = Sentinel2Root.model_validate(document)
+    planned = plan_geozarr(root).model_dump(mode="json")
+    time = planned["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"][
+        "members"
+    ]["time"]
+    assert time["data_type"] == {
+        "name": "numpy.datetime64",
+        "configuration": {"unit": "ns", "scale_factor": 1},
+    }
+    assert time["dimension_names"] == ["time"]
+
+
 def test_plan_reflectance_requires_product_georeferencing() -> None:
     """A product whose bands carry no proj attributes and whose stac_discovery
     declares none is refused with a ValueError, not a KeyError."""
