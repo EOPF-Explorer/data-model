@@ -40,9 +40,10 @@ class DataArray(ArraySpec[BaseDataArrayAttrs]):
     # codecs, storage transformers) must be claimed by a definition in the
     # validation scope, instead of passing unjudged: a GeoZarr DataArray is a
     # conformance contract, so a typo'd or unknown codec or data type name is
-    # refused at validation. The scope is the default plus the data types
-    # zarr-python writes that it lacks (fixed_length_utf32 band/angle
-    # coordinates); an explicit pydantic validation context still overrides.
+    # refused at validation. The scope is zarr-metadata's ZARR_PYTHON_CONTEXT,
+    # which claims everything zarr-python writes, fixed_length_utf32 and
+    # null_terminated_bytes band/angle coordinates included; an explicit
+    # pydantic validation context still overrides.
     zarr_scope = GEOZARR_SCOPE
     zarr_scope_strict = True
 
