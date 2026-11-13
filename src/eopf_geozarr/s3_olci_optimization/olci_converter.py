@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, cast
+from itertools import pairwise
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import rioxarray  # noqa: F401
@@ -13,6 +15,7 @@ import xarray as xr
 import zarr
 from affine import Affine
 from rasterio.crs import CRS
+from zarr_cm import LayoutObject, MultiscalesAttrs, SpatialAttrs, Transform
 
 from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.constants import ZARR_FORMAT
@@ -30,7 +33,7 @@ from eopf_geozarr.s3_olci_optimization.olci_reproject import GRID_DIMS, reprojec
 
 if TYPE_CHECKING:
     from zarr.core.common import JSON
-    from zarr_cm import LayoutObject, MultiscalesAttrs, SpatialAttrs, Transform
+    from zarr_cm import MultiscalesAttrs, SpatialAttrs, Transform
 
 log = structlog.get_logger()
 
@@ -203,6 +206,154 @@ class S3Type(StrEnum):
         return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
 
 
+@dataclass(frozen=True)
+class S3MultiscaleSpec:
+    """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
+
+    base_path: str
+    """Group holding the pyramid levels, e.g. `/measurements`."""
+    scale_levels: tuple[int, ...]
+    """Level resolutions in metres, finest first.
+
+    The finest level must exist in the input. Coarser levels present in the input
+    are reused; the others are coarsened from the level before them.
+    """
+    product_levels: frozenset[S3Type] | None = None
+    """Products the group exists in; `None` means every product."""
+
+    @property
+    def finest_key(self) -> str:
+        return f"r{self.scale_levels[0]}m"
+
+    def applies_to(self, s2_type: S3Type | None) -> bool:
+        return self.product_levels is None or s2_type in self.product_levels
+
+
+REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
+    base_path="/measurements",
+    scale_levels=(300, 600, 1200, 2400),
+)
+
+
+def olc_multiscales(
+    spec: S3MultiscaleSpec,
+    base_resolution_dataset: xr.Dataset,
+    output_group: zarr.Group,
+    spatial_chunk: int,
+    enable_sharding: bool = True,
+    output_grid: str = "native",
+    scale_offset_codec: bool = False,
+    compression_level: int = 3,
+) -> dict[str, Any]:
+    if output_grid != "native":
+        raise ValueError("need native output_grid")
+
+    base_path, scale_levels = spec.base_path, spec.scale_levels
+    pyramid_dims = SWATH_DIMS
+
+    # orphans missing!
+
+    # rename and save to measurements/r300m
+    log.info("Writing native-resolution measurements", shape=dict(base_resolution_dataset.sizes))
+
+    base_resolution_dest_level_name = f"r{scale_levels[0]}m"
+    base_resolution_dest_level_path = f"{base_path}/{base_resolution_dest_level_name}"
+
+    # Write base resolution dataset
+    encoding = utils.create_uniform_encoding(
+        base_resolution_dataset,
+        enable_sharding=enable_sharding,
+        compression_level=compression_level,
+        scale_offset_codec=scale_offset_codec,
+    )
+
+    ds_out = utils.stream_write_dataset(
+        base_resolution_dataset,
+        path=base_resolution_dest_level_path,
+        group=output_group,
+        encoding=encoding,
+    )
+
+    # creating metadata base fir later ingestion
+    dst_processed_groups: dict[str, Any] = {base_resolution_dest_level_path: ds_out}
+
+    resampling_method = "average"
+
+    # predefined layout asset
+    layout_: list[dict[str, Any]] = [{"asset": base_resolution_dest_level_name}]
+
+    # calculate MS levels with native grid
+    log.info("Generating overview levels", n_levels=len(scale_levels))
+    current = base_resolution_dataset
+
+    for source_level, dest_level in pairwise(scale_levels):
+        src_level_name = f"r{source_level}m"
+
+        dest_level_name = f"r{dest_level}m"
+        dest_level_path = f"{base_path}/{dest_level_name}"
+
+        downsampled_dataset = utils._rechunk_ds(
+            reduce_swath(current, factor=2, dims=pyramid_dims), spatial_chunk=spatial_chunk
+        )
+
+        log.info(
+            "Writing overview",
+            group=f"measurements/{dest_level_name}",
+            shape=dict(downsampled_dataset.sizes),
+        )
+        encoding = utils.create_uniform_encoding(
+            downsampled_dataset,
+            enable_sharding=enable_sharding,
+            compression_level=compression_level,
+            scale_offset_codec=scale_offset_codec,
+        )
+        ds_out = utils.stream_write_dataset(
+            downsampled_dataset,
+            path=dest_level_path,
+            group=output_group,
+            encoding=encoding,
+        )
+
+        current = downsampled_dataset
+
+        dst_processed_groups[dest_level_path] = ds_out
+        # Nominal factor (ratio of pixel spacings), not the ratio of shapes: boundary="trim"
+        # gives e.g. 305 -> 152 px at r720m. Intentional, see #313.
+        transform: Transform = {
+            "scale": [2, 2],
+            "translation": [0.0, 0.0],
+        }
+        lo = {
+            "asset": dest_level_name,
+            "derived_from": src_level_name,
+            "transform": transform,
+        }
+
+        layout_.append(lo)
+
+    # deal with encodings/layout/MS-metadata
+    # Get the parent group (it was created when writing the resolution groups).
+    # `output_group[base_path]` is typed `Array | Group`; `base_path` always
+    # addresses a group (the reflectance parent), so verify that at runtime.
+    parent_group = output_group[base_path]
+    if not isinstance(parent_group, zarr.Group):
+        raise TypeError(
+            f"expected a zarr.Group at {base_path!r}, got {type(parent_group).__name__}"
+        )
+
+    # LayoutObject is a TypedDict (no validation); zarr_cm validates in build_convention_attrs
+    layout: list[LayoutObject] = [LayoutObject(**lo) for lo in layout_]
+    ms: MultiscalesAttrs = {"layout": layout, "resampling_method": resampling_method}
+
+    conv = build_convention_attrs(multiscales=ms, spatial=None, crs=None)
+    parent_group.attrs.update(cast("dict[str, JSON]", conv))
+
+    # add it as none here to be recognized later and can be created as a zarr root with necessary metadata
+    dst_processed_groups[base_path] = None
+
+    return dst_processed_groups
+
+
 def updated_convert_olci_optimized(
     dt_input: xr.DataTree,
     *,
@@ -261,21 +412,41 @@ def updated_convert_olci_optimized(
 
         dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
 
-        encoding = utils.create_uniform_encoding(
-            dataset,
-            enable_sharding=enable_sharding,
-            compression_level=compression_level,
-            scale_offset_codec=scale_offset_codec,
-        )
+        # group_name = group_path.split("/")[-1]
+        is_measurement_group = "/measurements" in group_path
 
-        # Write dataset -> does NOT add geo metadata
-        ds_out = utils.stream_write_dataset(
-            dataset,
-            path=group_path,
-            group=output_group,
-            encoding=encoding,
-        )
-        processed_groups[group_path] = ds_out
+        if is_measurement_group:
+            # add function call
+            ms_measurement_processed_groups = olc_multiscales(
+                REFLECTANCE_MULTISCALE,
+                base_resolution_dataset=dataset,
+                output_group=output_group,
+                spatial_chunk=spatial_chunk,
+                enable_sharding=enable_sharding,
+                output_grid=output_grid,
+                scale_offset_codec=scale_offset_codec,
+                compression_level=compression_level,
+            )
+
+            # add to processed_groups
+            processed_groups.update(ms_measurement_processed_groups)
+
+        else:
+            encoding = utils.create_uniform_encoding(
+                dataset,
+                enable_sharding=enable_sharding,
+                compression_level=compression_level,
+                scale_offset_codec=scale_offset_codec,
+            )
+
+            # Write dataset -> does NOT add geo metadata
+            ds_out = utils.stream_write_dataset(
+                dataset,
+                path=group_path,
+                group=output_group,
+                encoding=encoding,
+            )
+            processed_groups[group_path] = ds_out
 
     # root/sub-root level consolidation and attribute handling
     utils.updated_root_consolidation(dt_input, output_path, processed_groups)
