@@ -44,7 +44,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic-zarr>=0.8.0",
+    "pydantic-zarr>=0.11.0",
     # imported directly (scopes, typed metadata objects, typed_json.check)
     "zarr-metadata>=0.8.0",
     "pydantic>=2.14.1",
@@ -262,11 +262,8 @@ constraint-dependencies = [
 ]
 
 [tool.uv.sources]
-# pydantic-zarr main (pinned to the validated commit, so installs without this
-# repo's lock stay reproducible): scoped whole-document metadata validation
-# against zarr-metadata 0.8's scopes, the zarr_scope / zarr_scope_strict class
-# variables, MISSING-based attribute models, and ArraySpec.create_default.
-# Swap back to PyPI (pydantic-zarr>=0.11) once 0.11.0 releases.
-pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", rev = "b0efedbfbf9933726001883ac1cadae670e5181b" }
+# pydantic-zarr 0.11.0 is tagged but not yet on PyPI; drop this source once
+# it is published.
+pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", tag = "v0.11.0" }
 
 

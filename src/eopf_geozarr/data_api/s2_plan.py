@@ -43,6 +43,7 @@ import xarray as xr
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import ArraySpec as ArraySpecV3
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
+from pydantic_zarr.v3 import parse_dtype_v3
 from pyproj import CRS
 from typing_extensions import TypedDict
 from zarr_cm import ConventionMetadataObject
@@ -52,6 +53,7 @@ from zarr_cm.proj import CMO as PROJ_CMO
 from zarr_cm.spatial import CMO as SPATIAL_CMO
 from zarr_metadata.typed_json import check
 
+from eopf_geozarr.data_api.geozarr.scope import GEOZARR_SCOPE
 from eopf_geozarr.data_api.geozarr.v3 import DataArray
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 from eopf_geozarr.pyz.datatree import group_spec_from_datatree
@@ -68,8 +70,6 @@ if TYPE_CHECKING:
     from zarr_metadata.v3.codec.crc32c import Crc32cCodecObject
     from zarr_metadata.v3.codec.sharding_indexed import ShardingIndexedCodecObject
     from zarr_metadata.v3.codec.zstd import ZstdCodecObject
-    from zarr_metadata.v3.data_type.fixed_length_utf32 import FixedLengthUtf32
-    from zarr_metadata.v3.data_type.null_terminated_bytes import NullTerminatedBytes
 
 S2Level = Literal["L1C", "L2A"]
 
@@ -230,7 +230,7 @@ def _plan_band(
 def _band_array(
     attributes: dict[str, object],
     shape: tuple[int, ...],
-    data_type: str | FixedLengthUtf32 | NullTerminatedBytes,
+    data_type: str | Mapping[str, object],
     fill_value: FillValue,
     dimension_names: tuple[str, ...],
     typesize: int,
@@ -635,22 +635,6 @@ def _doc_attrs(doc: Mapping[str, Any]) -> Mapping[str, object]:
     return attributes
 
 
-def _v3_data_type(dtype_v2: str) -> str | FixedLengthUtf32 | NullTerminatedBytes:
-    """The Zarr V3 data type of a Zarr V2 dtype string."""
-    parsed = np.dtype(dtype_v2)
-    if parsed.kind == "U":
-        return {
-            "name": "fixed_length_utf32",
-            "configuration": {"length_bytes": parsed.itemsize},
-        }
-    if parsed.kind == "S":
-        return {
-            "name": "null_terminated_bytes",
-            "configuration": {"length_bytes": parsed.itemsize},
-        }
-    return parsed.name
-
-
 def _carried_array_attributes(
     attrs: Mapping[str, object], *, is_float: bool, grid_mapping: bool, name: str
 ) -> dict[str, object]:
@@ -685,7 +669,8 @@ def _plan_carried_array(name: str, doc: _ArrayDoc, *, spatial: bool) -> DataArra
     if name in ("x", "y") and dims == (name,):
         return _plan_coordinate(name, shape[0])
     parsed = np.dtype(str(doc["dtype"]))
-    data_type = _v3_data_type(str(doc["dtype"]))
+    # the Zarr V3 form zarr-python writes for the V2 dtype, in the GeoZarr scope
+    data_type = parse_dtype_v3(parsed, scope=GEOZARR_SCOPE)
     fill_value: FillValue = "NaN" if parsed.kind == "f" else "" if parsed.kind in "US" else 0
     attributes = _carried_array_attributes(
         attrs,
