@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from enum import StrEnum
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -12,8 +14,10 @@ import zarr
 from affine import Affine
 from rasterio.crs import CRS
 
+from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.constants import ZARR_FORMAT
 from eopf_geozarr.conversion.utils import build_convention_attrs
+from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
 from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
@@ -175,6 +179,116 @@ def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> No
             consolidated=False,
             zarr_format=ZARR_FORMAT,
         )
+
+
+class S3Type(StrEnum):
+    OLC = "OLC"
+    SLS = "SLS"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> S3Type | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> S3Type | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
+def updated_convert_olci_optimized(
+    dt_input: xr.DataTree,
+    *,
+    output_path: str,
+    enable_sharding: bool = False,
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    output_grid: str = "native",
+    scale_offset_codec: bool = False,
+) -> xr.DataTree:
+    start_time = time.time()
+
+    processed_groups: dict[str, xr.Dataset | None] = {}
+    output_group: zarr.Group = zarr.open_group(output_path)
+
+    s3_type = S3Type.from_datatree(dt_input)
+    if s3_type is None:
+        log.warning(
+            "Could not determine S3 product level (OLCI/SLSTR);",
+            product_type=product_type_of(dt_input),
+            name=dt_input.name,
+        )
+
+    # rechunk everything
+    for group_path in dt_input.groups:
+        if group_path == "/":
+            continue
+
+        group_node = dt_input[group_path]
+
+        # Skip parent groups that have children (only process leaf groups)
+        if (
+            hasattr(group_node, "children")
+            and len(group_node.children) > 0
+            and len(group_node.data_vars) == 0
+        ):
+            # this catches empty groups which have children but no data variables themselves. This allows the (theoretical)
+            # application of the gener_rechunker to S3 OLC data products as they tend to have data variables on
+            # /measurements or other groups, while also having an orphan as a child.
+            # This extended check does not limit other products, as verified by the test suite.
+            # As in the S2 multiscales, the parent is recorded as `None`, so that
+            # `updated_root_consolidation` handles it (e.g. consolidates `/measurements` of
+            # S3 SLSTR). Only parents with a written descendant exist in the output store.
+            if any(len(node.data_vars) > 0 for node in group_node.descendants):
+                processed_groups[group_path] = None
+            continue
+
+        base_dataset = group_node.to_dataset()
+
+        # Skip empty groups
+        if not base_dataset.data_vars:
+            log.info("Skipping empty group", group_path=group_path)
+            continue
+
+        log.info("Copying original group", group_path=group_path)
+
+        dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
+
+        encoding = utils.create_uniform_encoding(
+            dataset,
+            enable_sharding=enable_sharding,
+            compression_level=compression_level,
+            scale_offset_codec=scale_offset_codec,
+        )
+
+        # Write dataset -> does NOT add geo metadata
+        ds_out = utils.stream_write_dataset(
+            dataset,
+            path=group_path,
+            group=output_group,
+            encoding=encoding,
+        )
+        processed_groups[group_path] = ds_out
+
+    # root/sub-root level consolidation and attribute handling
+    utils.updated_root_consolidation(dt_input, output_path, processed_groups)
+
+    # Create result DataTree
+    result_dt = utils.create_result_datatree(output_path)
+
+    total_time = time.time() - start_time
+    log.info("Optimization complete", duration_seconds=round(total_time, 2))
+
+    utils.optimization_summary(dt_input, result_dt, output_path)
+
+    return result_dt
 
 
 def convert_olci_optimized(
