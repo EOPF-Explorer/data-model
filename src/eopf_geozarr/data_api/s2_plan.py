@@ -68,11 +68,8 @@ if TYPE_CHECKING:
     from zarr_metadata.v3.codec.crc32c import Crc32cCodecObject
     from zarr_metadata.v3.codec.sharding_indexed import ShardingIndexedCodecObject
     from zarr_metadata.v3.codec.zstd import ZstdCodecObject
-
-    from eopf_geozarr.data_api.geozarr.scope import (
-        FixedLengthUtf32Object,
-        NullTerminatedBytesObject,
-    )
+    from zarr_metadata.v3.data_type.fixed_length_utf32 import FixedLengthUtf32
+    from zarr_metadata.v3.data_type.null_terminated_bytes import NullTerminatedBytes
 
 S2Level = Literal["L1C", "L2A"]
 
@@ -233,7 +230,7 @@ def _plan_band(
 def _band_array(
     attributes: dict[str, object],
     shape: tuple[int, ...],
-    data_type: str | FixedLengthUtf32Object | NullTerminatedBytesObject,
+    data_type: str | FixedLengthUtf32 | NullTerminatedBytes,
     fill_value: FillValue,
     dimension_names: tuple[str, ...],
     typesize: int,
@@ -275,17 +272,14 @@ def _band_array(
 
 def _plan_coordinate(name: str, size: int) -> DataArray:
     """A 1-D coordinate array (`x` or `y`): float64, NaN-filled, one chunk."""
-    return DataArray.model_validate(
-        {
-            "attributes": {"_FillValue": _NAN_FLOAT64_B64},
-            "shape": (size,),
-            "data_type": "float64",
-            "chunk_grid": _regular_grid((size,)),
-            "chunk_key_encoding": _CHUNK_KEY_ENCODING,
-            "fill_value": "NaN",
-            "codecs": (_BYTES_LITTLE,),
-            "dimension_names": (name,),
-        }
+    # create_default supplies the one-chunk grid, the `/` chunk key encoding
+    # and the little-endian bytes codec
+    return DataArray.create_default(
+        attributes={"_FillValue": _NAN_FLOAT64_B64},
+        shape=(size,),
+        data_type="float64",
+        fill_value="NaN",
+        dimension_names=(name,),
     )
 
 
@@ -349,16 +343,13 @@ def _plan_spatial_ref(wkt2: str, *, native: bool) -> ArraySpecV3:
     codecs: tuple[BytesCodecObject | ZstdCodecObject, ...] = (_BYTES_LITTLE,)
     if native:
         codecs = (*codecs, {"name": "zstd", "configuration": {"level": 0, "checksum": False}})
-    return ArraySpecV3.model_validate(
-        {
-            "attributes": _grid_mapping_attributes(wkt2),
-            "shape": (),
-            "data_type": "int64",
-            "chunk_grid": _regular_grid(()),
-            "chunk_key_encoding": _CHUNK_KEY_ENCODING,
-            "fill_value": 0,
-            "codecs": codecs,
-        }
+    # create_default supplies the scalar chunk grid, the `/` chunk key
+    # encoding and the zero fill value
+    return ArraySpecV3.create_default(
+        attributes=_grid_mapping_attributes(wkt2),
+        shape=(),
+        data_type="int64",
+        codecs=codecs,
     )
 
 
@@ -644,7 +635,7 @@ def _doc_attrs(doc: Mapping[str, Any]) -> Mapping[str, object]:
     return attributes
 
 
-def _v3_data_type(dtype_v2: str) -> str | FixedLengthUtf32Object | NullTerminatedBytesObject:
+def _v3_data_type(dtype_v2: str) -> str | FixedLengthUtf32 | NullTerminatedBytes:
     """The Zarr V3 data type of a Zarr V2 dtype string."""
     parsed = np.dtype(dtype_v2)
     if parsed.kind == "U":
@@ -703,18 +694,15 @@ def _plan_carried_array(name: str, doc: _ArrayDoc, *, spatial: bool) -> DataArra
         name=name,
     )
     if dims == (name,):
-        # a coordinate array: one chunk, uncompressed
-        return DataArray.model_validate(
-            {
-                "attributes": attributes,
-                "shape": shape,
-                "data_type": data_type,
-                "chunk_grid": _regular_grid(shape),
-                "chunk_key_encoding": _CHUNK_KEY_ENCODING,
-                "fill_value": fill_value,
-                "codecs": (_BYTES_LITTLE,),
-                "dimension_names": dims,
-            }
+        # a coordinate array: one chunk, uncompressed (create_default supplies
+        # the one-chunk grid and the `/` chunk key encoding)
+        return DataArray.create_default(
+            attributes=attributes,
+            shape=shape,
+            data_type=data_type,
+            fill_value=fill_value,
+            codecs=(_BYTES_LITTLE,),
+            dimension_names=dims,
         )
     return _band_array(attributes, shape, data_type, fill_value, dims, typesize=parsed.itemsize)
 

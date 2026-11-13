@@ -96,8 +96,8 @@ class TestDataset:
         """A member declaring a grid_mapping that is not in the dataset fails validation."""
         members = self._members()
         band = members["band"]
-        members["band"] = band.model_copy(
-            update={"attributes": band.attributes.model_copy(update={"grid_mapping": "nope"})}
+        members["band"] = band.replace(
+            attributes=band.attributes.model_copy(update={"grid_mapping": "nope"})
         )
         with pytest.raises(ValidationError, match="Grid mapping variable 'nope'"):
             Dataset(attributes=DatasetAttrs(), members=members)

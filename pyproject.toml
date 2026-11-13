@@ -45,6 +45,8 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "pydantic-zarr>=0.8.0",
+    # imported directly (scopes, typed metadata objects, typed_json.check)
+    "zarr-metadata>=0.8.0",
     "pydantic>=2.14.1",
     # <3.3.0: open_source_datatree uses zarr's experimental CacheStore, whose
     # location/API may change between minor releases; bump deliberately.
@@ -262,9 +264,9 @@ constraint-dependencies = [
 [tool.uv.sources]
 # pydantic-zarr main (pinned to the validated commit, so installs without this
 # repo's lock stay reproducible): scoped whole-document metadata validation
-# (zarr-metadata), the zarr_scope / zarr_scope_strict class variables, and
-# MISSING-based attribute models. Swap back to PyPI once the next
-# pydantic-zarr releases.
-pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", rev = "9f2e847ce7fe2c98119699ddcf3e090fba688e1f" }
+# against zarr-metadata 0.8's scopes, the zarr_scope / zarr_scope_strict class
+# variables, MISSING-based attribute models, and ArraySpec.create_default.
+# Swap back to PyPI (pydantic-zarr>=0.11) once 0.11.0 releases.
+pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", rev = "b0efedbfbf9933726001883ac1cadae670e5181b" }
 
 
