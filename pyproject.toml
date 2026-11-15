@@ -261,9 +261,3 @@ constraint-dependencies = [
     "pygments>=2.20.0",
 ]
 
-[tool.uv.sources]
-# pydantic-zarr 0.11.0 is tagged but not yet on PyPI; drop this source once
-# it is published.
-pydantic-zarr = { git = "https://github.com/zarr-developers/pydantic-zarr.git", tag = "v0.11.0" }
-
-

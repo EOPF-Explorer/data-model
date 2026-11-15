@@ -1735,7 +1735,7 @@ requires-dist = [
     { name = "eopf", marker = "python_full_version >= '3.13' and extra == 'cpm'", specifier = ">=3.0.0" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pydantic", specifier = ">=2.14.1" },
-    { name = "pydantic-zarr", git = "https://github.com/zarr-developers/pydantic-zarr.git?tag=v0.11.0" },
+    { name = "pydantic-zarr", specifier = ">=0.11.0" },
     { name = "pygit2", specifier = ">=1.20.1" },
     { name = "pyproj", specifier = ">=3.7.0" },
     { name = "pystac", specifier = ">=1.8.0" },
@@ -4535,7 +4535,7 @@ wheels = [
 [[package]]
 name = "pydantic-zarr"
 version = "0.11.0"
-source = { git = "https://github.com/zarr-developers/pydantic-zarr.git?tag=v0.11.0#aca8ee0ff45e3ae6ee1ffb0b9eeb67745814d750" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
@@ -4543,6 +4543,10 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
     { name = "zarr-metadata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/bd/dbb12e9f640aa168a938a003d91eb9e667deacd030b3a31cff3c1727008e/pydantic_zarr-0.11.0.tar.gz", hash = "sha256:04598e5242ebb9094ca0bbf7c2fe50ff8a7efc1d0473eb7355d3a7841bfe786f", size = 402725, upload-time = "2026-11-13T17:05:58.267Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cf/01/74405093d36dfb8fcf27368284bb7f0a8e4784dfcaf69104e4eb66434bbb/pydantic_zarr-0.11.0-py3-none-any.whl", hash = "sha256:b7399ee0724ff845a206c9e410cb925f84cefaedbe995e771692fe5b4a61e900", size = 94324, upload-time = "2026-11-13T17:05:56.886Z" },
 ]
 
 [[package]]
