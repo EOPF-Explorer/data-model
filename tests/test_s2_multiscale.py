@@ -8,6 +8,7 @@ pinned by `tests/test_data_api/test_s2_plan.py`.
 
 import pathlib
 from itertools import pairwise
+from typing import Any
 
 import numpy as np
 import pytest
@@ -309,3 +310,18 @@ def test_create_multiscale_from_datatree(
                         (f"{group_a.path}/{name}::{dtype_a}", f"{group_b.path}/{name}::{dtype_b}")
                     )
     assert dtype_mismatch == set()
+
+    # Every band of every reflectance level, native or coarsened, is a STAC asset
+    # with statistics.
+    stac: Any = observed_group.attrs["stac_discovery"]
+    assets: dict[str, dict[str, Any]] = stac["assets"]
+    statistics_by_href = {
+        asset["href"].strip("/"): asset.get("statistics") for asset in assets.values()
+    }
+    without_statistics = [
+        f"{level_group.path}/{band}"
+        for _, level_group in reflectance_group.groups()
+        for band in _band_names(level_group)
+        if not statistics_by_href.get(f"{level_group.path}/{band}")
+    ]
+    assert without_statistics == []

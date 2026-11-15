@@ -141,7 +141,7 @@ def write_geozarr(
         if isinstance(source, xr.DataTree)
         else ZarrSourceReader(source)
     )
-    plan = plan_geozarr(root)
+    plan = plan_geozarr(root, coordinate_values=reader.values)
     # the metadata plane: every group and array document, exactly as planned
     output = plan.to_zarr(store, path="")  # type: ignore[arg-type]
     _fill_group(plan, reader, output, "")

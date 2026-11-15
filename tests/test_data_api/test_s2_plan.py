@@ -7,6 +7,7 @@ import os
 import pathlib
 from typing import Any
 
+import numpy as np
 import pytest
 import zarr
 from pydantic import ValidationError
@@ -190,6 +191,100 @@ def test_plan_carries_a_datetime_array_in_its_v3_form() -> None:
         "configuration": {"unit": "ns", "scale_factor": 1},
     }
     assert time["dimension_names"] == ["time"]
+
+
+def _tile_epsg(path: pathlib.Path) -> int:
+    """The EPSG code of the product's finest reflectance band."""
+    finest = _read(path)["members"]["measurements"]["members"]["reflectance"]["members"]["r10m"]
+    band = next(v for k, v in finest["members"].items() if k.startswith("b"))
+    return int(band["attributes"]["proj:epsg"])
+
+
+def test_plan_georeferences_the_geometry_grids_at_their_nodes() -> None:
+    """
+    `conditions/geometry` declares the tile CRS (EOPF-Explorer/data-model#346).
+    The angle grids are node-registered: `(x[0], y[0])` is the tile's
+    upper-left corner, so the transform starts there and is not moved by a
+    half cell. Arrays without the (y, x) dimensions get no grid mapping.
+    """
+    path = _INPUT_PATHS[0]
+    size, step, ulx, uly = 23, 5000.0, 600000.0, 7800000.0
+    values = {
+        "conditions/geometry/x": ulx + step * np.arange(size),
+        "conditions/geometry/y": uly - step * np.arange(size),
+    }
+    root = Sentinel2Root.model_validate(_read(path))
+    planned = plan_geozarr(root, coordinate_values=values.get).model_dump(mode="json")
+    geometry = planned["members"]["conditions"]["members"]["geometry"]
+    attrs = geometry["attributes"]
+    assert attrs["proj:code"] == f"EPSG:{_tile_epsg(path)}"
+    assert attrs["spatial:dimensions"] == ["y", "x"]
+    assert attrs["spatial:registration"] == "node"
+    assert attrs["spatial:shape"] == [size, size]
+    assert attrs["spatial:transform"] == [step, 0.0, ulx, 0.0, -step, uly]
+    assert attrs["spatial:bbox"] == [ulx, uly - step * (size - 1), ulx + step * (size - 1), uly]
+    arrays = geometry["members"]
+    assert "spatial_ref" in arrays
+    assert arrays["sun_angles"]["attributes"]["grid_mapping"] == "spatial_ref"
+    assert arrays["viewing_incidence_angles"]["attributes"]["grid_mapping"] == "spatial_ref"
+    assert "grid_mapping" not in arrays["mean_sun_angles"]["attributes"]
+    assert "grid_mapping" not in arrays["mean_viewing_incidence_angles"]["attributes"]
+
+
+def test_plan_carries_an_irregular_geometry_grid_without_georeferencing() -> None:
+    """A geometry grid no transform describes is carried as it was, not refused."""
+    root = Sentinel2Root.model_validate(_read(_INPUT_PATHS[0]))
+    values = {
+        "conditions/geometry/x": np.array([0.0, 1.0, 5.0, *range(6, 26)]),
+        "conditions/geometry/y": np.arange(23.0),
+    }
+    planned = plan_geozarr(root, coordinate_values=values.get).model_dump(mode="json")
+    geometry = planned["members"]["conditions"]["members"]["geometry"]
+    assert "proj:code" not in geometry["attributes"]
+    assert "spatial_ref" not in geometry["members"]
+
+
+def test_plan_georeferences_footprints_without_proj_attributes_from_the_tile() -> None:
+    """
+    A detector-footprint level whose arrays carry no proj attributes (as in
+    native Zarr V3 products) declares the tile CRS, pixel-registered at its
+    resolution from the tile origin (EOPF-Explorer/data-model#346).
+    """
+    path = _INPUT_PATHS[0]
+    document = _read(path)
+    footprint = document["members"]["conditions"]["members"]["mask"]["members"][
+        "detector_footprint"
+    ]["members"]["r60m"]
+    for array in footprint["members"].values():
+        for key in [k for k in array["attributes"] if k.startswith("proj:")]:
+            del array["attributes"][key]
+    planned = plan_geozarr(Sentinel2Root.model_validate(document)).model_dump(mode="json")
+    attrs = planned["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"][
+        "members"
+    ]["r60m"]["attributes"]
+    reflectance = planned["members"]["measurements"]["members"]["reflectance"]["members"]
+    assert attrs["proj:code"] == f"EPSG:{_tile_epsg(path)}"
+    assert attrs["spatial:registration"] == "pixel"
+    assert attrs["spatial:transform"] == reflectance["r60m"]["attributes"]["spatial:transform"]
+
+
+@pytest.mark.parametrize(
+    "path", [p for p in _INPUT_PATHS if "MSIL2A" in p.name], ids=lambda p: p.stem[:26]
+)
+def test_plan_builds_the_atmosphere_pyramid(path: pathlib.Path) -> None:
+    """
+    `quality/atmosphere` (aot, wvp) gets a pyramid like the reflectance bands
+    (EOPF-Explorer/data-model#343): native r10m/r20m/r60m levels reused,
+    r120m/r360m/r720m coarsened, and all six in the `multiscales` layout.
+    """
+    planned = _planned_root(path)
+    atmosphere = planned["members"]["quality"]["members"]["atmosphere"]
+    multiscales = atmosphere["attributes"]["multiscales"]
+    levels = ["r10m", "r20m", "r60m", "r120m", "r360m", "r720m"]
+    assert [entry["asset"] for entry in multiscales["layout"]] == levels
+    assert multiscales["resampling_method"] == "average"
+    for level in levels:
+        assert {"aot", "wvp"} <= set(atmosphere["members"][level]["members"]), level
 
 
 def test_plan_reflectance_requires_product_georeferencing() -> None:

@@ -154,6 +154,14 @@ def test_write_geozarr_realizes_the_plan(source_path: pathlib.Path, tmp_path: pa
     plan, _, output = _written_store(source_path, tmp_path)
     observed = GroupSpecV3.from_zarr(output).model_dump(mode="json")
     assert observed == plan.model_dump(mode="json")
+    # the geometry grid is georeferenced at its nodes from the x/y values the writer
+    # read from the source (EOPF-Explorer/data-model#346): the seeded pixel centres
+    geometry = observed["members"]["conditions"]["members"]["geometry"]["attributes"]
+    res = _TILE_EXTENT / 23
+    assert geometry["spatial:registration"] == "node"
+    assert geometry["spatial:transform"] == pytest.approx(
+        [res, 0.0, _TILE_X_MIN + 0.5 * res, 0.0, -res, _TILE_Y_MAX - 0.5 * res]
+    )
 
 
 def test_write_geozarr_data_semantics(tmp_path: pathlib.Path) -> None:

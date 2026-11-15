@@ -429,6 +429,19 @@ print(asset["href"], asset["type"])
 #> /measurements/reflectance application/vnd.zarr; version=3; profile=multiscales
 ```
 
+Every asset that references an array, native or multiscale level, carries the
+STAC `statistics` of its stored values: counts for packed bands, before the
+`raster:scale`/`raster:offset` is applied (nodata excluded):
+
+```python
+# test: skip (needs a converted store)
+import zarr
+
+root = zarr.open_group("out.zarr", mode="r")
+print(root.attrs["stac_discovery"]["assets"]["b02_r120m"]["statistics"])
+#> {'minimum': ..., 'maximum': ..., 'mean': ..., 'stddev': ..., 'count': ..., 'valid_percent': ...}
+```
+
 For Sentinel-1 GRD RTC stores, build a complete STAC item:
 
 ```python

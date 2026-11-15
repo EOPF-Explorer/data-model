@@ -33,12 +33,14 @@ scalar arrays are dropped, as the converter drops them.
 from __future__ import annotations
 
 import base64
+import re
 import struct
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from math import ceil
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import numpy as np
+import structlog
 import xarray as xr
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import ArraySpec as ArraySpecV3
@@ -70,6 +72,8 @@ if TYPE_CHECKING:
     from zarr_metadata.v3.codec.crc32c import Crc32cCodecObject
     from zarr_metadata.v3.codec.sharding_indexed import ShardingIndexedCodecObject
     from zarr_metadata.v3.codec.zstd import ZstdCodecObject
+
+log = structlog.get_logger()
 
 S2Level = Literal["L1C", "L2A"]
 
@@ -420,6 +424,59 @@ def _level_spatial_attributes(
     return _spatial_dataset_attributes((resolution, 0.0, x0, 0.0, -resolution, y0), shape, epsg)
 
 
+_TileGeoreferencing = tuple[tuple[float, float], int, str]
+"""The tile's (origin, EPSG, WKT2), as the reflectance pyramid is georeferenced."""
+
+CoordinateValues = Callable[[str], "np.ndarray | None"]
+"""Looks up the stored values of the input array at an output-plan path (the
+writer's `SourceReader.values`); the plan reads only the small 1-D
+coordinate arrays a group's georeferencing is derived from."""
+
+GEOMETRY_PATH = "conditions/geometry"
+"""The group of the sun and viewing angle grids: node-registered, in the tile CRS."""
+
+
+def _regular_axis(values: np.ndarray, name: str) -> tuple[float, float]:
+    """
+    The (first value, step) of a regularly spaced 1-D coordinate. The step is
+    taken from the end points, which averages out the rounding of coordinates
+    stored as float32, and spacing within a thousandth of it counts as regular.
+    Raises `ValueError` for fewer than two values, NaN, or irregular spacing,
+    which no affine transform describes.
+    """
+    values = np.asarray(values, dtype="float64")
+    if values.ndim != 1 or values.size < 2:
+        msg = f"The {name} coordinate needs at least two values, got shape {values.shape}"
+        raise ValueError(msg)
+    step = float(values[-1] - values[0]) / (values.size - 1)
+    if step == 0 or not np.allclose(np.diff(values), step, rtol=1e-3, atol=0.0):
+        msg = f"The {name} coordinate is not regularly spaced, so no transform describes it"
+        raise ValueError(msg)
+    return float(values[0]), step
+
+
+def _node_grid_attributes(x: np.ndarray, y: np.ndarray, epsg: int) -> SpatialGroupAttrs:
+    """
+    The spatial/proj convention attributes of a node-registered grid in the
+    tile CRS (the geometry angle grids, EOPF-Explorer/data-model#346): its
+    values are at the grid nodes, so the transform's origin is `(x[0], y[0])`,
+    not moved by a half cell, and the bbox spans the outer nodes.
+    """
+    x0, dx = _regular_axis(x, "x")
+    y0, dy = _regular_axis(y, "y")
+    x_last, y_last = x0 + dx * (len(x) - 1), y0 + dy * (len(y) - 1)
+    return {
+        "grid_mapping": "spatial_ref",
+        "proj:code": f"EPSG:{epsg}",
+        "spatial:bbox": [min(x0, x_last), min(y0, y_last), max(x0, x_last), max(y0, y_last)],
+        "spatial:dimensions": ["y", "x"],
+        "spatial:registration": "node",
+        "spatial:shape": [len(y), len(x)],
+        "spatial:transform": [dx, 0.0, x0, 0.0, dy, y0],
+        "zarr_conventions": [SPATIAL_CMO, PROJ_CMO],
+    }
+
+
 def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
     """
     Plan the GeoZarr `measurements/reflectance` multiscale group of a
@@ -430,6 +487,11 @@ def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
     `x`/`y` coordinates and a `spatial_ref` grid-mapping array, under a
     multiscales layout attribute.
     """
+    return _plan_reflectance(root)[0]
+
+
+def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeoreferencing]:
+    """`plan_reflectance`, with the tile georeferencing the pyramid was planned in."""
     level = product_level(root)
     reflectance = root.members["measurements"].members["reflectance"]
     input_levels: dict[int, Any] = {}
@@ -592,7 +654,7 @@ def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
         ],
         "zarr_conventions": [MULTISCALES_CMO, SPATIAL_CMO, PROJ_CMO],
     }
-    return GroupSpecV3(attributes=group_attributes, members=members_out)
+    return GroupSpecV3(attributes=group_attributes, members=members_out), (origin, epsg, wkt2)
 
 
 # ---------------------------------------------------------------------------
@@ -605,6 +667,7 @@ AUX_MULTISCALE_LEVELS: dict[str, tuple[int, ...]] = {
     "conditions/mask/l1c_classification": (60, 120, 360, 720),
     "conditions/mask/l2a_classification": (20, 60, 120, 360, 720),
     "quality/probability": (20, 60, 120, 360, 720),
+    "quality/atmosphere": (10, 20, 60, 120, 360, 720),
 }
 
 #: Groups the output drops: the quicklooks duplicate RGB data derivable from
@@ -652,7 +715,9 @@ def _carried_array_attributes(
     return out
 
 
-def _plan_carried_array(name: str, doc: _ArrayDoc, *, spatial: bool) -> DataArray:
+def _plan_carried_array(
+    name: str, doc: _ArrayDoc, *, spatial: bool, grid_mapping_yx: bool = False
+) -> DataArray:
     """
     One carried (non-reflectance) array, translated to its output document:
     `x`/`y` become the float64 coordinate arrays, other coordinate arrays
@@ -675,7 +740,10 @@ def _plan_carried_array(name: str, doc: _ArrayDoc, *, spatial: bool) -> DataArra
     attributes = _carried_array_attributes(
         attrs,
         is_float=parsed.kind == "f",
-        grid_mapping=spatial and "proj:epsg" in attrs,
+        # an array references the grid mapping when it carries proj attributes,
+        # or, in a group georeferenced from the tile, when it spans (y, x)
+        grid_mapping=(spatial and "proj:epsg" in attrs)
+        or (grid_mapping_yx and dims[-2:] == ("y", "x")),
         name=name,
     )
     if dims == (name,):
@@ -728,29 +796,115 @@ def _proj_of(name: str, doc: _ArrayDoc) -> tuple[_Transform6, int, str]:
     )
 
 
-def _plan_dataset(group: _GroupDoc, path: str) -> AnyGroupSpec | None:
+_LEVEL_GROUP = re.compile(r"r(\d+)m")
+"""The name of a resolution level group (`r10m`, `r720m`), its metres captured."""
+
+
+def _level_meters(path: str) -> int | None:
+    """The resolution in metres of the level group at `path`, if it is one."""
+    match = _LEVEL_GROUP.fullmatch(path.rsplit("/", 1)[-1])
+    return int(match.group(1)) if match else None
+
+
+def _dims_of(doc: _ArrayDoc) -> tuple[str, ...]:
+    """The dimension names an input array declares (`_ARRAY_DIMENSIONS`)."""
+    dims = _doc_attrs(doc).get("_ARRAY_DIMENSIONS")
+    return tuple(str(dim) for dim in dims) if isinstance(dims, (list, tuple)) else ()
+
+
+def _plan_dataset(
+    group: _GroupDoc,
+    path: str,
+    coordinate_values: CoordinateValues | None = None,
+    tile: _TileGeoreferencing | None = None,
+) -> AnyGroupSpec | None:
     """
     Plan one carried leaf dataset: every non-scalar array translated, and —
-    when the dataset is georeferenced (an array carries proj attributes) —
-    the group's spatial attributes and a `spatial_ref` grid-mapping array.
-    Returns `None` for a dataset with no arrays to carry.
+    when the dataset is georeferenced — the group's spatial attributes and a
+    `spatial_ref` grid-mapping array. A dataset is georeferenced by an array
+    that carries proj attributes; failing that, in the tile CRS: the geometry
+    angle grids from their node coordinates, and a resolution level under
+    `conditions/mask` or `quality` (whose arrays native Zarr V3 products leave
+    without proj attributes) from the tile origin at its resolution
+    (EOPF-Explorer/data-model#346). Returns `None` for a dataset with no
+    arrays to carry.
     """
     arrays = _carried_arrays(group)
     if not arrays:
         return None
     anchor = _spatial_anchor(arrays)
-    members: dict[str, DataArray | ArraySpecV3] = {
-        name: _plan_carried_array(name, member, spatial=anchor is not None)
+    if anchor is not None:
+        members: dict[str, DataArray | ArraySpecV3] = {
+            name: _plan_carried_array(name, member, spatial=True) for name, member in arrays.items()
+        }
+        transform, epsg, wkt2 = _proj_of(*anchor)
+        members["spatial_ref"] = _plan_spatial_ref(wkt2, native=True)
+        return GroupSpecV3(
+            attributes=_spatial_dataset_attributes(transform, tuple(anchor[1]["shape"]), epsg),
+            members=members,
+        )
+    attributes = _tile_attributes(arrays, path, coordinate_values, tile)
+    members = {
+        name: _plan_carried_array(
+            name, member, spatial=False, grid_mapping_yx=attributes is not None
+        )
         for name, member in arrays.items()
     }
-    if anchor is None:
+    if attributes is None or tile is None:
         return GroupSpecV3(attributes=dict(_doc_attrs(group)), members=members)
-    transform, epsg, wkt2 = _proj_of(*anchor)
-    members["spatial_ref"] = _plan_spatial_ref(wkt2, native=True)
-    return GroupSpecV3(
-        attributes=_spatial_dataset_attributes(transform, tuple(anchor[1]["shape"]), epsg),
-        members=members,
+    members["spatial_ref"] = _plan_spatial_ref(tile[2], native=True)
+    return GroupSpecV3(attributes=attributes, members=members)
+
+
+def _tile_attributes(
+    arrays: Mapping[str, _ArrayDoc],
+    path: str,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> SpatialGroupAttrs | None:
+    """
+    The spatial/proj attributes of a carried dataset without proj attributes
+    of its own, in the tile CRS (see `_plan_dataset`), or None when it is not
+    georeferenced that way. A geometry grid no transform describes is carried
+    without georeferencing, with a warning, rather than stopping the plan.
+    """
+    if tile is None:
+        return None
+    origin, epsg, _ = tile
+    if path == GEOMETRY_PATH:
+        x_doc, y_doc = arrays.get("x"), arrays.get("y")
+        if (
+            coordinate_values is None
+            or x_doc is None
+            or y_doc is None
+            or _dims_of(x_doc) != ("x",)
+            or _dims_of(y_doc) != ("y",)
+        ):
+            return None
+        x, y = coordinate_values(f"{path}/x"), coordinate_values(f"{path}/y")
+        if x is None or y is None:
+            return None
+        try:
+            return _node_grid_attributes(x, y, epsg)
+        except ValueError as error:
+            log.warning(
+                "Carrying the geometry group without georeferencing", group=path, reason=str(error)
+            )
+            return None
+    meters = _level_meters(path)
+    if meters is None or not path.startswith(("conditions/mask/", "quality/")):
+        return None
+    shape = next(
+        (
+            tuple(doc["shape"])
+            for doc in arrays.values()
+            if len(doc["shape"]) == 2 and _dims_of(doc) == ("y", "x")
+        ),
+        None,
     )
+    if shape is None:
+        return None
+    return _level_spatial_attributes(meters=meters, shape=shape, origin=origin, epsg=epsg)
 
 
 def _plan_aux_multiscale(
@@ -899,6 +1053,8 @@ def _plan_subtree(
     group: _GroupDoc,
     path: str,
     product_proj: tuple[tuple[float, float], int, str] | None = None,
+    coordinate_values: CoordinateValues | None = None,
+    tile: _TileGeoreferencing | None = None,
 ) -> AnyGroupSpec | None:
     """
     Plan one conditions/quality subtree: aux multiscale groups by their specs,
@@ -915,14 +1071,14 @@ def _plan_subtree(
         if isinstance(member, Mapping) and "members" in member
     }
     if not subgroups:
-        return _plan_dataset(group, path)
+        return _plan_dataset(group, path, coordinate_values, tile)
     planned: dict[str, AnyGroupSpec] = {}
     for name, member in subgroups.items():
-        sub = _plan_subtree(member, f"{path}/{name}", product_proj)
+        sub = _plan_subtree(member, f"{path}/{name}", product_proj, coordinate_values, tile)
         if sub is not None:
             planned[name] = sub
     # a group holding arrays next to its subgroups keeps those arrays too
-    own = _plan_dataset(group, path)
+    own = _plan_dataset(group, path, coordinate_values, tile)
     if own is not None:
         return GroupSpecV3(attributes=own.attributes, members={**dict(own.members), **planned})
     if not planned:
@@ -930,7 +1086,9 @@ def _plan_subtree(
     return GroupSpecV3(attributes=dict(_doc_attrs(group)), members=planned)
 
 
-def plan_geozarr(root: Sentinel2Root) -> AnyGroupSpec:
+def plan_geozarr(
+    root: Sentinel2Root, *, coordinate_values: CoordinateValues | None = None
+) -> AnyGroupSpec:
     """
     Plan the GeoZarr hierarchy to write for a Sentinel-2 product.
 
@@ -939,16 +1097,22 @@ def plan_geozarr(root: Sentinel2Root) -> AnyGroupSpec:
     pyramid, and the `conditions` and `quality` subtrees carried (their own
     multiscale groups planned by `AUX_MULTISCALE_LEVELS`, the quicklooks and
     scalar arrays dropped).
+
+    The plan reads metadata only, except where georeferencing must be derived
+    from coordinate values: the geometry angle grids get their node-registered
+    `proj` and `spatial` attributes from the x/y values `coordinate_values`
+    looks up, and none without it.
     """
+    reflectance, tile = _plan_reflectance(root)
     members: dict[str, AnyGroupSpec] = {
-        "measurements": GroupSpecV3(attributes={}, members={"reflectance": plan_reflectance(root)}),
+        "measurements": GroupSpecV3(attributes={}, members={"reflectance": reflectance}),
     }
     product_proj = _product_proj(root)
     for top in ("conditions", "quality"):
         member = root.members.get(top)
         if member is None:
             continue
-        planned = _plan_subtree(member.model_dump(), top, product_proj)
+        planned = _plan_subtree(member.model_dump(), top, product_proj, coordinate_values, tile)
         if planned is not None:
             members[top] = planned
     return GroupSpecV3(attributes={}, members=members)
