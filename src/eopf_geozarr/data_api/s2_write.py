@@ -34,7 +34,7 @@ import xarray as xr
 import zarr
 from pydantic_zarr.v3 import is_group_spec
 
-from eopf_geozarr.data_api.s2_plan import plan_geozarr
+from eopf_geozarr.data_api.s2_plan import level_meters, plan_geozarr
 from eopf_geozarr.pyz.datatree import encoded_variable
 from eopf_geozarr.s2_optimization.s2_resampling import determine_variable_type
 
@@ -353,11 +353,16 @@ def _integer_fill(member: AnyArraySpec | AnyGroupSpec) -> int | None:
 
 
 def _level_meters(name: str) -> int:
-    return int(name[1:-1])
+    """The resolution in metres of a level group the plan names (`level_meters`)."""
+    meters = level_meters(name)
+    if meters is None:
+        msg = f"{name!r} is not a resolution level name"
+        raise ValueError(msg)
+    return meters
 
 
 def _is_level_name(name: str) -> bool:
-    return name.startswith("r") and name.endswith("m") and name[1:-1].isdigit()
+    return level_meters(name) is not None
 
 
 def _output_array(output: zarr.Group, path: str) -> zarr.Array:

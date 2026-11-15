@@ -288,6 +288,7 @@ def test_updated_root_consolidation_success(tmp_path: Path, store: str) -> None:
         (
             "/conditions/mask/l2a_classification",
             "/quality/probability",
+            "/quality/atmosphere",
             "/conditions/mask/l1c_classification",
         ),
         ("/conditions/mask/l1c_classification",),
@@ -340,8 +341,9 @@ def test_updated_root_consolidation_aux_multiscales(
     zmeta = json.loads((output_path / "measurements/reflectance/zarr.json").read_text())
     assert "r10m" in zmeta["consolidated_metadata"]["metadata"]
 
-    if "/quality/probability" not in aux_groups:
-        assert not (output_path / "quality/probability").exists()
+    for base_path in ("/quality/probability", "/quality/atmosphere"):
+        if base_path not in aux_groups:
+            assert not (output_path / base_path.lstrip("/")).exists()
 
 
 def test_write_store_geo_metadata_reprojects_utm_to_wgs84(tmp_path: Path) -> None:

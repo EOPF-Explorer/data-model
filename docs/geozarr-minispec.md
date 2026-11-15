@@ -394,6 +394,8 @@ All of the members declared in the `multiscales.layout` must comply with the [Da
 
 A Multiscale Dataset should not contain any members that are not declared in the `multiscales.layout`. Any additional Zarr arrays and groups are considered external to the GeoZarr model.
 
+The Multiscale Dataset group MUST carry consolidated metadata that includes all its resolution levels. See [Consolidated Metadata](#consolidated-metadata).
+
 #### Chunking Recommendations
 
 - **Consistent Chunking Strategy**: All data variables within a resolution level should use the same chunk shape to maintain spatial coherence
@@ -582,6 +584,53 @@ Key aspects:
 - **Level groups**: Directories (`r10m/`, `r20m/`, ...) match the `asset` paths in the layout
 - **Consistent variables**: Each level contains the same set of variable names
 - **No `spatial_ref` array**: CRS is expressed via `proj:code` at the group level, not as a 0D array
+
+## Consolidated Metadata
+
+Consolidated metadata is a copy of the metadata of all the descendant nodes of a group, stored in the `zarr.json` of that group. With it, a client reads the full sub-hierarchy of the group in one request. The client does not have to read the `zarr.json` of each child node, or of the parent groups.
+
+### Role
+
+Consolidated metadata is an **access optimization**. It is not part of the GeoZarr data model:
+
+- The `zarr.json` of each node is the source of truth. The consolidated copy MUST be identical to the metadata in these documents.
+- The conventions in this document (`multiscales`, `proj:`, `spatial:`) are defined on the node attributes, not on the consolidated copy. A client that ignores consolidated metadata MUST find the same hierarchy and the same attributes as a client that uses it.
+- A writer MUST consolidate a group only after it has written all the descendants of that group. After that, the writer MUST NOT change the group or its descendants. If it does, the consolidated copy becomes stale.
+
+### Where It Is Written
+
+An EOPF GeoZarr store MUST carry consolidated metadata on these groups:
+
+1. The [Store Root](#store-root). When a product is split into sub-products (e.g. Sentinel-1), each sub-root carries it instead of the store root.
+2. Each [Multiscale Dataset](#multiscale-dataset) group, as the [multiscales convention](https://github.com/zarr-conventions/multiscales#consolidated-metadata) recommends. The consolidated metadata of this group includes all its resolution levels.
+3. Each group that a STAC asset `href` points to. This is indicated on the asset with `zarr:consolidated: true` (see the [Zarr STAC Extension](https://github.com/stac-extensions/zarr)).
+
+For multiscale data, a STAC asset `href` points to the Multiscale Dataset group, not to a resolution level. Thus rule 3 adds no groups to rule 2 for multiscale data. A STAC asset that points to an array does not need consolidated metadata.
+
+The resolution-level groups (e.g. `r10m`) do not have to carry their own consolidated metadata. The consolidated metadata of the Multiscale Dataset group already includes them. A writer MAY consolidate other groups. For example, the converter in this repository also consolidates each `measurements` group.
+
+These rules were agreed in [#291](https://github.com/EOPF-Explorer/data-model/issues/291). See [STAC Integration and Zarr URL Resolution](architecture.md#stac-integration-and-zarr-url-resolution) for how clients open a STAC asset `href` as a store.
+
+### Zarr V3 Status
+
+zarr-python writes inline consolidated metadata as a `consolidated_metadata` key in the group `zarr.json`:
+
+```json
+{
+    "zarr_format": 3,
+    "node_type": "group",
+    "attributes": {},
+    "consolidated_metadata": {
+        "kind": "inline",
+        "must_understand": false,
+        "metadata": {}
+    }
+}
+```
+
+For some time, the Zarr V3 core specification did not permit this key, because it has no `name` member ([zarr-developers/zarr-specs#371](https://github.com/zarr-developers/zarr-specs/issues/371), [zarr-developers/zarr-python#3709](https://github.com/zarr-developers/zarr-python/issues/3709)). [zarr-developers/zarr-specs#373](https://github.com/zarr-developers/zarr-specs/pull/373) (merged in July 2026) now permits the key as a named exception to the extension rules.
+
+The key has `"must_understand": false`. A Zarr V3 client that does not support consolidated metadata ignores it and reads the hierarchy node by node. This is one more reason why the GeoZarr model must not depend on consolidated metadata.
 
 ## Appendix
 

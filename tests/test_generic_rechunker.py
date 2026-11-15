@@ -18,6 +18,7 @@ import zarr
 from structlog.testing import capture_logs
 from zarr.codecs import BloscCodec
 
+from eopf_geozarr.conversion.utils import band_array_paths
 from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 
 from .conftest import create_zarrv3_group_from_json, get_stem
@@ -103,6 +104,12 @@ def read_array(output_path: pathlib.Path, path: str) -> zarr.Array:
     array = zarr.open_group(str(output_path), mode="r")[path]
     assert isinstance(array, zarr.Array), f"{path} is not an array"
     return array
+
+
+def stac_assets(output_path: pathlib.Path, group: str = "") -> dict[str, dict[str, Any]]:
+    """The `stac_discovery` assets of a group (the root by default) of the output store."""
+    stac: Any = zarr.open_group(str(output_path), path=group, mode="r").attrs["stac_discovery"]
+    return stac["assets"]
 
 
 def convert(
@@ -239,6 +246,68 @@ def test_parent_measurements_group_is_consolidated(tmp_path: pathlib.Path) -> No
     assert {"inadir", "inadir/s7_bt"} <= set(consolidated["metadata"])
 
 
+@pytest.mark.parametrize("scale_offset_codec", [False, True], ids=["cf", "codec"])
+def test_stac_assets_get_statistics_of_stored_values(
+    tmp_path: pathlib.Path, scale_offset_codec: bool
+) -> None:
+    """Each `stac_discovery` asset of an array gets a STAC Statistics Object.
+
+    The statistics are of the values as stored, with nodata masked: counts in the CF
+    layout (scale/offset not applied), physical values with the Zarr scale-offset
+    codecs (which decode them). Assets that reference a group get none.
+    """
+    tree = build_scaled_tree()
+    reflectance = tree["measurements"].dataset["reflectance"]
+    values = reflectance.values.copy()
+    values[0, :10] = np.nan  # written as the `_FillValue` 0
+    tree["measurements"] = tree["measurements"].dataset.assign(
+        reflectance=reflectance.copy(data=values)
+    )
+    tree.attrs["stac_discovery"] = {
+        "assets": {
+            "reflectance": {"href": "/measurements/reflectance"},
+            "measurements": {"href": "/measurements"},
+        }
+    }
+
+    _, output_path = convert(tree, tmp_path, scale_offset_codec=scale_offset_codec)
+
+    assets = stac_assets(output_path)
+    assert "statistics" not in assets["measurements"]
+    statistics = assets["reflectance"]["statistics"]
+    counts = np.round((values[~np.isnan(values)] - 1.0) / 0.5)
+    valid = counts * 0.5 + 1.0 if scale_offset_codec else counts
+    assert statistics["count"] == valid.size
+    assert statistics["valid_percent"] == pytest.approx(100.0 * valid.size / values.size)
+    assert statistics["minimum"] == pytest.approx(valid.min())
+    assert statistics["maximum"] == pytest.approx(valid.max())
+    assert statistics["mean"] == pytest.approx(valid.mean())
+    assert statistics["stddev"] == pytest.approx(valid.std())
+
+
+def test_band_array_paths_selects_measurements_and_multiscale_levels(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Statistics are computed for measurement arrays and multiscale levels only."""
+    output_path = tmp_path / "store.zarr"
+    root = zarr.open_group(str(output_path), mode="w")
+    paths = {
+        "measurements/reflectance/r10m/b02": True,  # measurement
+        "S01SIWGRD_X/measurements/grd": True,  # measurement in an S1 subroot
+        "quality/atmosphere/r120m/aot": True,  # level of a multiscale pyramid
+        "conditions/geometry/sun_angles": False,  # metadata
+        "S01SIWGRD_X/quality/calibration/beta_nought": False,  # metadata in a subroot
+        "conditions/mask/detector_footprint/r10m/b02": False,  # level group, but no pyramid
+    }
+    for path in paths:
+        root.create_array(path, shape=(2, 2), dtype="uint16")
+    root["quality/atmosphere"].attrs["multiscales"] = {"layout": []}
+
+    selected = band_array_paths(str(output_path), paths)
+
+    assert selected == {path for path, is_band in paths.items() if is_band}
+
+
 def test_returns_the_written_output(tmp_path: pathlib.Path) -> None:
     """The result is the tree read back from the output, not the input tree."""
     result, _ = convert(build_synthetic_tree(), tmp_path, spatial_chunk=128)
@@ -280,3 +349,19 @@ def test_s1_grdh_example_converts(
         grd = read_array(output_path, f"{product}/measurements/grd")
         assert grd.shape == tree[f"{product}/measurements/grd"].shape
         assert grd.chunks[1:] == (1024, 1024)
+
+    # The root and each subroot STAC get statistics for the assets of the numeric
+    # measurement arrays only, not for the small metadata arrays (calibration, ...).
+    # Asset hrefs are relative to the store root, also in the subroots.
+    for group in ("", *tree.children):
+        assets = stac_assets(output_path, group)
+        numeric = {
+            key: asset["href"].strip("/")
+            for key, asset in assets.items()
+            if isinstance(node := root.get(asset["href"].strip("/")), zarr.Array)
+            and np.issubdtype(node.dtype, np.number)
+        }
+        measurements = {key for key, href in numeric.items() if "/measurements/" in f"/{href}"}
+        assert measurements, f"{group or '/'}: no assets of measurement arrays"
+        assert set(numeric) - measurements, f"{group or '/'}: no metadata assets to skip"
+        assert {key for key, asset in assets.items() if "statistics" in asset} == measurements

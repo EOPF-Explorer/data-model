@@ -169,6 +169,14 @@ def test_write_geozarr_realizes_the_plan(source_path: pathlib.Path, tmp_path: pa
         attributes = meteorology[group]["attributes"]
         assert attributes["proj:code"] == "EPSG:4326"
         assert attributes["spatial:transform"] == [0.25, 0.0, 8.0, 0.0, -0.25, 48.0]
+    # the geometry grid is georeferenced at its nodes from the x/y values the writer
+    # read from the source (EOPF-Explorer/data-model#346): the seeded pixel centres
+    geometry = observed["members"]["conditions"]["members"]["geometry"]["attributes"]
+    res = _TILE_EXTENT / 23
+    assert geometry["spatial:registration"] == "node"
+    assert geometry["spatial:transform"] == pytest.approx(
+        [res, 0.0, _TILE_X_MIN + 0.5 * res, 0.0, -res, _TILE_Y_MAX - 0.5 * res]
+    )
 
 
 def test_write_geozarr_data_semantics(tmp_path: pathlib.Path) -> None:

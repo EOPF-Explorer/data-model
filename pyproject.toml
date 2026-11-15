@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eopf-geozarr"
-version = "0.12.0"
+version = "0.13.1"
 description = "GeoZarr driver for ESA's EOPF CPM: convert Sentinel-1, -2 and -3 products to cloud-optimized GeoZarr (Zarr v3)"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -52,7 +52,7 @@ dependencies = [
     # location/API may change between minor releases; bump deliberately.
     "zarr[cast-value-rs]>=3.2.0,<3.5.0",
     "xarray>=2025.7.1",
-    "dask[array,distributed]>=2026.1.0",
+    "dask[array,distributed]>=2026.8.0",
     "numpy>=2.3.1",
     "rioxarray>=0.13.0",
     "cf-xarray>=0.8.0",
@@ -63,7 +63,7 @@ dependencies = [
     "boto3>=1.43.116",
     "pyproj>=3.7.0",
     "pystac>=1.8.0",
-    "shapely>=2.0",
+    "shapely>=2.2.0",
     "structlog>=25.5.0",
     "pygit2>=1.20.1",
 ]
@@ -80,15 +80,15 @@ cpm = ["eopf>=3.0.0; python_version >= '3.13'",
 
 [dependency-groups]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=9.2.0",
     "pytest-cov>=4.0.0",
     "pyright>=1.1.390",
     "pre-commit>=4.7.0",
-    "bandit[toml]>=1.7.0",
+    "bandit[toml]>=1.9.4",
 ]
 test = [
     "jsondiff>=2.2.1",
-    "pytest>=7.0.0",
+    "pytest>=9.2.0",
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.17.0",
     "pytest-xdist>=3.0.0",
@@ -101,7 +101,7 @@ downstream-titiler = [
 ]
 docs = [
     "mkdocs>=1.4.0,<2",
-    "mkdocs-material[imaging]>=9.1.0",
+    "mkdocs-material[imaging]>=9.8.0",
     "pymdown-extensions>=12.3",
 ]
 notebooks = [

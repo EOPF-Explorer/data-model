@@ -254,6 +254,8 @@ This is indicated in the STAC asset using the [Zarr STAC Extension](https://gith
 }
 ```
 
+The [GeoZarr mini spec](geozarr-minispec.md#consolidated-metadata) defines the role of consolidated metadata, the full list of groups that carry it, and its status in the Zarr V3 specification.
+
 ### Role of the `rel: store` Link
 
 The [STAC Zarr Best Practices](https://github.com/radiantearth/stac-best-practices/blob/main/best-practices-zarr.md#store-link-relationship) define a `"store"` relationship for exactly this purpose. All EOPF-produced STAC Items and Collections **MUST** include this link:
@@ -506,6 +508,11 @@ def updated_root_consolidation(
    multiscale pyramid groups, e.g. `/measurements/reflectance`).
 3. The store-root (or Sentinel-1 subroot) GeoZarr and STAC metadata is written
    from `dt_input.attrs`, and the root (or each subroot) is consolidated last.
+   Every `stac_discovery` asset of a band array (in a `measurements` group or a
+   multiscale pyramid level; small metadata arrays are skipped) gets a STAC
+   [Statistics Object](https://github.com/radiantearth/stac-spec/blob/master/commons/common-metadata.md#statistics-object)
+   (`statistics`), computed from the written values as stored (before a CF
+   scale/offset is applied, nodata excluded).
 
 ## Error Handling and Validation
 
