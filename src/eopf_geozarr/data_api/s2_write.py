@@ -34,12 +34,13 @@ import xarray as xr
 import zarr
 from pydantic_zarr.v3 import is_group_spec
 
+from eopf_geozarr.conversion.encoding_utils import find_fill_value
 from eopf_geozarr.data_api.s2_plan import level_meters, plan_geozarr
 from eopf_geozarr.pyz.datatree import encoded_variable
 from eopf_geozarr.s2_optimization.s2_resampling import determine_variable_type
 
 if TYPE_CHECKING:
-    from pydantic_zarr.v3 import AnyArraySpec, AnyGroupSpec
+    from pydantic_zarr.v3 import AnyGroupSpec
     from zarr.abc.store import Store
 
     from eopf_geozarr.data_api.s2 import Sentinel2Root
@@ -52,6 +53,16 @@ class SourceReader(Protocol):
         """The stored values of the array at `path`, or None if there is none."""
         ...
 
+    def nodata(self, path: str) -> int | None:
+        """
+        The integer nodata value the input declares for the array at `path`, in
+        stored units, or None when it declares none: the CF `_FillValue` (a Zarr
+        V2 array's `fill_value`, or the attribute) or the EOPF `fill_value`
+        attribute. A resampling mean skips this value and no other: an array
+        that declares no nodata is averaged whole, zeros included.
+        """
+        ...
+
     def is_group(self, path: str) -> bool:
         """Whether the input holds a group at `path`."""
         ...
@@ -59,6 +70,16 @@ class SourceReader(Protocol):
     def group_names(self, path: str) -> tuple[str, ...]:
         """The names of the subgroups of the group at `path` (empty if none)."""
         ...
+
+
+def _integer_nodata(candidates: tuple[object, ...]) -> int | None:
+    """The first declared candidate, when it is a whole number (else None)."""
+    declared = next((value for value in candidates if value is not None), None)
+    if isinstance(declared, (bool, np.bool_)) or not isinstance(
+        declared, (int, float, np.integer, np.floating)
+    ):
+        return None
+    return int(declared) if float(declared).is_integer() else None
 
 
 class ZarrSourceReader:
@@ -76,6 +97,16 @@ class ZarrSourceReader:
     def values(self, path: str) -> np.ndarray | None:
         member = self._member(path)
         return np.asarray(member[...]) if isinstance(member, zarr.Array) else None
+
+    def nodata(self, path: str) -> int | None:
+        member = self._member(path)
+        if not isinstance(member, zarr.Array):
+            return None
+        # a Zarr V2 array's `fill_value` is what xarray reads as `_FillValue`
+        attrs = member.attrs
+        return _integer_nodata(
+            (member.metadata.fill_value, attrs.get("_FillValue"), attrs.get("fill_value"))
+        )
 
     def is_group(self, path: str) -> bool:
         return isinstance(self._member(path), zarr.Group)
@@ -105,15 +136,24 @@ class DataTreeSourceReader:
             return None
         return member if isinstance(member, xr.DataTree) else None
 
-    def values(self, path: str) -> np.ndarray | None:
+    def _variable(self, path: str) -> tuple[str, xr.Variable] | None:
         node_path, _, name = path.rpartition("/")
         node = self._node(node_path)
         if node is None:
             return None
         variables = node.to_dataset(inherit=False).variables
-        if name not in variables:
+        return (name, variables[name]) if name in variables else None
+
+    def values(self, path: str) -> np.ndarray | None:
+        found = self._variable(path)
+        return None if found is None else np.asarray(encoded_variable(*found).values)
+
+    def nodata(self, path: str) -> int | None:
+        found = self._variable(path)
+        if found is None:
             return None
-        return np.asarray(encoded_variable(name, variables[name]).values)
+        # `find_fill_value` takes anything with `.encoding` and `.attrs`
+        return _integer_nodata((find_fill_value(found[1]),))  # type: ignore[arg-type]
 
     def is_group(self, path: str) -> bool:
         return self._node(path) is not None
@@ -184,6 +224,8 @@ def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, 
     """
     levels = sorted(spec.members, key=_level_meters)
     previous_data: dict[str, np.ndarray] = {}
+    # the nodata each variable's input declares, carried down the chain
+    nodata: dict[str, int | None] = {}
     previous_coords: dict[str, np.ndarray] = {}
     previous_meters: int | None = None
     for level_name in levels:
@@ -196,7 +238,7 @@ def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, 
         native = source.is_group(level_path)
         data: dict[str, np.ndarray] = {}
         coords: dict[str, np.ndarray] = {}
-        for var, member in level_spec.members.items():
+        for var in level_spec.members:
             if var == "spatial_ref":
                 continue
             if var in ("x", "y"):
@@ -210,7 +252,7 @@ def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, 
                 )
             else:
                 data[var] = _level_variable(
-                    member,
+                    nodata,
                     source,
                     var,
                     path,
@@ -228,7 +270,7 @@ def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, 
 
 
 def _level_variable(
-    member: AnyArraySpec | AnyGroupSpec,
+    nodata: dict[str, int | None],
     source: SourceReader,
     var: str,
     base_path: str,
@@ -239,25 +281,31 @@ def _level_variable(
     *,
     native: bool,
 ) -> np.ndarray:
-    """The data of one pyramid-level variable: copied, injected, or chained."""
+    """
+    The data of one pyramid-level variable: copied, injected, or chained.
+    `nodata` records, per variable, the nodata its input declares (from the
+    level it was last read from), which the resampling mean skips.
+    """
     if native:
         values = source.values(f"{level_path}/{var}")
         if values is not None:
+            nodata[var] = source.nodata(f"{level_path}/{var}")
             return values
         # an injected band: resample from the finest input level that holds it
         injected = _finest_input_source(source, base_path, var, meters)
         if injected is None:
             msg = f"No input level finer than {meters} m holds the injected band {var!r}"
             raise ValueError(msg)
-        src_values, src_meters = injected
-        return _coarsen(src_values, meters // src_meters, var, _integer_fill(member))
+        src_values, src_meters, src_path = injected
+        nodata[var] = source.nodata(src_path)
+        return _coarsen(src_values, meters // src_meters, var, nodata[var])
     if previous_meters is None:
         msg = f"The finest planned level {level_path} is missing from the input source"
         raise ValueError(msg)
     if var not in previous_data:
         msg = f"Variable {var!r} of generated level {level_path} is missing from the previous level"
         raise ValueError(msg)
-    return _coarsen(previous_data[var], meters // previous_meters, var, _integer_fill(member))
+    return _coarsen(previous_data[var], meters // previous_meters, var, nodata.get(var))
 
 
 def _level_coordinate(
@@ -289,7 +337,8 @@ def _coarsen(values: np.ndarray, factor: int, var: str, fill: int | None) -> np.
     Downsample one variable by `factor`, with the converter's arithmetic:
     classification masks take the window-centre pixel; everything else takes
     the block mean — NaN-skipping for floats, nodata-masked and rounded for
-    integers (an all-nodata window keeps the fill value).
+    integers (an all-nodata window keeps the fill value). `fill` is the
+    nodata the input declares; with None, integers are averaged whole.
     """
     kind = determine_variable_type(var)
     rows = values.shape[0] // factor * factor
@@ -333,8 +382,8 @@ def _window_mean(windows: np.ndarray, fill: int | None) -> np.ndarray:
 
 def _finest_input_source(
     source: SourceReader, base_path: str, var: str, meters: int
-) -> tuple[np.ndarray, int] | None:
-    """The finest input level of this subtree holding `var`, with its metres."""
+) -> tuple[np.ndarray, int, str] | None:
+    """The finest input level of this subtree holding `var`, with its metres and path."""
     candidates = sorted(
         (name for name in source.group_names(base_path) if _is_level_name(name)),
         key=_level_meters,
@@ -345,14 +394,8 @@ def _finest_input_source(
             return None
         values = source.values(f"{base_path}/{name}/{var}")
         if values is not None:
-            return values, src_meters
+            return values, src_meters, f"{base_path}/{name}/{var}"
     return None
-
-
-def _integer_fill(member: AnyArraySpec | AnyGroupSpec) -> int | None:
-    """The planned array's fill value, when it is the integer-nodata kind."""
-    fill = getattr(member, "fill_value", None)
-    return fill if isinstance(fill, int) else None
 
 
 def _level_meters(name: str) -> int:

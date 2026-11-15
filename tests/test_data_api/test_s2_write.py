@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -23,7 +23,12 @@ import zarr
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 
 from eopf_geozarr.data_api.s2_plan import load_sentinel2
-from eopf_geozarr.data_api.s2_write import _coarsen, write_geozarr
+from eopf_geozarr.data_api.s2_write import (
+    DataTreeSourceReader,
+    ZarrSourceReader,
+    _coarsen,
+    write_geozarr,
+)
 
 from ..conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
 
@@ -49,6 +54,7 @@ _PATTERNED_PATHS = (
     "conditions/mask/l2a_classification/r20m/scl",
     "conditions/mask/l1c_classification/r60m/b00",
     "measurements/reflectance/r10m/b08",
+    "quality/probability/r20m/cld",
 )
 
 #: The L2A product used for the value-semantics checks.
@@ -145,6 +151,14 @@ def _reference_block_mean(values: np.ndarray, factor: int, fill: int) -> np.ndar
     return np.where(np.isnan(mean), fill, np.round(mean)).astype(values.dtype)
 
 
+def _reference_plain_mean(values: np.ndarray, factor: int) -> np.ndarray:
+    """The block mean of every value, rounded: no value is nodata."""
+    rows = values.shape[0] // factor * factor
+    cols = values.shape[1] // factor * factor
+    windows = values[:rows, :cols].reshape(rows // factor, factor, cols // factor, factor)
+    return np.round(windows.astype("float64").mean(axis=(1, 3))).astype(values.dtype)
+
+
 @pytest.mark.parametrize("source_path", s2_example_json_paths, ids=get_stem)
 def test_write_geozarr_realizes_the_plan(source_path: pathlib.Path, tmp_path: pathlib.Path) -> None:
     """
@@ -171,7 +185,9 @@ def test_write_geozarr_data_semantics(tmp_path: pathlib.Path) -> None:
     mean of the finest input level holding them, generated levels chain from
     the previous level (mean for bands and probabilities, window-centre pixel
     for the classification), coordinates take window means, and grid-mapping
-    arrays hold zero.
+    arrays hold zero. The mean skips only the nodata the input declares: the
+    bands declare 0, the probabilities and atmosphere arrays declare none, so
+    their zeros (a valid probability) count.
     """
     _, source, output = _written_store(_L2A_PATH, tmp_path)
 
@@ -192,6 +208,18 @@ def test_write_geozarr_data_semantics(tmp_path: pathlib.Path) -> None:
     # a generated band level is the masked block mean of the previous level
     generated = read(output, "measurements/reflectance/r120m/b01")
     np.testing.assert_array_equal(generated, _reference_block_mean(native, 2, 0))
+
+    # a generated level of an array that declares no nodata is the plain block
+    # mean of the previous level, zeros included
+    for path, name, finer, coarser, factor in (
+        ("quality/probability", "cld", "r20m", "r60m", 3),
+        ("quality/atmosphere", "aot", "r60m", "r120m", 2),
+    ):
+        previous = read(output, f"{path}/{finer}/{name}")
+        assert (previous == 0).any(), "fixture precondition: the seeded values hold zeros"
+        plain = _reference_plain_mean(previous, factor)
+        assert not np.array_equal(plain, _reference_block_mean(previous, factor, 0))
+        np.testing.assert_array_equal(read(output, f"{path}/{coarser}/{name}"), plain)
 
     # a generated classification level takes each window's centre pixel
     scl_native = read(output, "conditions/mask/l2a_classification/r60m/scl")
@@ -299,3 +327,46 @@ def test_write_geozarr_from_a_datatree_matches_the_store_write(
         tree_output = tmp_path / f"from_tree_{mask_and_scale}.zarr"
         write_geozarr(load_sentinel2(tree), tree, str(tree_output))
         assert _store_contents(tree_output) == reference, f"{mask_and_scale=}"
+
+
+@pytest.mark.parametrize(
+    ("fill_value", "attributes", "expected"),
+    [
+        (0, {}, 0),
+        (None, {"_FillValue": 255}, 255),
+        (None, {"fill_value": 0}, 0),
+        (7, {"_FillValue": 255, "fill_value": 0}, 7),
+        (None, {"_FillValue": 255, "fill_value": 0}, 255),
+        (None, {}, None),
+        (None, {"fill_value": "NaN"}, None),
+    ],
+    ids=[
+        "zarr-fill-value",
+        "cf-attribute",
+        "eopf-attribute",
+        "zarr-fill-value-first",
+        "cf-before-eopf",
+        "undeclared",
+        "not-a-number",
+    ],
+)
+def test_source_readers_report_the_declared_nodata(
+    fill_value: int | None, attributes: dict[str, Any], expected: int | None
+) -> None:
+    """
+    Both source readers report the nodata an input array declares, in the
+    converter's order: the CF `_FillValue` (a Zarr V2 array's `fill_value`,
+    xarray's encoding, or the attribute), then the EOPF `fill_value`
+    attribute; an array that declares none has none.
+    """
+    group = zarr.open_group({}, mode="w", zarr_format=2)
+    group.create_array(
+        "level/var", shape=(2, 2), dtype="uint8", fill_value=fill_value
+    ).attrs.update(attributes)
+    assert ZarrSourceReader(group).nodata("level/var") == expected
+
+    variable = xr.DataArray(np.zeros((2, 2), dtype="uint8"), dims=["y", "x"], attrs=attributes)
+    if fill_value is not None:
+        variable.encoding["_FillValue"] = fill_value
+    tree = xr.DataTree.from_dict({"level": xr.Dataset({"var": variable})})
+    assert DataTreeSourceReader(tree).nodata("level/var") == expected
