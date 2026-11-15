@@ -800,8 +800,10 @@ _LEVEL_GROUP = re.compile(r"r(\d+)m")
 """The name of a resolution level group (`r10m`, `r720m`), its metres captured."""
 
 
-def _level_meters(path: str) -> int | None:
-    """The resolution in metres of the level group at `path`, if it is one."""
+def level_meters(path: str) -> int | None:
+    """The resolution in metres of the level group at `path` (`r10m`, or a path
+    ending in it), or None if it is not a level group; the one parser of level
+    names, which the writer uses too."""
     match = _LEVEL_GROUP.fullmatch(path.rsplit("/", 1)[-1])
     return int(match.group(1)) if match else None
 
@@ -891,7 +893,7 @@ def _tile_attributes(
                 "Carrying the geometry group without georeferencing", group=path, reason=str(error)
             )
             return None
-    meters = _level_meters(path)
+    meters = level_meters(path)
     if meters is None or not path.startswith(("conditions/mask/", "quality/")):
         return None
     shape = next(
