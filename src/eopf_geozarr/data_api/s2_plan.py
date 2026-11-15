@@ -725,7 +725,7 @@ def _carried_array_attributes(
     is_float: bool,
     name: str,
     dtype: np.dtype[Any],
-    level_meters: int | None = None,
+    meters: int | None = None,
 ) -> dict[str, object]:
     """The output attributes of a carried array: sanitized, the CF attributes
     put right for its data type, with the CF float fill, the SCL flag table
@@ -739,10 +739,10 @@ def _carried_array_attributes(
         # the converter's SCL flag table and NO_DATA fill declaration
         out.update(SCL_ATTRS)
         out["_FillValue"] = SCL_NODATA
-    return _with_level_short_name(out, name, level_meters)
+    return _with_level_short_name(out, name, meters)
 
 
-def _plan_carried_array(name: str, doc: _ArrayDoc, *, level_meters: int | None = None) -> DataArray:
+def _plan_carried_array(name: str, doc: _ArrayDoc, *, meters: int | None = None) -> DataArray:
     """
     One carried (non-reflectance) array, translated to its output document:
     `x`/`y` become the float64 coordinate arrays, other coordinate arrays
@@ -767,7 +767,7 @@ def _plan_carried_array(name: str, doc: _ArrayDoc, *, level_meters: int | None =
         is_float=parsed.kind == "f",
         name=name,
         dtype=parsed,
-        level_meters=level_meters,
+        meters=meters,
     )
     if parsed.kind in "US":
         # fixed-length unicode or bytes labels (the geometry `angle`, `band`
@@ -956,8 +956,7 @@ def _plan_dataset(
     anchor = _spatial_anchor(arrays)
     meters = level_meters(path)
     members: dict[str, DataArray] = {
-        name: _plan_carried_array(name, member, level_meters=meters)
-        for name, member in arrays.items()
+        name: _plan_carried_array(name, member, meters=meters) for name, member in arrays.items()
     }
     if anchor is not None:
         transform, epsg = _proj_of(*anchor)
@@ -1028,7 +1027,7 @@ def _plan_aux_multiscale(
             for name, member in _carried_arrays(input_levels[meters]).items():
                 if name in ("x", "y"):
                     continue
-                variables[name] = _plan_carried_array(name, member, level_meters=meters)
+                variables[name] = _plan_carried_array(name, member, meters=meters)
             if not variables:
                 msg = f"The {path} r{meters}m dataset holds no arrays"
                 raise ValueError(msg)
