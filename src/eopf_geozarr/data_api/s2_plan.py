@@ -483,8 +483,9 @@ def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
     Sentinel-2 product: one level group per entry of
     `REFLECTANCE_SCALE_LEVELS`, native levels carried from the input (with
     the product level's finer bands injected), coarser levels derived from
-    the level before them, each holding sharded uint16 band arrays, float64
-    `x`/`y` coordinates and a `spatial_ref` grid-mapping array, under a
+    the level before them, each holding sharded uint16 band arrays, `x`/`y`
+    coordinates (the input's own arrays on a native level, float64 on a
+    generated one) and a `spatial_ref` grid-mapping array, under a
     multiscales layout attribute.
     """
     return _plan_reflectance(root)[0]
@@ -815,8 +816,7 @@ _LEVEL_GROUP = re.compile(r"r(\d+)m")
 
 def level_meters(path: str) -> int | None:
     """The resolution in metres of the level group at `path` (`r10m`, or a path
-    ending in it), or None if it is not a level group; the one parser of level
-    names, which the writer uses too."""
+    ending in it), or None if it is not a level group."""
     match = _LEVEL_GROUP.fullmatch(path.rsplit("/", 1)[-1])
     return int(match.group(1)) if match else None
 
