@@ -206,6 +206,28 @@ class S3Type(StrEnum):
         return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
 
 
+class ResolutionLevel(StrEnum):
+    FR = "FR"
+    RR = "RR"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> ResolutionLevel | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> ResolutionLevel | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
 @dataclass(frozen=True)
 class S3MultiscaleSpec:
     """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
@@ -229,9 +251,14 @@ class S3MultiscaleSpec:
         return self.product_levels is None or s2_type in self.product_levels
 
 
-REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
+FR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
     base_path="/measurements",
     scale_levels=(300, 600, 1200, 2400),
+)
+
+RR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
+    base_path="/measurements",
+    scale_levels=(1200, 2400, 4800),
 )
 
 
@@ -377,6 +404,14 @@ def updated_convert_olci_optimized(
             name=dt_input.name,
         )
 
+    s3_resolution = ResolutionLevel.from_datatree(dt_input)
+    if s3_resolution is None:
+        log.warning(
+            "Could not determine S3 resolution level (FR - full resolution (300m), RR - reduced resolution (1200m));",
+            product_type=product_type_of(dt_input),
+            name=dt_input.name,
+        )
+
     # rechunk everything
     for group_path in dt_input.groups:
         if group_path == "/":
@@ -411,26 +446,31 @@ def updated_convert_olci_optimized(
         log.info("Copying original group", group_path=group_path)
 
         dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
-
-        # group_name = group_path.split("/")[-1]
-        is_measurement_group = "/measurements" in group_path
+        is_measurement_group = group_path == "/measurements"
 
         if is_measurement_group:
             # add function call
-            ms_measurement_processed_groups = olc_multiscales(
-                REFLECTANCE_MULTISCALE,
-                base_resolution_dataset=dataset,
-                output_group=output_group,
-                spatial_chunk=spatial_chunk,
-                enable_sharding=enable_sharding,
-                output_grid=output_grid,
-                scale_offset_codec=scale_offset_codec,
-                compression_level=compression_level,
-            )
+            if s3_type == "OLC":
+                multiscale_spec = (
+                    FR_REFLECTANCE_MULTISCALE
+                    if s3_resolution == "FR"
+                    else RR_REFLECTANCE_MULTISCALE
+                )
+                ms_measurement_processed_groups = olc_multiscales(
+                    multiscale_spec,
+                    base_resolution_dataset=dataset,
+                    output_group=output_group,
+                    spatial_chunk=spatial_chunk,
+                    enable_sharding=enable_sharding,
+                    output_grid=output_grid,
+                    scale_offset_codec=scale_offset_codec,
+                    compression_level=compression_level,
+                )
 
-            # add to processed_groups
-            processed_groups.update(ms_measurement_processed_groups)
-
+                # add to processed_groups
+                processed_groups.update(ms_measurement_processed_groups)
+            else:
+                raise ValueError("SLSTR (?)")
         else:
             encoding = utils.create_uniform_encoding(
                 dataset,
