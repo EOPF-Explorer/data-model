@@ -19,8 +19,8 @@ models from :mod:`eopf_geozarr.data_api.geozarr.store`:
   ``dimension_names``) and every data-variable dimension must have a matching
   1-D coordinate array; 0-D CF grid-mapping container arrays are tolerated.
 
-The validation snapshot is taken with :meth:`pydantic_zarr.v3.GroupSpec.from_zarr`,
-so all checks run on metadata only — no chunk data is read.
+The validation snapshot is the store's metadata documents, read with
+:func:`eopf_geozarr.zarr_io.read_documents`, so all checks run on metadata only — no chunk data is read.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ from eopf_geozarr.data_api.geozarr.store import (
     GeoZarrStoreAttrs,
     declared_convention_uuids,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -420,7 +421,7 @@ def validate_store(
         )
         return ValidationReport(issues=issues, roles={"/": ["store-root"]})
 
-    spec = GroupSpec.from_zarr(root)
+    spec = GroupSpec.from_stored_metadata_json(read_documents(root))
 
     for path, node, inherited in _walk(spec, "/"):
         attrs = dict(node.attributes or {})
