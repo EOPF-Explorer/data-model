@@ -12,7 +12,7 @@ module of pydantic-zarr, which documents this split.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import zarr
 from pydantic_zarr import v2, v3
@@ -27,6 +27,26 @@ if TYPE_CHECKING:
 _ZMETADATA = ".zmetadata"
 
 
+@overload
+def write_hierarchy(
+    spec: v2.AnyGroupSpec | v3.AnyGroupSpec,
+    store: Store,
+    path: str = "",
+    *,
+    overwrite: bool = False,
+) -> zarr.Group: ...
+
+
+@overload
+def write_hierarchy(
+    spec: v2.AnyArraySpec | v3.AnyArraySpec,
+    store: Store,
+    path: str = "",
+    *,
+    overwrite: bool = False,
+) -> zarr.Array: ...
+
+
 def write_hierarchy(
     spec: v2.AnyArraySpec | v2.AnyGroupSpec | v3.AnyArraySpec | v3.AnyGroupSpec,
     store: Store,
@@ -36,7 +56,8 @@ def write_hierarchy(
 ) -> zarr.Array | zarr.Group:
     """
     Write the metadata documents of `spec` to `store` at `path` and return the
-    node written there. No array data is written.
+    node written there: a `zarr.Group` for a group spec, a `zarr.Array` for an
+    array spec. No array data is written.
 
     `zarr.create_hierarchy` writes every node, refusing to overwrite an
     existing node unless `overwrite` is set.
