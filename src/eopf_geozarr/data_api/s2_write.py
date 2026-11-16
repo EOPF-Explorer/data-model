@@ -203,7 +203,9 @@ def write_geozarr(
             )
             raise FileExistsError(msg) from error
         written = zarr.open_group(store, mode="r+", use_consolidated=False)
-    assert isinstance(written, zarr.Group)
+    if not isinstance(written, zarr.Group):
+        msg = f"The plan's root was written as {type(written).__name__}, not a group"
+        raise TypeError(msg)
     output = written
     _fill_group(plan, reader, output, "")
     return plan
