@@ -38,6 +38,81 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+class S3Type(StrEnum):
+    OLC = "OLC"
+    SLS = "SLS"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> S3Type | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> S3Type | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
+class ResolutionLevel(StrEnum):
+    FR = "FR"
+    RR = "RR"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> ResolutionLevel | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> ResolutionLevel | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
+@dataclass(frozen=True)
+class S3MultiscaleSpec:
+    """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
+
+    base_path: str
+    """Group holding the pyramid levels, e.g. `/measurements`."""
+    scale_levels: tuple[int, ...]
+    """Levels used for the generation of multiscales. The avaiable data is saved as r0, with the others are coarsened from the level before them."""
+
+    product_levels: frozenset[S3Type] | None = None
+    """Products the group exists in; `None` means every product."""
+
+    @property
+    def finest_key(self) -> str:
+        return f"r{self.scale_levels[0]}"
+
+    def applies_to(self, s3_type: S3Type | None) -> bool:
+        return self.product_levels is None or s3_type in self.product_levels
+
+
+FR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
+    base_path="/measurements",
+    scale_levels=(0, 1, 2, 3),
+)
+
+RR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
+    base_path="/measurements",
+    scale_levels=(0, 1, 2),
+)
+
+
 def _sanitize_olci_array_attrs_keep_fill(attrs: dict[str, object]) -> dict[str, object]:
     """Return a copy of *attrs* with stale source-only keys removed.
 
@@ -184,84 +259,6 @@ def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> No
         )
 
 
-class S3Type(StrEnum):
-    OLC = "OLC"
-    SLS = "SLS"
-
-    @classmethod
-    def from_filename(cls, filename: str | None) -> S3Type | None:
-        if not filename:
-            return None
-        for member in cls:
-            if member.value in filename:
-                return member
-        return None
-
-    @classmethod
-    def from_datatree(cls, dt: xr.DataTree) -> S3Type | None:
-        """Product level from `stac_discovery` `product:type`, else from the tree name.
-
-        A tree opened from a Zarr store has no name, so the name alone is not enough.
-        """
-        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
-
-
-class ResolutionLevel(StrEnum):
-    FR = "FR"
-    RR = "RR"
-
-    @classmethod
-    def from_filename(cls, filename: str | None) -> ResolutionLevel | None:
-        if not filename:
-            return None
-        for member in cls:
-            if member.value in filename:
-                return member
-        return None
-
-    @classmethod
-    def from_datatree(cls, dt: xr.DataTree) -> ResolutionLevel | None:
-        """Product level from `stac_discovery` `product:type`, else from the tree name.
-
-        A tree opened from a Zarr store has no name, so the name alone is not enough.
-        """
-        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
-
-
-@dataclass(frozen=True)
-class S3MultiscaleSpec:
-    """A group that gets a multiscale pyramid, as input to `generic_multiscales`."""
-
-    base_path: str
-    """Group holding the pyramid levels, e.g. `/measurements`."""
-    scale_levels: tuple[int, ...]
-    """Level resolutions in metres, finest first.
-
-    The finest level must exist in the input. Coarser levels present in the input
-    are reused; the others are coarsened from the level before them.
-    """
-    product_levels: frozenset[S3Type] | None = None
-    """Products the group exists in; `None` means every product."""
-
-    @property
-    def finest_key(self) -> str:
-        return f"r{self.scale_levels[0]}m"
-
-    def applies_to(self, s2_type: S3Type | None) -> bool:
-        return self.product_levels is None or s2_type in self.product_levels
-
-
-FR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
-    base_path="/measurements",
-    scale_levels=(300, 600, 1200, 2400),
-)
-
-RR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
-    base_path="/measurements",
-    scale_levels=(1200, 2400, 4800),
-)
-
-
 def olc_multiscales(
     spec: S3MultiscaleSpec,
     base_resolution_dataset: xr.Dataset,
@@ -283,8 +280,10 @@ def olc_multiscales(
     # rename and save to measurements/r300m
     log.info("Writing native-resolution measurements", shape=dict(base_resolution_dataset.sizes))
 
-    base_resolution_dest_level_name = f"r{scale_levels[0]}m"
+    base_resolution_dest_level_name = f"r{scale_levels[0]}"
     base_resolution_dest_level_path = f"{base_path}/{base_resolution_dest_level_name}"
+
+    # base_resolution_dataset.attrs.update({'fill_value': base_resolution_dataset.attrs["_FillValue"]})
 
     # Write base resolution dataset
     encoding = utils.create_uniform_encoding(
@@ -292,6 +291,7 @@ def olc_multiscales(
         enable_sharding=enable_sharding,
         compression_level=compression_level,
         scale_offset_codec=scale_offset_codec,
+        chunk_and_shard_coords=True,
     )
 
     ds_out = utils.stream_write_dataset(
@@ -314,9 +314,9 @@ def olc_multiscales(
     current = base_resolution_dataset
 
     for source_level, dest_level in pairwise(scale_levels):
-        src_level_name = f"r{source_level}m"
+        src_level_name = f"r{source_level}"
 
-        dest_level_name = f"r{dest_level}m"
+        dest_level_name = f"r{dest_level}"
         dest_level_path = f"{base_path}/{dest_level_name}"
 
         downsampled_dataset = utils._rechunk_ds(
