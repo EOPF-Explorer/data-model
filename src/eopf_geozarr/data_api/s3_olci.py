@@ -9,10 +9,10 @@ from __future__ import annotations
 from collections.abc import Mapping  # noqa: TC003
 
 from pydantic import BaseModel
+from pydantic_zarr.v2 import ArraySpec, GroupSpec
 from typing_extensions import TypedDict
 
 from eopf_geozarr.data_api.geozarr.common import DatasetAttrs
-from eopf_geozarr.pyz.v2 import ArraySpec, GroupSpec
 
 
 class Sentinel3OlciRootAttrs(BaseModel):

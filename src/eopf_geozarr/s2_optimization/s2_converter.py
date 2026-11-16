@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import structlog
 import zarr
 from pydantic import TypeAdapter
+from pydantic_zarr.v2 import GroupSpec
 from pydantic_zarr.v3 import is_array_spec, is_group_spec
 from pyproj import CRS
 
@@ -20,6 +21,7 @@ from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 from eopf_geozarr.data_api.s2_plan import load_sentinel2
 from eopf_geozarr.data_api.s2_write import write_geozarr
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -384,11 +386,11 @@ def is_sentinel2_dataset(group: zarr.Group) -> bool:
     if group.metadata.zarr_format == 3:
         return _is_sentinel2_dataset_v3(group)
 
-    from eopf_geozarr.pyz.v2 import GroupSpec
-
     adapter = TypeAdapter(Sentinel1Root | Sentinel2Root)
     try:
-        model = adapter.validate_python(GroupSpec.from_zarr(group).model_dump())
+        model = adapter.validate_python(
+            GroupSpec.from_stored_metadata_json(read_documents(group)).model_dump()
+        )
     except ValueError as e:
         log.warning("Could not validate Sentinel-2 dataset", error=str(e))
         return False

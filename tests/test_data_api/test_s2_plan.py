@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pyproj import CRS
+from zarr.storage import LocalStore
 
 from eopf_geozarr.conversion.open_source import open_source_datatree
 from eopf_geozarr.data_api.s2 import Sentinel2Root
@@ -26,6 +27,7 @@ from eopf_geozarr.data_api.s2_plan import (
     product_level,
 )
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+from eopf_geozarr.zarr_io import write_hierarchy
 
 _INPUT_DIR = pathlib.Path("tests/_test_data/s2_examples")
 _SNAPSHOT_DIR = pathlib.Path("tests/_test_data/optimized_geozarr_examples")
@@ -121,7 +123,7 @@ def _product_with_data(
     document = _read(path)
     _shrink(document, coordinate_dtype)
     store_path = out_dir / "product.zarr"
-    GroupSpecV2.model_validate(document).to_zarr(store_path, path="")  # type: ignore[arg-type]
+    write_hierarchy(GroupSpecV2.model_validate(document), LocalStore(store_path))
     group = zarr.open_group(store_path, mode="r+", zarr_format=2)
     band = group["measurements/reflectance/r10m/b02"]
     transform = band.attrs["proj:transform"]
@@ -246,7 +248,7 @@ def test_load_sentinel2_keeps_the_model(tmp_path: pathlib.Path) -> None:
     path = _INPUT_PATHS[0]
     document = _read(path)
     store_path = tmp_path / "s2.zarr"
-    GroupSpecV2.model_validate(document).to_zarr(store_path, path="")  # type: ignore[arg-type]
+    write_hierarchy(GroupSpecV2.model_validate(document), LocalStore(store_path))
 
     root = load_sentinel2(zarr.open_group(store_path, mode="r", zarr_format=2))
     assert isinstance(root, Sentinel2Root)
@@ -257,7 +259,7 @@ def test_load_sentinel2_refuses_non_s2(tmp_path: pathlib.Path) -> None:
     """A store that is not a Sentinel-2 product is refused with a ValidationError."""
     s1_path = next(pathlib.Path("tests/_test_data/s1_examples").glob("*.json"))
     store_path = tmp_path / "s1.zarr"
-    GroupSpecV2.model_validate(_read(s1_path)).to_zarr(store_path, path="")  # type: ignore[arg-type]
+    write_hierarchy(GroupSpecV2.model_validate(_read(s1_path)), LocalStore(store_path))
     with pytest.raises(ValidationError):
         load_sentinel2(zarr.open_group(store_path, mode="r", zarr_format=2))
 
