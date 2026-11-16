@@ -202,7 +202,7 @@ class GeoZarrMultiscaleGroupAttrs(MultiscaleGroupAttrs):
 GeoZarrMember = GroupSpec[Any, Any] | ArraySpec
 
 
-class GeoZarr(GroupSpec[GeoZarrStoreAttrs, GeoZarrMember]):
+class GeoZarr(GroupSpec[GeoZarrStoreAttrs, Mapping[str, GeoZarrMember]]):
     """A GeoZarr store.
 
     Pairs the required store-root attributes with arbitrary Zarr children.

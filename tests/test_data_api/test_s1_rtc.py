@@ -31,6 +31,7 @@ from eopf_geozarr.conversion.s1_ingest import (
 )
 from eopf_geozarr.data_api.s1_rtc import CONDITION_ARRAY_PREFIXES as _CONDITION_PREFIXES
 from eopf_geozarr.data_api.s1_rtc import S1RtcRoot
+from eopf_geozarr.zarr_io import read_documents
 from tests.test_s1_rtc_ingest import ACQ1_TAGS, SIZE, _create_synthetic_geotiff
 
 if TYPE_CHECKING:
@@ -265,7 +266,7 @@ class TestWriterRoundTrip:
         """A store built by the ingester opens through the model."""
         store_path = _ingest_store(tmp_path, condition_kwargs)
 
-        model = S1RtcRoot.from_zarr(_open_store(store_path))
+        model = S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         assert model.ascending is not None
         assert model.ascending.conditions is not None
@@ -287,7 +288,7 @@ class TestWriterRoundTrip:
         """
         store_path = _ingest_store(tmp_path, ["gamma_area_path"])
         # Sanity: the untouched store validates, so a failure below is the deletion talking.
-        S1RtcRoot.from_zarr(_open_store(store_path))
+        S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         orbit = zarr.open_group(
             str(store_path / "ascending"), mode="r+", zarr_format=3, use_consolidated=False
@@ -298,7 +299,7 @@ class TestWriterRoundTrip:
         consolidate_s1_store(store_path, "ascending")
 
         with pytest.raises(Exception, match="coordinate arrays"):
-            S1RtcRoot.from_zarr(_open_store(store_path))
+            S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
     def test_fixture_still_matches_writer_output(
         self, tmp_path: Path, s1_rtc_json_example: dict[str, object]
@@ -315,7 +316,7 @@ class TestWriterRoundTrip:
         fixture's tile and this synthetic store, so they are compared by prefix, not verbatim.
         """
         store_path = _ingest_store(tmp_path, ["gamma_area_path"])
-        ingested = S1RtcRoot.from_zarr(_open_store(store_path))
+        ingested = S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         fixture_orbit = _nav(s1_rtc_json_example, "members", "descending")
         ingested_root = ingested.model_dump(by_alias=True, mode="json")

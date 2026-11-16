@@ -9,6 +9,9 @@ import xarray as xr
 import zarr
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
+from zarr.storage import LocalStore, MemoryStore
+
+from eopf_geozarr.zarr_io import write_hierarchy
 
 # Paths to example data / metadata
 s1_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_examples").glob("*.json"))
@@ -46,8 +49,7 @@ def create_zarrv2_group_from_json(
     """
     out_dir = out_path / (source_path.stem + ".zarr")
     g: GroupSpecV2 = GroupSpecV2.model_validate(read_json(source_path))
-    # to_zarr is annotated to take a Store but accepts a path-like at runtime.
-    g.to_zarr(out_dir, path="")  # type: ignore[arg-type]
+    write_hierarchy(g, LocalStore(out_dir))
     return out_dir
 
 
@@ -59,8 +61,7 @@ def create_zarrv3_group_from_json(
     """
     out_dir = out_path / (source_path.stem + ".zarr")
     g: GroupSpecV3 = GroupSpecV3.model_validate(read_json(source_path))
-    # to_zarr is annotated to take a Store but accepts a path-like at runtime.
-    g.to_zarr(out_dir, path="")  # type: ignore[arg-type]
+    write_hierarchy(g, LocalStore(out_dir))
     return out_dir
 
 
@@ -112,9 +113,9 @@ def s2_geozarr_group_example(request: pytest.FixtureRequest) -> zarr.Group:
     Return a memory-backed Zarr V3 Group based on a sentinel 2 product converted to geozarr
     """
     source_path: pathlib.Path = request.param
-    store: dict[str, bytes] = {}
-    # to_zarr is annotated to take a Store but accepts a dict-backed store at runtime.
-    return GroupSpecV3.model_validate(read_json(source_path)).to_zarr(store, path="")  # type: ignore[arg-type]
+    group = write_hierarchy(GroupSpecV3.model_validate(read_json(source_path)), MemoryStore())
+    assert isinstance(group, zarr.Group)
+    return group
 
 
 @pytest.fixture(params=zcm_multiscales_example_paths, ids=get_stem)

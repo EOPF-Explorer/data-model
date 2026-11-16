@@ -1,8 +1,9 @@
 """
 A GroupSpec-shaped view of an xarray DataTree.
 
-`group_spec_from_datatree` is the DataTree analogue of
-`pydantic_zarr.v2.GroupSpec.from_zarr`: it extracts the metadata plane of a
+`group_spec_from_datatree` is the DataTree analogue of reading a store with
+`eopf_geozarr.zarr_io.read_documents` and
+`pydantic_zarr.v2.GroupSpec.from_stored_metadata_json`: it extracts the metadata plane of a
 DataTree — named members, shapes, dtypes, and attributes — as the Zarr V2
 documents xarray's own zarr writer would store. A typed input model (such as
 the Sentinel-2 `Sentinel2Root`) can then validate a tree exactly as it
@@ -89,7 +90,8 @@ def array_spec_from_variable(name: str, variable: xr.Variable) -> AnyArraySpec:
 
 def group_spec_from_datatree(tree: xr.DataTree) -> AnyGroupSpec:
     """
-    The DataTree analogue of `GroupSpec.from_zarr`: the tree's metadata plane
+    The DataTree analogue of reading a store's documents into a `GroupSpec`
+    (`GroupSpec.from_stored_metadata_json(read_documents(group))`): the tree's metadata plane
     as a Zarr V2 `GroupSpec`, each node a group document (its own attributes
     and variables only — inherited coordinates stay with their ancestor, as a
     written store keeps them).

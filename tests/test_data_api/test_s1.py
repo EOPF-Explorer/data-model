@@ -14,10 +14,10 @@ import inspect
 from typing import Any
 
 import pytest
+from pydantic_zarr.v2 import GroupSpec
 
 import eopf_geozarr.data_api.s1 as s1_module
 from eopf_geozarr.data_api.s1 import Sentinel1PolarizationGroup, Sentinel1Root
-from eopf_geozarr.pyz.v2 import GroupSpec
 
 
 def test_sentinel1_roundtrip(s1_json_example: dict[str, object]) -> None:
