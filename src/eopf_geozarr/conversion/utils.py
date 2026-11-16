@@ -912,16 +912,13 @@ def build_convention_attrs(
 
 
 def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, xr.Dataset | Sequence[str] | None], dt_attributes: dict[Hashable, Any]
+    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
     """Add a `stac_discovery` asset for every written array that no asset references yet.
 
     Covers the multiscale levels and the bands injected into native levels (e.g. b08
-    in r20m/r60m), so every band can carry its STAC statistics. `datasets` maps each
-    written dataset group path to the dataset itself or to its data variable names
-    (the plan-driven writer passes names), with multiscale pyramid roots mapped to
-    None. A new asset is keyed `<variable>_<group name>` (e.g. `b02_r120m`); a key
-    already in use is not replaced.
+    in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
+    `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
     """
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
     if not stac_attrs:
@@ -934,12 +931,14 @@ def add_multiscale_pyramids_to_stac_metadata(
     }
 
     for group_path, ds in datasets.items():
-        # multiscale roots (mapped to None) hold no variables of their own
         if ds is None:
             continue
-        var_names = tuple(str(name) for name in ds.data_vars) if isinstance(ds, xr.Dataset) else ds
+        # catch object != dataset for typing
+        if not isinstance(ds, xr.Dataset):
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+            continue
         resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-        for var_name in var_names:
+        for var_name in ds.data_vars:
             href = f"{group_path}/{var_name}"
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
