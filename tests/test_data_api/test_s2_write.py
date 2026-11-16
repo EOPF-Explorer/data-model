@@ -31,6 +31,7 @@ from eopf_geozarr.data_api.s2_write import (
     _fill_carried_array,
     write_geozarr,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 from ..conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
 
@@ -177,7 +178,7 @@ def test_write_geozarr_realizes_the_plan(source_path: pathlib.Path, tmp_path: pa
     gives documents equal to the plan, for every group and array.
     """
     plan, _, output = _written_store(source_path, tmp_path)
-    observed = GroupSpecV3.from_zarr(output).model_dump(mode="json")
+    observed = GroupSpecV3.from_stored_metadata_json(read_documents(output)).model_dump(mode="json")
     assert observed == plan.model_dump(mode="json")
     # the meteorology groups are georeferenced from the coordinate values the
     # writer read from the source (#353): the seeded 9-point regular grid
@@ -327,6 +328,18 @@ def test_write_geozarr_refuses_an_output_that_differs_from_the_plan(
     zarr.create_group(output_path, attributes={"written": "before"})
     with pytest.raises(FileExistsError, match="remove it before converting"):
         write_geozarr(load_sentinel2(source), source, str(output_path))
+
+
+def test_write_geozarr_rewrites_an_output_that_holds_the_plan(tmp_path: pathlib.Path) -> None:
+    """An output location that already holds exactly the planned hierarchy (a
+    rerun into the same output) is reused, and the store it ends with equals a
+    fresh write."""
+    _written_store(_L2A_PATH, tmp_path)
+    output_path = tmp_path / "planned.zarr"
+    reference = _store_contents(output_path)
+    source = zarr.open_group(tmp_path / (_L2A_PATH.stem + ".zarr"), mode="r", zarr_format=2)
+    write_geozarr(load_sentinel2(source), source, str(output_path))
+    assert _store_contents(output_path) == reference
 
 
 def _store_contents(path: pathlib.Path) -> dict[str, object]:

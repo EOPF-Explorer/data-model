@@ -3,8 +3,8 @@ Realize the Sentinel-2 GeoZarr plan: the data plane.
 
 `write_geozarr` writes the hierarchy that `eopf_geozarr.data_api.s2_plan`
 describes, without xarray's DataTree writer. The planned metadata documents
-are written first, via pydantic-zarr's `to_zarr`, so every stored document is
-exactly the plan; the chunk data is then filled in with zarr-python alone.
+are written first, with `eopf_geozarr.zarr_io.write_hierarchy`, so every
+stored document is exactly the plan; the chunk data is then filled in with zarr-python alone.
 The input is read through a small `SourceReader` protocol — a Zarr V2 store
 directly, or an xarray DataTree whose variables are read as xarray's zarr
 writer would store them (CF-encoded), so a tree built in memory or backed by
@@ -32,13 +32,15 @@ from typing import TYPE_CHECKING, Protocol
 import numpy as np
 import xarray as xr
 import zarr
-from pydantic_zarr.v3 import is_group_spec
+from pydantic_zarr.v3 import GroupSpec, is_group_spec
 from zarr.errors import ContainsArrayAndGroupError, ContainsArrayError, ContainsGroupError
+from zarr.storage import FsspecStore, LocalStore
 
 from eopf_geozarr.conversion.encoding_utils import find_fill_value
+from eopf_geozarr.data_api.datatree import encoded_variable
 from eopf_geozarr.data_api.s2_plan import level_meters, plan_geozarr
-from eopf_geozarr.pyz.datatree import encoded_variable
 from eopf_geozarr.s2_optimization.s2_resampling import determine_variable_type
+from eopf_geozarr.zarr_io import read_documents, write_hierarchy
 
 if TYPE_CHECKING:
     from pydantic_zarr.v3 import AnyGroupSpec
@@ -184,16 +186,41 @@ def write_geozarr(
     )
     plan = plan_geozarr(root, coordinate_values=reader.values)
     # the metadata plane: every group and array document, exactly as planned
+    if isinstance(store, str):
+        # a URL goes through fsspec, anything else is a local path, as zarr
+        # resolves a store given as a string
+        store = FsspecStore.from_url(store) if "://" in store else LocalStore(store)
     try:
-        output = plan.to_zarr(store, path="")  # type: ignore[arg-type]
+        written = write_hierarchy(plan, store)
     except (ContainsArrayError, ContainsGroupError, ContainsArrayAndGroupError) as error:
-        msg = (
-            f"The output {store!r} already holds a Zarr hierarchy that differs from "
-            "the planned one; remove it before converting"
-        )
-        raise FileExistsError(msg) from error
+        # an output that already holds exactly the plan (a rerun) is reused and
+        # its chunk data rewritten; any other hierarchy is refused
+        existing = _existing_hierarchy(store)
+        if existing is None or existing != plan.model_dump(mode="json"):
+            msg = (
+                f"The output {store!r} already holds a Zarr hierarchy that differs from "
+                "the planned one; remove it before converting"
+            )
+            raise FileExistsError(msg) from error
+        written = zarr.open_group(store, mode="r+", use_consolidated=False)
+    assert isinstance(written, zarr.Group)
+    output = written
     _fill_group(plan, reader, output, "")
     return plan
+
+
+def _existing_hierarchy(store: Store) -> dict[str, object] | None:
+    """
+    The Zarr V3 group hierarchy at the root of `store`, dumped as JSON, or
+    None when the root holds something else (an array, a Zarr V2 node, or
+    documents that do not read as a group).
+    """
+    try:
+        group = zarr.open_group(store, mode="r", zarr_format=3, use_consolidated=False)
+        spec = GroupSpec.from_stored_metadata_json(read_documents(group))
+    except (FileNotFoundError, ValueError, TypeError, ContainsArrayError):
+        return None
+    return spec.model_dump(mode="json")
 
 
 def _store_values(output: zarr.Group, path: str, values: np.ndarray) -> None:

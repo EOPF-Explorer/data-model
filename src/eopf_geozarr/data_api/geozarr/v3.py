@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Self, cast
 
 from pydantic import model_validator
@@ -52,7 +53,7 @@ class DataArray(ArraySpec[BaseDataArrayAttrs]):
         return self.dimension_names
 
 
-class Dataset(GroupSpec[DatasetAttrs, AnyGroupSpec | DataArray]):
+class Dataset(GroupSpec[DatasetAttrs, Mapping[str, AnyGroupSpec | DataArray]]):
     """
     A GeoZarr Dataset.
     """
@@ -83,7 +84,7 @@ class Dataset(GroupSpec[DatasetAttrs, AnyGroupSpec | DataArray]):
         return self
 
 
-class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, DataArray | AnyGroupSpec]):
+class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, Mapping[str, DataArray | AnyGroupSpec]]):
     """
     A GeoZarr Multiscale Group.
     """

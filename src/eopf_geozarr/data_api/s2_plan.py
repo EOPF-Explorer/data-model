@@ -44,7 +44,6 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 import numpy as np
 import structlog
 import xarray as xr
-from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pydantic_zarr.v3 import parse_dtype_v3
 from typing_extensions import TypedDict
@@ -55,11 +54,12 @@ from zarr_cm.proj import CMO as PROJ_CMO
 from zarr_cm.spatial import CMO as SPATIAL_CMO
 
 from eopf_geozarr.conversion.utils import normalize_cf_array_attrs
+from eopf_geozarr.data_api.datatree import group_spec_from_datatree
 from eopf_geozarr.data_api.geozarr.scope import GEOZARR_SCOPE
 from eopf_geozarr.data_api.geozarr.v3 import DataArray
 from eopf_geozarr.data_api.s2 import Sentinel2Root
-from eopf_geozarr.pyz.datatree import group_spec_from_datatree
 from eopf_geozarr.s2_optimization.s2_multiscale import SCL_ATTRS, SCL_NODATA
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     import zarr
@@ -137,12 +137,9 @@ def load_sentinel2(source: zarr.Group | xr.DataTree) -> Sentinel2Root:
     store does. Raises `pydantic.ValidationError` when the source is not a
     Sentinel-2 product.
     """
-    spec = (
-        group_spec_from_datatree(source)
-        if isinstance(source, xr.DataTree)
-        else GroupSpecV2.from_zarr(source)
-    )
-    return Sentinel2Root.model_validate(spec.model_dump())
+    if isinstance(source, xr.DataTree):
+        return Sentinel2Root.model_validate(group_spec_from_datatree(source).model_dump())
+    return Sentinel2Root.from_stored_metadata_json(read_documents(source))
 
 
 def product_level(root: Sentinel2Root) -> S2Level:

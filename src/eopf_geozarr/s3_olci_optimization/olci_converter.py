@@ -23,6 +23,7 @@ from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
     swath_spatial_attrs,
 )
 from eopf_geozarr.s3_olci_optimization.olci_reproject import GRID_DIMS, reproject_olci
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     from zarr.core.common import JSON
@@ -63,12 +64,10 @@ def is_sentinel3_olci_dataset(group: zarr.Group) -> bool:
     converter in the CLI). Users with such near-miss products should use the
     explicit ``convert-s3-olci-optimized`` subcommand, which skips detection.
     """
-    from eopf_geozarr.pyz.v2 import GroupSpec
-
     try:
-        model = Sentinel3OlciRoot.model_validate(GroupSpec.from_zarr(group).model_dump())
+        model = Sentinel3OlciRoot.from_stored_metadata_json(read_documents(group))
     except Exception as e:
-        # Classify, never raise: from_zarr/model_dump can fail with types
+        # Classify, never raise: reading the documents can fail with types
         # other than ValidationError on malformed or unexpected stores, and
         # any failure simply means "not a recognised OLCI product".
         log.debug("Not an OLCI dataset", error=str(e))

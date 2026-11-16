@@ -54,7 +54,6 @@ graph LR
 | `conversion/` | Generic pipeline (`geozarr.py`), Sentinel-1 GRD RTC ingestion (`s1_ingest.py`), Sentinel-1 reprojection, source opening, storage and metadata utilities. |
 | `stac/` | STAC item builders (Sentinel-1 GRD RTC). |
 | `data_api/` | pydantic-zarr models of the EOPF products and of GeoZarr, and the mini spec validator (`data_api/geozarr/validation.py`). |
-| `pyz/` | pydantic-zarr helpers used by the models. |
 | `codecs/` | Helpers for the Zarr `scale_offset` codec. |
 
 ## Core Components

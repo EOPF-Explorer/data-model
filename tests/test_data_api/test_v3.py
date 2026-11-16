@@ -15,6 +15,7 @@ from eopf_geozarr.data_api.geozarr.v3 import (
     MultiscaleGroup,
     check_valid_coordinates,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     from eopf_geozarr.data_api.geozarr.common import GroupLike
@@ -36,7 +37,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Mapping[str, object], DataArray](
+        group = GroupSpec[Mapping[str, object], Mapping[str, DataArray]](
             attributes={}, members={"base": base_array, **coords_arrays}
         )
         # ``group`` structurally satisfies ``GroupLike``, but mypy cannot bind the
@@ -63,7 +64,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s + 1), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Mapping[str, object], DataArray](
+        group = GroupSpec[Mapping[str, object], Mapping[str, DataArray]](
             attributes={}, members={"base": base_array, **coords_arrays}
         )
         msg = "Dimension .* for array 'base' has a shape mismatch:"
@@ -75,7 +76,9 @@ def test_dataarray_round_trip(s2_geozarr_group_example: zarr.Group) -> None:
     """
     Ensure that we can round-trip dataarray attributes through the `Multiscales` model.
     """
-    source_untyped: GroupSpec = GroupSpec.from_zarr(s2_geozarr_group_example)
+    source_untyped: GroupSpec = GroupSpec.from_stored_metadata_json(
+        read_documents(s2_geozarr_group_example)
+    )
     flat = source_untyped.to_flat()
     for val in flat.values():
         if isinstance(val, ArraySpec) and val.dimension_names is not None:
@@ -90,7 +93,7 @@ def test_multiscale_attrs_round_trip(s2_geozarr_group_example: zarr.Group) -> No
     source_group_members = dict(s2_geozarr_group_example.members(max_depth=None))
     for val in source_group_members.values():
         if isinstance(val, zarr.Group) and "multiscales" in val.attrs.asdict():
-            model_json = MultiscaleGroup.from_zarr(val).model_dump()
+            model_json = MultiscaleGroup.from_stored_metadata_json(read_documents(val)).model_dump()
             # tuplify both sides: level groups may carry list-valued attributes
             # (e.g. ``spatial:bbox``) that are JSON-equivalent to tuples but not
             # normalised by ``model_dump`` alone.
