@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 from typing import Any
@@ -12,6 +13,7 @@ import pytest
 import zarr
 from pydantic import ValidationError
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
+from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pyproj import CRS
 
 from eopf_geozarr.conversion.open_source import open_source_datatree
@@ -26,6 +28,7 @@ from eopf_geozarr.data_api.s2_plan import (
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
 _INPUT_DIR = pathlib.Path("tests/_test_data/s2_examples")
+_SNAPSHOT_DIR = pathlib.Path("tests/_test_data/optimized_geozarr_examples")
 _INPUT_PATHS = sorted(_INPUT_DIR.glob("*.json"))
 _L2A_PATH = next(path for path in _INPUT_PATHS if "MSIL2A" in path.stem)
 
@@ -45,6 +48,11 @@ def _read(path: pathlib.Path) -> dict[str, Any]:
 def _planned_root(path: pathlib.Path) -> dict[str, Any]:
     root = Sentinel2Root.model_validate(_read(path))
     return plan_geozarr(root).model_dump(mode="json")
+
+
+def _snapshot_root(path: pathlib.Path) -> dict[str, Any]:
+    snapshot = GroupSpecV3.model_validate(_read(_SNAPSHOT_DIR / path.name))
+    return snapshot.model_dump(mode="json")
 
 
 def _planned_reflectance(path: pathlib.Path) -> dict[str, Any]:
@@ -179,6 +187,23 @@ def test_plan_matches_the_converter_output(
     assert written.keys() == planned.keys()
     assert written.pop("zarr.json")["node_type"] == planned.pop("zarr.json")["node_type"]
     assert [key for key in written if _canonical(written[key]) != _canonical(planned[key])] == []
+
+
+@pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
+def test_plan_matches_snapshot(path: pathlib.Path) -> None:
+    """
+    The planned tree reproduces the stored snapshot whole — the member tree,
+    every array document (shapes, dtypes, shards, codecs, dimension names)
+    and every attribute, georeferencing included, across measurements,
+    conditions and quality. The plan is the snapshots' source of truth
+    (REGENERATE_SNAPSHOTS=1 rewrites them), and the self-consistency test
+    below pins the georeferencing to the product's own metadata.
+    """
+    planned = _planned_root(path)
+    if os.environ.get("REGENERATE_SNAPSHOTS"):
+        snapshot_path = _SNAPSHOT_DIR / path.name
+        snapshot_path.write_text(json.dumps(planned, indent=2, sort_keys=True) + "\n")
+    assert planned == _snapshot_root(path)
 
 
 @pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
