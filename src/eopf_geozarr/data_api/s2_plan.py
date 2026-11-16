@@ -275,7 +275,7 @@ def _band_array(
 
 
 def _plan_coordinate(name: str, size: int) -> DataArray:
-    """A 1-D coordinate array (`x` or `y`): float64, NaN-filled, one chunk."""
+    """The `x` or `y` array of a generated level: float64, NaN-filled, one chunk."""
     # create_default supplies the one-chunk grid, the `/` chunk key encoding
     # and the little-endian bytes codec
     return DataArray.create_default(
@@ -428,8 +428,8 @@ _TileGeoreferencing = tuple[tuple[float, float], int, str]
 """The tile's (origin, EPSG, WKT2), as the reflectance pyramid is georeferenced."""
 
 CoordinateValues = Callable[[str], "np.ndarray | None"]
-"""Looks up the stored values of the input array at an output-plan path (the
-writer's `SourceReader.values`); the plan reads only the small 1-D
+"""Looks up the stored values of the input array at an output-plan path (None
+when the input holds no array there); the plan reads only the small 1-D
 coordinate arrays a group's georeferencing is derived from."""
 
 GEOMETRY_PATH = "conditions/geometry"
@@ -605,8 +605,11 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
         rows, cols = level_shape
         shape2d = (rows, cols)
         level_members: dict[str, DataArray | ArraySpecV3] = dict(bands)
-        level_members["x"] = _plan_coordinate("x", cols)
-        level_members["y"] = _plan_coordinate("y", rows)
+        for axis, size in (("x", cols), ("y", rows)):
+            coordinate = input_levels[meters].members.get(axis) if native else None
+            level_members[axis] = _plan_level_coordinate(
+                axis, size, None if coordinate is None else coordinate.model_dump()
+            )
         level_members["spatial_ref"] = _plan_spatial_ref(wkt2, native=native)
 
         level_attributes[meters] = _level_spatial_attributes(
@@ -720,9 +723,9 @@ def _plan_carried_array(
 ) -> DataArray:
     """
     One carried (non-reflectance) array, translated to its output document:
-    `x`/`y` become the float64 coordinate arrays, other coordinate arrays
-    (an array whose only dimension is its own name) keep their data type
-    uncompressed, and data arrays are sharded with the blosc policy.
+    coordinate arrays (an array whose only dimension is its own name, `x`
+    and `y` included) keep their data type uncompressed, and data arrays are
+    sharded with the blosc policy.
     """
     attrs = _doc_attrs(doc)
     dims_raw = attrs.get("_ARRAY_DIMENSIONS")
@@ -731,8 +734,6 @@ def _plan_carried_array(
         raise TypeError(msg)
     dims = tuple(str(dim) for dim in dims_raw)
     shape = tuple(doc["shape"])
-    if name in ("x", "y") and dims == (name,):
-        return _plan_coordinate(name, shape[0])
     parsed = np.dtype(str(doc["dtype"]))
     # the Zarr V3 form zarr-python writes for the V2 dtype, in the GeoZarr scope
     data_type = parse_dtype_v3(parsed, scope=GEOZARR_SCOPE)
@@ -758,6 +759,18 @@ def _plan_carried_array(
             dimension_names=dims,
         )
     return _band_array(attributes, shape, data_type, fill_value, dims, typesize=parsed.itemsize)
+
+
+def _plan_level_coordinate(name: str, size: int, source: _ArrayDoc | None) -> DataArray:
+    """
+    The `x` or `y` array of one pyramid level. A native level carries the
+    input's own coordinate array, data type included (the int64 metres of an
+    ESA product stay int64); a generated level, which has no input array,
+    gets the float64 coordinate array.
+    """
+    if source is None:
+        return _plan_coordinate(name, size)
+    return _plan_carried_array(name, source, spatial=False)
 
 
 def _carried_arrays(group: _GroupDoc) -> dict[str, _ArrayDoc]:
@@ -999,8 +1012,9 @@ def _plan_aux_multiscale(
         planned_levels[meters] = variables
         rows, cols = next(iter(variables.values())).shape
         level_members: dict[str, DataArray | ArraySpecV3] = dict(variables)
-        level_members["x"] = _plan_coordinate("x", cols)
-        level_members["y"] = _plan_coordinate("y", rows)
+        carried = _carried_arrays(input_levels[meters]) if native else {}
+        for axis, size in (("x", cols), ("y", rows)):
+            level_members[axis] = _plan_level_coordinate(axis, size, carried.get(axis))
         level_members["spatial_ref"] = _plan_spatial_ref(wkt2, native=native)
         level_attributes[meters] = _level_spatial_attributes(
             meters=meters, shape=(rows, cols), origin=origin, epsg=epsg

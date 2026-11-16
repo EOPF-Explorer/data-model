@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import pathlib
+import re
 from typing import Any
 
 import numpy as np
@@ -12,9 +12,9 @@ import pytest
 import zarr
 from pydantic import ValidationError
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
-from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pyproj import CRS
 
+from eopf_geozarr.conversion.open_source import open_source_datatree
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 from eopf_geozarr.data_api.s2_plan import (
     REFLECTANCE_SCALE_LEVELS,
@@ -23,10 +23,17 @@ from eopf_geozarr.data_api.s2_plan import (
     plan_reflectance,
     product_level,
 )
+from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
 
 _INPUT_DIR = pathlib.Path("tests/_test_data/s2_examples")
-_SNAPSHOT_DIR = pathlib.Path("tests/_test_data/optimized_geozarr_examples")
 _INPUT_PATHS = sorted(_INPUT_DIR.glob("*.json"))
+_L2A_PATH = next(path for path in _INPUT_PATHS if "MSIL2A" in path.stem)
+
+#: The tile-sized dimensions, shrunk tenfold so that a conversion takes seconds.
+_SHRUNK_SIZES = {10980: 1098, 5490: 549, 1830: 183}
+
+#: The spacing of the geometry angle grids, in metres.
+_GEOMETRY_SPACING = 5000.0
 
 
 def _read(path: pathlib.Path) -> dict[str, Any]:
@@ -40,30 +47,138 @@ def _planned_root(path: pathlib.Path) -> dict[str, Any]:
     return plan_geozarr(root).model_dump(mode="json")
 
 
-def _snapshot_root(path: pathlib.Path) -> dict[str, Any]:
-    snapshot = GroupSpecV3.model_validate(_read(_SNAPSHOT_DIR / path.name))
-    return snapshot.model_dump(mode="json")
-
-
 def _planned_reflectance(path: pathlib.Path) -> dict[str, Any]:
     return _planned_root(path)["members"]["measurements"]["members"]["reflectance"]
 
 
-@pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
-def test_plan_matches_snapshot(path: pathlib.Path) -> None:
+def _shrink(node: dict[str, Any], coordinate_dtype: str | None, name: str = "") -> None:
+    """Shrink the tile-sized dimensions of every array under `node`, in place."""
+    if "shape" in node:
+        node["shape"] = [_SHRUNK_SIZES.get(size, size) for size in node["shape"]]
+        node["chunks"] = [
+            max(1, min(chunk, size))
+            for chunk, size in zip(node["chunks"], node["shape"], strict=True)
+        ]
+        attributes = node.get("attributes") or {}
+        if "proj:shape" in attributes:
+            attributes["proj:shape"] = [
+                _SHRUNK_SIZES.get(size, size) for size in attributes["proj:shape"]
+            ]
+        if coordinate_dtype is not None and name in ("x", "y") and len(node["shape"]) == 1:
+            node["dtype"] = np.dtype(coordinate_dtype).str
+            node["fill_value"] = "NaN" if np.dtype(coordinate_dtype).kind == "f" else None
+    for member_name, member in (node.get("members") or {}).items():
+        _shrink(member, coordinate_dtype, member_name)
+
+
+def _fill(group: zarr.Group, origin: tuple[float, float], rng: np.random.Generator) -> None:
+    """Give every array under `group` values: coordinates on the tile's grid
+    (pixel centres per resolution level, nodes for the geometry grids) and
+    random data with nodata patches."""
+    x0, y0 = origin
+    for path, array in group.members(max_depth=None):
+        if not isinstance(array, zarr.Array) or array.ndim == 0:
+            continue
+        name = path.rsplit("/", 1)[-1]
+        kind = array.dtype.kind
+        if name in ("x", "y") and array.attrs.get("_ARRAY_DIMENSIONS") == [name]:
+            level = re.search(r"/r(\d+)m/", f"/{path}")
+            step = float(level.group(1)) if level else _GEOMETRY_SPACING
+            offsets = (np.arange(array.shape[0]) + (0.5 if level else 0.0)) * step
+            array[...] = x0 + offsets if name == "x" else y0 - offsets
+        elif kind == "f":
+            values = rng.random(array.shape).astype(array.dtype) * 100
+            values[rng.random(array.shape) < 0.05] = np.nan
+            array[...] = values
+        elif kind in "ui":
+            high = 12 if name == "scl" else min(int(np.iinfo(array.dtype).max), 12000) + 1
+            values = rng.integers(0, high, size=array.shape).astype(array.dtype)
+            values[rng.random(array.shape) < 0.05] = 0
+            array[...] = values
+        elif kind == "M":
+            array[...] = np.arange(array.size).reshape(array.shape).astype(array.dtype)
+
+
+def _product_with_data(
+    path: pathlib.Path, out_dir: pathlib.Path, coordinate_dtype: str | None
+) -> pathlib.Path:
     """
-    The planned tree reproduces the stored snapshot whole — the member tree,
-    every array document (shapes, dtypes, shards, codecs, dimension names)
-    and every attribute, georeferencing included, across measurements,
-    conditions and quality. The plan is the snapshots' source of truth
-    (REGENERATE_SNAPSHOTS=1 rewrites them), and the self-consistency test
-    below pins the georeferencing to the product's own metadata.
+    Write the fixture product at `path` as a Zarr V2 store that holds data.
+
+    The fixtures are metadata documents of real products; here their
+    tile-sized dimensions are shrunk tenfold and every array gets values. The
+    x/y arrays keep the data type the product declares (int64) unless
+    `coordinate_dtype` names another.
     """
-    planned = _planned_root(path)
-    if os.environ.get("REGENERATE_SNAPSHOTS"):
-        snapshot_path = _SNAPSHOT_DIR / path.name
-        snapshot_path.write_text(json.dumps(planned, indent=2, sort_keys=True) + "\n")
-    assert planned == _snapshot_root(path)
+    document = _read(path)
+    _shrink(document, coordinate_dtype)
+    store_path = out_dir / "product.zarr"
+    GroupSpecV2.model_validate(document).to_zarr(store_path, path="")  # type: ignore[arg-type]
+    group = zarr.open_group(store_path, mode="r+", zarr_format=2)
+    band = group["measurements/reflectance/r10m/b02"]
+    transform = band.attrs["proj:transform"]
+    assert isinstance(transform, list)
+    _fill(group, (float(transform[2]), float(transform[5])), np.random.default_rng(0))  # type: ignore[arg-type]
+    zarr.consolidate_metadata(group.store, zarr_format=2)
+    return store_path
+
+
+def _canonical(document: object) -> str:
+    """A document as sorted JSON text: equal texts are equal documents (a NaN
+    never equals itself as a float)."""
+    return json.dumps(document, sort_keys=True)
+
+
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize(
+    ("path", "coordinate_dtype"),
+    [*((path, None) for path in _INPUT_PATHS), (_L2A_PATH, "float64")],
+    ids=lambda value: value.stem[:26] if isinstance(value, pathlib.Path) else str(value),
+)
+def test_plan_matches_the_converter_output(
+    path: pathlib.Path, coordinate_dtype: str | None, tmp_path: pathlib.Path
+) -> None:
+    """
+    The plan describes the store `convert_s2_optimized` writes. For a product
+    that holds data, every group and array document the converter stores
+    below the root equals the planned one — the member tree, shapes, data
+    types, fill values, chunk grids, codecs, dimension names and attributes,
+    georeferencing included — across measurements, conditions and quality,
+    for L1C and L2A, and for x/y coordinates stored as int64 or as float64.
+
+    The root's own attributes are left out: the converter writes them (the
+    product metadata and the STAC assets) in its consolidation step, and the
+    plan leaves them empty.
+    """
+    source_path = _product_with_data(path, tmp_path, coordinate_dtype)
+    output_path = tmp_path / "output.zarr"
+    convert_s2_optimized(
+        dt_input=open_source_datatree(str(source_path)),
+        output_path=str(output_path),
+        enable_sharding=True,
+        spatial_chunk=1024,
+        compression_level=3,
+        validate_output=False,
+    )
+    written = {}
+    for document_path in output_path.rglob("zarr.json"):
+        document = json.loads(document_path.read_text())
+        # the converter consolidates metadata; the plan holds node documents only
+        document.pop("consolidated_metadata", None)
+        written[str(document_path.relative_to(output_path))] = document
+
+    source = zarr.open_group(source_path, mode="r", zarr_format=2)
+
+    def coordinate_values(array_path: str) -> np.ndarray | None:
+        member = source.get(array_path)
+        return np.asarray(member[...]) if isinstance(member, zarr.Array) else None
+
+    plan = plan_geozarr(load_sentinel2(source), coordinate_values=coordinate_values)
+    planned = json.loads(json.dumps(plan.to_stored_metadata_json()))
+
+    assert written.keys() == planned.keys()
+    assert written.pop("zarr.json")["node_type"] == planned.pop("zarr.json")["node_type"]
+    assert [key for key in written if _canonical(written[key]) != _canonical(planned[key])] == []
 
 
 @pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
