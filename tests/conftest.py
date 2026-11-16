@@ -113,9 +113,7 @@ def s2_geozarr_group_example(request: pytest.FixtureRequest) -> zarr.Group:
     Return a memory-backed Zarr V3 Group based on a sentinel 2 product converted to geozarr
     """
     source_path: pathlib.Path = request.param
-    group = write_hierarchy(GroupSpecV3.model_validate(read_json(source_path)), MemoryStore())
-    assert isinstance(group, zarr.Group)
-    return group
+    return write_hierarchy(GroupSpecV3.model_validate(read_json(source_path)), MemoryStore())
 
 
 @pytest.fixture(params=zcm_multiscales_example_paths, ids=get_stem)

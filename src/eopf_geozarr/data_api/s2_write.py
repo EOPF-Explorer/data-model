@@ -191,7 +191,7 @@ def write_geozarr(
         # resolves a store given as a string
         store = FsspecStore.from_url(store) if "://" in store else LocalStore(store)
     try:
-        written = write_hierarchy(plan, store)
+        output = write_hierarchy(plan, store)
     except (ContainsArrayError, ContainsGroupError, ContainsArrayAndGroupError) as error:
         # an output that already holds exactly the plan (a rerun) is reused and
         # its chunk data rewritten; any other hierarchy is refused
@@ -202,11 +202,7 @@ def write_geozarr(
                 "the planned one; remove it before converting"
             )
             raise FileExistsError(msg) from error
-        written = zarr.open_group(store, mode="r+", use_consolidated=False)
-    if not isinstance(written, zarr.Group):
-        msg = f"The plan's root was written as {type(written).__name__}, not a group"
-        raise TypeError(msg)
-    output = written
+        output = zarr.open_group(store, mode="r+", use_consolidated=False)
     _fill_group(plan, reader, output, "")
     return plan
 
