@@ -275,8 +275,6 @@ def olc_multiscales(
     base_path, scale_levels = spec.base_path, spec.scale_levels
     pyramid_dims = SWATH_DIMS
 
-    # orphans missing!
-
     # rename and save to measurements/r300m
     log.info("Writing native-resolution measurements", shape=dict(base_resolution_dataset.sizes))
 
