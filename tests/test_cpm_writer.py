@@ -110,6 +110,24 @@ def test_write_s2_scale_offset_codec_is_refused(tmp_path: pathlib.Path) -> None:
         _write_s2(tmp_path, scale_offset_codec=True)
 
 
+@pytest.mark.parametrize(
+    "options",
+    [{"spatial_chunk": 256}, {"compression_level": 5}, {"scale_offset_codec": True}],
+    ids=lambda options: next(iter(options)),
+)
+def test_write_s2_refused_option_leaves_an_existing_target(
+    tmp_path: pathlib.Path, options: dict[str, Any]
+) -> None:
+    """A layout option the S2 write policy refuses is refused before the
+    writer replaces an existing target."""
+    target = tmp_path / "output.zarr"
+    target.mkdir()
+    (target / "marker").write_text("kept")
+    with pytest.raises(ValueError, match="fixed write policy"):
+        _write_s2(tmp_path, **options)
+    assert (target / "marker").read_text() == "kept"
+
+
 def test_write_s2_keep_scale_offset_is_deprecated(tmp_path: pathlib.Path) -> None:
     """`keep_scale_offset=False` still maps to `scale_offset_codec=True` with a
     deprecation warning, which the S2 write policy then refuses."""

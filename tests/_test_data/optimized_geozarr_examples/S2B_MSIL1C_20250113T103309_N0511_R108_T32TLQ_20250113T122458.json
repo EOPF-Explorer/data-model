@@ -325,9 +325,7 @@
               "zarr_format": 3
             },
             "x": {
-              "attributes": {
-                "_FillValue": "AAAAAAAA+H8="
-              },
+              "attributes": {},
               "chunk_grid": {
                 "configuration": {
                   "chunk_shape": [
@@ -350,11 +348,11 @@
                   "name": "bytes"
                 }
               ],
-              "data_type": "float64",
+              "data_type": "int64",
               "dimension_names": [
                 "x"
               ],
-              "fill_value": "NaN",
+              "fill_value": 0,
               "node_type": "array",
               "shape": [
                 23
@@ -363,9 +361,7 @@
               "zarr_format": 3
             },
             "y": {
-              "attributes": {
-                "_FillValue": "AAAAAAAA+H8="
-              },
+              "attributes": {},
               "chunk_grid": {
                 "configuration": {
                   "chunk_shape": [
@@ -388,11 +384,11 @@
                   "name": "bytes"
                 }
               ],
-              "data_type": "float64",
+              "data_type": "int64",
               "dimension_names": [
                 "y"
               ],
-              "fill_value": "NaN",
+              "fill_value": 0,
               "node_type": "array",
               "shape": [
                 23
@@ -827,9 +823,7 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -852,11 +846,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         10980
@@ -865,9 +859,7 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -890,11 +882,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         10980
@@ -1509,9 +1501,7 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1534,11 +1524,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         5490
@@ -1547,9 +1537,7 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1572,11 +1560,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         5490
@@ -1912,9 +1900,7 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1937,11 +1923,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         1830
@@ -1950,9 +1936,7 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -1975,11 +1959,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         1830
@@ -2688,9 +2672,7 @@
                       "zarr_format": 3
                     },
                     "x": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2713,11 +2695,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "x"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         1830
@@ -2726,9 +2708,7 @@
                       "zarr_format": 3
                     },
                     "y": {
-                      "attributes": {
-                        "_FillValue": "AAAAAAAA+H8="
-                      },
+                      "attributes": {},
                       "chunk_grid": {
                         "configuration": {
                           "chunk_shape": [
@@ -2751,11 +2731,11 @@
                           "name": "bytes"
                         }
                       ],
-                      "data_type": "float64",
+                      "data_type": "int64",
                       "dimension_names": [
                         "y"
                       ],
-                      "fill_value": "NaN",
+                      "fill_value": 0,
                       "node_type": "array",
                       "shape": [
                         1830
@@ -5231,9 +5211,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -5256,11 +5234,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980
@@ -5269,9 +5247,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -5294,11 +5270,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980
@@ -7526,9 +7502,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -7551,11 +7525,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490
@@ -7564,9 +7538,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -7589,11 +7561,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490
@@ -10127,9 +10099,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -10152,11 +10122,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830
@@ -10165,9 +10135,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -10190,11 +10158,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830
@@ -11832,9 +11800,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -11857,11 +11823,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980
@@ -11870,9 +11836,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -11895,11 +11859,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     10980
@@ -12580,9 +12544,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -12605,11 +12567,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490
@@ -12618,9 +12580,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -12643,11 +12603,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     5490
@@ -13016,9 +12976,7 @@
                   "zarr_format": 3
                 },
                 "x": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -13041,11 +12999,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "x"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830
@@ -13054,9 +13012,7 @@
                   "zarr_format": 3
                 },
                 "y": {
-                  "attributes": {
-                    "_FillValue": "AAAAAAAA+H8="
-                  },
+                  "attributes": {},
                   "chunk_grid": {
                     "configuration": {
                       "chunk_shape": [
@@ -13079,11 +13035,11 @@
                       "name": "bytes"
                     }
                   ],
-                  "data_type": "float64",
+                  "data_type": "int64",
                   "dimension_names": [
                     "y"
                   ],
-                  "fill_value": "NaN",
+                  "fill_value": 0,
                   "node_type": "array",
                   "shape": [
                     1830

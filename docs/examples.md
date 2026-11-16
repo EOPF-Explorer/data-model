@@ -106,9 +106,6 @@ dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr", chunks={})
 dt = convert_s2_optimized(
     dt_input,
     output_path="s2_l2a.zarr",
-    enable_sharding=True,
-    spatial_chunk=256,
-    compression_level=3,
     validate_output=False,
 )
 

@@ -53,7 +53,10 @@ from eopf_geozarr.cpm.routing import (
     select_pipeline,
 )
 from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
-from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
+from eopf_geozarr.s2_optimization.s2_converter import (
+    check_s2_write_policy,
+    convert_s2_optimized,
+)
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 if TYPE_CHECKING:
@@ -161,10 +164,12 @@ class GeoZarrWriter(EOWriter):
             pipeline; None auto-detects from the product type. Mutually
             exclusive with ``s2_optimized=True`` and ``generic_rechunker=True``.
         spatial_chunk
-            Spatial chunk size; defaults to 256 (S2 optimized), 1024 (OLCI
-            optimized), 4096 (generic), or 1024 (generic rechunker).
+            Spatial chunk size; defaults to 1024 (S2 optimized, OLCI
+            optimized, generic rechunker) or 4096 (generic). The S2 optimized
+            pipeline refuses any value other than 1024.
         enable_sharding
-            Enable Zarr v3 sharding for spatial dimensions.
+            Enable Zarr v3 sharding for spatial dimensions. The S2 optimized
+            pipeline always shards and does not apply this option.
         max_retries
             Retries for network operations inside the pipelines.
         groups
@@ -180,13 +185,15 @@ class GeoZarrWriter(EOWriter):
             Generic pipeline only: minimum dimension of the coarsest overview
             level.
         compression_level
-            S2 optimized pipeline only: blosc-zstd compression level.
+            Generic rechunker: blosc-zstd compression level. The S2 optimized
+            pipeline refuses any value other than 3.
         scale_offset_codec
-            S2 optimized pipeline only: pack reflectance with the Zarr
-            ``scale_offset`` + ``cast_value`` codecs. By default it is written
-            as in the ESA product: source integers with CF
+            Generic rechunker: pack every packed variable with the Zarr
+            ``scale_offset`` + ``cast_value`` codecs. By default data is
+            written as in the ESA product: source integers with CF
             ``scale_factor``/``add_offset``/``_FillValue``, and STAC
-            ``raster:scale``/``raster:offset``/``nodata``.
+            ``raster:scale``/``raster:offset``/``nodata``. The S2 optimized
+            pipeline refuses ``True``.
         keep_scale_offset
             Deprecated. ``keep_scale_offset=True`` is the default ESA layout;
             ``keep_scale_offset=False`` selects ``scale_offset_codec=True``.
@@ -246,6 +253,17 @@ class GeoZarrWriter(EOWriter):
                 "DataTree groups to convert (e.g. groups=['/measurements']). Sentinel-1 "
                 "products additionally require 'gcp_group' (e.g. '/conditions/gcp').",
             )
+        if selected_pipeline == "s2-optimized":
+            # The plan-driven S2 writer has a fixed write policy. It is checked
+            # here, before the target is prepared, so that a refused option
+            # leaves an existing product in place. enable_sharding is not
+            # checked: sharding is fixed on, and this writer's own default
+            # (False) is indistinguishable from an explicit False.
+            check_s2_write_policy(
+                spatial_chunk=resolved_spatial_chunk,
+                compression_level=compression_level,
+                scale_offset_codec=scale_offset_codec,
+            )
         output_path = self._prepare_target(filename_or_obj, mode=mode)
         log.info(
             "Writing GeoZarr product",
@@ -256,12 +274,7 @@ class GeoZarrWriter(EOWriter):
         )
 
         if selected_pipeline == "s2-optimized":
-            # The plan-driven S2 writer has a fixed write policy. The options
-            # whose explicit deviation is detectable (spatial_chunk,
-            # compression_level, scale_offset_codec) are forwarded so the
-            # policy check refuses them loudly; enable_sharding is not,
-            # because sharding is fixed on and this writer's own default
-            # (False) is indistinguishable from an explicit False.
+            # the layout options passed the policy check above
             return convert_s2_optimized(
                 dt_input=dtree,
                 output_path=output_path,
@@ -554,8 +567,9 @@ def get_cli_command() -> click.Command:
         "--scale-offset-codec",
         is_flag=True,
         help=(
-            "S2 optimized pipeline: pack reflectance with the Zarr scale_offset + cast_value "
-            "codecs instead of the default ESA layout (CF scale_factor/add_offset/_FillValue)."
+            "Generic rechunker: pack every packed variable with the Zarr scale_offset + "
+            "cast_value codecs instead of the default ESA layout (CF "
+            "scale_factor/add_offset/_FillValue). Refused by the S2 optimized pipeline."
         ),
     )
     @click.option(
