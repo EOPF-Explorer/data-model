@@ -33,6 +33,7 @@ import numpy as np
 import xarray as xr
 import zarr
 from pydantic_zarr.v3 import is_group_spec
+from zarr.errors import ContainsArrayAndGroupError, ContainsArrayError, ContainsGroupError
 
 from eopf_geozarr.conversion.encoding_utils import find_fill_value
 from eopf_geozarr.data_api.s2_plan import level_meters, plan_geozarr
@@ -183,9 +184,32 @@ def write_geozarr(
     )
     plan = plan_geozarr(root, coordinate_values=reader.values)
     # the metadata plane: every group and array document, exactly as planned
-    output = plan.to_zarr(store, path="")  # type: ignore[arg-type]
+    try:
+        output = plan.to_zarr(store, path="")  # type: ignore[arg-type]
+    except (ContainsArrayError, ContainsGroupError, ContainsArrayAndGroupError) as error:
+        msg = (
+            f"The output {store!r} already holds a Zarr hierarchy that differs from "
+            "the planned one; remove it before converting"
+        )
+        raise FileExistsError(msg) from error
     _fill_group(plan, reader, output, "")
     return plan
+
+
+def _store_values(output: zarr.Group, path: str, values: np.ndarray) -> None:
+    """
+    Store `values` in the planned array at `path`. Refuses values whose data
+    type does not cast safely to the planned one: zarr casts on assignment,
+    which would turn, say, float reflectance into the planned uint16 silently.
+    """
+    out_array = _output_array(output, path)
+    if not np.can_cast(values.dtype, out_array.dtype, casting="safe"):
+        msg = (
+            f"The input values for {path!r} have data type {values.dtype}, which does "
+            f"not cast safely to the planned data type {out_array.dtype}"
+        )
+        raise ValueError(msg)
+    out_array[...] = values
 
 
 def _fill_group(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, path: str) -> None:
@@ -212,7 +236,7 @@ def _fill_carried_array(source: SourceReader, output: zarr.Group, path: str) -> 
     if values is None:
         msg = f"The input source holds no array at {path!r}"
         raise ValueError(msg)
-    out_array[...] = values
+    _store_values(output, path, values)
 
 
 def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, path: str) -> None:
@@ -263,7 +287,7 @@ def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, 
                     native=native,
                 )
         for var, values in {**data, **coords}.items():
-            _output_array(output, f"{level_path}/{var}")[...] = values
+            _store_values(output, f"{level_path}/{var}", values)
         if "spatial_ref" in level_spec.members:
             _output_array(output, f"{level_path}/spatial_ref")[...] = 0
         previous_data, previous_coords, previous_meters = data, coords, meters

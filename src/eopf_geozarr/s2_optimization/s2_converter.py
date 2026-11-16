@@ -146,6 +146,39 @@ _PLAN_POLICY = (
 )
 
 
+def check_s2_write_policy(
+    *,
+    enable_sharding: bool = True,
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    scale_offset_codec: bool = False,
+) -> None:
+    """
+    Refuse layout options that deviate from the Sentinel-2 write policy.
+
+    The plan-driven writer has one layout, so each option is accepted only at
+    its policy value. Raises `ValueError` naming every deviating option.
+    Callers that prepare the output first (and may remove an existing one)
+    call this before they do.
+    """
+    deviations = [
+        name
+        for name, held in (
+            ("enable_sharding=False", not enable_sharding),
+            (f"spatial_chunk={spatial_chunk}", spatial_chunk != 1024),
+            (f"compression_level={compression_level}", compression_level != 3),
+            ("scale_offset_codec=True", scale_offset_codec),
+        )
+        if held
+    ]
+    if deviations:
+        msg = (
+            f"The plan-driven S2 writer has a fixed write policy ({_PLAN_POLICY}); "
+            f"unsupported option(s): {', '.join(deviations)}"
+        )
+        raise ValueError(msg)
+
+
 def convert_s2_optimized(
     dt_input: xr.DataTree,
     *,
@@ -193,22 +226,12 @@ def convert_s2_optimized(
         output_path=output_path,
     )
 
-    deviations = [
-        name
-        for name, held in (
-            ("enable_sharding=False", not enable_sharding),
-            (f"spatial_chunk={spatial_chunk}", spatial_chunk != 1024),
-            (f"compression_level={compression_level}", compression_level != 3),
-            ("scale_offset_codec=True", scale_offset_codec),
-        )
-        if held
-    ]
-    if deviations:
-        msg = (
-            f"The plan-driven S2 writer has a fixed write policy ({_PLAN_POLICY}); "
-            f"unsupported option(s): {', '.join(deviations)}"
-        )
-        raise ValueError(msg)
+    check_s2_write_policy(
+        enable_sharding=enable_sharding,
+        spatial_chunk=spatial_chunk,
+        compression_level=compression_level,
+        scale_offset_codec=scale_offset_codec,
+    )
 
     _validate_s2_input(dt_input)
 

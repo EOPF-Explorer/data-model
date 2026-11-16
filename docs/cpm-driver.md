@@ -109,10 +109,10 @@ arguments (with `write_datatree`). Unknown options raise `NotImplementedError`.
 | `s2_optimized` | `None` | `True` forces the Sentinel-2 pipeline, `False` forces the generic pipeline, `None` detects the product. |
 | `s3_olci_optimized` | `None` | `True` forces the Sentinel-3 OLCI pipeline, `False` falls back to Sentinel-2 or generic detection, `None` detects the product. |
 | `generic_rechunker` | `None` | `True` sends products other than Sentinel-2 and Sentinel-3 OLCI to the generic rechunker; Sentinel-2 and OLCI products still go to their optimized pipelines, so it cannot be combined with `s2_optimized=False` or `s3_olci_optimized=False`. Only one of `s2_optimized`, `s3_olci_optimized` and `generic_rechunker` may be `True`. |
-| `spatial_chunk` | per pipeline | 256 (Sentinel-2), 4096 (generic), 1024 (generic rechunker). Sentinel-3 OLCI: accepted, not applied yet. |
-| `enable_sharding` | `False` | Enable Zarr v3 sharding. Sentinel-3 OLCI: accepted, not applied yet. |
-| `scale_offset_codec` | `False` | Sentinel-2 and generic rechunker: `True` packs reflectance (or every packed variable) with the Zarr `scale_offset` + `cast_value` codecs. `False` keeps the ESA layout with CF scale attributes. |
-| `compression_level` | `3` | Sentinel-2 and generic rechunker: Blosc zstd compression level. Sentinel-3 OLCI: accepted, not applied yet. |
+| `spatial_chunk` | per pipeline | 4096 (generic), 1024 (generic rechunker, Sentinel-2). Sentinel-2: fixed by the write policy, so any value other than 1024 is refused. Sentinel-3 OLCI: accepted, not applied yet. |
+| `enable_sharding` | `False` | Generic and generic rechunker: enable Zarr v3 sharding. Sentinel-2: the output is always sharded, and the option is not applied. Sentinel-3 OLCI: accepted, not applied yet. |
+| `scale_offset_codec` | `False` | Generic rechunker: `True` packs every packed variable with the Zarr `scale_offset` + `cast_value` codecs. `False` keeps the ESA layout with CF scale attributes. Sentinel-2: `True` is refused, because the write policy fixes the ESA layout. |
+| `compression_level` | `3` | Generic rechunker: Blosc zstd compression level. Sentinel-2: fixed by the write policy, so any value other than 3 is refused. Sentinel-3 OLCI: accepted, not applied yet. |
 | `validate_output` | `False` | Sentinel-2: validate the output after writing. |
 | `output_grid` | `"native"` | Sentinel-3 OLCI: `native` or a CRS string to warp onto. |
 | `min_dimension` | `256` | Sentinel-3 OLCI and generic: minimum dimension of the coarsest overview level. |

@@ -284,6 +284,35 @@ def test_write_geozarr_refuses_a_source_missing_the_planned_arrays(
         write_geozarr(root, empty_source, str(tmp_path / "out.zarr"))
 
 
+def test_write_geozarr_refuses_values_that_do_not_cast_safely(tmp_path: pathlib.Path) -> None:
+    """A band whose input data type does not cast safely to the planned one
+    (float32 reflectance, planned as uint16) is refused, not cast silently."""
+    document = json.loads(_L2A_PATH.read_text())
+    reflectance = document["members"]["measurements"]["members"]["reflectance"]
+    reflectance["members"]["r10m"]["members"]["b02"]["dtype"] = "<f4"
+    document_path = tmp_path / _L2A_PATH.name
+    document_path.write_text(json.dumps(document))
+    input_path = create_zarrv2_group_from_json(document_path, tmp_path)
+    _seed_input_store(zarr.open_group(input_path, mode="r+", zarr_format=2))
+    source = zarr.open_group(input_path, mode="r", zarr_format=2)
+    with pytest.raises(ValueError, match="does not cast safely"):
+        write_geozarr(load_sentinel2(source), source, str(tmp_path / "out.zarr"))
+
+
+def test_write_geozarr_refuses_an_output_that_differs_from_the_plan(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An output location that already holds a different hierarchy is refused
+    with an error that says to remove it."""
+    input_path = create_zarrv2_group_from_json(_L2A_PATH, tmp_path)
+    _seed_input_store(zarr.open_group(input_path, mode="r+", zarr_format=2))
+    source = zarr.open_group(input_path, mode="r", zarr_format=2)
+    output_path = tmp_path / "out.zarr"
+    zarr.create_group(output_path, attributes={"written": "before"})
+    with pytest.raises(FileExistsError, match="remove it before converting"):
+        write_geozarr(load_sentinel2(source), source, str(output_path))
+
+
 def _store_contents(path: pathlib.Path) -> dict[str, object]:
     """Every file of a store: metadata documents as parsed JSON (their key
     order is not semantic), chunk files as content digests."""
