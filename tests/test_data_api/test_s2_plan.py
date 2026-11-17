@@ -21,6 +21,8 @@ from eopf_geozarr.data_api.s2 import Sentinel2Root
 from eopf_geozarr.data_api.s2_plan import (
     AUX_MULTISCALE_LEVELS,
     REFLECTANCE_SCALE_LEVELS,
+    AuxiliaryLevel,
+    AuxiliaryLevelMembers,
     AuxiliaryPyramid,
     ReflectanceLevel,
     ReflectancePyramid,
@@ -307,6 +309,39 @@ def test_plan_refuses_an_extra_root_member() -> None:
     root["members"]["extra"] = root["members"]["measurements"]
     with pytest.raises(ValidationError, match="extra"):
         Sentinel2GeoZarr.model_validate(root)
+
+
+def _planned_atmosphere() -> dict[str, Any]:
+    """The dump of the planned `quality/atmosphere` pyramid of the L2A fixture."""
+    pyramid: dict[str, Any] = _planned_root(_L2A_PATH)["members"]["quality"]["members"][
+        "atmosphere"
+    ]
+    return pyramid
+
+
+@pytest.mark.parametrize("missing", sorted(AuxiliaryLevelMembers.__required_keys__))
+def test_auxiliary_level_requires_its_fixed_members(missing: str) -> None:
+    """An auxiliary pyramid level without one of its fixed members is refused."""
+    level = _planned_atmosphere()["members"]["r10m"]
+    del level["members"][missing]
+    with pytest.raises(ValidationError, match=missing):
+        AuxiliaryLevel.model_validate(level)
+
+
+def test_auxiliary_pyramid_refuses_a_member_that_is_not_a_level() -> None:
+    """Every member of an auxiliary pyramid is a level group."""
+    pyramid = _planned_atmosphere()
+    pyramid["members"]["r10m"] = pyramid["members"]["r10m"]["members"]["x"]
+    with pytest.raises(ValidationError, match="r10m"):
+        AuxiliaryPyramid.model_validate(pyramid)
+
+
+def test_pyramid_refuses_an_unknown_layout_key() -> None:
+    """A multiscales layout entry holds only the keys the converter writes."""
+    pyramid = _planned_reflectance(_L2A_PATH)
+    pyramid["attributes"]["multiscales"]["layout"][0]["extra"] = 1
+    with pytest.raises(ValidationError, match="extra"):
+        ReflectancePyramid.model_validate(pyramid)
 
 
 @pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
