@@ -61,14 +61,6 @@ def decimate_swath(
     return ds.isel(indexers)
 
 
-# def _fill_value_of(var: xr.DataArray) -> int | float | None:
-#     """Declared ``_FillValue`` from attrs or encoding, or None."""
-#     fill = var.attrs.get("_FillValue")
-#     if fill is None:
-#         fill = var.encoding.get("_FillValue")
-#     return fill
-
-
 def _swath_geolocation_pair(ds: xr.Dataset, dims: tuple[str, str]) -> tuple[str, str] | None:
     """Names of the 2-D (latitude, longitude) pair over *dims*, or None.
 

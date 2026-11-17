@@ -51,6 +51,7 @@ def build_synthetic_olci(rows: int = 512, cols: int = 480) -> xr.DataTree:
                 "add_offset": 0.0,
                 "standard_name": "toa_upwelling_spectral_radiance",
                 "coordinates": "latitude longitude altitude",
+                "fill_value": 65535,
             },
         )
         data[name] = arr

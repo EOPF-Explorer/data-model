@@ -113,24 +113,6 @@ RR_REFLECTANCE_MULTISCALE = S3MultiscaleSpec(
 )
 
 
-def _sanitize_olci_array_attrs_keep_fill(attrs: dict[str, object]) -> dict[str, object]:
-    """Return a copy of *attrs* with stale source-only keys removed.
-
-    Strips ``_eopf_attrs``, ``dtype``, ``valid_min``, and ``valid_max`` (source
-    provenance and raw-integer-domain metadata that is misleading in GeoZarr
-    output).  Unlike the shared :func:`~eopf_geozarr.conversion.utils.sanitize_array_attrs`,
-    this helper intentionally **preserves** ``_FillValue`` because OLCI input is
-    opened with ``mask_and_scale=False`` (raw uint16) and downstream code (e.g.
-    ``reduce_swath``) needs ``_FillValue`` in ``.attrs`` to identify fill pixels
-    without CF decoding.
-
-    CF keys ``scale_factor``, ``add_offset``, ``units``, ``standard_name``,
-    ``coordinates``, and ``long_name`` are always preserved.
-    """
-    _strip = frozenset(("_eopf_attrs", "dtype", "valid_min", "valid_max"))
-    return {k: v for k, v in attrs.items() if k not in _strip}
-
-
 def is_sentinel3_olci_dataset(group: zarr.Group) -> bool:
     """Return True if *group* is a Sentinel-3 OLCI L1 EFR product.
 
@@ -159,104 +141,6 @@ def is_sentinel3_olci_dataset(group: zarr.Group) -> bool:
         return OLCI_BANDS[0] in model.measurements.members
     except KeyError:
         return False
-
-
-def _overview_levels(rows: int, cols: int, min_dimension: int) -> int:
-    """Return the number of /2 decimations before min(rows, cols) drops below min_dimension.
-
-    A level is generated only when the *post*-decimation minimum spatial
-    dimension is at least *min_dimension*.  For example, a 512x480 dataset
-    with min_dimension=256 yields zero levels because 480//2=240 < 256, while
-    a 1024x1024 dataset with min_dimension=256 yields two levels (512x512,
-    then 256x256).
-    """
-    levels = 0
-    r, c = rows, cols
-    while min(r, c) // 2 >= min_dimension:
-        r, c = r // 2, c // 2
-        levels += 1
-    return levels
-
-
-def _clear_encoding(ds: xr.Dataset) -> xr.Dataset:
-    """Return *ds* with all inherited source encoding cleared.
-
-    When the input DataTree was opened from a Zarr v2 store, xarray carries
-    ``numcodecs.Blosc`` compressors (and potentially scale-offset filters) in
-    each variable's ``.encoding``.  Passing that encoding to
-    ``Dataset.to_zarr(zarr_format=ZARR_FORMAT)`` raises::
-
-        TypeError: Expected a BytesBytesCodec. Got <class 'numcodecs.blosc.Blosc'>
-
-    because numcodecs codecs are not valid Zarr v3 BytesBytesCodecs.  Clearing
-    the encoding lets the Zarr v3 writer choose its own default codecs.
-
-    This converter expects raw (non-mask-scaled) input: the caller must open
-    the source DataTree with ``mask_and_scale=False`` so that CF
-    ``scale_factor``/``add_offset`` stay in ``.attrs`` and integer fill pixels
-    are identified via ``attrs["_FillValue"]``.  Only Zarr v2 *codec* encoding
-    (e.g. ``numcodecs.Blosc`` compressors) is stripped here — CF metadata is
-    untouched.
-    """
-    ds = ds.copy()
-    ds.encoding = {}
-    for var in list(ds.data_vars) + list(ds.coords):
-        ds[var].encoding.clear()
-    return ds
-
-
-def _sanitize_data_vars(ds: xr.Dataset) -> xr.Dataset:
-    """Return *ds* with stale source attrs stripped from all data variables.
-
-    Applies :func:`_sanitize_olci_array_attrs_keep_fill` to every data variable in *ds*.
-    Coordinate variable attrs are left intact.
-
-    This removes ``_eopf_attrs``, ``dtype``, ``valid_min``, and ``valid_max``
-    (source-only / misleading) while preserving CF attrs
-    (``scale_factor``, ``add_offset``, ``_FillValue``, ``units``,
-    ``standard_name``, ``coordinates``).
-
-    Note: ``xr.DataArray.assign_attrs`` *merges* (update semantics), so we
-    copy the DataArray and replace ``.attrs`` in-place to ensure stale keys
-    are actually removed rather than retained from the old dict.
-    """
-    new_vars: dict[str, xr.DataArray] = {}
-    for name in ds.data_vars:
-        var = ds[name]
-        new_var = var.copy(data=var.data)
-        new_var.attrs = _sanitize_olci_array_attrs_keep_fill(dict(var.attrs))
-        new_vars[str(name)] = new_var
-    return ds.assign(new_vars)
-
-
-def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> None:
-    """Write every Dataset in *node*'s subtree to the Zarr store at *output_path*.
-
-    Each path is mapped relative to the node's own path: the node root becomes
-    *root_group*, and child nodes are placed at ``root_group/<relative_path>``.
-
-    ``DataTree.to_zarr`` does not yet support a ``group`` keyword for
-    specifying a root offset, so we write each leaf's :py:meth:`~xarray.DataTree.to_dataset`
-    using ``xr.Dataset.to_zarr`` instead.
-    """
-    node_path = node.path  # e.g. "/conditions"
-    for child in node.subtree:
-        ds = child.to_dataset()
-        if not ds.data_vars and not ds.coords:
-            continue
-        # Strip any inherited Zarr v2 encoding before writing to a v3 store.
-        ds = _clear_encoding(ds)
-        # Build the group path: strip the ancestor prefix and prepend root_group.
-        relative = child.path[len(node_path) :]  # "" for root, "/sub" for children
-        group_path = root_group + relative
-        log.info("Copying ancillary subgroup", group=group_path)
-        ds.to_zarr(
-            output_path,
-            group=group_path,
-            mode="a",
-            consolidated=False,
-            zarr_format=ZARR_FORMAT,
-        )
 
 
 def olc_multiscales(
@@ -498,6 +382,122 @@ def updated_convert_olci_optimized(
     utils.optimization_summary(dt_input, result_dt, output_path)
 
     return result_dt
+
+
+def _sanitize_olci_array_attrs_keep_fill(attrs: dict[str, object]) -> dict[str, object]:
+    """Return a copy of *attrs* with stale source-only keys removed.
+
+    Strips ``_eopf_attrs``, ``dtype``, ``valid_min``, and ``valid_max`` (source
+    provenance and raw-integer-domain metadata that is misleading in GeoZarr
+    output).  Unlike the shared :func:`~eopf_geozarr.conversion.utils.sanitize_array_attrs`,
+    this helper intentionally **preserves** ``_FillValue`` because OLCI input is
+    opened with ``mask_and_scale=False`` (raw uint16) and downstream code (e.g.
+    ``reduce_swath``) needs ``_FillValue`` in ``.attrs`` to identify fill pixels
+    without CF decoding.
+
+    CF keys ``scale_factor``, ``add_offset``, ``units``, ``standard_name``,
+    ``coordinates``, and ``long_name`` are always preserved.
+    """
+    _strip = frozenset(("_eopf_attrs", "dtype", "valid_min", "valid_max"))
+    return {k: v for k, v in attrs.items() if k not in _strip}
+
+
+def _overview_levels(rows: int, cols: int, min_dimension: int) -> int:
+    """Return the number of /2 decimations before min(rows, cols) drops below min_dimension.
+
+    A level is generated only when the *post*-decimation minimum spatial
+    dimension is at least *min_dimension*.  For example, a 512x480 dataset
+    with min_dimension=256 yields zero levels because 480//2=240 < 256, while
+    a 1024x1024 dataset with min_dimension=256 yields two levels (512x512,
+    then 256x256).
+    """
+    levels = 0
+    r, c = rows, cols
+    while min(r, c) // 2 >= min_dimension:
+        r, c = r // 2, c // 2
+        levels += 1
+    return levels
+
+
+def _clear_encoding(ds: xr.Dataset) -> xr.Dataset:
+    """Return *ds* with all inherited source encoding cleared.
+
+    When the input DataTree was opened from a Zarr v2 store, xarray carries
+    ``numcodecs.Blosc`` compressors (and potentially scale-offset filters) in
+    each variable's ``.encoding``.  Passing that encoding to
+    ``Dataset.to_zarr(zarr_format=ZARR_FORMAT)`` raises::
+
+        TypeError: Expected a BytesBytesCodec. Got <class 'numcodecs.blosc.Blosc'>
+
+    because numcodecs codecs are not valid Zarr v3 BytesBytesCodecs.  Clearing
+    the encoding lets the Zarr v3 writer choose its own default codecs.
+
+    This converter expects raw (non-mask-scaled) input: the caller must open
+    the source DataTree with ``mask_and_scale=False`` so that CF
+    ``scale_factor``/``add_offset`` stay in ``.attrs`` and integer fill pixels
+    are identified via ``attrs["_FillValue"]``.  Only Zarr v2 *codec* encoding
+    (e.g. ``numcodecs.Blosc`` compressors) is stripped here — CF metadata is
+    untouched.
+    """
+    ds = ds.copy()
+    ds.encoding = {}
+    for var in list(ds.data_vars) + list(ds.coords):
+        ds[var].encoding.clear()
+    return ds
+
+
+def _sanitize_data_vars(ds: xr.Dataset) -> xr.Dataset:
+    """Return *ds* with stale source attrs stripped from all data variables.
+
+    Applies :func:`_sanitize_olci_array_attrs_keep_fill` to every data variable in *ds*.
+    Coordinate variable attrs are left intact.
+
+    This removes ``_eopf_attrs``, ``dtype``, ``valid_min``, and ``valid_max``
+    (source-only / misleading) while preserving CF attrs
+    (``scale_factor``, ``add_offset``, ``_FillValue``, ``units``,
+    ``standard_name``, ``coordinates``).
+
+    Note: ``xr.DataArray.assign_attrs`` *merges* (update semantics), so we
+    copy the DataArray and replace ``.attrs`` in-place to ensure stale keys
+    are actually removed rather than retained from the old dict.
+    """
+    new_vars: dict[str, xr.DataArray] = {}
+    for name in ds.data_vars:
+        var = ds[name]
+        new_var = var.copy(data=var.data)
+        new_var.attrs = _sanitize_olci_array_attrs_keep_fill(dict(var.attrs))
+        new_vars[str(name)] = new_var
+    return ds.assign(new_vars)
+
+
+def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> None:
+    """Write every Dataset in *node*'s subtree to the Zarr store at *output_path*.
+
+    Each path is mapped relative to the node's own path: the node root becomes
+    *root_group*, and child nodes are placed at ``root_group/<relative_path>``.
+
+    ``DataTree.to_zarr`` does not yet support a ``group`` keyword for
+    specifying a root offset, so we write each leaf's :py:meth:`~xarray.DataTree.to_dataset`
+    using ``xr.Dataset.to_zarr`` instead.
+    """
+    node_path = node.path  # e.g. "/conditions"
+    for child in node.subtree:
+        ds = child.to_dataset()
+        if not ds.data_vars and not ds.coords:
+            continue
+        # Strip any inherited Zarr v2 encoding before writing to a v3 store.
+        ds = _clear_encoding(ds)
+        # Build the group path: strip the ancestor prefix and prepend root_group.
+        relative = child.path[len(node_path) :]  # "" for root, "/sub" for children
+        group_path = root_group + relative
+        log.info("Copying ancillary subgroup", group=group_path)
+        ds.to_zarr(
+            output_path,
+            group=group_path,
+            mode="a",
+            consolidated=False,
+            zarr_format=ZARR_FORMAT,
+        )
 
 
 def convert_olci_optimized(
