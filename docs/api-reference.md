@@ -67,11 +67,17 @@ The lower-level, spec-level API lives in `eopf_geozarr.data_api`:
 as a `Sentinel2GeoZarr`, and `write_geozarr(root, source, store)` writes the
 planned documents and fills in the chunk data. `Sentinel2GeoZarr` is a Zarr V3
 `GroupSpec` whose member types name the structure: `measurements/reflectance`
-is a `ReflectancePyramid` of six `ReflectanceLevel` groups, and the
-classification and probability pyramids are `AuxiliaryPyramid`s. It also
-validates a store the converter wrote: read its documents with
+is a `ReflectancePyramid` of six `ReflectanceLevel` groups, and the plan
+builds the classification and probability pyramids as `AuxiliaryPyramid`s. It
+also validates a store the converter wrote: read its documents with
 `eopf_geozarr.zarr_io.read_documents` and pass them to
-`Sentinel2GeoZarr.from_stored_metadata_json`.
+`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the root's members
+and the whole `measurements` subtree. `conditions` and `quality` are accepted
+as any group, so their pyramids are not checked.
+`eopf_geozarr.zarr_io.read_documents` and pass them to
+`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the root's members
+and the whole `measurements` subtree. `conditions` and `quality` are accepted
+as any group, so their pyramids are not checked.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 
