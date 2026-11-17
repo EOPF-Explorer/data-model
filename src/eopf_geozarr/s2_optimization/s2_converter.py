@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     import xarray as xr
     from pydantic_zarr.v3 import AnyGroupSpec
 
+    from eopf_geozarr.data_api.s2_plan import Sentinel2GeoZarr
+
 log = structlog.get_logger()
 
 
@@ -324,15 +326,10 @@ def _planned_dataset_index(plan: AnyGroupSpec) -> dict[str, tuple[str, ...] | No
     return index
 
 
-def _planned_reflectance_shape(plan: AnyGroupSpec) -> tuple[int, ...] | None:
-    """The (rows, cols) of the finest planned reflectance level, if present."""
-    level = plan.get_path("measurements/reflectance/r10m")
-    if not is_group_spec(level):
-        return None
-    for member in level.members.values():
-        if is_array_spec(member) and len(member.shape) == 2:
-            return tuple(member.shape)
-    return None
+def _planned_reflectance_shape(plan: Sentinel2GeoZarr) -> tuple[int, ...]:
+    """The (rows, cols) of the finest planned reflectance level."""
+    finest = plan.members["measurements"].members["reflectance"].members["r10m"]
+    return tuple(finest.attributes["spatial:shape"])
 
 
 def add_s2_stac_assets(
