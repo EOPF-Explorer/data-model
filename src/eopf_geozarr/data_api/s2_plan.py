@@ -6,7 +6,10 @@ This module is the metadata plane of the Sentinel-2 conversion:
 model — keeping the model as the carrier of everything the conversion needs,
 instead of validating and discarding it — and `plan_geozarr` is a pure
 function from that model to the GeoZarr hierarchy we want to write, as a
-Zarr V3 `GroupSpec` tree. No chunk data is read or written here: realizing
+`Sentinel2GeoZarr` (a Zarr V3 `GroupSpec` tree whose member types name the
+parts of the output that are fixed: the root, the reflectance pyramid and its
+levels, and the levels of the auxiliary pyramids). No chunk data is read or
+written here: realizing
 the plan (copying and coarsening chunks into the planned arrays) is a
 separate, data-plane step.
 
@@ -39,17 +42,17 @@ import re
 import struct
 from collections.abc import Callable, Mapping
 from math import ceil
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal, NotRequired, Required
 
 import numpy as np
 import structlog
 import xarray as xr
+from pydantic_zarr.v2 import ArraySpec as ArraySpecV2
+from pydantic_zarr.v3 import AnyGroupSpec, parse_dtype_v3
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
-from pydantic_zarr.v3 import parse_dtype_v3
 from typing_extensions import TypedDict
 from zarr_cm import ConventionMetadataObject
 from zarr_cm.multiscales import CMO as MULTISCALES_CMO
-from zarr_cm.multiscales import MultiscalesAttrs
 from zarr_cm.proj import CMO as PROJ_CMO
 from zarr_cm.spatial import CMO as SPATIAL_CMO
 
@@ -57,14 +60,13 @@ from eopf_geozarr.conversion.utils import normalize_cf_array_attrs
 from eopf_geozarr.data_api.datatree import group_spec_from_datatree
 from eopf_geozarr.data_api.geozarr.scope import GEOZARR_SCOPE
 from eopf_geozarr.data_api.geozarr.v3 import DataArray
-from eopf_geozarr.data_api.s2 import Sentinel2Root
+from eopf_geozarr.data_api.s2 import Sentinel2ResolutionDataset, Sentinel2Root
 from eopf_geozarr.s2_optimization.s2_multiscale import SCL_ATTRS, SCL_NODATA
 from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     import zarr
-    from pydantic_zarr.v3 import AnyGroupSpec, FillValue
-    from zarr_cm.multiscales import LayoutObject
+    from pydantic_zarr.v3 import FillValue
     from zarr_metadata.v3.chunk_grid.regular import RegularChunkGridObject
     from zarr_metadata.v3.chunk_key_encoding.default import DefaultChunkKeyEncodingObject
     from zarr_metadata.v3.codec.blosc import BloscCodecObject
@@ -310,6 +312,7 @@ SpatialGroupAttrs = TypedDict(
         "spatial:transform": list[float],
         "zarr_conventions": list[ConventionMetadataObject],
     },
+    closed=True,
 )
 """The spatial/proj convention attributes of one georeferenced group (a
 resolution dataset or a pyramid level), which always carries every key;
@@ -330,10 +333,45 @@ LatLonGroupAttrs = TypedDict(
 """The spatial/proj convention attributes of a group on a regular geographic
 grid (`_lat_lon_attributes`), which always carries every key."""
 
+
+class LayoutTransform(TypedDict, closed=True):
+    """How a pyramid level derives from the level before it: the whole-number
+    coarsening factor per axis, and no offset."""
+
+    scale: list[int]
+    translation: list[float]
+
+
+LayoutEntry = TypedDict(
+    "LayoutEntry",
+    {
+        "asset": str,
+        "derived_from": NotRequired[str],
+        "spatial:shape": list[int],
+        "spatial:transform": list[float],
+        "transform": NotRequired[LayoutTransform],
+    },
+    closed=True,
+)
+"""One level of a multiscales layout, with its grid. The finest level has no
+`derived_from` and no `transform`."""
+
+
+class MultiscalesLayout(TypedDict, closed=True):
+    """
+    The `multiscales` attribute of a pyramid group. zarr-cm's
+    `MultiscalesAttrs` describes the convention; this is the exact form the
+    converter writes, which stores the coarsening factors as integers.
+    """
+
+    layout: list[LayoutEntry]
+    resampling_method: str
+
+
 MultiscaleGroupAttrs = TypedDict(
     "MultiscaleGroupAttrs",
     {
-        "multiscales": MultiscalesAttrs,
+        "multiscales": MultiscalesLayout,
         "proj:code": str,
         "spatial:bbox": list[float],
         "spatial:dimensions": list[str],
@@ -342,11 +380,111 @@ MultiscaleGroupAttrs = TypedDict(
         "spatial:transform": list[float],
         "zarr_conventions": list[ConventionMetadataObject],
     },
+    closed=True,
 )
-"""The attributes of a multiscale pyramid's root group: zarr-cm's multiscales
-attributes plus the finest level's georeferencing, its `spatial:shape` with
+"""The attributes of a multiscale pyramid's root group: the multiscales
+layout plus the finest level's georeferencing, its `spatial:shape` with
 its `spatial:transform` so the transform says what grid it describes
 (EOPF-Explorer/data-model#355)."""
+
+
+# ---------------------------------------------------------------------------
+# the output model: the hierarchy `plan_geozarr` returns
+
+
+class ReflectanceLevelMembers(TypedDict, closed=True, total=False):
+    """
+    The members of one reflectance pyramid level: the `x` and `y` coordinate
+    arrays, always, and the bands the level holds (which depend on the
+    product level and the resolution).
+
+    The bands are declared first because a validated level holds its members
+    in this order, and the bands come before the coordinates when the level
+    is walked.
+    """
+
+    b01: DataArray
+    b02: DataArray
+    b03: DataArray
+    b04: DataArray
+    b05: DataArray
+    b06: DataArray
+    b07: DataArray
+    b08: DataArray
+    b8a: DataArray
+    b09: DataArray
+    b10: DataArray
+    b11: DataArray
+    b12: DataArray
+    x: Required[DataArray]
+    y: Required[DataArray]
+
+
+class ReflectanceLevel(GroupSpecV3[SpatialGroupAttrs, ReflectanceLevelMembers]):
+    """One level of the reflectance pyramid (`r10m` ... `r720m`)."""
+
+
+class ReflectanceMembers(TypedDict, closed=True):
+    """The levels of the reflectance pyramid: one per `REFLECTANCE_SCALE_LEVELS` entry."""
+
+    r10m: ReflectanceLevel
+    r20m: ReflectanceLevel
+    r60m: ReflectanceLevel
+    r120m: ReflectanceLevel
+    r360m: ReflectanceLevel
+    r720m: ReflectanceLevel
+
+
+class ReflectancePyramid(GroupSpecV3[MultiscaleGroupAttrs, ReflectanceMembers]):
+    """The `measurements/reflectance` multiscale group."""
+
+
+class MeasurementsMembers(TypedDict, closed=True):
+    """The members of the `measurements` group."""
+
+    reflectance: ReflectancePyramid
+
+
+class MeasurementsGroup(GroupSpecV3[Mapping[str, object], MeasurementsMembers]):
+    """The `measurements` group."""
+
+
+class AuxiliaryLevelMembers(TypedDict, extra_items=DataArray):
+    """
+    The members of one level of an auxiliary pyramid: the `x` and `y`
+    coordinate arrays, and the level's variables, named as the input names
+    them.
+    """
+
+    x: DataArray
+    y: DataArray
+
+
+class AuxiliaryLevel(GroupSpecV3[SpatialGroupAttrs, AuxiliaryLevelMembers]):
+    """One level of an auxiliary pyramid (a classification mask or the cloud probabilities)."""
+
+
+class AuxiliaryPyramid(GroupSpecV3[MultiscaleGroupAttrs, Mapping[str, AuxiliaryLevel]]):
+    """
+    An auxiliary multiscale group, its levels named by resolution (`r20m`
+    ...): the levels `AUX_MULTISCALE_LEVELS` lists for the group's path.
+    """
+
+
+class Sentinel2GeoZarrMembers(TypedDict, closed=True):
+    """
+    The members of the planned root group. `conditions` and `quality` are
+    carried from the input, whose model leaves their inner structure open, so
+    they are typed as any group; either is absent when it carries nothing.
+    """
+
+    measurements: MeasurementsGroup
+    conditions: NotRequired[AnyGroupSpec]
+    quality: NotRequired[AnyGroupSpec]
+
+
+class Sentinel2GeoZarr(GroupSpecV3[Mapping[str, object], Sentinel2GeoZarrMembers]):
+    """The GeoZarr hierarchy planned for a Sentinel-2 product."""
 
 
 def _spatial_dataset_attributes(
@@ -388,7 +526,7 @@ GEOMETRY_PATH = "conditions/geometry"
 """The group of the sun and viewing angle grids: node-registered, in the tile CRS."""
 
 
-def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
+def plan_reflectance(root: Sentinel2Root) -> ReflectancePyramid:
     """
     Plan the GeoZarr `measurements/reflectance` multiscale group of a
     Sentinel-2 product: one level group per entry of
@@ -402,15 +540,28 @@ def plan_reflectance(root: Sentinel2Root) -> AnyGroupSpec:
     return _plan_reflectance(root)[0]
 
 
-def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeoreferencing]:
+def _input_bands(level: Sentinel2ResolutionDataset) -> dict[str, ArraySpecV2[Any]]:
+    """The band arrays of one input resolution dataset, by name (`b02`, `b8a`, ...)."""
+    return {
+        name: member
+        for name, member in level.members.items()
+        if name.startswith("b") and isinstance(member, ArraySpecV2)
+    }
+
+
+def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeoreferencing]:
     """`plan_reflectance`, with the tile georeferencing the pyramid was planned in."""
     level = product_level(root)
     reflectance = root.members["measurements"].members["reflectance"]
-    input_levels: dict[int, Any] = {}
-    for meters in REFLECTANCE_SCALE_LEVELS:
-        member = reflectance.members.get(f"r{meters}m")
-        if member is not None:
-            input_levels[meters] = member
+    # the resolution datasets a product can hold, by metres
+    candidates = {
+        10: reflectance.members.get("r10m"),
+        20: reflectance.members.get("r20m"),
+        60: reflectance.members.get("r60m"),
+    }
+    input_levels: dict[int, Sentinel2ResolutionDataset] = {
+        meters: member for meters, member in candidates.items() if member is not None
+    }
 
     if not input_levels:
         msg = "The product's reflectance group holds none of the known resolution datasets"
@@ -420,12 +571,12 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
     # band, else from the product-level declaration (Zarr V3 baselines carry
     # proj attributes only on stac_discovery, not on the band arrays)
     finest_meters_in = min(input_levels)
-    finest = input_levels[finest_meters_in]
-    first_band_name = next((k for k in finest.members if k.startswith("b")), None)
-    if first_band_name is None:
+    first_band = next(iter(_input_bands(input_levels[finest_meters_in]).items()), None)
+    if first_band is None:
         msg = f"The r{finest_meters_in}m resolution dataset holds no band arrays"
         raise ValueError(msg)
-    first_band_attrs: Mapping[str, object] = finest.members[first_band_name].attributes
+    first_band_name = first_band[0]
+    first_band_attrs: Mapping[str, object] = first_band[1].attributes
     transform = first_band_attrs.get("proj:transform")
     band_epsg = first_band_attrs.get("proj:epsg")
     if (
@@ -449,17 +600,14 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
     planned_levels: dict[int, dict[str, DataArray]] = {}
     level_attributes: dict[int, SpatialGroupAttrs] = {}
     previous_meters: int | None = None
-    layout: list[LayoutObject] = []
-    members_out: dict[str, AnyGroupSpec] = {}
+    layout: list[LayoutEntry] = []
+    levels: dict[int, ReflectanceLevel] = {}
 
     for meters in REFLECTANCE_SCALE_LEVELS:
         bands: dict[str, DataArray] = {}
-        native = meters in input_levels
-        if native:
-            source = input_levels[meters]
-            for name, member in source.members.items():
-                if not name.startswith("b"):
-                    continue
+        native_level = input_levels.get(meters)
+        if native_level is not None:
+            for name, member in _input_bands(native_level).items():
                 dims = tuple(member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
                 bands[name] = _plan_band(
                     member.attributes,
@@ -480,7 +628,7 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
                 for src_meters in sorted(input_levels):
                     if src_meters >= meters:
                         break
-                    src_member = input_levels[src_meters].members.get(band_name)
+                    src_member = _input_bands(input_levels[src_meters]).get(band_name)
                     if src_member is None:
                         continue
                     dims = tuple(src_member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
@@ -513,24 +661,31 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
         planned_levels[meters] = bands
         rows, cols = level_shape
         shape2d = (rows, cols)
-        level_members: dict[str, DataArray] = dict(bands)
-        for axis, size in (("x", cols), ("y", rows)):
-            coordinate = input_levels[meters].members.get(axis) if native else None
-            level_members[axis] = _plan_level_coordinate(
-                axis, size, None if coordinate is None else coordinate.model_dump()
-            )
-
+        x_source = None if native_level is None else native_level.members.get("x")
+        y_source = None if native_level is None else native_level.members.get("y")
         level_attributes[meters] = _level_spatial_attributes(
             meters=meters, shape=shape2d, origin=origin, epsg=epsg
         )
-        members_out[f"r{meters}m"] = GroupSpecV3(
-            attributes=level_attributes[meters],
-            members=level_members,
+        # the band names are known only at run time, so the level is validated
+        # here: a name the closed members type does not list is refused
+        levels[meters] = ReflectanceLevel.model_validate(
+            {
+                "attributes": level_attributes[meters],
+                "members": {
+                    **bands,
+                    "x": _plan_level_coordinate(
+                        "x", cols, None if x_source is None else x_source.model_dump()
+                    ),
+                    "y": _plan_level_coordinate(
+                        "y", rows, None if y_source is None else y_source.model_dump()
+                    ),
+                },
+            }
         )
 
         level_shape2d = list(shape2d)
         level_transform = [float(meters), 0.0, origin[0], 0.0, -float(meters), origin[1]]
-        entry: LayoutObject = {
+        entry: LayoutEntry = {
             "asset": f"r{meters}m",
             "spatial:shape": level_shape2d,
             "spatial:transform": level_transform,
@@ -566,7 +721,18 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[AnyGroupSpec, _TileGeorefere
         ],
         "zarr_conventions": [MULTISCALES_CMO, SPATIAL_CMO, PROJ_CMO],
     }
-    return GroupSpecV3(attributes=group_attributes, members=members_out), (origin, epsg)
+    pyramid = ReflectancePyramid(
+        attributes=group_attributes,
+        members={
+            "r10m": levels[10],
+            "r20m": levels[20],
+            "r60m": levels[60],
+            "r120m": levels[120],
+            "r360m": levels[360],
+            "r720m": levels[720],
+        },
+    )
+    return pyramid, (origin, epsg)
 
 
 # ---------------------------------------------------------------------------
@@ -988,7 +1154,7 @@ def _plan_aux_multiscale(
     path: str,
     scale_levels: tuple[int, ...],
     product_proj: tuple[tuple[float, float], int] | None = None,
-) -> AnyGroupSpec:
+) -> AuxiliaryPyramid:
     """
     Plan an auxiliary multiscale group (a classification mask or the cloud
     probabilities): levels present in the input are carried, coarser levels
@@ -1025,8 +1191,8 @@ def _plan_aux_multiscale(
 
     planned_levels: dict[int, dict[str, DataArray]] = {}
     level_attributes: dict[int, SpatialGroupAttrs] = {}
-    members_out: dict[str, AnyGroupSpec] = {}
-    layout: list[LayoutObject] = []
+    members_out: dict[str, AuxiliaryLevel] = {}
+    layout: list[LayoutEntry] = []
     previous_meters: int | None = None
     uses_flags = False
 
@@ -1073,20 +1239,25 @@ def _plan_aux_multiscale(
         )
         planned_levels[meters] = variables
         rows, cols = next(iter(variables.values())).shape
-        level_members: dict[str, DataArray] = dict(variables)
         carried = _carried_arrays(input_levels[meters]) if native else {}
-        for axis, size in (("x", cols), ("y", rows)):
-            level_members[axis] = _plan_level_coordinate(axis, size, carried.get(axis))
         level_attributes[meters] = _level_spatial_attributes(
             meters=meters, shape=(rows, cols), origin=origin, epsg=epsg
         )
-        members_out[f"r{meters}m"] = GroupSpecV3(
-            attributes=level_attributes[meters], members=level_members
+        # the variable names come from the input, so the level is validated here
+        members_out[f"r{meters}m"] = AuxiliaryLevel.model_validate(
+            {
+                "attributes": level_attributes[meters],
+                "members": {
+                    **variables,
+                    "x": _plan_level_coordinate("x", cols, carried.get("x")),
+                    "y": _plan_level_coordinate("y", rows, carried.get("y")),
+                },
+            }
         )
 
         level_shape2d = [rows, cols]
         level_transform = [float(meters), 0.0, origin[0], 0.0, -float(meters), origin[1]]
-        entry: LayoutObject = {
+        entry: LayoutEntry = {
             "asset": f"r{meters}m",
             "spatial:shape": level_shape2d,
             "spatial:transform": level_transform,
@@ -1124,7 +1295,7 @@ def _plan_aux_multiscale(
         ],
         "zarr_conventions": [MULTISCALES_CMO, SPATIAL_CMO, PROJ_CMO],
     }
-    return GroupSpecV3(attributes=group_attributes, members=members_out)
+    return AuxiliaryPyramid(attributes=group_attributes, members=members_out)
 
 
 def _plan_subtree(
@@ -1166,15 +1337,16 @@ def _plan_subtree(
 
 def plan_geozarr(
     root: Sentinel2Root, *, coordinate_values: CoordinateValues | None = None
-) -> AnyGroupSpec:
+) -> Sentinel2GeoZarr:
     """
     Plan the GeoZarr hierarchy to write for a Sentinel-2 product.
 
     Pure: reads only the validated input model, returns the output tree as a
-    Zarr V3 `GroupSpec` — `measurements/reflectance` as the sharded multiscale
-    pyramid, and the `conditions` and `quality` subtrees carried (their own
-    multiscale groups planned by `AUX_MULTISCALE_LEVELS`, the quicklooks and
-    scalar arrays dropped).
+    `Sentinel2GeoZarr` (a Zarr V3 `GroupSpec`) — `measurements/reflectance` as
+    the sharded multiscale pyramid, a `ReflectancePyramid`, and the
+    `conditions` and `quality` subtrees carried (their own multiscale groups
+    planned by `AUX_MULTISCALE_LEVELS` as `AuxiliaryPyramid`s, the quicklooks
+    and scalar arrays dropped).
 
     The plan reads metadata only, except where georeferencing must be derived
     from coordinate values: a carried group on a regular geographic grid
@@ -1184,15 +1356,18 @@ def plan_geozarr(
     `coordinate_values` looks up, and none without it.
     """
     reflectance, tile = _plan_reflectance(root)
-    members: dict[str, AnyGroupSpec] = {
-        "measurements": GroupSpecV3(attributes={}, members={"reflectance": reflectance}),
+    members: Sentinel2GeoZarrMembers = {
+        "measurements": MeasurementsGroup(attributes={}, members={"reflectance": reflectance}),
     }
     product_proj = _product_proj(root)
-    for top in ("conditions", "quality"):
-        member = root.members.get(top)
-        if member is None:
-            continue
-        planned = _plan_subtree(member.model_dump(), top, product_proj, coordinate_values, tile)
-        if planned is not None:
-            members[top] = planned
-    return GroupSpecV3(attributes={}, members=members)
+    conditions = _plan_subtree(
+        root.members["conditions"].model_dump(), "conditions", product_proj, coordinate_values, tile
+    )
+    if conditions is not None:
+        members["conditions"] = conditions
+    quality = _plan_subtree(
+        root.members["quality"].model_dump(), "quality", product_proj, coordinate_values, tile
+    )
+    if quality is not None:
+        members["quality"] = quality
+    return Sentinel2GeoZarr(attributes={}, members=members)

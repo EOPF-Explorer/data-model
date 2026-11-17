@@ -64,8 +64,14 @@ fixed, and a deviating value raises `ValueError`.
 The lower-level, spec-level API lives in `eopf_geozarr.data_api`:
 `load_sentinel2(source)` validates a Zarr group or an xarray DataTree into the
 `Sentinel2Root` input model, `plan_geozarr(root)` derives the output hierarchy
-as a Zarr V3 `GroupSpec` tree, and `write_geozarr(root, source, store)` writes
-the planned documents and fills in the chunk data.
+as a `Sentinel2GeoZarr`, and `write_geozarr(root, source, store)` writes the
+planned documents and fills in the chunk data. `Sentinel2GeoZarr` is a Zarr V3
+`GroupSpec` whose member types name the structure: `measurements/reflectance`
+is a `ReflectancePyramid` of six `ReflectanceLevel` groups, and the
+classification and probability pyramids are `AuxiliaryPyramid`s. It also
+validates a store the converter wrote: read its documents with
+`eopf_geozarr.zarr_io.read_documents` and pass them to
+`Sentinel2GeoZarr.from_stored_metadata_json`.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 

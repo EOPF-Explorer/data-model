@@ -19,7 +19,12 @@ from zarr.storage import LocalStore
 from eopf_geozarr.conversion.open_source import open_source_datatree
 from eopf_geozarr.data_api.s2 import Sentinel2Root
 from eopf_geozarr.data_api.s2_plan import (
+    AUX_MULTISCALE_LEVELS,
     REFLECTANCE_SCALE_LEVELS,
+    AuxiliaryPyramid,
+    ReflectanceLevel,
+    ReflectancePyramid,
+    Sentinel2GeoZarr,
     _lat_lon_attributes,
     load_sentinel2,
     plan_geozarr,
@@ -201,6 +206,8 @@ def test_plan_matches_the_converter_output(
     planned = json.loads(json.dumps(plan.to_stored_metadata_json()))
 
     assert written.keys() == planned.keys()
+    # the output model describes what the converter stores, root attributes included
+    Sentinel2GeoZarr.from_stored_metadata_json(written)
     assert written.pop("zarr.json")["node_type"] == planned.pop("zarr.json")["node_type"]
     assert [key for key in written if _canonical(written[key]) != _canonical(planned[key])] == []
 
@@ -220,6 +227,86 @@ def test_plan_matches_snapshot(path: pathlib.Path) -> None:
         snapshot_path = _SNAPSHOT_DIR / path.name
         snapshot_path.write_text(json.dumps(planned, indent=2, sort_keys=True) + "\n")
     assert planned == _snapshot_root(path)
+
+
+@pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])
+def test_plan_is_the_typed_output_model(path: pathlib.Path) -> None:
+    """
+    The plan is a `Sentinel2GeoZarr`: the reflectance pyramid holds exactly
+    the six scale levels, each a `ReflectanceLevel` with `x`, `y` and its
+    bands; the auxiliary pyramids hold the levels `AUX_MULTISCALE_LEVELS`
+    lists; and the model reads its own dump back.
+    """
+    plan = plan_geozarr(Sentinel2Root.model_validate(_read(path)))
+    assert isinstance(plan, Sentinel2GeoZarr)
+
+    reflectance = plan.members["measurements"].members["reflectance"]
+    assert isinstance(reflectance, ReflectancePyramid)
+    assert set(reflectance.members) == {f"r{meters}m" for meters in REFLECTANCE_SCALE_LEVELS}
+    for level in (reflectance.members["r10m"], reflectance.members["r720m"]):
+        assert isinstance(level, ReflectanceLevel)
+        assert level.members["x"].dimension_names == ("x",)
+        assert level.members["y"].dimension_names == ("y",)
+        band = level.members.get("b02")
+        assert band is not None
+        assert level.attributes["spatial:shape"] == list(band.shape)
+
+    for group_path, scale_levels in AUX_MULTISCALE_LEVELS.items():
+        pyramid = plan.get_path(group_path)
+        if pyramid is None:  # the classification of the other product level
+            continue
+        assert isinstance(pyramid, AuxiliaryPyramid)
+        assert set(pyramid.members) == {f"r{meters}m" for meters in scale_levels}
+
+    dumped = plan.model_dump(mode="json")
+    assert Sentinel2GeoZarr.model_validate(dumped).model_dump(mode="json") == dumped
+
+
+def _planned_level(name: str = "r10m") -> dict[str, Any]:
+    """The dump of one planned reflectance level of the L2A fixture."""
+    level: dict[str, Any] = _planned_reflectance(_L2A_PATH)["members"][name]
+    return level
+
+
+def test_reflectance_level_refuses_an_unknown_member() -> None:
+    """A level holds only coordinates and known bands."""
+    level = _planned_level()
+    level["members"]["b99"] = level["members"]["b02"]
+    with pytest.raises(ValidationError, match="b99"):
+        ReflectanceLevel.model_validate(level)
+
+
+@pytest.mark.parametrize("missing", ["x", "y"])
+def test_reflectance_level_requires_coordinates(missing: str) -> None:
+    """A level without `x` or `y` is refused."""
+    level = _planned_level()
+    del level["members"][missing]
+    with pytest.raises(ValidationError, match=missing):
+        ReflectanceLevel.model_validate(level)
+
+
+def test_reflectance_level_refuses_an_unknown_attribute() -> None:
+    """A level's attributes are exactly the spatial and proj convention keys."""
+    level = _planned_level()
+    level["attributes"]["spatial:extra"] = 1
+    with pytest.raises(ValidationError, match="spatial:extra"):
+        ReflectanceLevel.model_validate(level)
+
+
+def test_reflectance_pyramid_requires_every_level() -> None:
+    """A pyramid missing one of the six scale levels is refused."""
+    pyramid = _planned_reflectance(_L2A_PATH)
+    del pyramid["members"]["r720m"]
+    with pytest.raises(ValidationError, match="r720m"):
+        ReflectancePyramid.model_validate(pyramid)
+
+
+def test_plan_refuses_an_extra_root_member() -> None:
+    """The planned root holds only `measurements`, `conditions` and `quality`."""
+    root = _planned_root(_L2A_PATH)
+    root["members"]["extra"] = root["members"]["measurements"]
+    with pytest.raises(ValidationError, match="extra"):
+        Sentinel2GeoZarr.model_validate(root)
 
 
 @pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])

@@ -26,7 +26,6 @@ see a partially filled store.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
@@ -38,7 +37,15 @@ from zarr.storage import FsspecStore, LocalStore
 
 from eopf_geozarr.conversion.encoding_utils import find_fill_value
 from eopf_geozarr.data_api.datatree import encoded_variable
-from eopf_geozarr.data_api.s2_plan import level_meters, plan_geozarr
+from eopf_geozarr.data_api.s2_plan import (
+    AuxiliaryLevel,
+    AuxiliaryPyramid,
+    ReflectanceLevel,
+    ReflectancePyramid,
+    Sentinel2GeoZarr,
+    level_meters,
+    plan_geozarr,
+)
 from eopf_geozarr.s2_optimization.s2_resampling import determine_variable_type
 from eopf_geozarr.zarr_io import read_documents, write_hierarchy
 
@@ -173,7 +180,7 @@ _MEAN_STRIPE_ROWS = 2048
 
 def write_geozarr(
     root: Sentinel2Root, source: zarr.Group | xr.DataTree, store: Store | str
-) -> AnyGroupSpec:
+) -> Sentinel2GeoZarr:
     """
     Write the GeoZarr hierarchy planned from `root` to `store`, copying and
     resampling chunk data from `source` — the Zarr V2 input store or the
@@ -245,12 +252,10 @@ def _fill_group(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, pa
     """Fill the data of every array under one planned group (recursively)."""
     for name, member in spec.members.items():
         member_path = f"{path}/{name}".lstrip("/")
-        if is_group_spec(member):
-            attributes = member.attributes
-            if isinstance(attributes, Mapping) and "multiscales" in attributes:
-                _fill_pyramid(member, source, output, member_path)
-            else:
-                _fill_group(member, source, output, member_path)
+        if isinstance(member, (ReflectancePyramid, AuxiliaryPyramid)):
+            _fill_pyramid(member, source, output, member_path)
+        elif is_group_spec(member):
+            _fill_group(member, source, output, member_path)
         else:
             _fill_carried_array(source, output, member_path)
 
@@ -268,24 +273,31 @@ def _fill_carried_array(source: SourceReader, output: zarr.Group, path: str) -> 
     _store_values(output, path, values)
 
 
-def _fill_pyramid(spec: AnyGroupSpec, source: SourceReader, output: zarr.Group, path: str) -> None:
+def _fill_pyramid(
+    spec: ReflectancePyramid | AuxiliaryPyramid,
+    source: SourceReader,
+    output: zarr.Group,
+    path: str,
+) -> None:
     """
     Fill one multiscale subtree, finest level first: native levels are copied
     from the input (with their injected bands resampled from the finest
     input level that holds them), and generated levels are chained from the
     data of the level before them, as the converter chains them.
     """
-    levels = sorted(spec.members, key=_level_meters)
+    # iterating a closed members type gives untyped values, hence the filter
+    levels: dict[str, ReflectanceLevel | AuxiliaryLevel] = {
+        name: level
+        for name, level in spec.members.items()
+        if isinstance(level, (ReflectanceLevel, AuxiliaryLevel))
+    }
     previous_data: dict[str, np.ndarray] = {}
     # the nodata each variable's input declares, carried down the chain
     nodata: dict[str, int | None] = {}
     previous_coords: dict[str, np.ndarray] = {}
     previous_meters: int | None = None
-    for level_name in levels:
-        level_spec = spec.members[level_name]
-        if not is_group_spec(level_spec):
-            msg = f"Planned pyramid member {path}/{level_name} is not a group"
-            raise TypeError(msg)
+    for level_name in sorted(levels, key=_level_meters):
+        level_spec = levels[level_name]
         meters = _level_meters(level_name)
         level_path = f"{path}/{level_name}"
         native = source.is_group(level_path)
