@@ -48,8 +48,9 @@ import numpy as np
 import structlog
 import xarray as xr
 from pydantic_zarr.v2 import ArraySpec as ArraySpecV2
-from pydantic_zarr.v3 import AnyGroupSpec, parse_dtype_v3
+from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
+from pydantic_zarr.v3 import parse_dtype_v3
 from typing_extensions import TypedDict
 from zarr_cm import ConventionMetadataObject
 from zarr_cm.multiscales import CMO as MULTISCALES_CMO
@@ -60,12 +61,21 @@ from eopf_geozarr.conversion.utils import normalize_cf_array_attrs
 from eopf_geozarr.data_api.datatree import group_spec_from_datatree
 from eopf_geozarr.data_api.geozarr.scope import GEOZARR_SCOPE
 from eopf_geozarr.data_api.geozarr.v3 import DataArray
-from eopf_geozarr.data_api.s2 import Sentinel2ResolutionDataset, Sentinel2Root
+from eopf_geozarr.data_api.s2 import (
+    BandMaskMembers,
+    Sentinel2ConditionsGroup,
+    Sentinel2ConditionsMaskGroup,
+    Sentinel2MeteorologyGroup,
+    Sentinel2QualityGroup,
+    Sentinel2ResolutionDataset,
+    Sentinel2Root,
+)
 from eopf_geozarr.s2_optimization.s2_multiscale import SCL_ATTRS, SCL_NODATA
 from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     import zarr
+    from pydantic_zarr.v2 import AnyGroupSpec as AnyGroupSpecV2
     from pydantic_zarr.v3 import FillValue
     from zarr_metadata.v3.chunk_grid.regular import RegularChunkGridObject
     from zarr_metadata.v3.chunk_key_encoding.default import DefaultChunkKeyEncodingObject
@@ -471,16 +481,93 @@ class AuxiliaryPyramid(GroupSpecV3[MultiscaleGroupAttrs, Mapping[str, AuxiliaryL
     """
 
 
+class CarriedDataset(GroupSpecV3[Mapping[str, object], Mapping[str, DataArray]]):
+    """
+    A dataset carried from the input: its arrays, named as the input names
+    them. Its attributes are the spatial and proj convention attributes when
+    it is georeferenced, and the input group's attributes otherwise.
+    """
+
+
+class BandMaskGroupMembers(TypedDict, closed=True, total=False):
+    """The native resolutions of a group of per-band masks."""
+
+    r10m: CarriedDataset
+    r20m: CarriedDataset
+    r60m: CarriedDataset
+
+
+class BandMaskGroup(GroupSpecV3[Mapping[str, object], BandMaskGroupMembers]):
+    """Per-band masks at the native resolutions: `quality/mask` and
+    `conditions/mask/detector_footprint`."""
+
+
+class ConditionsMaskGroupMembers(TypedDict, closed=True, total=False):
+    """The members of `conditions/mask`. An L1C product has no L2A classification."""
+
+    detector_footprint: BandMaskGroup
+    l1c_classification: AuxiliaryPyramid
+    l2a_classification: AuxiliaryPyramid
+
+
+class ConditionsMaskGroup(GroupSpecV3[Mapping[str, object], ConditionsMaskGroupMembers]):
+    """The `conditions/mask` group."""
+
+
+class MeteorologyGroupMembers(TypedDict, closed=True, total=False):
+    """The members of `conditions/meteorology`: one dataset per data source."""
+
+    cams: CarriedDataset
+    ecmwf: CarriedDataset
+
+
+class MeteorologyGroup(GroupSpecV3[Mapping[str, object], MeteorologyGroupMembers]):
+    """The `conditions/meteorology` group."""
+
+
+class ConditionsGroupMembers(TypedDict, closed=True, total=False):
+    """The members of `conditions`. Not every baseline carries `meteorology`."""
+
+    geometry: CarriedDataset
+    mask: ConditionsMaskGroup
+    meteorology: MeteorologyGroup
+
+
+class ConditionsGroup(GroupSpecV3[Mapping[str, object], ConditionsGroupMembers]):
+    """The `conditions` group."""
+
+
+class QualityGroupMembers(TypedDict, closed=True, total=False):
+    """
+    The members of `quality`. Only an L2A product has `atmosphere` and
+    `probability`. The input's quicklook groups are not planned: they
+    duplicate RGB data derivable from the reflectance bands
+    (EOPF-Explorer/data-model#81).
+
+    The members are declared in the order the input model declares them: a
+    validated group holds its members in declaration order, and the order
+    the datasets are walked in decides which array gets a STAC asset key
+    that two of them would share.
+    """
+
+    atmosphere: AuxiliaryPyramid
+    probability: AuxiliaryPyramid
+    mask: BandMaskGroup
+
+
+class QualityGroup(GroupSpecV3[Mapping[str, object], QualityGroupMembers]):
+    """The `quality` group."""
+
+
 class Sentinel2GeoZarrMembers(TypedDict, closed=True):
     """
-    The members of the planned root group. `conditions` and `quality` are
-    carried from the input, whose model leaves their inner structure open, so
-    they are typed as any group; either is absent when it carries nothing.
+    The members of the planned root group. `conditions` or `quality` is
+    absent when the input holds nothing to carry there.
     """
 
     measurements: MeasurementsGroup
-    conditions: NotRequired[AnyGroupSpec]
-    quality: NotRequired[AnyGroupSpec]
+    conditions: NotRequired[ConditionsGroup]
+    quality: NotRequired[QualityGroup]
 
 
 class Sentinel2GeoZarr(GroupSpecV3[Mapping[str, object], Sentinel2GeoZarrMembers]):
@@ -747,10 +834,6 @@ AUX_MULTISCALE_LEVELS: dict[str, tuple[int, ...]] = {
     "quality/probability": (20, 60, 120, 360, 720),
     "quality/atmosphere": (10, 20, 60, 120, 360, 720),
 }
-
-#: Groups the output drops: the quicklooks duplicate RGB data derivable from
-#: the reflectance bands (EOPF-Explorer/data-model#81).
-_DROPPED_GROUPS = frozenset({"quality/l1c_quicklook", "quality/l2a_quicklook"})
 
 #: Attribute keys never carried into the output: xarray's dimension
 #: bookkeeping, the EOPF source bag, the fill value (which lives in the array
@@ -1117,7 +1200,7 @@ def _plan_dataset(
     path: str,
     coordinate_values: CoordinateValues | None = None,
     tile: _TileGeoreferencing | None = None,
-) -> AnyGroupSpec | None:
+) -> CarriedDataset | None:
     """
     Plan one carried leaf dataset: every non-scalar array translated, and —
     when the dataset is georeferenced — the group's spatial attributes. A
@@ -1136,7 +1219,7 @@ def _plan_dataset(
     }
     if anchor is not None:
         transform, epsg = _proj_of(*anchor)
-        return GroupSpecV3(
+        return CarriedDataset(
             attributes=_spatial_dataset_attributes(transform, tuple(anchor[1]["shape"]), epsg),
             members=members,
         )
@@ -1146,7 +1229,7 @@ def _plan_dataset(
     attributes = _carried_group_attributes(group)
     if derived is not None:
         attributes = {**attributes, **derived}
-    return GroupSpecV3(attributes=attributes, members=members)
+    return CarriedDataset(attributes=attributes, members=members)
 
 
 def _plan_aux_multiscale(
@@ -1298,41 +1381,167 @@ def _plan_aux_multiscale(
     return AuxiliaryPyramid(attributes=group_attributes, members=members_out)
 
 
-def _plan_subtree(
-    group: _GroupDoc,
+def _carried_attributes(group: AnyGroupSpecV2) -> dict[str, object]:
+    """The attributes of an input group, without the keys never carried."""
+    return _carried_group_attributes(group.model_dump(include={"attributes"}))
+
+
+def _plan_input_dataset(
+    group: AnyGroupSpecV2 | None,
     path: str,
-    product_proj: tuple[tuple[float, float], int] | None = None,
-    coordinate_values: CoordinateValues | None = None,
-    tile: _TileGeoreferencing | None = None,
-) -> AnyGroupSpec | None:
-    """
-    Plan one conditions/quality subtree: aux multiscale groups by their specs,
-    leaf datasets carried, dropped and empty groups skipped.
-    """
-    if path in _DROPPED_GROUPS:
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> CarriedDataset | None:
+    """Plan one input dataset (see `_plan_dataset`), if the input holds it."""
+    if group is None:
         return None
-    if path in AUX_MULTISCALE_LEVELS:
-        return _plan_aux_multiscale(group, path, AUX_MULTISCALE_LEVELS[path], product_proj)
-    members = group.get("members") or {}
-    subgroups = {
-        name: member
-        for name, member in members.items()
-        if isinstance(member, Mapping) and "members" in member
-    }
-    if not subgroups:
-        return _plan_dataset(group, path, coordinate_values, tile)
-    planned: dict[str, AnyGroupSpec] = {}
-    for name, member in subgroups.items():
-        sub = _plan_subtree(member, f"{path}/{name}", product_proj, coordinate_values, tile)
-        if sub is not None:
-            planned[name] = sub
-    # a group holding arrays next to its subgroups keeps those arrays too
-    own = _plan_dataset(group, path, coordinate_values, tile)
-    if own is not None:
-        return GroupSpecV3(attributes=own.attributes, members={**dict(own.members), **planned})
-    if not planned:
+    return _plan_dataset(group.model_dump(), path, coordinate_values, tile)
+
+
+def _plan_input_pyramid(
+    group: AnyGroupSpecV2 | None, path: str, product_proj: tuple[tuple[float, float], int] | None
+) -> AuxiliaryPyramid | None:
+    """Plan the auxiliary pyramid at `path` (see `_plan_aux_multiscale`), if the
+    input holds its group."""
+    if group is None:
         return None
-    return GroupSpecV3(attributes=_carried_group_attributes(group), members=planned)
+    return _plan_aux_multiscale(group.model_dump(), path, AUX_MULTISCALE_LEVELS[path], product_proj)
+
+
+def _plan_band_masks(
+    group: GroupSpecV2[Any, BandMaskMembers] | None,
+    path: str,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> BandMaskGroup | None:
+    """Plan a group of per-band masks: each native resolution it holds, carried."""
+    if group is None:
+        return None
+    members: BandMaskGroupMembers = {}
+    r10m = _plan_input_dataset(group.members.get("r10m"), f"{path}/r10m", coordinate_values, tile)
+    if r10m is not None:
+        members["r10m"] = r10m
+    r20m = _plan_input_dataset(group.members.get("r20m"), f"{path}/r20m", coordinate_values, tile)
+    if r20m is not None:
+        members["r20m"] = r20m
+    r60m = _plan_input_dataset(group.members.get("r60m"), f"{path}/r60m", coordinate_values, tile)
+    if r60m is not None:
+        members["r60m"] = r60m
+    if not members:
+        return None
+    return BandMaskGroup(attributes=_carried_attributes(group), members=members)
+
+
+def _plan_conditions_mask(
+    group: Sentinel2ConditionsMaskGroup,
+    product_proj: tuple[tuple[float, float], int] | None,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> ConditionsMaskGroup | None:
+    """Plan `conditions/mask`: the detector footprints carried, and the
+    classifications as pyramids."""
+    path = "conditions/mask"
+    members: ConditionsMaskGroupMembers = {}
+    footprint = _plan_band_masks(
+        group.members.get("detector_footprint"),
+        f"{path}/detector_footprint",
+        coordinate_values,
+        tile,
+    )
+    if footprint is not None:
+        members["detector_footprint"] = footprint
+    l1c = _plan_input_pyramid(
+        group.members.get("l1c_classification"), f"{path}/l1c_classification", product_proj
+    )
+    if l1c is not None:
+        members["l1c_classification"] = l1c
+    l2a = _plan_input_pyramid(
+        group.members.get("l2a_classification"), f"{path}/l2a_classification", product_proj
+    )
+    if l2a is not None:
+        members["l2a_classification"] = l2a
+    if not members:
+        return None
+    return ConditionsMaskGroup(attributes=_carried_attributes(group), members=members)
+
+
+def _plan_meteorology(
+    group: Sentinel2MeteorologyGroup | None,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> MeteorologyGroup | None:
+    """Plan `conditions/meteorology`: the dataset of each source it holds, carried."""
+    if group is None:
+        return None
+    path = "conditions/meteorology"
+    members: MeteorologyGroupMembers = {}
+    cams = _plan_input_dataset(group.members.get("cams"), f"{path}/cams", coordinate_values, tile)
+    if cams is not None:
+        members["cams"] = cams
+    ecmwf = _plan_input_dataset(
+        group.members.get("ecmwf"), f"{path}/ecmwf", coordinate_values, tile
+    )
+    if ecmwf is not None:
+        members["ecmwf"] = ecmwf
+    if not members:
+        return None
+    return MeteorologyGroup(attributes=_carried_attributes(group), members=members)
+
+
+def _plan_conditions(
+    group: Sentinel2ConditionsGroup,
+    product_proj: tuple[tuple[float, float], int] | None,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> ConditionsGroup | None:
+    """Plan `conditions`: the geometry grids and the meteorology carried, and
+    the masks (see `_plan_conditions_mask`). None when nothing is carried."""
+    members: ConditionsGroupMembers = {}
+    geometry = _plan_input_dataset(
+        group.members["geometry"], GEOMETRY_PATH, coordinate_values, tile
+    )
+    if geometry is not None:
+        members["geometry"] = geometry
+    mask = _plan_conditions_mask(group.members["mask"], product_proj, coordinate_values, tile)
+    if mask is not None:
+        members["mask"] = mask
+    meteorology = _plan_meteorology(group.members.get("meteorology"), coordinate_values, tile)
+    if meteorology is not None:
+        members["meteorology"] = meteorology
+    if not members:
+        return None
+    return ConditionsGroup(attributes=_carried_attributes(group), members=members)
+
+
+def _plan_quality(
+    group: Sentinel2QualityGroup,
+    product_proj: tuple[tuple[float, float], int] | None,
+    coordinate_values: CoordinateValues | None,
+    tile: _TileGeoreferencing | None,
+) -> QualityGroup | None:
+    """
+    Plan `quality`: the atmosphere and probability pyramids and the per-band
+    masks. The quicklook groups are not planned: they duplicate RGB data
+    derivable from the reflectance bands (EOPF-Explorer/data-model#81). None
+    when nothing is carried.
+    """
+    members: QualityGroupMembers = {}
+    atmosphere = _plan_input_pyramid(
+        group.members.get("atmosphere"), "quality/atmosphere", product_proj
+    )
+    if atmosphere is not None:
+        members["atmosphere"] = atmosphere
+    probability = _plan_input_pyramid(
+        group.members.get("probability"), "quality/probability", product_proj
+    )
+    if probability is not None:
+        members["probability"] = probability
+    mask = _plan_band_masks(group.members.get("mask"), "quality/mask", coordinate_values, tile)
+    if mask is not None:
+        members["mask"] = mask
+    if not members:
+        return None
+    return QualityGroup(attributes=_carried_attributes(group), members=members)
 
 
 def plan_geozarr(
@@ -1344,9 +1553,10 @@ def plan_geozarr(
     Pure: reads only the validated input model, returns the output tree as a
     `Sentinel2GeoZarr` (a Zarr V3 `GroupSpec`) — `measurements/reflectance` as
     the sharded multiscale pyramid, a `ReflectancePyramid`, and the
-    `conditions` and `quality` subtrees carried (their own multiscale groups
-    planned by `AUX_MULTISCALE_LEVELS` as `AuxiliaryPyramid`s, the quicklooks
-    and scalar arrays dropped).
+    `conditions` and `quality` subtrees carried, as a `ConditionsGroup` and a
+    `QualityGroup` (their own multiscale groups planned by
+    `AUX_MULTISCALE_LEVELS` as `AuxiliaryPyramid`s, the quicklooks and scalar
+    arrays dropped).
 
     The plan reads metadata only, except where georeferencing must be derived
     from coordinate values: a carried group on a regular geographic grid
@@ -1360,14 +1570,10 @@ def plan_geozarr(
         "measurements": MeasurementsGroup(attributes={}, members={"reflectance": reflectance}),
     }
     product_proj = _product_proj(root)
-    conditions = _plan_subtree(
-        root.members["conditions"].model_dump(), "conditions", product_proj, coordinate_values, tile
-    )
+    conditions = _plan_conditions(root.members["conditions"], product_proj, coordinate_values, tile)
     if conditions is not None:
         members["conditions"] = conditions
-    quality = _plan_subtree(
-        root.members["quality"].model_dump(), "quality", product_proj, coordinate_values, tile
-    )
+    quality = _plan_quality(root.members["quality"], product_proj, coordinate_values, tile)
     if quality is not None:
         members["quality"] = quality
     return Sentinel2GeoZarr(attributes={}, members=members)

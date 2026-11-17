@@ -24,6 +24,11 @@ from eopf_geozarr.data_api.s2_plan import (
     AuxiliaryLevel,
     AuxiliaryLevelMembers,
     AuxiliaryPyramid,
+    BandMaskGroup,
+    CarriedDataset,
+    ConditionsGroup,
+    ConditionsMaskGroup,
+    QualityGroup,
     ReflectanceLevel,
     ReflectancePyramid,
     Sentinel2GeoZarr,
@@ -237,7 +242,8 @@ def test_plan_is_the_typed_output_model(path: pathlib.Path) -> None:
     The plan is a `Sentinel2GeoZarr`: the reflectance pyramid holds exactly
     the six scale levels, each a `ReflectanceLevel` with `x`, `y` and its
     bands; the auxiliary pyramids hold the levels `AUX_MULTISCALE_LEVELS`
-    lists; and the model reads its own dump back.
+    lists; `conditions` and `quality` are a `ConditionsGroup` and a
+    `QualityGroup`; and the model reads its own dump back.
     """
     plan = plan_geozarr(Sentinel2Root.model_validate(_read(path)))
     assert isinstance(plan, Sentinel2GeoZarr)
@@ -252,6 +258,16 @@ def test_plan_is_the_typed_output_model(path: pathlib.Path) -> None:
         band = level.members.get("b02")
         assert band is not None
         assert level.attributes["spatial:shape"] == list(band.shape)
+
+    conditions = plan.members.get("conditions")
+    quality = plan.members.get("quality")
+    assert isinstance(conditions, ConditionsGroup)
+    assert isinstance(quality, QualityGroup)
+    assert isinstance(conditions.members.get("geometry"), CarriedDataset)
+    mask = conditions.members.get("mask")
+    assert isinstance(mask, ConditionsMaskGroup)
+    assert isinstance(mask.members.get("detector_footprint"), BandMaskGroup)
+    assert isinstance(quality.members.get("mask"), BandMaskGroup)
 
     for group_path, scale_levels in AUX_MULTISCALE_LEVELS.items():
         pyramid = plan.get_path(group_path)
@@ -308,6 +324,24 @@ def test_plan_refuses_an_extra_root_member() -> None:
     root = _planned_root(_L2A_PATH)
     root["members"]["extra"] = root["members"]["measurements"]
     with pytest.raises(ValidationError, match="extra"):
+        Sentinel2GeoZarr.model_validate(root)
+
+
+def test_plan_refuses_an_unknown_conditions_member() -> None:
+    """`conditions` holds only `geometry`, `mask` and `meteorology`."""
+    root = _planned_root(_L2A_PATH)
+    conditions = root["members"]["conditions"]
+    conditions["members"]["extra"] = conditions["members"]["geometry"]
+    with pytest.raises(ValidationError, match="extra"):
+        Sentinel2GeoZarr.model_validate(root)
+
+
+def test_output_model_refuses_a_pyramid_level_without_a_coordinate() -> None:
+    """The root model checks the pyramids under `quality`: a level of
+    `quality/atmosphere` without its `x` array is refused."""
+    root = _planned_root(_L2A_PATH)
+    del root["members"]["quality"]["members"]["atmosphere"]["members"]["r10m"]["members"]["x"]
+    with pytest.raises(ValidationError, match="atmosphere"):
         Sentinel2GeoZarr.model_validate(root)
 
 
@@ -432,65 +466,66 @@ def test_product_level_requires_stac_discovery_evidence() -> None:
         product_level(root)
 
 
-def test_plan_carries_a_mixed_groups_own_arrays() -> None:
-    """A conditions/quality group holding arrays next to its subgroups keeps
-    those arrays in the plan instead of dropping them silently."""
-    path = _INPUT_PATHS[0]
-    document = _read(path)
-    mixed = document["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"]
-    assert any("members" in member for member in mixed["members"].values()), (
-        "fixture precondition: detector_footprint holds subgroups"
-    )
-    mixed["members"]["extra"] = {
-        "zarr_format": 2,
-        "shape": [4, 4],
-        "chunks": [4, 4],
-        "dtype": "<u2",
-        "fill_value": 0,
-        "order": "C",
-        "filters": None,
-        "compressor": None,
-        "dimension_separator": "/",
-        "attributes": {"_ARRAY_DIMENSIONS": ["y", "x"]},
-    }
-    root = Sentinel2Root.model_validate(document)
-    planned = plan_geozarr(root).model_dump(mode="json")
-    mask_members = planned["members"]["conditions"]["members"]["mask"]["members"]
-    planned_mixed = mask_members["detector_footprint"]["members"]
-    assert "extra" in planned_mixed
-    assert planned_mixed["extra"]["shape"] == [4, 4]
-    # the subgroups survive alongside the carried array
-    assert any("members" in member for member in planned_mixed.values())
+_EXTRA_ARRAY: dict[str, Any] = {
+    "zarr_format": 2,
+    "shape": [4, 4],
+    "chunks": [4, 4],
+    "dtype": "<u2",
+    "fill_value": 0,
+    "order": "C",
+    "filters": None,
+    "compressor": None,
+    "dimension_separator": "/",
+    "attributes": {"_ARRAY_DIMENSIONS": ["y", "x"]},
+}
+
+
+def test_input_refuses_an_array_beside_the_footprint_levels() -> None:
+    """The detector footprints hold resolution datasets only: an array next to
+    them is refused when the product is read, not dropped from the plan."""
+    document = _read(_INPUT_PATHS[0])
+    footprint = document["members"]["conditions"]["members"]["mask"]["members"][
+        "detector_footprint"
+    ]
+    footprint["members"]["extra"] = _EXTRA_ARRAY
+    with pytest.raises(ValidationError, match="extra"):
+        Sentinel2Root.model_validate(document)
+
+
+def test_input_refuses_a_group_where_geometry_holds_an_array() -> None:
+    """The members of `conditions/geometry` are arrays."""
+    document = _read(_INPUT_PATHS[0])
+    geometry = document["members"]["conditions"]["members"]["geometry"]
+    geometry["members"]["sun_angles"] = {"zarr_format": 2, "attributes": {}, "members": {}}
+    with pytest.raises(ValidationError, match="sun_angles"):
+        Sentinel2Root.model_validate(document)
 
 
 def test_plan_carries_a_datetime_array_in_its_v3_form() -> None:
     """A carried V2 datetime array is planned with the Zarr V3 form zarr-python
     writes, `numpy.datetime64` with its unit, which the GeoZarr scope claims."""
-    path = _INPUT_PATHS[0]
-    document = _read(path)
-    mixed = document["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"]
-    mixed["members"]["time"] = {
-        "zarr_format": 2,
+    document = _read(_INPUT_PATHS[0])
+    cams = document["members"]["conditions"]["members"]["meteorology"]["members"]["cams"]
+    cams["members"]["observed"] = {
+        **_EXTRA_ARRAY,
         "shape": [3],
         "chunks": [3],
         "dtype": "<M8[ns]",
-        "fill_value": 0,
-        "order": "C",
-        "filters": None,
-        "compressor": None,
-        "dimension_separator": "/",
-        "attributes": {"_ARRAY_DIMENSIONS": ["time"]},
+        "attributes": {"_ARRAY_DIMENSIONS": ["observed"]},
     }
-    root = Sentinel2Root.model_validate(document)
-    planned = plan_geozarr(root).model_dump(mode="json")
-    time = planned["members"]["conditions"]["members"]["mask"]["members"]["detector_footprint"][
-        "members"
-    ]["time"]
-    assert time["data_type"] == {
+    plan = plan_geozarr(Sentinel2Root.model_validate(document))
+    conditions = plan.members.get("conditions")
+    assert conditions is not None
+    meteorology = conditions.members.get("meteorology")
+    assert meteorology is not None
+    planned_cams = meteorology.members.get("cams")
+    assert planned_cams is not None
+    observed = planned_cams.members["observed"].model_dump(mode="json")
+    assert observed["data_type"] == {
         "name": "numpy.datetime64",
         "configuration": {"unit": "ns", "scale_factor": 1},
     }
-    assert time["dimension_names"] == ["time"]
+    assert observed["dimension_names"] == ["observed"]
 
 
 def test_plan_puts_cf_attributes_right_on_every_level() -> None:
