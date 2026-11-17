@@ -76,9 +76,10 @@ document that `convert_s2_optimized` stores below the root when called with
 the test suite compares the two. `Sentinel2GeoZarr` also validates a store
 the converter wrote: read its documents with
 `eopf_geozarr.zarr_io.read_documents` and pass them to
-`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the root's members
-and the whole `measurements` subtree. `conditions` and `quality` are accepted
-as any group, so their pyramids are not checked.
+`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the whole tree: the
+groups under `conditions` and `quality` are modeled too (`ConditionsGroup`,
+`QualityGroup`), down to the carried datasets, whose array names come from the
+product.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 
