@@ -444,11 +444,12 @@ class ReflectanceLevelMembers(TypedDict, closed=True, total=False):
     The members of one reflectance pyramid level: the `x` and `y` coordinate
     arrays and the `spatial_ref` grid mapping, always, and the bands the level
     holds (which depend on the product level and the resolution).
+
+    The bands are declared first because a validated level holds its members
+    in this order, and the bands come before the coordinates when the level
+    is walked.
     """
 
-    x: Required[DataArray]
-    y: Required[DataArray]
-    spatial_ref: Required[GridMappingArray]
     b01: DataArray
     b02: DataArray
     b03: DataArray
@@ -462,6 +463,9 @@ class ReflectanceLevelMembers(TypedDict, closed=True, total=False):
     b10: DataArray
     b11: DataArray
     b12: DataArray
+    x: Required[DataArray]
+    y: Required[DataArray]
+    spatial_ref: Required[GridMappingArray]
 
 
 class ReflectanceLevel(GroupSpecV3[SpatialGroupAttrs, ReflectanceLevelMembers]):
