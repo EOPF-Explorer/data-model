@@ -350,6 +350,42 @@ def _assert_radiance_dtype_and_attrs(
         )
 
 
+def _assert_json_string_similarity_geozarrversion(
+    observed: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    # Compare as JSON: a NaN fill value never equals itself as a float.
+    def canonical(node: object) -> str:
+        return json.dumps(node.model_dump(), sort_keys=True)  # type: ignore[attr-defined]
+
+    # catch differences in root stac_discovery such as EOPF_GEOZARR version which is commit-dependant
+    different_keys = [
+        key for key in observed if canonical(observed[key]) != canonical(expected[key])
+    ]
+    filtered_different_keys = []
+
+    for key in different_keys:
+        cobs, cexp = canonical(observed[key]), canonical(expected[key])
+        if key == "" and "EOPF_GEOZARR" in cobs and "EOPF_GEOZARR" in cexp:
+            import re
+
+            recobs = re.sub(
+                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
+                "",
+                cobs,
+            )
+            recexp = re.sub(
+                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
+                "",
+                cexp,
+            )
+
+            if recobs != recexp:
+                filtered_different_keys.append(key)
+
+    assert filtered_different_keys == []
+
+
 def _assert_olci_conversion_matches_snapshot(
     group_path: pathlib.Path, tmp_path: pathlib.Path, expected_levels: list[str]
 ) -> None:
@@ -402,11 +438,7 @@ def _assert_olci_conversion_matches_snapshot(
     expected = GroupSpec(**tuplify_json(json.loads(expected_path.read_text()))).to_flat()
     assert set(observed) == set(expected)
 
-    # Compare as JSON: a NaN fill value never equals itself as a float.
-    def canonical(node: object) -> str:
-        return json.dumps(node.model_dump(), sort_keys=True)  # type: ignore[attr-defined]
-
-    assert [key for key in observed if canonical(observed[key]) != canonical(expected[key])] == []
+    _assert_json_string_similarity_geozarrversion(observed, expected)
 
     # Dtype/attrs regression guard on every level: radiance must be stored as
     # uint16 with CF packing preserved and stale source attrs absent.
@@ -507,7 +539,6 @@ def _structure(out: str) -> dict[str, str]:
 def _assert_same_values(out_a: str, out_b: str) -> None:
     """Both stores hold the same arrays with identical stored values."""
     arrays_a, arrays_b = _arrays(out_a), _arrays(out_b)
-    print(arrays_a, arrays_b)
     assert set(arrays_a) == set(arrays_b)
     for path, arr in arrays_a.items():
         np.testing.assert_array_equal(arr[:], arrays_b[path][:], err_msg=path)
