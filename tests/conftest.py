@@ -22,6 +22,12 @@ zcm_multiscales_example_paths = tuple(
 )
 
 v3_s2_example_json_paths = tuple(pathlib.Path("tests/_test_data/v3_s2_examples").glob("*.json"))
+v3_s3_olc_efr_example_json_paths = tuple(
+    pathlib.Path("tests/_test_data/v3_s3_examples").glob("*_OL_1_EFR_*.json")
+)
+v3_s3_olc_err_example_json_paths = tuple(
+    pathlib.Path("tests/_test_data/v3_s3_examples").glob("*_OL_1_ERR_*.json")
+)
 s1_rtc_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_rtc_examples").glob("*.json"))
 
 
@@ -68,6 +74,22 @@ def create_zarrv3_group_from_json(
 def s3_olci_group_example(request: pytest.FixtureRequest, tmp_path: pathlib.Path) -> pathlib.Path:
     """Path to a Zarr group with the layout of a Sentinel-3 OLCI product."""
     return create_zarrv2_group_from_json(request.param, tmp_path)
+
+
+@pytest.fixture(params=v3_s3_olc_efr_example_json_paths, ids=get_stem)
+def s3_olci_efr_v3_group_example(
+    request: pytest.FixtureRequest, tmp_path: pathlib.Path
+) -> pathlib.Path:
+    """Path to a Zarr V3 group with the layout of a Sentinel-3 OLCI L1 EFR product."""
+    return create_zarrv3_group_from_json(request.param, tmp_path)
+
+
+@pytest.fixture(params=v3_s3_olc_err_example_json_paths, ids=get_stem)
+def s3_olci_err_v3_group_example(
+    request: pytest.FixtureRequest, tmp_path: pathlib.Path
+) -> pathlib.Path:
+    """Path to a Zarr V3 group with the layout of a Sentinel-3 OLCI L1 ERR product."""
+    return create_zarrv3_group_from_json(request.param, tmp_path)
 
 
 @pytest.fixture(params=s1_example_json_paths, ids=get_stem)

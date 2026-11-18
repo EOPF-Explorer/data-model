@@ -275,6 +275,7 @@ class GeoZarrWriter(EOWriter):
                 enable_sharding=enable_sharding,
                 spatial_chunk=resolved_spatial_chunk,
                 compression_level=compression_level,
+                scale_offset_codec=scale_offset_codec,
                 output_grid=output_grid,
             )
 

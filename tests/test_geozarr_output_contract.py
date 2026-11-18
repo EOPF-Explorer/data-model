@@ -36,7 +36,7 @@ from eopf_geozarr.conversion import create_geozarr_dataset
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 from .test_integration_sentinel1 import MockSentinel1L1GRDBuilder
-from .test_olci_integration import build_synthetic_olci
+from .test_old_olci_integration import build_synthetic_olci
 
 if TYPE_CHECKING:
     import pathlib

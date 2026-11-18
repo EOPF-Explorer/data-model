@@ -32,7 +32,7 @@ from eopf_geozarr.cpm.writer import ENGINE_NAME, GeoZarrWriter, get_cli_command
 
 from .conftest import create_zarrv2_group_from_json, s2_example_json_paths
 from .test_generic_rechunker import build_synthetic_tree, read_array
-from .test_olci_integration import build_synthetic_olci
+from .test_old_olci_integration import build_synthetic_olci
 
 
 def test_engine_registered() -> None:

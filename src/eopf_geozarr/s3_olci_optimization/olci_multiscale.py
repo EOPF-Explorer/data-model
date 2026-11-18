@@ -289,7 +289,7 @@ def reduce_swath(
             orig_dtype = var.dtype
 
             float_var = var.astype("float64")
-            if fill_value is not None:
+            if fill_value is not None and np.issubdtype(orig_dtype, np.integer):
                 if np.isnan(float(fill_value)):
                     # NaN sentinel (float sources): equality comparison would
                     # be a no-op (NaN != NaN is always True); mask explicitly.
@@ -309,7 +309,7 @@ def reduce_swath(
             # coarsen+mask graph — the heaviest compute in the converter.
             averaged = averaged.compute()
 
-            if fill_value is not None:
+            if fill_value is not None and np.issubdtype(orig_dtype, np.integer):
                 valid_mask = ~averaged.isnull().values
                 fill_da = xr.where(averaged.isnull(), float(fill_value), averaged)
                 result_arr = fill_da.values

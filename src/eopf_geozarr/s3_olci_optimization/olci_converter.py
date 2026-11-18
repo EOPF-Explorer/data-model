@@ -215,6 +215,7 @@ def olc_multiscales(
             enable_sharding=enable_sharding,
             compression_level=compression_level,
             scale_offset_codec=scale_offset_codec,
+            chunk_and_shard_coords=True,
         )
         ds_out = utils.stream_write_dataset(
             downsampled_dataset,
@@ -275,6 +276,13 @@ def updated_convert_olci_optimized(
 ) -> xr.DataTree:
     start_time = time.time()
 
+    if scale_offset_codec:
+        raise NotImplementedError(
+            "scale_offset_codec=True is not supported for Sentinel-3 OLCI: its packed "
+            "int32/uint32 variables (lat/lon, geometry angles) do not round-trip through "
+            "the float32 decoding of the scale_offset codecs. Use the CF layout (default)."
+        )
+
     processed_groups: dict[str, xr.Dataset | None] = {}
     output_group: zarr.Group = zarr.open_group(output_path)
 
@@ -328,6 +336,7 @@ def updated_convert_olci_optimized(
         log.info("Copying original group", group_path=group_path)
 
         dataset = utils._rechunk_ds(base_dataset, spatial_chunk)
+        print(dataset.encoding)
         is_measurement_group = group_path == "/measurements"
 
         if is_measurement_group:
@@ -359,6 +368,7 @@ def updated_convert_olci_optimized(
                 enable_sharding=enable_sharding,
                 compression_level=compression_level,
                 scale_offset_codec=scale_offset_codec,
+                chunk_and_shard_coords=True,
             )
 
             # Write dataset -> does NOT add geo metadata

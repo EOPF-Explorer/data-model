@@ -1,10 +1,10 @@
-"""Integration tests for convert_olci_optimized."""
+"""Integration tests for updated_convert_olci_optimized."""
 
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
+import os
+from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -13,148 +13,193 @@ import pytest
 import rioxarray  # noqa: F401
 import xarray as xr
 import zarr
-from affine import Affine
 from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
+from zarr.core.metadata import ArrayV3Metadata
 
-from eopf_geozarr.data_api.geozarr.validation import validate_store
-from eopf_geozarr.s3_olci_optimization.olci_converter import (
-    _sanitize_olci_array_attrs_keep_fill,
-)
+# from eopf_geozarr.s3_olci_optimization.olci_converter import (
+#     _sanitize_olci_array_attrs_keep_fill,
+# )
 
 if TYPE_CHECKING:
     import pathlib
+    from collections.abc import Callable
 
-from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
+# from eopf_geozarr.s3_olci_optimization.olci_converter import updated_convert_olci_optimized
+from eopf_geozarr.s3_olci_optimization.olci_converter import updated_convert_olci_optimized
+
+# A 8x8 nodata block in r0 covers the coarsest pixel [0, 0] of both pyramids:
+# EFR r3 (factor 8) and ERR r2 (factor 4).
+_OLCI_NODATA_BLOCK = 8
+_OLCI_SCALE_FACTOR = 0.013634907081723213  # oa01_radiance
+_OLCI_ADD_OFFSET = 0.0
+_OLCI_FILL_VALUE = 65535
+_OLCI_TIE_POINT_COLUMNS = 4
 
 
-def build_synthetic_olci(rows: int = 512, cols: int = 480) -> xr.DataTree:
-    """Minimal synthetic OLCI L1 EFR datatree (measurements only).
-
-    Geolocation is an axis-aligned ~300 m grid (0.003 deg spacing) so the
-    dataset is genuinely warpable to a regular lat/lon grid.
-    """
+def _make_minimal_olci_datatree(
+    *, product_type: str, rows: int, cols: int, orphans: bool, raw: bool
+) -> xr.DataTree:
+    """Shared builder for `_make_minimal_olci_efr_datatree` / `_make_minimal_olci_err_datatree`."""
     rng = np.random.default_rng(0)
-    lat_1d = np.linspace(45.0, 45.0 + 0.003 * (rows - 1), rows)
-    lon_1d = np.linspace(10.0, 10.0 + 0.003 * (cols - 1), cols)
-    lat = np.repeat(lat_1d[:, None], cols, axis=1)
-    lon = np.repeat(lon_1d[None, :], rows, axis=0)
-    alt = np.zeros((rows, cols), dtype="int16")
-    data: dict[str, xr.DataArray] = {}
-    for i in range(1, 22):
-        name = f"oa{i:02d}_radiance"
-        arr = xr.DataArray(
-            rng.integers(0, 6000, (rows, cols)).astype("uint16"),
-            dims=("rows", "columns"),
-            attrs={
-                "scale_factor": 0.0139,
-                "add_offset": 0.0,
-                "standard_name": "toa_upwelling_spectral_radiance",
-                "coordinates": "latitude longitude altitude",
-                "fill_value": 65535,
-            },
+    swath = ("rows", "columns")
+
+    def _radiance(shape: tuple[int, int], dims: tuple[str, str]) -> xr.DataArray:
+        packed = rng.integers(0, 6000, size=shape).astype("uint16")
+        if dims == swath:
+            packed[:_OLCI_NODATA_BLOCK, :_OLCI_NODATA_BLOCK] = _OLCI_FILL_VALUE
+        cf = {
+            "scale_factor": _OLCI_SCALE_FACTOR,
+            "add_offset": _OLCI_ADD_OFFSET,
+            "_FillValue": _OLCI_FILL_VALUE,
+        }
+        attrs = {"standard_name": "toa_upwelling_spectral_radiance"}
+        if raw:
+            return xr.DataArray(packed, dims=dims, attrs={**attrs, **cf})
+        decoded = np.where(
+            packed == _OLCI_FILL_VALUE, np.nan, packed * _OLCI_SCALE_FACTOR + _OLCI_ADD_OFFSET
         )
-        data[name] = arr
-    ds = xr.Dataset(
-        data,
-        coords={
-            "latitude": (("rows", "columns"), lat, {"standard_name": "latitude"}),
-            "longitude": (("rows", "columns"), lon, {"standard_name": "longitude"}),
-            "altitude": (("rows", "columns"), alt, {"standard_name": "altitude"}),
-        },
+        da = xr.DataArray(decoded, dims=dims, attrs=attrs)
+        da.encoding = {**cf, "dtype": np.dtype("uint16")}
+        return da
+
+    def _latlon(n_cols: int) -> dict[str, tuple[tuple[str, str], np.ndarray, dict[str, str]]]:
+        lat, lon = np.meshgrid(
+            45.0 + 0.003 * np.arange(rows), 10.0 + 0.003 * np.linspace(0, cols - 1, n_cols),
+            indexing="ij",
+        )  # fmt: skip
+        return {
+            "latitude": (swath, lat, {"standard_name": "latitude"}),
+            "longitude": (swath, lon, {"standard_name": "longitude"}),
+        }
+
+    measurements = xr.Dataset(
+        {"oa01_radiance": _radiance((rows, cols), swath)}, coords=_latlon(cols)
     )
-    return xr.DataTree.from_dict({"/measurements": ds})
+    quality = xr.Dataset(
+        {
+            "quality_flags": xr.DataArray(
+                rng.integers(0, 2**31, size=(rows, cols), dtype="uint32"), dims=swath
+            )
+        }
+    )
+    # Tie-point grid: same rows, far fewer columns than the image grid.
+    geometry = xr.Dataset(
+        {"sza": (swath, rng.uniform(0.0, 90.0, (rows, _OLCI_TIE_POINT_COLUMNS)))},
+        coords=_latlon(_OLCI_TIE_POINT_COLUMNS),
+    )
+
+    dt = xr.DataTree()
+    dt.attrs = {"stac_discovery": {"properties": {"product:type": product_type}}}
+    dt["measurements"] = xr.DataTree(measurements)
+    dt["quality"] = xr.DataTree(quality)
+    dt["conditions/geometry"] = xr.DataTree(geometry)
+    if orphans:
+        # Pixels removed from the image grid, per row (EFR only).
+        dt["measurements/orphans"] = xr.DataTree(
+            xr.Dataset(
+                {"oa01_radiance": _radiance((rows, 2), ("rows", "removed_pixels"))},
+                coords={"removed_pixels": np.arange(2)},
+            )
+        )
+    return dt
 
 
-def test_convert_olci_writes_measurements(tmp_path: object) -> None:
-    """Native-resolution measurements group must contain all 21 radiance bands."""
-    import zarr
+def _make_minimal_olci_efr_datatree(*, raw: bool) -> xr.DataTree:
+    """Build a tiny OLCI L1 EFR (full resolution) DataTree for behavior tests.
 
-    dt = build_synthetic_olci()
-    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt, output_path=out)
+    Product type `S03OLCEFR` (FR pyramid r0..r3). A 40x48 swath, wider than
+    tall like the real 4091x4865 product, with `measurements` (+ `orphans`),
+    `quality` and `conditions/geometry` on a tie-point grid. One radiance band,
+    packed like ESA OLCI L1 (uint16, `scale_factor`, `_FillValue` 65535), with
+    a `_OLCI_NODATA_BLOCK` fill block in the top-left corner.
 
-    g = zarr.open_group(out, mode="r")
-    # native measurements present
-    assert "measurements" in g
-    # all 21 bands at native res, in the r0 base-level group
-    meas = g["measurements"]
-    assert isinstance(meas, zarr.Group)
-    r0 = meas["r0"]
-    assert isinstance(r0, zarr.Group)
-    for i in range(1, 22):
-        assert f"oa{i:02d}_radiance" in r0
-
-
-def test_convert_olci_creates_overviews(tmp_path: object) -> None:
-    """Overview subgroups must only be written when BOTH post-decimation dims >= min_dimension.
-
-    Case 1 — 512x480 with min_dimension=256:
-        480//2 = 240 < 256, so the guard fires immediately → zero overview levels.
-
-    Case 2 — 1024x1024 with min_dimension=256:
-        the warped grid stays close to 1024x1024, yielding exactly two
-        overview levels; each halves the previous and the deepest would drop
-        below min_dimension if halved again.
+    `raw=True` gives the packed integers with the CF values in `.attrs`, as the
+    CLI opens products (`mask_and_scale=False`). `raw=False` gives decoded
+    floats with the CF values in `.encoding`.
     """
-    import zarr
-
-    # --- Case 1: 512x480, min_dimension=256 → zero overview levels ---
-    dt1 = build_synthetic_olci(rows=512, cols=480)
-    out1 = str(tmp_path / "olci_case1.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt1, output_path=out1, min_dimension=256)
-
-    g1 = zarr.open_group(out1, mode="r")
-    meas1 = g1["measurements"]
-    assert isinstance(meas1, zarr.Group)
-    subgroups1 = sorted(meas1.group_keys())
-    assert subgroups1 == ["r0"], (
-        f"Expected only the r0 base level for 512x480 at min_dimension=256, got {subgroups1}"
+    return _make_minimal_olci_datatree(
+        product_type="S03OLCEFR", rows=40, cols=48, orphans=True, raw=raw
     )
 
-    # --- Case 2: 1024x1024, min_dimension=256 → exactly two valid levels ---
-    dt2 = build_synthetic_olci(rows=1024, cols=1024)
-    out2 = str(tmp_path / "olci_case2.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt2, output_path=out2, min_dimension=256)
 
-    g2 = zarr.open_group(out2, mode="r")
-    meas2 = g2["measurements"]
-    assert isinstance(meas2, zarr.Group)
-    subgroups2 = sorted(meas2.group_keys())
-    assert subgroups2 == ["r0", "r2", "r4"], (
-        f"Expected r0 + exactly 2 overview levels for 1024x1024 at min_dimension=256, "
-        f"got {subgroups2}"
+def _make_minimal_olci_err_datatree(*, raw: bool) -> xr.DataTree:
+    """Build a tiny OLCI L1 ERR (reduced resolution) DataTree for behavior tests.
+
+    Product type `S03OLCERR` (RR pyramid r0..r2). A 64x16 swath, a long narrow
+    strip like the real 15105x1217 product, and no `orphans` group. Otherwise
+    as `_make_minimal_olci_efr_datatree`.
+    """
+    return _make_minimal_olci_datatree(
+        product_type="S03OLCERR", rows=64, cols=16, orphans=False, raw=raw
     )
 
-    # Every level must have BOTH spatial dims >= min_dimension, and each
-    # overview must be exactly half the previous level (floor division).
-    r0_2 = meas2["r0"]
-    assert isinstance(r0_2, zarr.Group)
-    band0 = r0_2["oa01_radiance"]
-    assert isinstance(band0, zarr.Array)
-    prev_shape = band0.shape
-    for sg_name in [k for k in subgroups2 if k != "r0"]:
-        sg = meas2[sg_name]
-        assert isinstance(sg, zarr.Group)
-        band = sg["oa01_radiance"]
-        assert isinstance(band, zarr.Array)
-        assert band.shape[0] == prev_shape[0] // 2
-        assert band.shape[1] == prev_shape[1] // 2
-        assert band.shape[0] >= 256
-        assert band.shape[1] >= 256
-        prev_shape = band.shape
 
-    # The deepest level would violate min_dimension if halved again.
-    assert prev_shape[0] // 2 < 256 or prev_shape[1] // 2 < 256
+def _assert_levels(out: str, expected_shapes: dict[str, tuple[int, int]]) -> None:
+    """`measurements` holds exactly the expected levels, each a packed uint16 swath."""
+    meas = zarr.open_group(out, mode="r")["measurements"]
+    assert isinstance(meas, zarr.Group)
+    assert {k for k in meas.group_keys() if k != "orphans"} == set(expected_shapes)
+    for level, shape in expected_shapes.items():
+        for name in ("oa01_radiance", "latitude", "longitude"):
+            arr = meas[f"{level}/{name}"]
+            assert isinstance(arr, zarr.Array)
+            assert arr.shape == shape, f"{level}/{name}"
+            assert arr.metadata.dimension_names == ("rows", "columns")  # type: ignore[union-attr]
+            if name == "oa01_radiance":
+                assert arr.dtype == np.dtype("uint16"), level
 
 
-def test_convert_olci_returns_datatree(tmp_path: object) -> None:
-    """convert_olci_optimized must return an xr.DataTree backed by the output store."""
-    dt = build_synthetic_olci(rows=256, cols=256)
-    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
-    result = convert_olci_optimized(dt, output_path=out, min_dimension=256)
+def _assert_copied(dt_in: xr.DataTree, out: str, path: str) -> None:
+    """Every variable of the input group `path` is copied unchanged.
+
+    Same dims, shape and values (decoded), and stored with the input's on-disk
+    dtype (`encoding["dtype"]` for packed variables).
+    """
+    ds_in = dt_in[path].to_dataset()
+    ds_out = xr.open_dataset(out, engine="zarr", group=path, consolidated=False)
+    group = zarr.open_group(out, mode="r")[path]
+    assert isinstance(group, zarr.Group)
+    assert set(ds_out.variables) == set(ds_in.variables), path
+    for name, var in ds_in.variables.items():
+        observed = ds_out[name]
+        assert observed.dims == var.dims, f"{path}/{name}"
+        assert observed.dtype == var.dtype, f"{path}/{name}"
+        np.testing.assert_array_equal(observed.values, var.values, err_msg=f"{path}/{name}")
+        stored = group[str(name)]
+        assert isinstance(stored, zarr.Array)
+        assert stored.dtype == var.encoding.get("dtype", var.dtype), f"{path}/{name}"
+    ds_out.close()
+
+
+def test_convert_olci_efr(tmp_path: pathlib.Path) -> None:
+    """EFR builds the 4-level FR pyramid and copies every other group through unchanged."""
+    dt = _make_minimal_olci_efr_datatree(raw=False)
+    out = str(tmp_path / "olci_geozarr.zarr")
+    result = updated_convert_olci_optimized(dt, output_path=out)
+
     assert isinstance(result, xr.DataTree)
-    assert "/measurements" in result.groups
+    assert {"/measurements/orphans", "/conditions/geometry", "/quality"} <= set(result.groups)
+
+    _assert_levels(out, {"r0": (40, 48), "r1": (20, 24), "r2": (10, 12), "r3": (5, 6)})
+    # Tie-point grid keeps its own (narrower) `columns`, orphans their `removed_pixels`.
+    for path in ("measurements/orphans", "quality", "conditions/geometry"):
+        _assert_copied(dt, out, path)
+
+
+def test_convert_olci_err(tmp_path: pathlib.Path) -> None:
+    """ERR builds the 3-level RR pyramid, copies every other group, and has no orphans."""
+    dt = _make_minimal_olci_err_datatree(raw=False)
+    out = str(tmp_path / "olci_geozarr.zarr")
+    result = updated_convert_olci_optimized(dt, output_path=out)
+
+    assert isinstance(result, xr.DataTree)
+    assert {"/conditions/geometry", "/quality"} <= set(result.groups)
+    assert "/measurements/orphans" not in result.groups
+
+    _assert_levels(out, {"r0": (64, 16), "r1": (32, 8), "r2": (16, 4)})
+    for path in ("quality", "conditions/geometry"):
+        _assert_copied(dt, out, path)
 
 
 def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
@@ -165,15 +210,17 @@ def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
     halve it, the whole store opens with xr.open_datatree, and nothing
     fabricates a CRS (no spatial_ref, no grid_mapping, no proj: attrs).
     """
-    dt = build_synthetic_olci(rows=512, cols=512)
+    dt = _make_minimal_olci_datatree(
+        product_type="S03OLCEFR", rows=512, cols=512, orphans=False, raw=False
+    )
     out = str(tmp_path / "olci_native.zarr")  # type: ignore[operator]
-    result = convert_olci_optimized(dt, output_path=out, min_dimension=128)
+    result = updated_convert_olci_optimized(dt, output_path=out)
 
     opened = xr.open_datatree(out, engine="zarr", consolidated=False, chunks={})
 
     r0 = opened["/measurements/r0"].to_dataset()
     assert dict(r0.sizes) == {"rows": 512, "columns": 512}  # exact: no warp
-    for level, size in (("r0", 512), ("r2", 256), ("r4", 128)):
+    for level, size in (("r0", 512), ("r1", 256), ("r2", 128), ("r3", 64)):
         ds = opened[f"/measurements/{level}"].to_dataset()
         assert dict(ds.sizes) == {"rows": size, "columns": size}
         assert ds["latitude"].dims == ("rows", "columns")
@@ -185,296 +232,106 @@ def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
     meas_group = zarr.open_group(out, mode="r")["measurements"]
     assert isinstance(meas_group, zarr.Group)
     meas_attrs = dict(meas_group.attrs)
-    assert meas_attrs["spatial:dimensions"] == ["rows", "columns"]
+
+    # excluding spatial: convention
+    # assert meas_attrs["spatial:dimensions"] == ["rows", "columns"]
+
     assert not any(k.startswith("proj:") for k in meas_attrs)
     multiscales = meas_attrs["multiscales"]
     assert isinstance(multiscales, dict)
     layout = multiscales["layout"]
     assert isinstance(layout, list)
-    assert layout[0] == {"asset": "r0", "spatial:shape": [512, 512]}
+
+    # excluding spatial: convention
+    # assert layout[0] == {"asset": "r0", "spatial:shape": [512, 512]}
+
+    assert layout[0] == {"asset": "r0"}
+    assert layout[1] == {
+        "asset": "r1",
+        "derived_from": "r0",
+        "transform": {"scale": [2, 2], "translation": [0.0, 0.0]},
+    }
+
     r0_group = meas_group["r0"]
     assert isinstance(r0_group, zarr.Group)
     r0_attrs = dict(r0_group.attrs)
-    assert r0_attrs["spatial:dimensions"] == ["rows", "columns"]
+
+    # excluding spatial: convention
+    # assert r0_attrs["spatial:dimensions"] == ["rows", "columns"]
+
     assert not any(k.startswith("proj:") for k in r0_attrs)
 
     assert "/measurements/r0" in result.groups
-    assert "/measurements/r2" in result.groups
+    assert "/measurements/r1" in result.groups
 
 
 def test_convert_olci_invalid_output_grid_raises(tmp_path: object) -> None:
-    dt = build_synthetic_olci(rows=64, cols=64)
+    dt = _make_minimal_olci_err_datatree(raw=False)
     out = str(tmp_path / "bad.zarr")  # type: ignore[operator]
-    with pytest.raises(ValueError, match="output_grid"):
-        convert_olci_optimized(dt, output_path=out, output_grid="not-a-crs")
+    with pytest.raises(ValueError, match="need native output_grid"):
+        updated_convert_olci_optimized(dt, output_path=out, output_grid="4326")
 
 
-def test_convert_olci_regridded_output_opens_as_datatree(tmp_path: object) -> None:
-    """Acceptance for the opt-in regridded mode: the exported store is a regular grid with CRS at every level.
+@pytest.mark.parametrize(
+    ("make_datatree", "levels", "orphans"),
+    [
+        (_make_minimal_olci_efr_datatree, ["r0", "r1", "r2", "r3"], True),
+        (_make_minimal_olci_err_datatree, ["r0", "r1", "r2"], False),
+    ],
+    ids=("efr", "err"),
+)
+def test_convert_olci_layout_and_consolidation(
+    tmp_path: pathlib.Path,
+    make_datatree: Callable[..., xr.DataTree],
+    levels: list[str],
+    orphans: bool,
+) -> None:
+    """The multiscales layout chains the levels, and `measurements` is consolidated.
 
-    xr.open_datatree must open the whole store; measurements/r0 holds the
-    warped native-resolution grid with 1-D y/x coordinates and a declared
-    CRS, overview siblings halve it, and the multiscales layout references
-    the base level by name.
+    Each overview is derived from the level before it by a 2x reduction, and
+    each halves the previous level's shape (floor). `measurements` and the root each carry a
+    consolidated block, so a reader can open `measurements` without listing it
+    (#291, #303).
     """
-    dt = build_synthetic_olci(rows=1024, cols=1024)
-    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
-    result = convert_olci_optimized(dt, output_path=out, min_dimension=256, output_grid="EPSG:4326")
-
-    opened = xr.open_datatree(out, engine="zarr", consolidated=False, chunks={})
-
-    r0 = opened["/measurements/r0"].to_dataset()
-    assert set(r0.sizes) == {"y", "x"}
-    for i in range(1, 22):
-        assert f"oa{i:02d}_radiance" in r0
-    # CRS declared at every level, 1-D regular coordinates
-    for level in ("r0", "r2", "r4"):
-        ds = opened[f"/measurements/{level}"].to_dataset()
-        assert ds.rio.crs is not None, f"{level}: no CRS"
-        assert ds.rio.crs.to_epsg() == 4326
-        for dim in ("y", "x"):
-            coord = ds[dim]
-            assert coord.ndim == 1
-            steps = np.diff(coord.values)
-            assert np.allclose(steps, steps[0])
-        band = ds["oa01_radiance"]
-        assert band.attrs["grid_mapping"] == "spatial_ref"
-    # halving structure relative to observed r0
-    r2 = opened["/measurements/r2"].to_dataset()
-    assert r2.sizes["y"] == r0.sizes["y"] // 2
-    assert r2.sizes["x"] == r0.sizes["x"] // 2
-
-    # measurements itself holds only convention metadata
-    meas = opened["/measurements"].to_dataset()
-    assert len(meas.data_vars) == 0
-
-    meas_attrs = dict(zarr.open_group(out, mode="r")["measurements"].attrs)
-    multiscales = meas_attrs["multiscales"]
-    assert isinstance(multiscales, dict)
-    layout = multiscales["layout"]
-    assert isinstance(layout, list)
-    # per-level geo-proj convention present
-    meas_group = zarr.open_group(out, mode="r")["measurements"]
-    assert isinstance(meas_group, zarr.Group)
-    r0_group = meas_group["r0"]
-    assert isinstance(r0_group, zarr.Group)
-    r0_attrs = dict(r0_group.attrs)
-    assert "proj:code" in r0_attrs
-
-    assert "/measurements/r0" in result.groups
-    assert "/measurements/r2" in result.groups
-
-
-@pytest.mark.parametrize("output_grid", ["native", "EPSG:4326"])
-def test_convert_olci_layout_and_consolidation(tmp_path: pathlib.Path, output_grid: str) -> None:
-    """Every level declares its shape in the layout, and `measurements` is consolidated.
-
-    Every layout entry carries its level's spatial:shape (readers take the zoom
-    range and the level to read from the layout). Gridded entries also carry the
-    level's spatial:transform; swath entries never do, as a swath is geolocated by
-    its 2-D lat/lon arrays. `measurements` and the root each carry a consolidated
-    block, so a reader can open `measurements` without listing it (#291, #303).
-    """
-    gridded = output_grid != "native"
     out = tmp_path / "olci_geozarr.zarr"
-    convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256),
-        output_path=str(out),
-        min_dimension=64,
-        output_grid=output_grid,
-    )
+    updated_convert_olci_optimized(make_datatree(raw=False), output_path=str(out))
 
     def meta(path: str) -> Any:
         return json.loads((out / path / "zarr.json").read_text())
 
-    layout = meta("measurements")["attributes"]["multiscales"]["layout"]
-    assert [entry["asset"] for entry in layout] == ["r0", "r2", "r4"]
-    assert "derived_from" not in layout[0]
-    for entry in layout:
-        level = f"measurements/{entry['asset']}"
-        attrs = meta(level)["attributes"]
-        assert (
-            entry["spatial:shape"]
-            == attrs["spatial:shape"]
-            == meta(f"{level}/oa01_radiance")["shape"]
-        )
-        assert ("spatial:transform" in entry) is gridded
-        assert entry.get("spatial:transform") == attrs.get("spatial:transform")
+    multiscales = meta("measurements")["attributes"]["multiscales"]
+    assert multiscales["resampling_method"] == "average"
+    layout = multiscales["layout"]
+    assert [entry["asset"] for entry in layout] == levels
+    assert layout[0] == {"asset": "r0"}
+    for parent, entry in pairwise(layout):
+        assert entry == {
+            "asset": entry["asset"],
+            "derived_from": parent["asset"],
+            "transform": {"scale": [2, 2], "translation": [0.0, 0.0]},
+        }
 
-    if gridded:
-        # The store root's own minispec metadata is a separate, older gap. A swath
-        # is outside the store model, which assumes a regular grid.
-        issues = validate_store(str(out)).issues
-        assert [i for i in issues if i.path.startswith("/measurements")] == []
+    shapes = [meta(f"measurements/{level}/oa01_radiance")["shape"] for level in levels]
+    for previous, current in pairwise(shapes):
+        assert current == [previous[0] // 2, previous[1] // 2]
 
     for path in ("", "measurements"):
         assert meta(path)["consolidated_metadata"] is not None, f"/{path}: no consolidated block"
     opened = xr.open_datatree(
         str(out / "measurements"), engine="zarr", consolidated=True, chunks={}
     )
-    assert {"r0", "r2", "r4"} <= set(opened.children)
-
-
-def test_convert_olci_level_transform_scales_r0(tmp_path: pathlib.Path) -> None:
-    """Each level's spatial:transform is r0's scaled by its factor, down to a 1-pixel level."""
-    out = tmp_path / "olci_tiny.zarr"
-    convert_olci_optimized(
-        build_synthetic_olci(rows=16, cols=16),
-        output_path=str(out),
-        min_dimension=1,
-        output_grid="EPSG:4326",
-    )
-    layout = json.loads((out / "measurements" / "zarr.json").read_text())["attributes"][
-        "multiscales"
-    ]["layout"]
-    assert layout[-1]["spatial:shape"] == [1, 1]
-    r0 = Affine(*layout[0]["spatial:transform"])
-    for entry in layout:
-        step = int(entry["asset"][1:]) or 1
-        assert entry["spatial:transform"] == pytest.approx(list(r0 @ Affine.scale(step))[:6])
-
-
-def test_convert_olci_conditions_quality_passthrough(tmp_path: object) -> None:
-    """conditions and quality groups, when present, are copied through unchanged."""
-    import zarr
-
-    # Build a tree with conditions and quality groups
-    rng = np.random.default_rng(1)
-    rows, cols = 128, 128
-    lat_1d = np.linspace(45.0, 45.0 + 0.003 * (rows - 1), rows)
-    lon_1d = np.linspace(10.0, 10.0 + 0.003 * (cols - 1), cols)
-    lat = np.repeat(lat_1d[:, None], cols, axis=1)
-    lon = np.repeat(lon_1d[None, :], rows, axis=0)
-    alt = np.zeros((rows, cols), dtype="int16")
-
-    meas_data: dict[str, xr.DataArray] = {
-        "oa01_radiance": xr.DataArray(
-            rng.integers(0, 6000, (rows, cols)).astype("uint16"),
-            dims=("rows", "columns"),
-        )
-    }
-    meas_ds = xr.Dataset(
-        meas_data,
-        coords={
-            "latitude": (("rows", "columns"), lat),
-            "longitude": (("rows", "columns"), lon),
-            "altitude": (("rows", "columns"), alt),
-        },
-    )
-    cond_ds = xr.Dataset(
-        {
-            "wind_speed": xr.DataArray(
-                rng.random((rows, cols)).astype("float32"), dims=("rows", "columns")
-            )
-        }
-    )
-    quality_ds = xr.Dataset(
-        {
-            "flags": xr.DataArray(
-                rng.integers(0, 255, (rows, cols)).astype("uint8"), dims=("rows", "columns")
-            )
-        }
-    )
-    # Build a measurements/orphans sub-dataset to verify child subgroup copy.
-    orphans_ds = xr.Dataset(
-        {
-            "removed_count": xr.DataArray(
-                rng.integers(0, 10, (rows,)).astype("int32"), dims=("rows",)
-            )
-        }
-    )
-    dt = xr.DataTree.from_dict(
-        {
-            "/measurements": meas_ds,
-            "/measurements/orphans": orphans_ds,
-            "/conditions": cond_ds,
-            "/quality": quality_ds,
-        }
-    )
-
-    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt, output_path=out, min_dimension=64)
-
-    g = zarr.open_group(out, mode="r")
-    assert "conditions" in g
-    assert "quality" in g
-    # measurements/orphans subgroup must have been copied through.
-    assert "orphans" in g["measurements"]
-
-
-def test_cli_convert_s3_olci_optimized(tmp_path: pathlib.Path) -> None:
-    """convert-s3-olci-optimized subcommand must write a GeoZarr measurements group."""
-    import zarr
-
-    # materialise a synthetic OLCI product to a zarr v2 store on disk
-    dt = build_synthetic_olci(rows=300, cols=300)
-    src = tmp_path / "olci_src.zarr"
-    dt.to_zarr(src, mode="w", consolidated=False)
-    out = tmp_path / "olci_out.zarr"
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "eopf_geozarr",
-            "convert-s3-olci-optimized",
-            str(src),
-            str(out),
-            "--spatial-chunk",
-            "256",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    g = zarr.open_group(str(out), mode="r")
-    assert "measurements" in g
-
-    # Default (no flag) produced the native instrument grid.
-    meas_default = g["measurements"]
-    assert isinstance(meas_default, zarr.Group)
-    r0_default = meas_default["r0"]
-    assert isinstance(r0_default, zarr.Group)
-    band_default = r0_default["oa01_radiance"]
-    assert isinstance(band_default, zarr.Array)
-    assert band_default.metadata.dimension_names == ("rows", "columns")  # type: ignore[attr-defined]
-
-    # Opt-in regridding via --output-grid.
-    out2 = tmp_path / "olci_out_gridded.zarr"
-    result2 = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "eopf_geozarr",
-            "convert-s3-olci-optimized",
-            str(src),
-            str(out2),
-            "--output-grid",
-            "EPSG:4326",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    assert result2.returncode == 0, result2.stdout + result2.stderr
-    g2 = zarr.open_group(str(out2), mode="r")
-    meas2 = g2["measurements"]
-    assert isinstance(meas2, zarr.Group)
-    r0_2 = meas2["r0"]
-    assert isinstance(r0_2, zarr.Group)
-    band2 = r0_2["oa01_radiance"]
-    assert isinstance(band2, zarr.Array)
-    assert band2.metadata.dimension_names == ("y", "x")  # type: ignore[attr-defined]
+    assert set(opened.children) == set(levels) | ({"orphans"} if orphans else set())
 
 
 def _assert_radiance_dtype_and_attrs(
     group: zarr.Group, band_name: str, *, level_label: str
 ) -> None:
-    """Assert that *band_name* in *group* is uint16 with scale_factor and no stale attrs.
+    """Assert that *band_name* in *group* is uint16 with CF packing and no stale attrs.
 
-    This is a regression guard: the converter must preserve raw integer storage
-    and CF scale/offset, and must strip source-only attrs (_eopf_attrs, dtype,
-    valid_min, valid_max).
+    This is a regression guard: the converter must preserve raw integer storage,
+    CF scale/offset and the 65535 fill value, and must strip the source-only
+    attrs `_eopf_attrs` and `dtype`. `valid_min`/`valid_max` are kept: the
+    output stays packed, so they are still valid in the raw domain.
     """
     band = group[band_name]
     assert isinstance(band, zarr.Array), f"{level_label}/{band_name} is not a zarr.Array"
@@ -485,71 +342,39 @@ def _assert_radiance_dtype_and_attrs(
     assert "scale_factor" in attrs, (
         f"{level_label}/{band_name}: scale_factor missing from attrs (got {list(attrs)})"
     )
-    for stale_key in ("_eopf_attrs", "dtype", "valid_min", "valid_max"):
+    assert attrs.get("_FillValue") == _OLCI_FILL_VALUE, f"{level_label}/{band_name}"
+    assert band.fill_value == _OLCI_FILL_VALUE, f"{level_label}/{band_name}"
+    for stale_key in ("_eopf_attrs", "dtype"):
         assert stale_key not in attrs, (
             f"{level_label}/{band_name}: stale attr '{stale_key}' present in output attrs"
         )
 
 
-@pytest.mark.parametrize(
-    ("output_grid", "golden_suffix"),
-    [("native", "native"), ("EPSG:4326", "epsg4326")],
-    ids=("native", "epsg4326"),
-)
-def test_olci_conversion_matches_snapshot(
-    s3_olci_group_example: pathlib.Path,
-    tmp_path: pathlib.Path,
-    output_grid: str,
-    golden_suffix: str,
+def _assert_olci_conversion_matches_snapshot(
+    group_path: pathlib.Path, tmp_path: pathlib.Path, expected_levels: list[str]
 ) -> None:
-    """Snapshot test: converted OLCI structure must match committed golden file.
+    """Convert the OLCI store at `group_path` and compare it with its golden file.
 
-    The fixture is a Zarr v2 store representing a real OLCI L1 EFR product.
-    We open the whole DataTree so that conditions, quality, and
-    measurements/orphans subgroups are included in the conversion.
-    The fixture uses the real product's dimension names: tie-point grids reuse
-    'columns' (at size 4) while measurement grids also use 'columns' (at size 16);
-    orphan arrays use removed_pixels=4.
+    We open the whole DataTree raw, as the CLI does, so that conditions,
+    quality, and measurements/orphans subgroups are included in the conversion.
+    The golden file is `<stem>-olc-native.json`; `<stem>-native.json` and
+    `<stem>-epsg4326.json` belong to the old converter
+    (`test_old_olci_integration.py`).
 
-    ``min_dimension=8`` is used so that the 16x16 measurements grid generates
-    one overview level (r2 at 8x8).
-
-    Parametrized over both output_grid modes (native swath, regridded
-    EPSG:4326), each with its own committed golden file.
-
-    To (re)generate the snapshot, uncomment the regeneration block below,
-    run the test once, then re-comment before committing.
+    Any change to array metadata (dtype, fill value, chunks, codecs, attributes)
+    or to the set of arrays shows up here. When a change is intended, regenerate
+    the snapshot with `REGENERATE_SNAPSHOTS=1 pytest -k snapshot` and review
+    the JSON diff.
     """
-    # The JSON fixture materializes arrays as zeros; zero lat/lon is a
-    # degenerate geolocation the warp rejects. Seed a plausible ~300 m
-    # (0.003 deg) grid the way the real product stores it: the fixture's
-    # latitude/longitude arrays are raw int32 microdegrees with a CF
-    # scale_factor of 1e-6 (real degrees = raw * scale_factor), so write
-    # RAW values of degrees / 1e-6. Both pipelines unpack the packing
-    # (reproject_olci for the warp, _geodesic_block_mean for native
-    # centroids), so the seeded geolocation decodes to real degrees.
-    fixture_group = zarr.open_group(str(s3_olci_group_example), mode="a")
-    fixture_meas = fixture_group["measurements"]
-    assert isinstance(fixture_meas, zarr.Group)
-    lat_arr = fixture_meas["latitude"]
-    assert isinstance(lat_arr, zarr.Array)
-    ny, nx = lat_arr.shape
-    lat_deg = np.linspace(45.0, 45.0 + 0.003 * (ny - 1), ny)
-    lon_deg = np.linspace(10.0, 10.0 + 0.003 * (nx - 1), nx)
-    lat_arr[:] = np.round(np.repeat(lat_deg[:, None], nx, axis=1) / 1e-6).astype("int32")
-    lon_arr = fixture_meas["longitude"]
-    assert isinstance(lon_arr, zarr.Array)
-    lon_arr[:] = np.round(np.repeat(lon_deg[None, :], ny, axis=0) / 1e-6).astype("int32")
-
     dt_in = xr.open_datatree(
-        str(s3_olci_group_example),
+        str(group_path),
         engine="zarr",
         consolidated=False,
         chunks={},
         mask_and_scale=False,
     )
     out = str(tmp_path / "out.zarr")
-    convert_olci_optimized(dt_in, output_path=out, min_dimension=8, output_grid=output_grid)
+    updated_convert_olci_optimized(dt_in, output_path=out, enable_sharding=True)
 
     # Each consolidated block is a snapshot, and GroupSpec.from_zarr below reads the
     # levels through the `measurements` block, so a stale block would hide a late
@@ -565,38 +390,71 @@ def test_olci_conversion_matches_snapshot(
     observed_structure_json = GroupSpec.from_zarr(observed_group).model_dump()
 
     expected_path = Path("tests/_test_data/optimized_olci_examples") / (
-        f"{s3_olci_group_example.stem}-{golden_suffix}.json"
+        f"{group_path.stem}-olc-native.json"
     )
 
-    # Uncomment this block to (re)generate the snapshot from the observed structure.
-    # expected_path.parent.mkdir(parents=True, exist_ok=True)
-    # expected_path.write_text(json.dumps(observed_structure_json, indent=2, sort_keys=True))
+    if os.environ.get("REGENERATE_SNAPSHOTS"):
+        expected_path.write_text(
+            json.dumps(observed_structure_json, indent=2, sort_keys=True) + "\n"
+        )
 
-    observed_structure = GroupSpec(**tuplify_json(observed_structure_json))
-    observed_structure_flat = observed_structure.to_flat()
-    expected_structure_json = tuplify_json(json.loads(expected_path.read_text()))
-    expected_structure = GroupSpec(**expected_structure_json)
-    expected_structure_flat = expected_structure.to_flat()
+    observed = GroupSpec(**tuplify_json(observed_structure_json)).to_flat()
+    expected = GroupSpec(**tuplify_json(json.loads(expected_path.read_text()))).to_flat()
+    assert set(observed) == set(expected)
 
-    o_keys = set(observed_structure_flat.keys())
-    e_keys = set(expected_structure_flat.keys())
-    assert o_keys == e_keys
-    assert [k for k in o_keys if observed_structure_flat[k] != expected_structure_flat[k]] == []
+    # Compare as JSON: a NaN fill value never equals itself as a float.
+    def canonical(node: object) -> str:
+        return json.dumps(node.model_dump(), sort_keys=True)  # type: ignore[attr-defined]
 
-    # Dtype/attrs regression guard: radiance must be stored as uint16 with
-    # scale_factor preserved and stale source attrs absent.
+    assert [key for key in observed if canonical(observed[key]) != canonical(expected[key])] == []
+
+    # Dtype/attrs regression guard on every level: radiance must be stored as
+    # uint16 with CF packing preserved and stale source attrs absent.
     meas_g = observed_group["measurements"]
     assert isinstance(meas_g, zarr.Group)
-    r0_g = meas_g["r0"]
-    assert isinstance(r0_g, zarr.Group)
-    _assert_radiance_dtype_and_attrs(r0_g, "oa01_radiance", level_label="r0")
-    if "r2" in meas_g:
-        r2_g = meas_g["r2"]
-        assert isinstance(r2_g, zarr.Group)
-        _assert_radiance_dtype_and_attrs(r2_g, "oa01_radiance", level_label="r2")
+    levels = sorted(k for k in meas_g.group_keys() if k != "orphans")
+    assert levels == expected_levels
+    for level in levels:
+        level_g = meas_g[level]
+        assert isinstance(level_g, zarr.Group)
+        _assert_radiance_dtype_and_attrs(level_g, "oa01_radiance", level_label=level)
 
 
-def test_convert_olci_odd_dims_overview_no_conflicting_sizes(tmp_path: object) -> None:
+def test_olci_efr_conversion_matches_snapshot(
+    s3_olci_efr_v3_group_example: pathlib.Path,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Snapshot test: converted OLCI EFR structure must match committed golden file.
+
+    The fixture is a Zarr v3 store built from a real CPM OLCI L1 EFR product
+    (`product:type` S03OLCEFR), shrunk to test sizes, so the 16x16 measurements
+    grid gets the FR pyramid r0..r3 (16, 8, 4, 2). The fixture uses the real
+    product's dimension names: tie-point grids reuse 'columns' (at size 4) while
+    measurement grids also use 'columns' (at size 16); orphan arrays use
+    removed_pixels=4.
+    """
+    _assert_olci_conversion_matches_snapshot(
+        s3_olci_efr_v3_group_example, tmp_path, ["r0", "r1", "r2", "r3"]
+    )
+
+
+def test_olci_err_conversion_matches_snapshot(
+    s3_olci_err_v3_group_example: pathlib.Path,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Snapshot test: converted OLCI ERR structure must match committed golden file.
+
+    The fixture is a Zarr v3 store built from a real CPM OLCI L1 ERR product
+    (`product:type` S03OLCERR), shrunk to test sizes, so the 16x16 measurements
+    grid gets the RR pyramid r0..r2 (16, 8, 4). Unlike EFR, ERR has no orphans.
+    Tie-point grids reuse 'columns' (at size 4) as in EFR.
+    """
+    _assert_olci_conversion_matches_snapshot(
+        s3_olci_err_v3_group_example, tmp_path, ["r0", "r1", "r2"]
+    )
+
+
+def test_convert_olci_odd_dims_overview_no_conflicting_sizes(tmp_path: pathlib.Path) -> None:
     """Overview groups written from an odd-dimensioned swath must open without errors.
 
     Regression test for the off-by-one bug in reduce_swath where coordinate
@@ -605,158 +463,188 @@ def test_convert_olci_odd_dims_overview_no_conflicting_sizes(tmp_path: object) -
     On an odd-column real OLCI product (4865 cols) this caused xr.open_dataset
     to raise ``ValueError: conflicting sizes for dimension 'columns'``.
 
-    We use rows=10, cols=9 (odd cols) with min_dimension=4 in the default
-    (native) mode, so this asserts coord/data length agreement and
-    floor-halving structure at every level over the swath ``rows``/``columns``
-    dims rather than a specific (5, 4) shape.
+    47x55 is odd in both dims at every level that gets reduced (r0, r1, r2), so
+    each of the three FR reductions has to trim.
     """
-    dt = build_synthetic_olci(rows=10, cols=9)
-    out = str(tmp_path / "odd_olci.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt, output_path=out, min_dimension=4)
+    dt = _make_minimal_olci_datatree(
+        product_type="S03OLCEFR", rows=47, cols=55, orphans=False, raw=False
+    )
+    out = str(tmp_path / "odd_olci.zarr")
+    updated_convert_olci_optimized(dt, output_path=out)
 
-    # Determine which overview groups were written.
-    import zarr as _zarr
-
-    g = _zarr.open_group(out, mode="r")
-    meas = g["measurements"]
-    assert isinstance(meas, _zarr.Group)
-    level_keys = sorted(meas.group_keys())
-    assert level_keys[0] == "r0"
-
-    # Open each level (base + overviews); this must NOT raise a
-    # conflicting-sizes error, and each level must floor-halve the previous.
-    prev_shape: tuple[int, ...] | None = None
-    for lvl in level_keys:
-        ds = xr.open_dataset(out, engine="zarr", group=f"measurements/{lvl}", consolidated=False)
-        rad_shape = ds["oa01_radiance"].shape
-        assert rad_shape == (ds.sizes["rows"], ds.sizes["columns"]), (
-            f"measurements/{lvl}: data shape {rad_shape} != dim sizes "
-            f"(rows={ds.sizes['rows']}, columns={ds.sizes['columns']})"
-        )
-        if prev_shape is not None:
-            assert rad_shape[0] == prev_shape[0] // 2
-            assert rad_shape[1] == prev_shape[1] // 2
-        prev_shape = rad_shape
-        ds.close()
+    expected = {"r0": (47, 55), "r1": (23, 27), "r2": (11, 13), "r3": (5, 6)}
+    for level, shape in expected.items():
+        # Must not raise a conflicting-sizes error.
+        with xr.open_dataset(
+            out, engine="zarr", group=f"measurements/{level}", consolidated=False
+        ) as ds:
+            assert (ds.sizes["rows"], ds.sizes["columns"]) == shape, level
+            for name in ("oa01_radiance", "latitude", "longitude"):
+                assert ds[name].shape == shape, f"{level}/{name}"
 
 
-def test_sanitize_olci_array_attrs_strips_stale_keeps_fill_value() -> None:
-    """_sanitize_olci_array_attrs_keep_fill must strip stale source attrs and preserve _FillValue.
+_per_product = pytest.mark.parametrize(
+    "make_datatree",
+    [_make_minimal_olci_efr_datatree, _make_minimal_olci_err_datatree],
+    ids=("efr", "err"),
+)
 
-    Unlike the shared sanitize_array_attrs (which always strips _FillValue),
-    the OLCI-local helper must preserve _FillValue so that downstream readers
-    and reduce_swath can identify fill pixels on raw uint16 data opened with
-    mask_and_scale=False.
-    """
-    attrs: dict[str, object] = {
-        "_eopf_attrs": {"source": "some blob"},
-        "dtype": "uint16",
-        "valid_min": 0,
-        "valid_max": 65534,
-        "scale_factor": 0.0139,
-        "add_offset": 0.0,
-        "_FillValue": 65535,
-        "units": "W m-2 sr-1 um-1",
-        "standard_name": "toa_upwelling_spectral_radiance",
-        "coordinates": "latitude longitude altitude",
+
+def _arrays(out: str) -> dict[str, zarr.Array]:
+    """Every array in the store at `out`, by path."""
+    root = zarr.open_group(out, mode="r", use_consolidated=False)
+    return {
+        path: node for path, node in root.members(max_depth=None) if isinstance(node, zarr.Array)
     }
-    result = _sanitize_olci_array_attrs_keep_fill(attrs)
-    # Stale source-only attrs must be removed.
-    assert "_eopf_attrs" not in result, "_eopf_attrs must be stripped"
-    assert "dtype" not in result, "dtype must be stripped"
-    assert "valid_min" not in result, "valid_min must be stripped"
-    assert "valid_max" not in result, "valid_max must be stripped"
-    # CF and fill attrs must be preserved.
-    assert result.get("scale_factor") == 0.0139, "scale_factor must be preserved"
-    assert result.get("add_offset") == 0.0, "add_offset must be preserved"
-    assert result.get("_FillValue") == 65535, "_FillValue must be preserved for OLCI raw uint16"
-    assert result.get("units") == "W m-2 sr-1 um-1", "units must be preserved"
-    assert result.get("standard_name") == "toa_upwelling_spectral_radiance"
-    assert result.get("coordinates") == "latitude longitude altitude"
 
 
-def test_convert_olci_rerun_removes_stale_overview_groups(tmp_path: object) -> None:
-    """Re-running against an existing output path must not leave stale groups.
+def _structure(out: str) -> dict[str, str]:
+    """Flattened store metadata as canonical JSON (a NaN fill value never equals itself)."""
+    flat = GroupSpec.from_zarr(zarr.open_group(out, mode="r", use_consolidated=False)).to_flat()
+    return {path: json.dumps(node.model_dump(), sort_keys=True) for path, node in flat.items()}
 
-    The first run (small min_dimension) produces more overview levels than the
-    second; without up-front store truncation the extra r{N} groups from run
-    one would survive run two.
+
+def _assert_same_values(out_a: str, out_b: str) -> None:
+    """Both stores hold the same arrays with identical stored values."""
+    arrays_a, arrays_b = _arrays(out_a), _arrays(out_b)
+    print(arrays_a, arrays_b)
+    assert set(arrays_a) == set(arrays_b)
+    for path, arr in arrays_a.items():
+        np.testing.assert_array_equal(arr[:], arrays_b[path][:], err_msg=path)
+
+
+def _codec_names(arr: zarr.Array) -> list[str]:
+    """Codec class names, including those nested in a sharding codec."""
+    assert isinstance(arr.metadata, ArrayV3Metadata)
+    names: list[str] = []
+    for codec in arr.metadata.codecs:
+        names.append(type(codec).__name__)
+        names.extend(type(inner).__name__ for inner in getattr(codec, "codecs", ()))
+    return names
+
+
+@_per_product
+def test_convert_olci_raw_and_decoded_inputs_match(
+    tmp_path: pathlib.Path, make_datatree: Callable[..., xr.DataTree]
+) -> None:
+    """Raw (`mask_and_scale=False`, as the CLI opens) and decoded input give the same store.
+
+    The raw form carries `scale_factor`/`add_offset`/`_FillValue` in `.attrs`,
+    the decoded form in `.encoding` with NaN for nodata. Both must end up as the
+    same packed uint16 arrays with the same metadata, at every level and in
+    every copied group.
     """
-    import zarr
+    raw_out = str(tmp_path / "raw.zarr")
+    decoded_out = str(tmp_path / "decoded.zarr")
+    updated_convert_olci_optimized(make_datatree(raw=True), output_path=raw_out)
+    updated_convert_olci_optimized(make_datatree(raw=False), output_path=decoded_out)
 
-    out = str(tmp_path / "olci_geozarr.zarr")  # type: ignore[operator]
-    convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256), output_path=out, min_dimension=64
+    raw_structure, decoded_structure = _structure(raw_out), _structure(decoded_out)
+    assert set(raw_structure) == set(decoded_structure)
+    assert [k for k in raw_structure if raw_structure[k] != decoded_structure[k]] == []
+    _assert_same_values(raw_out, decoded_out)
+
+
+@_per_product
+def test_convert_olci_swath_has_no_spatial_or_proj_metadata(
+    tmp_path: pathlib.Path, make_datatree: Callable[..., xr.DataTree]
+) -> None:
+    """A swath has no affine transform or CRS; it is geolocated by its 2-D lat/lon arrays.
+
+    So no group or array under `measurements` carries `spatial:` or `proj:`
+    attrs, multiscales is the only convention declared on `measurements`, and
+    the level groups carry no attrs at all. (The root is not checked: real
+    products bring their own root `proj:code`/`spatial:bbox`.)
+    """
+    out = str(tmp_path / "olci_geozarr.zarr")
+    updated_convert_olci_optimized(make_datatree(raw=False), output_path=out)
+
+    meas = zarr.open_group(out, path="measurements", mode="r")
+    nodes = [("measurements", meas)] + [
+        (f"measurements/{path}", node) for path, node in meas.members(max_depth=None)
+    ]
+    offenders = [
+        f"{path}: {key}"
+        for path, node in nodes
+        for key in node.attrs
+        if key.startswith(("spatial:", "proj:"))
+    ]
+    assert offenders == []
+
+    conventions = meas.attrs["zarr_conventions"]
+    assert isinstance(conventions, list)
+    assert len(conventions) == 1
+    assert "multiscales" in conventions[0]["schema_url"]  # type: ignore[index,call-overload]
+
+    levels = [k for k in meas.group_keys() if k != "orphans"]
+    assert levels
+    for level in levels:
+        assert dict(meas[level].attrs) == {}, level
+
+
+@pytest.mark.parametrize("spatial_chunk", [16, None], ids=("chunk16", "default"))
+def test_convert_olci_spatial_chunk_applied(
+    tmp_path: pathlib.Path, spatial_chunk: int | None
+) -> None:
+    """Every array is chunked by `spatial_chunk` per dim, capped at the dim size, unsharded.
+
+    Covers the pyramid levels (r3 at 5x6 is smaller than the chunk), the
+    orphans (`removed_pixels`=2) and the tie-point grid (4 columns). The
+    default (1024) exceeds the mock, so every array is a single chunk.
+    """
+    out = str(tmp_path / "olci_geozarr.zarr")
+    kwargs = (
+        {}
+        if spatial_chunk is None
+        else {"spatial_chunk": spatial_chunk, "enable_sharding": False, "scale_offset_codec": False}
     )
-    root = zarr.open_group(out, mode="r")
-    meas = root["measurements"]
-    assert isinstance(meas, zarr.Group)
-    levels_first = {k for k in meas.group_keys() if k.startswith("r")}
-    assert "r4" in levels_first
-
-    convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256), output_path=out, min_dimension=128
+    updated_convert_olci_optimized(
+        _make_minimal_olci_efr_datatree(raw=False), output_path=out, **kwargs
     )
-    root = zarr.open_group(out, mode="r")
-    meas = root["measurements"]
-    assert isinstance(meas, zarr.Group)
-    levels_second = {k for k in meas.group_keys() if k.startswith("r")}
-    assert levels_second == {"r0", "r2"}, f"stale overview groups survived re-run: {levels_second}"
+
+    chunk = spatial_chunk or 1024
+    arrays = _arrays(out)
+    assert "measurements/r3/oa01_radiance" in arrays
+    for path, arr in arrays.items():
+        assert arr.chunks == tuple(min(size, chunk) for size in arr.shape), path
+        assert arr.shards is None, path
 
 
-def test_convert_olci_nonpositive_min_dimension_raises(tmp_path: object) -> None:
-    """min_dimension < 1 must fail fast, before the output store is touched.
+def test_convert_olci_enable_sharding(tmp_path: pathlib.Path) -> None:
+    """With `enable_sharding`, every array is sharded around `spatial_chunk` inner chunks.
 
-    Regression: _overview_levels loops `while min(r, c) // 2 >= min_dimension`,
-    which never terminates once r and c decay to 0 — so min_dimension <= 0
-    previously hung the converter forever (after truncating the store).
+    Inner chunks are `spatial_chunk` capped at the dim size; shards cover the
+    array rounded up to whole inner chunks. That includes the 2-D lat/lon of
+    every pyramid level and copied group; only 1-D dimension coordinates
+    (e.g. `removed_pixels`) stay unsharded. Sharding only changes the layout:
+    the stored values equal those of the unsharded conversion.
     """
-    dt = build_synthetic_olci(rows=64, cols=64)
-    for bad in (0, -1):
-        out = str(tmp_path / f"bad_{bad}.zarr")  # type: ignore[operator]
-        with pytest.raises(ValueError, match="min_dimension"):
-            convert_olci_optimized(dt, output_path=out, min_dimension=bad)
-        assert not Path(out).exists(), "store must not be created on invalid min_dimension"
+    sharded = str(tmp_path / "sharded.zarr")
+    plain = str(tmp_path / "plain.zarr")
+    dt = _make_minimal_olci_efr_datatree(raw=False)
+    updated_convert_olci_optimized(dt, output_path=sharded, spatial_chunk=16, enable_sharding=True)
+    updated_convert_olci_optimized(dt, output_path=plain, spatial_chunk=16)
+
+    unsharded: list[str] = []
+    for path, arr in sorted(_arrays(sharded).items()):
+        inner = tuple(min(size, 16) for size in arr.shape)
+        assert arr.chunks == inner, path
+        name = path.rsplit("/", 1)[-1]
+        if arr.metadata.dimension_names == (name,):  # type: ignore[union-attr]
+            continue
+        if "ShardingCodec" not in _codec_names(arr):
+            unsharded.append(path)
+            continue
+        assert arr.shards == tuple(
+            -(-size // c) * c for size, c in zip(arr.shape, inner, strict=True)
+        ), path
+    assert unsharded == []
+    _assert_same_values(sharded, plain)
 
 
-def test_convert_olci_regridded_overviews_share_common_origin(tmp_path: object) -> None:
-    """Regridded overview levels must be edge-aligned /2 reductions of r0.
-
-    Radiance is block-averaged, so an overview coordinate is the CENTER of
-    the block it aggregates. Stride-decimating the 1-D coords instead put
-    every level's declared transform/bbox (2^l - 1)/2 fine pixels up/left of
-    the data and contradicted the multiscales layout's
-    {scale: [2, 2], translation: [0, 0]}.
-    """
-    dt = build_synthetic_olci(rows=1024, cols=1024)
-    out = str(tmp_path / "olci_reg.zarr")  # type: ignore[operator]
-    convert_olci_optimized(dt, output_path=out, min_dimension=256, output_grid="EPSG:4326")
-
-    levels = {}
-    for level in ("r0", "r2", "r4"):
-        levels[level] = xr.open_dataset(
-            out,
-            engine="zarr",
-            group=f"measurements/{level}",
-            consolidated=False,
-            decode_coords="all",
-        )
-    t0 = levels["r0"].rio.transform(recalc=True)
-    t2 = levels["r2"].rio.transform(recalc=True)
-    t4 = levels["r4"].rio.transform(recalc=True)
-
-    # All levels share one origin (edge-aligned pyramid)...
-    for t in (t2, t4):
-        assert abs(t.c - t0.c) < 1e-9, f"x-origin drifted: {t.c} vs {t0.c}"
-        assert abs(t.f - t0.f) < 1e-9, f"y-origin drifted: {t.f} vs {t0.f}"
-    # ...with pixel size doubling per level.
-    assert np.isclose(t2.a, 2 * t0.a)
-    assert np.isclose(t2.e, 2 * t0.e)
-    assert np.isclose(t4.a, 4 * t0.a)
-    assert np.isclose(t4.e, 4 * t0.e)
-
-    # Overview coordinate = center of the aggregated 2x2 block, not the
-    # first fine pixel's center.
-    x0, y0 = levels["r0"]["x"].values, levels["r0"]["y"].values
-    assert np.isclose(levels["r2"]["x"].values[0], (x0[0] + x0[1]) / 2)
-    assert np.isclose(levels["r2"]["y"].values[0], (y0[0] + y0[1]) / 2)
+def test_no_acceptance_of_scale_offset_codec(tmp_path: object) -> None:
+    dt = _make_minimal_olci_err_datatree(raw=False)
+    out = str(tmp_path / "bad_scale_offset_codec.zarr")  # type: ignore[operator]
+    with pytest.raises(NotImplementedError):
+        updated_convert_olci_optimized(dt, output_path=out, scale_offset_codec=True)
+    assert not Path(out).exists()
