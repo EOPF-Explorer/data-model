@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from itertools import pairwise
@@ -141,6 +142,96 @@ def is_sentinel3_olci_dataset(group: zarr.Group) -> bool:
         return OLCI_BANDS[0] in model.measurements.members
     except KeyError:
         return False
+
+
+def update_s3_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> None:
+    """Add the S3 pyramid levels (if added) and remove/replace the not existing assets as they are moved to /r0
+    Updates `dt_input.attrs["stac_discovery"]` in place, so call it before
+    `updated_root_consolidation` writes the root metadata from those attributes.
+    """
+    if not dt_input.attrs:
+        return
+    dt_attributes = dt_input.attrs
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+
+    if not stac_attrs:
+        return
+
+    existing_hrefs = {
+        asset["href"].strip("/")
+        for asset in stac_attrs.values()
+        if isinstance(asset, Mapping) and utils._is_store_href(asset.get("href"))
+    }
+
+    # collect all touched hrefs to comapre against existing ones and filter out replaced assets
+    touched_hrefs = []
+
+    for group_path, ds in datasets.items():
+        if ds is None:
+            continue
+        # catch object != dataset for typing
+        if not isinstance(ds, xr.Dataset):
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+            continue
+        resolution = group_path.rsplit("/", 1)[-1]  # "r0, r1, r2, ..."
+        for var_name in ds.data_vars:
+            href = f"{group_path}/{var_name}"
+            if href.strip("/") in existing_hrefs:
+                touched_hrefs.append(href.strip("/"))
+                continue
+            asset_key = f"{var_name}_{resolution}"
+            if asset_key in stac_attrs:
+                log.warning(
+                    "STAC asset key already in use, not adding an asset", asset=asset_key, href=href
+                )
+                continue
+            stac_attrs[asset_key] = {"href": href, "title": asset_key}
+
+    # in the end remove the now redundant /measurement/oa18_radiance -> now in
+    redundant_measurement_hrefs = existing_hrefs.difference(touched_hrefs)
+    redundant_measurement_hrefs.discard("null")
+
+    if len(redundant_measurement_hrefs) > 0:
+        for redundant_href in redundant_measurement_hrefs:
+            asset_key = redundant_href.split("/")[
+                1
+            ]  # eg.: 'measurements/oa08_radiance' -> 'oa08_radiance'
+            if asset_key in stac_attrs:
+                stac_attrs.pop(asset_key)
+            else:
+                raise KeyError(
+                    f"Redundant href {redundant_href} as asset_key {asset_key} SHOULD be available in `stac_attrs`."
+                )
+
+    # # this can be used to add multiscale paths to the stac attributes
+    # updated_stac_attrs = utils.add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+
+    # # Reference the pyramid root group, not the individual levels. That
+    # # group carries the `multiscales` attribute, and the
+    # # `profile=multiscales` media-type parameter tells a consumer to look
+    # # for it there and resolve the levels from the convention itself.
+    # stac = updated_stac_attrs.get("stac_discovery")
+    # if stac is None:
+    #     return
+
+    # reflectance_asset: dict[str, Any] = {
+    #     "href": "/measurements/reflectance",
+    #     "type": "application/vnd.zarr; version=3; profile=multiscales",
+    #     "title": "Surface Reflectance",
+    #     "roles": ["data", "reflectance"],
+    #     "gsd": 10,
+    # }
+
+    # if crs is not None and crs.to_epsg() is not None:
+    #     reflectance_asset.update(utils.proj_attrs_for_crs(crs))
+
+    # base = datasets.get("/measurements/reflectance/r10m")
+    # if isinstance(base, xr.Dataset):
+    #     reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
+
+    # stac.setdefault("assets", {})["reflectance"] = reflectance_asset
+
+    return
 
 
 def olc_multiscales(
@@ -380,6 +471,7 @@ def updated_convert_olci_optimized(
             )
             processed_groups[group_path] = ds_out
 
+    update_s3_stac_assets(dt_input, processed_groups)
     # root/sub-root level consolidation and attribute handling
     utils.updated_root_consolidation(dt_input, output_path, processed_groups)
 
