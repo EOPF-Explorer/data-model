@@ -41,7 +41,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Mapping[str, object], DataArray](
+        group = GroupSpec[Mapping[str, object], Mapping[str, DataArray]](
             attributes={}, members={"base": base_array, **coords_arrays}
         )
         # ``group`` structurally satisfies ``GroupLike``, but mypy cannot bind the
@@ -68,7 +68,7 @@ class TestCheckValidCoordinates:
             f"dim_{idx}": DataArray.from_array(np.arange(s + 1), dimension_names=(f"dim_{idx}",))
             for idx, s in enumerate(data_shape)
         }
-        group = GroupSpec[Mapping[str, object], DataArray](
+        group = GroupSpec[Mapping[str, object], Mapping[str, DataArray]](
             attributes={}, members={"base": base_array, **coords_arrays}
         )
         msg = "Dimension .* for array 'base' has a shape mismatch:"
