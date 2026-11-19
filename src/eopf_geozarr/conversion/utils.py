@@ -380,6 +380,62 @@ def get_subroots(groups: tuple[str, ...]) -> set[str] | None:
     return subroots or None
 
 
+def strip_cf_grid_mapping(dataset: xr.Dataset) -> xr.Dataset:
+    """
+    Return a copy of *dataset* without the CF grid mapping (GeoZarr V0); the
+    input is not modified (EOPF-Explorer/data-model#352).
+
+    The `proj` and `spatial` conventions are the output's only georeferencing,
+    so the grid-mapping variables (any variable a `grid_mapping` attribute or
+    encoding names, and a `spatial_ref` variable holding CF grid-mapping
+    attributes) are dropped, and `grid_mapping` is removed from the dataset's
+    attributes and from every variable's attributes and encoding. rioxarray's
+    `write_crs` adds them, so a dataset that was reprojected through rioxarray
+    needs this before it is written.
+
+    The CRS is not lost: when the dataset has none of the proj convention
+    keys (`proj:code`, `proj:wkt2`, `proj:projjson`; a legacy `proj:epsg` does
+    not count), the grid mapping's CRS is carried over as the `proj`
+    convention attributes before the grid mapping is dropped, and the proj
+    declaration is added to the dataset's existing `zarr_conventions`.
+    """
+    names: set[str] = set()
+    reference = dataset.variables.get("spatial_ref")
+    if reference is not None and not {"crs_wkt", "grid_mapping_name", "spatial_ref"}.isdisjoint(
+        reference.attrs
+    ):
+        names.add("spatial_ref")
+    for holder in (dataset.attrs, *(v.attrs for v in dataset.variables.values())):
+        if isinstance(holder.get("grid_mapping"), str):
+            names.add(holder["grid_mapping"])
+    for variable in dataset.variables.values():
+        if isinstance(variable.encoding.get("grid_mapping"), str):
+            names.add(variable.encoding["grid_mapping"])
+    names = {name for name in names if name in dataset.variables}
+    attrs = {key: value for key, value in dataset.attrs.items() if key != "grid_mapping"}
+    # the convention's own keys, as the validator reads them (a legacy
+    # `proj:epsg` is not a declaration)
+    if names and geo_proj_cm.CONVENTION_KEYS.isdisjoint(dataset.attrs):
+        crs = dataset.rio.crs
+        if crs is not None:
+            carried = dict(build_convention_attrs(spatial=None, crs=CRS.from_user_input(crs)))
+            # extend the declared conventions rather than replace them
+            declared = list(attrs.get("zarr_conventions") or [])
+            uuids = {entry.get("uuid") for entry in declared if isinstance(entry, dict)}
+            carried_conventions = cast("list[dict[str, Any]]", carried.pop("zarr_conventions", []))
+            declared.extend(
+                entry for entry in carried_conventions if entry.get("uuid") not in uuids
+            )
+            attrs = {**attrs, **carried, "zarr_conventions": declared}
+    out = dataset.drop_vars(sorted(names))
+    out = out.copy(deep=False)
+    out.attrs = attrs
+    for variable in out.variables.values():
+        variable.attrs = {k: v for k, v in variable.attrs.items() if k != "grid_mapping"}
+        variable.encoding = {k: v for k, v in variable.encoding.items() if k != "grid_mapping"}
+    return out
+
+
 def _node_transform_from_coordinates(dataset: xr.Dataset) -> GeoTransform:
     """Affine transform from array indices to the x/y node coordinates.
 
@@ -407,17 +463,19 @@ def _coordinate_extent(dataset: xr.Dataset) -> list[float]:
 
 def write_dataset_geo_metadata(
     dataset: xr.Dataset,
-    grid_mapping_var_name: str = "spatial_ref",
-    crs: CRS | None = None,
+    crs: CRS | str | int | None = None,
     registration: Literal["pixel", "node"] = "pixel",
 ) -> xr.Dataset:
     """
     Return a copy of the dataset with geographic metadata added; `dataset` is not modified.
     Requires a crs or a dataset from which a CRS can be derived.
 
+    The metadata is the `proj` and `spatial` convention attributes only: no
+    CF grid mapping (`spatial_ref` variable, `grid_mapping` attributes) is
+    written (EOPF-Explorer/data-model#352).
+
     Args:
         dataset: Dataset to add metadata to
-        grid_mapping_var_name: Name for grid mapping variable
         crs: Coordinate Reference System to use (if None, attempts to detect from dataset)
         registration: `spatial:registration` of the grid. With `"pixel"`, the x/y
             coordinates are cell centres, and `spatial:bbox` and `spatial:transform`
@@ -443,26 +501,10 @@ def write_dataset_geo_metadata(
                 break
 
     if crs is not None:
-        # Write CRS using rioxarray
-        # NOTE: for now rioxarray only supports writing grid mapping using CF conventions
-        dataset.rio.write_crs(crs, grid_mapping_name=grid_mapping_var_name, inplace=True)
-        dataset.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
-        dataset.attrs["grid_mapping"] = grid_mapping_var_name
-
+        # a CRS given as a string or EPSG code, which `rio.write_crs` used to take
+        crs = CRS.from_user_input(crs)
         has_xy_dims = "x" in dataset.dims and "y" in dataset.dims
-        for var in dataset.data_vars.values():
-            # A variable without the x/y dimensions (e.g. a mean angle per band)
-            # is not on the grid, so it gets no grid mapping.
-            if has_xy_dims and not {"x", "y"} <= set(var.dims):
-                var.attrs.pop("grid_mapping", None)
-                var.encoding.pop("grid_mapping", None)
-                continue
-            var.rio.write_grid_mapping(grid_mapping_var_name, inplace=True)
-            var.attrs["grid_mapping"] = grid_mapping_var_name
-
-        # Also add proj: and spatial: zarr conventions at dataset level
-        # TODO : Remove once rioxarray supports writing these conventions directly
-        # https://github.com/corteva/rioxarray/pull/883
+        # The proj: and spatial: zarr conventions at dataset level
 
         # Assemble spatial convention data
         spatial_data: spatial_cm.SpatialAttrs = {
@@ -512,7 +554,7 @@ def stream_write_dataset(
     encoding: dict[str, XarrayDataArrayEncoding],
     add_geo_metadata: bool = False,
     chunk_and_shard_coords: bool = True,
-    crs: CRS | None = None,
+    crs: CRS | str | int | None = None,
     registration: Literal["pixel", "node"] = "pixel",
 ) -> xr.Dataset:
     """
@@ -559,6 +601,11 @@ def stream_write_dataset(
 
     if add_geo_metadata:
         dataset = write_dataset_geo_metadata(dataset, crs=crs, registration=registration)
+
+    # No CF grid mapping reaches the output (#352); its encoding entries go
+    # with the variables
+    dataset = strip_cf_grid_mapping(dataset)
+    encoding = {name: enc for name, enc in encoding.items() if name in dataset.variables}
 
     # Sanitize NaN values in dataset attributes before writing
     dataset = fs_utils.sanitize_dataset_attributes(dataset)
@@ -820,7 +867,9 @@ def create_uniform_encoding(
             # remove keys, so stale ``_eopf_attrs`` / ``dtype`` / ``valid_*`` would
             # otherwise leak into the output).
             is_float = np.issubdtype(var_data.dtype, np.floating)
-            var_data.attrs = sanitize_array_attrs(var_data.attrs, is_decoded_float=is_float)
+            var_data.attrs = sanitize_array_attrs(
+                var_data.attrs, is_decoded_float=is_float, dtype=var_data.dtype
+            )
 
         encoding[str(var_name)] = var_encoding
 
@@ -841,7 +890,7 @@ def create_uniform_encoding(
         else:
             coord_encoding: XarrayDataArrayEncoding = {"compressors": ()}
 
-        coord_data.attrs = sanitize_array_attrs(coord_data.attrs)
+        coord_data.attrs = sanitize_array_attrs(coord_data.attrs, dtype=coord_data.dtype)
         encoding[str(coord_name)] = coord_encoding
 
     return encoding
@@ -912,13 +961,16 @@ def build_convention_attrs(
 
 
 def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+    datasets: Mapping[str, xr.Dataset | Sequence[str] | None], dt_attributes: dict[Hashable, Any]
 ) -> dict[Hashable, Any]:
     """Add a `stac_discovery` asset for every written array that no asset references yet.
 
     Covers the multiscale levels and the bands injected into native levels (e.g. b08
-    in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
-    `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
+    in r20m/r60m), so every band can carry its STAC statistics. `datasets` maps each
+    written dataset group path to the dataset itself or to its data variable names
+    (the plan-driven writer passes names), with multiscale pyramid roots mapped to
+    None. A new asset is keyed `<variable>_<group name>` (e.g. `b02_r120m`); a key
+    already in use is not replaced.
     """
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
     if not stac_attrs:
@@ -931,14 +983,12 @@ def add_multiscale_pyramids_to_stac_metadata(
     }
 
     for group_path, ds in datasets.items():
+        # multiscale roots (mapped to None) hold no variables of their own
         if ds is None:
             continue
-        # catch object != dataset for typing
-        if not isinstance(ds, xr.Dataset):
-            log.warning("Found non-dataset object in datasets!", dataset=ds)
-            continue
+        var_names = tuple(str(name) for name in ds.data_vars) if isinstance(ds, xr.Dataset) else ds
         resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-        for var_name in ds.data_vars:
+        for var_name in var_names:
             href = f"{group_path}/{var_name}"
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
@@ -1175,10 +1225,42 @@ def explicit_fill_value(var: xr.DataArray) -> Any:
     return source_fill
 
 
+def normalize_cf_array_attrs(
+    attrs: Mapping[str, Any], dtype: np.dtype[Any] | None = None
+) -> dict[str, Any]:
+    """Return a copy of *attrs* with the CF attributes put right
+    (EOPF-Explorer/data-model#351).
+
+    - A ``flag_meanings`` list is joined into the one blank-separated string
+      CF defines.
+    - The ``dtype`` attribute, which repeats the array's data type, is removed.
+    - ``valid_min`` / ``valid_max`` outside the range of an integer *dtype*
+      (``valid_max: 65535`` on a ``uint8`` array, say) are removed: they
+      cannot describe the stored values.
+    """
+    out = dict(attrs)
+    out.pop("dtype", None)
+    meanings = out.get("flag_meanings")
+    if isinstance(meanings, (list, tuple)):
+        out["flag_meanings"] = " ".join(str(meaning) for meaning in meanings)
+    if dtype is not None and np.dtype(dtype).kind in "iu":
+        info = np.iinfo(dtype)
+        for key in ("valid_min", "valid_max"):
+            value = out.get(key)
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and not info.min <= value <= info.max
+            ):
+                del out[key]
+    return out
+
+
 def sanitize_array_attrs(
     attrs: dict[str, Any],
     *,
     is_decoded_float: bool = False,
+    dtype: np.dtype[Any] | None = None,
 ) -> dict[str, Any]:
     """Return a copy of *attrs* with source-only and misleading keys removed.
 
@@ -1193,10 +1275,16 @@ def sanitize_array_attrs(
          (``s3_olci_optimization.olci_converter._sanitize_olci_array_attrs_keep_fill``)
          that **preserves** ``_FillValue`` for raw (non-mask-scaled) input.
          Edits to the strip-list here do not apply there, and vice versa.
-    - For decoded float measurement arrays (*is_decoded_float=True*), also
-      removes raw-encoding leftovers ``dtype``, ``fill_value``,
-      ``valid_min``, ``valid_max`` and rewrites
-      ``units: "digital_counts"`` → ``"1"``.
+    - The CF attributes are put right (`normalize_cf_array_attrs`): a
+      ``flag_meanings`` list is joined, ``dtype`` is removed, and
+      ``valid_min`` / ``valid_max`` outside the range of *dtype* are removed.
+    - For float measurement arrays (*is_decoded_float=True*), also removes
+      the raw-encoding leftover ``fill_value`` and rewrites
+      ``units: "digital_counts"`` → ``"1"``. ``valid_min`` / ``valid_max``
+      are kept: callers pass the flag for native floats, whose range is in
+      physical units, and for re-packed integers, whose range is in packed
+      units; the decode path that unpacks integers drops them itself
+      (``encoding_utils``).
 
     - Geo-proj *convention* keys (``proj:code``, ``proj:wkt2``,
       ``proj:projjson``) are always removed: per the minispec they belong on
@@ -1207,11 +1295,10 @@ def sanitize_array_attrs(
     CF keys ``scale_factor`` and ``add_offset`` are always preserved.
     """
     dropped = {"_eopf_attrs", "_FillValue", *geo_proj_cm.CONVENTION_KEYS}
-    out = {k: v for k, v in attrs.items() if k not in dropped}
+    out = normalize_cf_array_attrs({k: v for k, v in attrs.items() if k not in dropped}, dtype)
 
     if is_decoded_float:
-        for key in ("dtype", "fill_value"):
-            out.pop(key, None)
+        out.pop("fill_value", None)
         if out.get("units") == "digital_counts":
             out["units"] = "1"
     return out

@@ -209,8 +209,6 @@ def reproject_olci(
     out = out.rio.write_crs(target_crs)
     if not isinstance(out, xr.Dataset):
         raise TypeError(f"expected an xarray.Dataset after write_crs, got {type(out).__name__}")
-    # rioxarray records grid_mapping in encoding; pin it in attrs so it is
-    # guaranteed to reach the zarr store.
-    for name in out.data_vars:
-        out[name].attrs["grid_mapping"] = "spatial_ref"
+    # the CRS stays on the dataset for the computations downstream; the CF grid
+    # mapping rioxarray records is stripped before writing (#352)
     return out

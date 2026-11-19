@@ -32,7 +32,6 @@ import zarr
 import zarr.codecs
 from pyproj import CRS as PyprojCRS
 from rasterio.errors import RasterioIOError
-from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
 from zarr_cm import spatial as spatial_cm
@@ -486,40 +485,6 @@ def _create_time_coordinate_array(level_group: zarr.Group) -> None:
     t_arr.attrs.update(cast("dict", {**TIME_CF_ATTRS, "_ARRAY_DIMENSIONS": ["time"]}))
 
 
-def _add_grid_mapping(group: zarr.Group, crs_string: CRSCode) -> None:
-    """Add a CF ``spatial_ref`` grid-mapping coordinate to a group holding (y, x) arrays.
-
-    rioxarray -- and TiTiler's GeoZarr reader -- resolve the CRS from a CF
-    ``spatial_ref``/``crs_wkt`` coordinate; the GeoZarr ``proj:code`` attribute alone
-    is not read. This mirrors the S2 converter (which writes a ``spatial_ref``
-    grid-mapping variable via ``rio.write_crs``). The CF attributes come from
-    ``pyproj.CRS.to_cf()`` -- the same source rioxarray uses -- so the projection is
-    described correctly for any CRS rather than hard-coded.
-
-    The scalar ``spatial_ref`` array is created (if absent) and every (y, x) data
-    array in the group is given ``grid_mapping = "spatial_ref"``.
-    """
-    cf_attrs = PyprojCRS.from_user_input(crs_string).to_cf()
-    # rioxarray writes both ``crs_wkt`` and a ``spatial_ref`` attr holding the WKT.
-    cf_attrs["spatial_ref"] = cf_attrs["crs_wkt"]
-    cf_attrs["_ARRAY_DIMENSIONS"] = []
-
-    if "spatial_ref" in group:
-        sref = group["spatial_ref"]
-    else:
-        sref = group.create_array("spatial_ref", shape=(), dtype="int64", fill_value=0)
-        sref[...] = 0
-    sref.attrs.update(cf_attrs)
-
-    for name, arr in group.arrays():
-        # This store is always Zarr V3; only V3 metadata carries ``dimension_names``.
-        dimension_names = (
-            arr.metadata.dimension_names if isinstance(arr.metadata, ArrayV3Metadata) else None
-        )
-        if name != "spatial_ref" and {"y", "x"}.issubset(dimension_names or ()):
-            arr.attrs["grid_mapping"] = "spatial_ref"
-
-
 def _create_band_arrays(level_group: zarr.Group, level_h: int, level_w: int) -> None:
     """Create the (time, y, x) data bands (vv, vh, border_mask) for one multiscale level.
 
@@ -756,7 +721,6 @@ def _build_orbit_group(
         _create_spatial_coordinate_arrays(
             level_group, level_h, level_w, level_entry["spatial:transform"]
         )
-        _add_grid_mapping(level_group, metadata.crs)
         # `time` coordinate on every level so datetime `.sel` resolves at any rendered scale (#192).
         _create_time_coordinate_array(level_group)
 
@@ -1593,10 +1557,9 @@ def ingest_s1tiling_conditions(
 
         # Heal a conditions group written before this function created x/y -- AFTER the grid
         # checks above, so a mismatched raster raises instead of writing coordinates that do not
-        # describe it. `_add_grid_mapping` below already runs unconditionally, so re-running
-        # `ingest-s1-conditions` restored `spatial_ref`; x/y were only ever created on the branch
-        # above, so an older group could not be repaired at all and the data model (which now
-        # requires them) rejected the store with no route back short of a full reingest.
+        # describe it. x/y were only ever created on the branch above, so an older group could
+        # not be repaired at all and the data model (which now requires them) rejected the store
+        # with no route back short of a full reingest.
         #
         # Per-coordinate, not both-or-nothing: a run interrupted between the two writes leaves
         # `x` present and `y` absent, and recreating the pair would raise `ContainsArrayError`
@@ -1673,8 +1636,6 @@ def ingest_s1tiling_conditions(
                 min=float(np.nanmin(data)),
                 max=float(np.nanmax(data)),
             )
-
-    _add_grid_mapping(conditions, ref_crs)
 
     # Drop the now-stale consolidated blocks, exactly as the acquisition path does. Without this
     # the repair above is INVISIBLE: `stac._open_root`, xarray and TiTiler all read the

@@ -324,28 +324,19 @@ class TestCreateStore:
         assert "tile_matrix_set" not in ms
         assert "layout" in ms
 
-    def test_cf_grid_mapping_resolves_crs(
+    def test_crs_is_declared_with_proj_only(
         self, s1_store_path: Path, sample_metadata: S1TilingMetadata
     ) -> None:
-        # Each resolution level carries a CF spatial_ref grid-mapping so rioxarray (and
-        # TiTiler's GeoZarr reader) can resolve the CRS -- the geozarr proj:code attr
-        # alone is not read by rioxarray.
-        import rioxarray  # noqa: F401  -- registers the .rio accessor
-
+        # Each resolution level declares its CRS with the proj convention, the only
+        # georeferencing: no CF spatial_ref grid mapping is written (#352). rioxarray does not
+        # yet read the spec's convention name, so it resolves no CRS from this alone.
         create_s1_store(s1_store_path, "ascending", sample_metadata)
         root = zarr.open_group(str(s1_store_path), mode="r", zarr_format=3)
         r10m = _group(_group(root, "ascending"), "r10m")
-        assert "spatial_ref" in list(r10m.array_keys())
-        assert dict(_array(r10m, "vv").attrs).get("grid_mapping") == "spatial_ref"
-        assert dict(_array(r10m, "vh").attrs).get("grid_mapping") == "spatial_ref"
-
-        ds = xr.open_zarr(
-            str(s1_store_path / "ascending" / "r10m"),
-            consolidated=False,
-            decode_coords="all",
-        )
-        assert ds.rio.crs is not None
-        assert ds.rio.crs.to_epsg() == 32633
+        assert dict(r10m.attrs)["proj:code"] == "EPSG:32633"
+        assert "spatial_ref" not in list(r10m.array_keys())
+        assert "grid_mapping" not in dict(_array(r10m, "vv").attrs)
+        assert "grid_mapping" not in dict(_array(r10m, "vh").attrs)
 
     def test_coordinate_variables(
         self, s1_store_path: Path, sample_metadata: S1TilingMetadata
@@ -892,9 +883,9 @@ class TestIngestConditions:
         assert isinstance(transform, list)
         assert len(transform) == 6
         assert attrs["spatial:shape"] == [SIZE, SIZE]
-        # CF grid-mapping so rioxarray can resolve the CRS of the condition arrays
-        assert "spatial_ref" in list(conditions.array_keys())
-        assert dict(_array(conditions, "gamma_area_037").attrs).get("grid_mapping") == "spatial_ref"
+        # the proj convention is the only georeferencing: no CF grid mapping (#352)
+        assert "spatial_ref" not in list(conditions.array_keys())
+        assert "grid_mapping" not in dict(_array(conditions, "gamma_area_037").attrs)
 
     def test_gamma_area_array_shape_and_dtype(
         self, s1_store_with_acquisition: Path, gamma_area_geotiff: Path
@@ -2179,7 +2170,7 @@ class TestConditionsRepairOnAConsolidatedStore:
         root = zarr.open_group(str(store), mode="r", zarr_format=3)
         conditions = _group(_group(root, "ascending"), "conditions")
         members = set(conditions)
-        for coord in ("x", "y", "spatial_ref"):
+        for coord in ("x", "y"):
             assert coord in members, f"{coord} is missing from the consolidated view: {members}"
         assert "gamma_area_008" in members, "the newly written raster is absent from the view"
 
@@ -2205,14 +2196,9 @@ class TestConditionsRepairOnAConsolidatedStore:
         conditions = _group(_group(root, "ascending"), "conditions")
         assert {"gamma_area_008", "gamma_area_009", "x", "y"} <= set(conditions)
 
-    def test_every_condition_array_gets_its_grid_mapping(self, tmp_path: Path) -> None:
-        """A raster created during the same call must not miss `grid_mapping`.
-
-        `_add_grid_mapping` enumerates `group.arrays()`; resolved through a stale block that
-        enumeration omitted the array just written, so `gamma_area_008` shipped with no CRS
-        while its sibling on the identical grid had one -- silently, with no error or warning.
-        rioxarray and TiTiler resolve the CRS through `grid_mapping` -> `spatial_ref`.
-        """
+    def test_condition_arrays_take_the_group_crs(self, tmp_path: Path) -> None:
+        """Every condition array, the one written in the same call included, is georeferenced
+        by the group's `proj:code`: none carries a CF `grid_mapping` (#352)."""
         store = self._store_with_legacy_conditions(tmp_path)
         gamma = tmp_path / "GAMMA_AREA_32TQM_037.tif"
 
@@ -2225,11 +2211,9 @@ class TestConditionsRepairOnAConsolidatedStore:
 
         root = zarr.open_group(str(store), mode="r", zarr_format=3)
         conditions = _group(_group(root, "ascending"), "conditions")
-        for name in ("gamma_area_037", "gamma_area_008"):
-            attrs = dict(_array(conditions, name).attrs)
-            assert attrs.get("grid_mapping") == "spatial_ref", (
-                f"{name} has no grid_mapping, so it opens with no CRS: {sorted(attrs)}"
-            )
+        assert "proj:code" in dict(conditions.attrs)
+        attrs = dict(_array(conditions, "gamma_area_008").attrs)
+        assert "grid_mapping" not in attrs, f"gamma_area_008 carries a grid mapping: {attrs}"
 
     def test_half_repaired_group_is_completed_not_rejected(self, tmp_path: Path) -> None:
         """Only the missing coordinate is created.

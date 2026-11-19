@@ -31,6 +31,7 @@ from eopf_geozarr.conversion.s1_ingest import (
 )
 from eopf_geozarr.data_api.s1_rtc import CONDITION_ARRAY_PREFIXES as _CONDITION_PREFIXES
 from eopf_geozarr.data_api.s1_rtc import S1RtcRoot
+from eopf_geozarr.zarr_io import read_documents
 from tests.test_s1_rtc_ingest import ACQ1_TAGS, SIZE, _create_synthetic_geotiff
 
 if TYPE_CHECKING:
@@ -94,7 +95,7 @@ def test_s1_rtc_overview_levels(s1_rtc_json_example: dict[str, object]) -> None:
         # and a level without `time` cannot be selected by datetime. This assertion used to
         # demand the opposite -- it was written against a fixture that predated #192, and it is
         # the reason a writer/model mismatch survived in the suite.
-        for coord in ("time", "x", "y", "spatial_ref"):
+        for coord in ("time", "x", "y"):
             assert coord in group.members, f"{level} is missing the {coord!r} coordinate"
 
 
@@ -166,8 +167,8 @@ def test_s1_rtc_rejects_conditions_without_condition_arrays(
     """
     data = copy.deepcopy(s1_rtc_json_example)
     cond_members = _nav(data, "members", "descending", "members", "conditions", "members")
-    kept = {name: spec for name, spec in cond_members.items() if name in ("x", "y", "spatial_ref")}
-    assert set(kept) == {"x", "y", "spatial_ref"}, "fixture lost its conditions coordinates"
+    kept = {name: spec for name, spec in cond_members.items() if name in ("x", "y")}
+    assert set(kept) == {"x", "y"}, "fixture lost its conditions coordinates"
     kept["some_other"] = next(iter(cond_members.values()))
     _nav(data, "members", "descending", "members", "conditions")["members"] = kept
     with pytest.raises(Exception, match="at least one condition array"):
@@ -265,17 +266,17 @@ class TestWriterRoundTrip:
         """A store built by the ingester opens through the model."""
         store_path = _ingest_store(tmp_path, condition_kwargs)
 
-        model = S1RtcRoot.from_zarr(_open_store(store_path))
+        model = S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         assert model.ascending is not None
         assert model.ascending.conditions is not None
         for level in ("r10m", "r20m", "r60m", "r120m", "r360m", "r720m"):
             group = model.ascending.get_resolution(level)
             assert group is not None, f"missing level {level}"
-            for coord in ("time", "x", "y", "spatial_ref"):
+            for coord in ("time", "x", "y"):
                 assert coord in group.members, f"{level} lost {coord!r}"
 
-    @pytest.mark.parametrize("coordinate", ["time", "x", "y", "spatial_ref"])
+    @pytest.mark.parametrize("coordinate", ["time", "x", "y"])
     def test_overview_missing_coordinate_is_rejected(self, tmp_path: Path, coordinate: str) -> None:
         """Deleting a coordinate from one overview level must fail validation.
 
@@ -287,7 +288,7 @@ class TestWriterRoundTrip:
         """
         store_path = _ingest_store(tmp_path, ["gamma_area_path"])
         # Sanity: the untouched store validates, so a failure below is the deletion talking.
-        S1RtcRoot.from_zarr(_open_store(store_path))
+        S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         orbit = zarr.open_group(
             str(store_path / "ascending"), mode="r+", zarr_format=3, use_consolidated=False
@@ -298,7 +299,7 @@ class TestWriterRoundTrip:
         consolidate_s1_store(store_path, "ascending")
 
         with pytest.raises(Exception, match="coordinate arrays"):
-            S1RtcRoot.from_zarr(_open_store(store_path))
+            S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
     def test_fixture_still_matches_writer_output(
         self, tmp_path: Path, s1_rtc_json_example: dict[str, object]
@@ -315,7 +316,7 @@ class TestWriterRoundTrip:
         fixture's tile and this synthetic store, so they are compared by prefix, not verbatim.
         """
         store_path = _ingest_store(tmp_path, ["gamma_area_path"])
-        ingested = S1RtcRoot.from_zarr(_open_store(store_path))
+        ingested = S1RtcRoot.from_stored_metadata_json(read_documents(_open_store(store_path)))
 
         fixture_orbit = _nav(s1_rtc_json_example, "members", "descending")
         ingested_root = ingested.model_dump(by_alias=True, mode="json")
@@ -354,7 +355,7 @@ class TestWriterRoundTrip:
         assert ingested_conditions <= fixture_conditions
 
 
-@pytest.mark.parametrize("coordinate", ["time", "x", "y", "spatial_ref"])
+@pytest.mark.parametrize("coordinate", ["time", "x", "y"])
 def test_native_missing_coordinate_is_rejected(
     s1_rtc_json_example: dict[str, object], coordinate: str
 ) -> None:
@@ -369,7 +370,7 @@ def test_native_missing_coordinate_is_rejected(
         S1RtcRoot.model_validate(data)
 
 
-@pytest.mark.parametrize("coordinate", ["x", "y", "spatial_ref"])
+@pytest.mark.parametrize("coordinate", ["x", "y"])
 def test_conditions_missing_coordinate_is_rejected(
     s1_rtc_json_example: dict[str, object], coordinate: str
 ) -> None:
@@ -383,3 +384,19 @@ def test_conditions_missing_coordinate_is_rejected(
     del _nav(data, "members", "descending", "members", "conditions", "members")[coordinate]
     with pytest.raises(Exception, match="coordinate arrays"):
         S1RtcRoot.model_validate(data)
+
+
+def test_store_ingested_with_a_cf_grid_mapping_still_validates(
+    s1_rtc_json_example: dict[str, object],
+) -> None:
+    """
+    The ingester no longer writes the CF `spatial_ref` grid mapping (#352), and the
+    model no longer requires it, but a store ingested before still holds it: the
+    model accepts it on the levels and in the conditions group.
+    """
+    data = copy.deepcopy(s1_rtc_json_example)
+    for group in ("r10m", "r60m", "conditions"):
+        members = _nav(data, "members", "descending", "members", group, "members")
+        assert "spatial_ref" not in members, "the fixture is written without a grid mapping"
+        members["spatial_ref"] = copy.deepcopy(members["x"])
+    S1RtcRoot.model_validate(data)

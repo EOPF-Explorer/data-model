@@ -63,11 +63,12 @@ def test_reproject_olci_produces_regular_grid_with_crs() -> None:
     # y descends (north-up grid)
     assert out["y"].values[0] > out["y"].values[-1]
 
-    # CRS declared in both idioms
+    # rioxarray's CRS stays on the in-memory dataset for the computations
+    # downstream; no `grid_mapping` attribute is pinned, and the converter strips
+    # the CF grid mapping before writing (#352)
     assert out.rio.crs is not None
     assert out.rio.crs.to_epsg() == 4326
-    assert "spatial_ref" in out.coords or "spatial_ref" in out.variables
-    assert out["oa01_radiance"].attrs["grid_mapping"] == "spatial_ref"
+    assert "grid_mapping" not in out["oa01_radiance"].attrs
 
     # dtype and CF scaling preserved; fill recorded
     band = out["oa01_radiance"]
@@ -145,7 +146,7 @@ def test_reproject_olci_projected_target_crs() -> None:
         assert coord.attrs["units"] == "m"
     band = out["oa01_radiance"]
     assert band.dtype == np.dtype("uint16")
-    assert band.attrs["grid_mapping"] == "spatial_ref"
+    assert "grid_mapping" not in band.attrs
 
 
 def test_reproject_olci_unpacks_cf_packed_geolocation() -> None:

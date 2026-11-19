@@ -68,12 +68,13 @@ pip install "eopf-geozarr[cpm]"   # or eopf-geozarr without the CPM driver
 
 ### Why are my reflectance values integers, or why do they have NaN?
 
-eopf-geozarr keeps the packing of the source product. By default the arrays
-are packed integers with CF `scale_factor`/`add_offset`/`_FillValue`
-attributes, as in the ESA products: xarray applies them by default, but a
-plain Zarr reader returns the integers. With `--scale-offset-codec`, the Zarr
-`scale_offset` + `cast_value` codecs store the packing instead, and Zarr readers
-that support these codecs return decoded reflectance with NaN for nodata. See
+eopf-geozarr keeps the packing of the source product. The arrays are packed
+integers with CF `scale_factor`/`add_offset`/`_FillValue` attributes, as in
+the ESA products: xarray applies them by default, but a plain Zarr reader
+returns the integers. On the generic rechunker pipeline,
+`--scale-offset-codec` stores the packing with the Zarr `scale_offset` +
+`cast_value` codecs instead, and Zarr readers that support these codecs
+return decoded values with NaN for nodata. See
 [Encoding](converter.md#encoding).
 
 ### How do I set up AWS credentials?
@@ -292,7 +293,7 @@ zarr.consolidate_metadata("input.zarr")
 # test: skip
 # Check CRS information
 ds = dt["/measurements/reflectance/r10m"].ds
-print("CRS variables:", [v for v in ds.data_vars if 'crs' in v.lower() or 'spatial_ref' in v])
+print("CRS:", ds.attrs.get("proj:code", "Missing"))
 
 # Check coordinate attributes
 print("X coord attrs:", ds.x.attrs)
@@ -449,11 +450,10 @@ for level_name in ['r10m', 'r20m', 'r40m']:
         ds = dt[path].ds
         print(f"{level_name}: {dict(ds.dims)}")
 
-# Check required attributes
+# Check the georeferencing: the group's `proj` and `spatial` attributes
 ds = dt["/measurements/reflectance/r10m"].ds
-for var_name in ds.data_vars:
-    var = ds[var_name]
-    print(f"{var_name}: grid_mapping={var.attrs.get('grid_mapping', 'Missing')}")
+for key in ("proj:code", "spatial:transform", "spatial:shape"):
+    print(f"{key}: {ds.attrs.get(key, 'Missing')}")
 ```
 
 ### What should I do if validation fails?

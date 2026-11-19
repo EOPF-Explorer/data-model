@@ -54,9 +54,6 @@ opens the result. Install eopf-geozarr first (see [Installation](installation.md
     convert_s2_optimized(
         dt,
         output_path="out.zarr",
-        enable_sharding=True,
-        spatial_chunk=256,
-        compression_level=3,
         validate_output=True,
     )
     ```
