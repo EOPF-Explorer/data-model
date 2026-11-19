@@ -2,9 +2,11 @@
 
 import pytest
 from pydantic import ValidationError
+from pydantic_zarr.v2 import ArraySpec
+from zarr.storage import LocalStore
 
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
-from eopf_geozarr.pyz.v2 import ArraySpec, GroupSpec  # noqa: F401
+from eopf_geozarr.zarr_io import read_documents, write_hierarchy
 
 
 def _olci_arr() -> dict[str, object]:
@@ -85,7 +87,7 @@ def test_detector_accepts_olci_zarr(tmp_path: object) -> None:
     }
     assert isinstance(tmp_path, pathlib.Path)
     out = tmp_path / "olci.zarr"
-    Sentinel3OlciRoot.model_validate(root_dict).to_zarr(out, path="")  # type: ignore[arg-type]
+    write_hierarchy(Sentinel3OlciRoot.model_validate(root_dict), LocalStore(out))
     group = zarr.open_group(str(out), mode="r")
     assert is_sentinel3_olci_dataset(group) is True
 
@@ -123,10 +125,7 @@ def test_real_olci_product_validates_model(s3_olci_group_example: object) -> Non
 
     import zarr
 
-    from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
-    from eopf_geozarr.pyz.v2 import GroupSpec as PyzGroupSpec
-
     assert isinstance(s3_olci_group_example, pathlib.Path)
     group = zarr.open_group(str(s3_olci_group_example), mode="r")
-    model = Sentinel3OlciRoot.model_validate(PyzGroupSpec.from_zarr(group).model_dump())
+    model = Sentinel3OlciRoot.from_stored_metadata_json(read_documents(group))
     assert "oa01_radiance" in model.measurements.members

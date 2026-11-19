@@ -64,6 +64,23 @@ spatial_chunk, crs=None, scale_offset_codec=False, compression_level=3)` in
 `eopf_geozarr.s2_optimization.s2_multiscale` is the lower-level function that
 writes the pyramid into an open `zarr.Group`.
 
+`eopf_geozarr.data_api.s2_plan` describes this output without writing it:
+`load_sentinel2(source)` validates a Zarr group or an xarray DataTree into the
+`Sentinel2Root` input model, and `plan_geozarr(root)` returns the output
+hierarchy as a `Sentinel2GeoZarr`, a Zarr V3 `GroupSpec` whose member types
+name the structure: `measurements/reflectance` is a `ReflectancePyramid` of
+six `ReflectanceLevel` groups, and the plan builds the classification and
+probability pyramids as `AuxiliaryPyramid`s. The plan holds every group and array
+document that `convert_s2_optimized` stores below the root when called with
+`enable_sharding=True`, `spatial_chunk=1024` and `compression_level=3`, and
+the test suite compares the two. `Sentinel2GeoZarr` also validates a store
+the converter wrote: read its documents with
+`eopf_geozarr.zarr_io.read_documents` and pass them to
+`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the whole tree: the
+groups under `conditions` and `quality` are modeled too (`ConditionsGroup`,
+`QualityGroup`), down to the carried datasets, whose array names come from the
+product.
+
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 
 ```python

@@ -37,6 +37,7 @@ from eopf_geozarr.conversion.s1_ingest import (
     ingest_s1tiling_acquisition,
     ingest_s1tiling_conditions,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 # 31TCH is UTM zone 31N with its north-west corner at (500000, 5000000). The real tile is
 # 10980 px at 10 m; 1080 is a decade-smaller stand-in sharing the corner and the pixel size.
@@ -136,7 +137,7 @@ def main() -> None:
         root = zarr.open_group(str(store_path), mode="r", zarr_format=3)
         # The *generic* GroupSpec, never S1RtcRoot: the fixture must record what the writer
         # emits, not what the model already accepts, or the drift this closes reopens.
-        spec = GroupSpec.from_zarr(root)
+        spec = GroupSpec.from_stored_metadata_json(read_documents(root))
 
     OUTPUT.write_text(json.dumps(spec.model_dump(mode="json"), indent=2) + "\n")
     print(f"Wrote {OUTPUT}")
