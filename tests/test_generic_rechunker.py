@@ -160,6 +160,8 @@ def test_sharding(
     _, output_path = convert(build_synthetic_tree(), tmp_path, enable_sharding=enable_sharding)
 
     assert read_array(output_path, "measurements/amplitude").shards == expected_shards
+    # Smaller than spatial_chunk: a single chunk, so never sharded.
+    assert read_array(output_path, "conditions/geometry/incidence_angle").shards is None
 
 
 def test_compression_is_zstd_at_requested_level(tmp_path: pathlib.Path) -> None:
