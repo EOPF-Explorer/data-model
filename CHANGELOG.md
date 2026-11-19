@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.2 (2026-11-19)
+
+## What's Changed
+* deps(deps): bump soupsieve from 2.9.2 to 4.0 in the uv-security group across 1 directory by @dependabot[bot] in https://github.com/EOPF-Explorer/data-model/pull/358
+* fix(deps): raise tornado floor to 6.6.1 by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/369
+* ci: stop grouping Dependabot security updates and audit main weekly by @lhoupert in https://github.com/EOPF-Explorer/data-model/pull/371
+
+
+**Full Changelog**: https://github.com/EOPF-Explorer/data-model/compare/v0.13.1...v0.13.2
+
 ## 0.13.1 (2026-11-10)
 
 ## What's Changed
