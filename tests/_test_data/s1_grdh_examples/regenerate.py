@@ -25,6 +25,8 @@ import zarr
 from eopf.store.convert import convert
 from pydantic_zarr.v3 import GroupSpec
 
+from eopf_geozarr.zarr_io import read_documents
+
 OUTPUT_DIR = Path(__file__).parent
 
 
@@ -39,7 +41,9 @@ def safe_to_json(safe_path: Path, output_dir: Path = OUTPUT_DIR) -> Path:
             source_store_kwargs={"engine": "safe", "mode": "r"},
             target_store_kwargs={"engine": "cpm_zarr", "mode": "w"},
         )
-        spec = GroupSpec.from_zarr(zarr.open_group(str(store_path), mode="r"))
+        spec = GroupSpec.from_stored_metadata_json(
+            read_documents(zarr.open_group(str(store_path), mode="r"))
+        )
     # mode="json" makes the dump JSON-safe (NaN fill values -> "NaN", tuples -> lists).
     output.write_text(json.dumps(spec.model_dump(mode="json"), indent=2, sort_keys=True) + "\n")
     return output
