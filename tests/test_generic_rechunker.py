@@ -454,6 +454,42 @@ def test_complex_measurement_gets_no_statistics(tmp_path: pathlib.Path) -> None:
     assert not [asset for asset in stac_assets(output_path).values() if "statistics" in asset]
 
 
+def _assert_json_string_similarity_geozarrversion(
+    observed: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    # Compare as JSON: a NaN fill value never equals itself as a float.
+    def canonical(node: object) -> str:
+        return json.dumps(node.model_dump(), sort_keys=True)  # type: ignore[attr-defined]
+
+    # catch differences in root stac_discovery such as EOPF_GEOZARR version which is commit-dependant
+    different_keys = [
+        key for key in observed if canonical(observed[key]) != canonical(expected[key])
+    ]
+    filtered_different_keys = []
+
+    for key in different_keys:
+        cobs, cexp = canonical(observed[key]), canonical(expected[key])
+        if key == "" and "EOPF_GEOZARR" in cobs and "EOPF_GEOZARR" in cexp:
+            import re
+
+            recobs = re.sub(
+                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
+                "",
+                cobs,
+            )
+            recexp = re.sub(
+                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
+                "",
+                cexp,
+            )
+
+            if recobs != recexp:
+                filtered_different_keys.append(key)
+
+    assert filtered_different_keys == []
+
+
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
 @pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
 @pytest.mark.parametrize(
@@ -485,8 +521,4 @@ def test_s1_example_snapshot(source_path: pathlib.Path, tmp_path: pathlib.Path) 
     expected = GroupSpec(**tuplify_json(json.loads(snapshot_path.read_text()))).to_flat()
     assert set(observed) == set(expected)
 
-    # Compare as JSON: a NaN fill value never equals itself as a float.
-    def canonical(node: object) -> str:
-        return json.dumps(node.model_dump(mode="json"), sort_keys=True)  # type: ignore[attr-defined]
-
-    assert [key for key in observed if canonical(observed[key]) != canonical(expected[key])] == []
+    _assert_json_string_similarity_geozarrversion(observed, expected)
