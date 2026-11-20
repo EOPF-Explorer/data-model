@@ -7,7 +7,7 @@ with geozarr attributes only applied where feasible.
 
 """
 
-import os
+import re
 import time
 from collections.abc import Mapping
 
@@ -19,6 +19,9 @@ from eopf_geozarr.conversion import utils
 
 log = structlog.get_logger()
 
+#: End of an S1 burst subroot name: `_<swath>_<burst id>`, e.g. `..._IW1_258175`.
+_BURST_SUFFIX = re.compile(r"_((?:IW|EW|WV|S)\d)_(\d+)$")
+
 
 def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> None:
     """Make the `stac_discovery` assets match the written arrays (hotfix for incomplete CPM metadata).
@@ -28,16 +31,17 @@ def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, obj
     and arrays such as `conditions/gcp/*` get no asset at all. This function
 
     1. drops assets whose href points neither at a written array nor at a group above one,
-    2. re-keys assets with a bare variable-name key if there are several subroots, so the
-       key names its subroot (e.g. `slc` -> `slc_IW3_258176`),
-    3. adds an asset for every written array that none references yet,
-    4. gives each subroot the root assets that lie inside it.
+    2. adds an asset for every written array that none references yet,
+    3. gives each subroot the root assets that lie inside it.
 
-    Asset keys for subroot arrays are `<var>[_<group>]_<subroot id>`, where the subroot id is
-    the subroot name without the prefix all subroots share, and `_<group>` is added only for
-    variable names that occur in more than one group of the subroot (e.g. `roll` in
-    `conditions/attitude` and `conditions/antenna_pattern`). With a single subroot the id is
-    left out. Keys that are not a bare variable name (e.g. `osw_hs`) are kept as they are.
+    An added asset is keyed by a fixed rule that only depends on its path:
+    `<var>_<group>[_<swath>_<burst>]`, where `<group>` is the name of the group holding the
+    array (left out if `<var>` already ends with `_<group>`, e.g. `azimuth_time_gcp`) and
+    `_<swath>_<burst>` is the end of an S1 burst subroot name
+    (e.g. `.../S01SIWSLC_..._IW1_258175/conditions/gcp/height` -> `height_gcp_IW1_258175`).
+    Subroots not named after a burst (e.g. S1 GRD) add no suffix. Existing (CPM) assets keep
+    their keys, except a bare variable-name key of an array in a burst subroot (e.g. `slc`),
+    which collides between the bursts and is re-keyed by the same rule.
 
     Updates the `stac_discovery` attributes of `dt_input` in place, so call it before
     `updated_root_consolidation` writes the root and subroot metadata from them.
@@ -65,33 +69,17 @@ def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, obj
         "/".join(path.split("/")[:i]) for path in written for i in range(1, path.count("/") + 1)
     }
 
-    subroots = sorted(s.strip("/") for s in utils.get_subroots(dt_input.groups) or ())
-    # short subroot ids: drop the name prefix all subroots share (cut at a "_")
-    if len(subroots) > 1:
-        names = [s.rpartition("/")[2] for s in subroots]
-        common = os.path.commonprefix(names)
-        common = common[: common.rfind("_") + 1]
-        subroot_ids = {s: n[len(common) :] or n for s, n in zip(subroots, names, strict=True)}
-    else:
-        subroot_ids = dict.fromkeys(subroots, "")
+    def burst_of(path: str) -> re.Match[str] | None:
+        return next((m for c in path.split("/") if (m := _BURST_SUFFIX.search(c))), None)
 
-    def subroot_of(path: str) -> str | None:
-        return next((s for s in subroots if path.startswith(f"{s}/")), None)
-
-    # variable names that occur in more than one group of the same subroot (or of the root)
-    groups_by_name: dict[tuple[str | None, str], set[str]] = {}
-    for path in written:
+    def asset_key(path: str) -> str:
         group, _, var = path.rpartition("/")
-        groups_by_name.setdefault((subroot_of(path), var), set()).add(group)
-
-    def asset_key(path: str, with_group: bool = False) -> str:
-        group, _, var = path.rpartition("/")
-        subroot = subroot_of(path)
-        parts = [var]
-        if with_group or len(groups_by_name[(subroot, var)]) > 1:
-            parts.append(group.rpartition("/")[2])
-        if subroot is not None and subroot_ids[subroot]:
-            parts.append(subroot_ids[subroot])
+        group_name = group.rpartition("/")[2]
+        # no doubled group name, e.g. `gcp/azimuth_time_gcp` -> `azimuth_time_gcp`
+        parts = [var] if var.endswith(f"_{group_name}") else [var, group_name]
+        burst = burst_of(path)
+        if burst is not None:
+            parts.extend(burst.groups())
         return "_".join(parts)
 
     updated: dict[str, object] = {}
@@ -105,12 +93,14 @@ def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, obj
         if path not in written_set and path not in written_groups:
             log.info("Removing STAC asset of a not written array", asset=key, href=href)
             continue
-        if path in written_set and len(subroots) > 1 and key == path.rpartition("/")[2]:
+        if key == path.rpartition("/")[2] and burst_of(path) is not None:
+            # a bare variable-name key collides between the bursts (CPM keeps only one of
+            # them, e.g. `slc` for the last burst), so it gets the fixed key as well
             new_key = asset_key(path)
             asset = {**asset, "title": new_key} if asset.get("title") == key else asset
             key = new_key
         if key in updated:
-            log.warning("STAC asset key already in use, not adding an asset", asset=key, href=href)
+            log.warning("STAC asset key already in use, not keeping an asset", asset=key, href=href)
             continue
         updated[key] = asset
         referenced.add(path)
@@ -119,9 +109,6 @@ def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, obj
         if path in referenced:
             continue
         key = asset_key(path)
-        if key in updated:
-            # key taken by a CPM asset of another array (e.g. GRD `slant_range_time` -> `sr0`)
-            key = asset_key(path, with_group=True)
         if key in updated:
             log.warning(
                 "STAC asset key already in use, not adding an asset", asset=key, href=f"/{path}"
@@ -132,18 +119,33 @@ def update_generic_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, obj
     assets.clear()
     assets.update(updated)
 
-    # subroots carry the root assets that lie inside them
-    for subroot in subroots:
+    # subroots carry the root assets that lie inside them. Merged into the existing subroot
+    # assets (e.g. URL hrefs are kept); an existing asset of the same array is replaced, so
+    # an array never has two assets (e.g. a bare `slc` next to `slc_measurements_IW1_258175`)
+    for subroot in sorted(s.strip("/") for s in utils.get_subroots(dt_input.groups) or ()):
         sub_stac = dt_input[subroot].attrs.get("stac_discovery")
         if not isinstance(sub_stac, dict):
             continue
-        sub_stac["assets"] = {
+        sub_assets = sub_stac.get("assets")
+        if not isinstance(sub_assets, dict):
+            sub_assets = sub_stac["assets"] = {}
+        subroot_assets = {
             key: asset
             for key, asset in updated.items()
             if isinstance(asset, Mapping)
             and utils._is_store_href(asset.get("href"))
-            and subroot_of(asset["href"].strip("/")) == subroot
+            and asset["href"].strip("/").startswith(f"{subroot}/")
         }
+        subroot_hrefs = {asset["href"].strip("/") for asset in subroot_assets.values()}
+        for key in [
+            key
+            for key, asset in sub_assets.items()
+            if isinstance(asset, Mapping)
+            and utils._is_store_href(asset.get("href"))
+            and asset["href"].strip("/") in subroot_hrefs
+        ]:
+            del sub_assets[key]
+        sub_assets.update(subroot_assets)
 
 
 def create_generic_geozarr_dataset(
