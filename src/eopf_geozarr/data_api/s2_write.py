@@ -31,18 +31,20 @@ from typing import TYPE_CHECKING, Protocol
 import numpy as np
 import xarray as xr
 import zarr
-from pydantic_zarr.v3 import GroupSpec, is_group_spec
+from pydantic_zarr.v3 import GroupSpec, is_array_spec, is_group_spec
 from zarr.errors import ContainsArrayAndGroupError, ContainsArrayError, ContainsGroupError
 from zarr.storage import FsspecStore, LocalStore
 
 from eopf_geozarr.conversion.encoding_utils import find_fill_value
 from eopf_geozarr.data_api.datatree import encoded_variable
 from eopf_geozarr.data_api.s2_plan import (
+    DEFAULT_WRITE_POLICY,
     AuxiliaryLevel,
     AuxiliaryPyramid,
     ReflectanceLevel,
     ReflectancePyramid,
     Sentinel2GeoZarr,
+    WritePolicy,
     level_meters,
     plan_geozarr,
 )
@@ -50,7 +52,7 @@ from eopf_geozarr.s2_optimization.s2_resampling import determine_variable_type
 from eopf_geozarr.zarr_io import read_documents, write_hierarchy
 
 if TYPE_CHECKING:
-    from pydantic_zarr.v3 import AnyGroupSpec
+    from pydantic_zarr.v3 import AnyArraySpec, AnyGroupSpec
     from zarr.abc.store import Store
 
     from eopf_geozarr.data_api.s2 import Sentinel2Root
@@ -179,19 +181,23 @@ _MEAN_STRIPE_ROWS = 2048
 
 
 def write_geozarr(
-    root: Sentinel2Root, source: zarr.Group | xr.DataTree, store: Store | str
+    root: Sentinel2Root,
+    source: zarr.Group | xr.DataTree,
+    store: Store | str,
+    policy: WritePolicy = DEFAULT_WRITE_POLICY,
 ) -> Sentinel2GeoZarr:
     """
-    Write the GeoZarr hierarchy planned from `root` to `store`, copying and
-    resampling chunk data from `source` — the Zarr V2 input store or the
-    xarray DataTree `root` was read from. Returns the plan that was written.
+    Write the GeoZarr hierarchy planned from `root` under `policy` to
+    `store`, copying and resampling chunk data from `source` — the Zarr V2
+    input store or the xarray DataTree `root` was read from. Returns the plan
+    that was written.
     """
     reader: SourceReader = (
         DataTreeSourceReader(source)
         if isinstance(source, xr.DataTree)
         else ZarrSourceReader(source)
     )
-    plan = plan_geozarr(root, coordinate_values=reader.values)
+    plan = plan_geozarr(root, coordinate_values=reader.values, policy=policy)
     # the metadata plane: every group and array document, exactly as planned
     if isinstance(store, str):
         # a URL goes through fsspec, anything else is a local path, as zarr
@@ -323,11 +329,44 @@ def _fill_pyramid(
                     previous_data,
                     native=native,
                 )
-        for var, values in {**data, **coords}.items():
+        # the resampling runs on the input's packed integers; a band planned
+        # with the scale_offset codec stores their decoded values
+        for var, values in data.items():
+            member = level_spec.members[var]
+            packing = _codec_packing(member) if is_array_spec(member) else None
+            stored = values if packing is None else _decode(values, *packing)
+            _store_values(output, f"{level_path}/{var}", stored)
+        for var, values in coords.items():
             _store_values(output, f"{level_path}/{var}", values)
         if "spatial_ref" in level_spec.members:
             _output_array(output, f"{level_path}/spatial_ref")[...] = 0
         previous_data, previous_coords, previous_meters = data, coords, meters
+
+
+def _codec_packing(spec: AnyArraySpec) -> tuple[float, float, int] | None:
+    """
+    The `(offset, scale, nodata)` of an array that the `scale_offset` and
+    `cast_value` codecs pack (inside its shard, if it is sharded): stored
+    integers decode as `integer / scale + offset`, and `nodata` decodes as
+    NaN. None for an array without the `scale_offset` codec.
+    """
+    codecs = spec.model_dump(mode="json")["codecs"]
+    if codecs and codecs[0]["name"] == "sharding_indexed":
+        codecs = codecs[0]["configuration"]["codecs"]
+    configurations = {codec["name"]: codec.get("configuration") or {} for codec in codecs}
+    scale_offset = configurations.get("scale_offset")
+    if scale_offset is None:
+        return None
+    encode = configurations.get("cast_value", {}).get("scalar_map", {}).get("encode", ())
+    nodata = next((int(target) for source, target in encode if source == "NaN"), 0)
+    return float(scale_offset.get("offset", 0.0)), float(scale_offset.get("scale", 1.0)), nodata
+
+
+def _decode(values: np.ndarray, offset: float, scale: float, nodata: int) -> np.ndarray:
+    """Packed integers as the float32 values they decode to, with NaN for `nodata`."""
+    decoded = (values / scale + offset).astype("float32")
+    decoded[values == nodata] = np.nan
+    return decoded
 
 
 def _level_variable(

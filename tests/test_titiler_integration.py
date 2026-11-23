@@ -59,6 +59,8 @@ def converted_s2_path() -> pathlib.Path:
         dt_input,
         output_path=output_path,
         validate_output=False,
+        enable_sharding=False,
+        spatial_chunk=512,
     )
 
     return pathlib.Path(output_path)

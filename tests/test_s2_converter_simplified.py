@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import xarray as xr
 import zarr
+from pydantic import ValidationError
 from zarr.core.group import ConsolidatedMetadata
 
 from eopf_geozarr.conversion.utils import (
@@ -488,25 +489,12 @@ def test_write_store_geo_metadata_antimeridian_falls_back_to_full_range(tmp_path
     assert bbox == [-180.0, bbox[1], 180.0, bbox[3]], bbox
 
 
-@pytest.mark.parametrize(
-    "deviation",
-    [
-        {"enable_sharding": False},
-        {"spatial_chunk": 512},
-        {"compression_level": 2},
-        {"scale_offset_codec": True},
-    ],
-    ids=lambda d: next(iter(d)),
-)
-def test_convert_s2_optimized_refuses_non_policy_options(deviation: dict) -> None:
-    """The plan-driven writer has a fixed write policy; a deviating layout
-    option is refused before any work happens."""
-    with pytest.raises(ValueError, match="fixed write policy"):
+def test_convert_s2_optimized_refuses_an_invalid_layout_option() -> None:
+    """An option the write policy cannot hold is refused before any work
+    happens (the input is not even read)."""
+    with pytest.raises(ValidationError, match="spatial_chunk"):
         convert_s2_optimized(
-            xr.DataTree(),
-            output_path="/unused",
-            validate_output=False,
-            **deviation,
+            xr.DataTree(), output_path="/unused", validate_output=False, spatial_chunk=0
         )
 
 

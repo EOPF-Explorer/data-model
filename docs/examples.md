@@ -13,15 +13,15 @@ description: Examples for eopf-geozarr, the GeoZarr driver for EOPF CPM — conv
 Convert native products with CPM (see the [CPM driver guide](cpm-driver.md)):
 
 ```bash
-# Sentinel-2 L2A SAFE to GeoZarr (the S2 layout is fixed: sharded,
-# 1024-pixel chunks, blosc-zstd 3, ESA packed integers)
-eopf convert-geozarr S2B_MSIL2A_….SAFE out.zarr
+# Sentinel-2 L2A SAFE to GeoZarr, with sharding
+eopf convert-geozarr S2B_MSIL2A_….SAFE out.zarr --enable-sharding
 
 # Sentinel-3 OLCI EFR on a regular WGS 84 grid
 eopf convert-geozarr S3A_OL_1_EFR____….SEN3 out.zarr --output-grid EPSG:4326
 
-# Sentinel-2 to S3: convert locally, then upload
-eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/out.zarr --stage-output
+# Sentinel-2 to S3, packed with the Zarr scale-offset codecs
+eopf convert-geozarr S2B_MSIL2A_….SAFE s3://bucket/out.zarr \
+    --stage-output --scale-offset-codec
 ```
 
 ```python
@@ -36,7 +36,7 @@ for safe in sorted(Path("inputs").glob("S2*_MSIL2A_*.SAFE")):
     convert(
         str(safe),
         f"outputs/{safe.stem}.zarr",
-        target_store_kwargs={"engine": "geozarr"},
+        target_store_kwargs={"engine": "geozarr", "enable_sharding": True},
     )
 ```
 
@@ -106,6 +106,9 @@ dt_input = xr.open_datatree("s2_l2a_input.zarr", engine="zarr", chunks={})
 dt = convert_s2_optimized(
     dt_input,
     output_path="s2_l2a.zarr",
+    enable_sharding=True,
+    spatial_chunk=256,
+    compression_level=3,
     validate_output=False,
 )
 

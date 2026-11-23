@@ -22,7 +22,7 @@ import xarray as xr
 import zarr
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 
-from eopf_geozarr.data_api.s2_plan import load_sentinel2
+from eopf_geozarr.data_api.s2_plan import WritePolicy, load_sentinel2
 from eopf_geozarr.data_api.s2_write import (
     DataTreeSourceReader,
     ZarrSourceReader,
@@ -131,14 +131,14 @@ def _seed_input_store(group: zarr.Group) -> None:
 
 
 def _written_store(
-    source_path: pathlib.Path, tmp_path: pathlib.Path
+    source_path: pathlib.Path, tmp_path: pathlib.Path, policy: WritePolicy | None = None
 ) -> tuple[AnyGroupSpec, zarr.Group, zarr.Group]:
     """Seed the fixture store, write it with `write_geozarr`, open both."""
     input_path = create_zarrv2_group_from_json(source_path, tmp_path)
     _seed_input_store(zarr.open_group(input_path, mode="r+", zarr_format=2))
     source = zarr.open_group(input_path, mode="r", zarr_format=2)
     output_path = tmp_path / "planned.zarr"
-    plan = write_geozarr(load_sentinel2(source), source, str(output_path))
+    plan = write_geozarr(load_sentinel2(source), source, str(output_path), policy or WritePolicy())
     return plan, source, zarr.open_group(output_path, mode="r", use_consolidated=False)
 
 
@@ -238,6 +238,38 @@ def test_write_geozarr_data_semantics(tmp_path: pathlib.Path) -> None:
 
     # grid-mapping arrays hold zero
     assert read(output, "measurements/reflectance/r120m/spatial_ref") == 0
+
+
+def test_write_geozarr_scale_offset_codec_stores_the_esa_integers(tmp_path: pathlib.Path) -> None:
+    """
+    Under the scale_offset codec every reflectance band, derived levels
+    included, packs to the integers the ESA layout stores: the resampling
+    runs on the packed integers, and only the stored form differs. Nodata
+    reads as NaN.
+    """
+    _, _, esa = _written_store(_L2A_PATH, tmp_path / "esa")
+    _, _, decoded = _written_store(
+        _L2A_PATH, tmp_path / "codec", WritePolicy(scale_offset_codec=True)
+    )
+    reflectance = esa["measurements/reflectance"]
+    assert isinstance(reflectance, zarr.Group)
+    bands = [
+        f"measurements/reflectance/{level}/{band}"
+        for level, group in reflectance.groups()
+        for band, member in group.arrays()
+        if band.startswith("b")
+    ]
+    assert len(bands) == 63
+    for path in bands:
+        packed, codec = esa[path], decoded[path]
+        assert isinstance(packed, zarr.Array)
+        assert isinstance(codec, zarr.Array)
+        assert codec.dtype == np.float32
+        integers = np.asarray(packed[...]).astype("int64")
+        values = np.asarray(codec[...]).astype("float64")
+        np.testing.assert_array_equal(np.isnan(values), integers == 0)
+        repacked = np.rint((np.nan_to_num(values, nan=-0.1) + 0.1) * 10000).astype("int64")
+        np.testing.assert_array_equal(repacked, integers, err_msg=path)
 
 
 @pytest.mark.parametrize("factor", [2, 3])
