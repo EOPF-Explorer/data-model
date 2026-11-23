@@ -232,11 +232,11 @@ class ProbabilityArrayMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all data products are always present.
     """
 
-    cld: ArraySpec[Any]
-    snw: ArraySpec[Any]
-    band: ArraySpec[Any]  # The names of the probability bands
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    cld: ArraySpec[Mapping[str, object]]
+    snw: ArraySpec[Mapping[str, object]]
+    band: ArraySpec[Mapping[str, object]]  # The names of the probability bands
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 # Probability resolution groups (r10m, r20m, r60m)
@@ -247,9 +247,9 @@ class ProbabilityResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all resolutions are always present.
     """
 
-    r10m: GroupSpec[Any, ProbabilityArrayMembers]
-    r20m: GroupSpec[Any, ProbabilityArrayMembers]
-    r60m: GroupSpec[Any, ProbabilityArrayMembers]
+    r10m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
+    r20m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
+    r60m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
 
 
 # Resolution-level members for quicklook data arrays
@@ -260,10 +260,10 @@ class QuicklookArrayMembers(TypedDict, closed=True, total=False):
     All fields are optional for flexibility.
     """
 
-    tci: ArraySpec[Any]
-    band: ArraySpec[Any]  # The names of the image bands
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    tci: ArraySpec[Mapping[str, object]]
+    band: ArraySpec[Mapping[str, object]]  # The names of the image bands
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 # Quicklook resolution groups (r10m, r20m, r60m)
@@ -274,9 +274,9 @@ class QuicklookResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all resolutions are always present.
     """
 
-    r10m: GroupSpec[Any, QuicklookArrayMembers]
-    r20m: GroupSpec[Any, QuicklookArrayMembers]
-    r60m: GroupSpec[Any, QuicklookArrayMembers]
+    r10m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
+    r20m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
+    r60m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
 
 
 # Mask members
@@ -288,22 +288,22 @@ class BandMaskLevelMembers(TypedDict, closed=True, total=False):
     (by name), which is the order a validated group holds them in.
     """
 
-    b01: ArraySpec[Any]
-    b02: ArraySpec[Any]
-    b03: ArraySpec[Any]
-    b04: ArraySpec[Any]
-    b05: ArraySpec[Any]
-    b06: ArraySpec[Any]
-    b07: ArraySpec[Any]
-    b08: ArraySpec[Any]
-    b09: ArraySpec[Any]
-    b10: ArraySpec[Any]
-    b11: ArraySpec[Any]
-    b12: ArraySpec[Any]
-    b8a: ArraySpec[Any]
-    time: ArraySpec[Any]
-    x: ArraySpec[Any]
-    y: ArraySpec[Any]
+    b01: ArraySpec[Mapping[str, object]]
+    b02: ArraySpec[Mapping[str, object]]
+    b03: ArraySpec[Mapping[str, object]]
+    b04: ArraySpec[Mapping[str, object]]
+    b05: ArraySpec[Mapping[str, object]]
+    b06: ArraySpec[Mapping[str, object]]
+    b07: ArraySpec[Mapping[str, object]]
+    b08: ArraySpec[Mapping[str, object]]
+    b09: ArraySpec[Mapping[str, object]]
+    b10: ArraySpec[Mapping[str, object]]
+    b11: ArraySpec[Mapping[str, object]]
+    b12: ArraySpec[Mapping[str, object]]
+    b8a: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
 
 
 class BandMaskMembers(TypedDict, closed=True, total=False):
@@ -314,9 +314,9 @@ class BandMaskMembers(TypedDict, closed=True, total=False):
     every resolution is always present.
     """
 
-    r10m: GroupSpec[Any, BandMaskLevelMembers]
-    r20m: GroupSpec[Any, BandMaskLevelMembers]
-    r60m: GroupSpec[Any, BandMaskLevelMembers]
+    r10m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
+    r20m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
+    r60m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
 
 
 class ClassificationMembers(TypedDict, closed=True, total=False):
@@ -327,9 +327,9 @@ class ClassificationMembers(TypedDict, closed=True, total=False):
     arrays (the classification and its `x` and `y` coordinates).
     """
 
-    r10m: GroupSpec[Any, Mapping[str, ArraySpec[Any]]]
-    r20m: GroupSpec[Any, Mapping[str, ArraySpec[Any]]]
-    r60m: GroupSpec[Any, Mapping[str, ArraySpec[Any]]]
+    r10m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+    r20m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+    r60m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
 
 
 class ConditionsMaskMembers(TypedDict, closed=True, total=False):
@@ -340,9 +340,9 @@ class ConditionsMaskMembers(TypedDict, closed=True, total=False):
     product has no L2A classification).
     """
 
-    detector_footprint: GroupSpec[Any, BandMaskMembers]
-    l1c_classification: GroupSpec[Any, ClassificationMembers]
-    l2a_classification: GroupSpec[Any, ClassificationMembers]
+    detector_footprint: GroupSpec[Mapping[str, object], BandMaskMembers]
+    l1c_classification: GroupSpec[Mapping[str, object], ClassificationMembers]
+    l2a_classification: GroupSpec[Mapping[str, object], ClassificationMembers]
 
 
 # Geometry members - contains angle and orientation groups/arrays
@@ -353,16 +353,16 @@ class GeometryMembers(TypedDict, closed=True, total=False):
     by. All fields are optional since not all angles are always present.
     """
 
-    angle: ArraySpec[Any]  # The names of the angles (zenith, azimuth)
-    band: ArraySpec[Any]  # The names of the bands
-    detector: ArraySpec[Any]  # The detector numbers
-    sun_angles: ArraySpec[Any]
-    viewing_incidence_angles: ArraySpec[Any]
-    mean_sun_angles: ArraySpec[Any]
-    mean_viewing_incidence_angles: ArraySpec[Any]
-    x: ArraySpec[Any]
-    y: ArraySpec[Any]
-    time: ArraySpec[Any]
+    angle: ArraySpec[Mapping[str, object]]  # The names of the angles (zenith, azimuth)
+    band: ArraySpec[Mapping[str, object]]  # The names of the bands
+    detector: ArraySpec[Mapping[str, object]]  # The detector numbers
+    sun_angles: ArraySpec[Mapping[str, object]]
+    viewing_incidence_angles: ArraySpec[Mapping[str, object]]
+    mean_sun_angles: ArraySpec[Mapping[str, object]]
+    mean_viewing_incidence_angles: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
 
 
 # Meteorology members - contains CAMS and ECMWF atmospheric data
@@ -374,8 +374,12 @@ class MeteorologyMembers(TypedDict, closed=True, total=False):
     dataset of arrays, whose names depend on the source.
     """
 
-    cams: GroupSpec[Any, Mapping[str, ArraySpec[Any]]]  # CAMS atmospheric data
-    ecmwf: GroupSpec[Any, Mapping[str, ArraySpec[Any]]]  # ECMWF atmospheric data
+    cams: GroupSpec[
+        Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]
+    ]  # CAMS atmospheric data
+    ecmwf: GroupSpec[
+        Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]
+    ]  # ECMWF atmospheric data
 
 
 # Sentinel-2 spectral band identifiers
@@ -508,22 +512,22 @@ class Sentinel2ResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all bands are present in every resolution.
     """
 
-    x: ArraySpec[Any]
-    y: ArraySpec[Any]
-    time: ArraySpec[Any]
-    b01: ArraySpec[Any]
-    b02: ArraySpec[Any]
-    b03: ArraySpec[Any]
-    b04: ArraySpec[Any]
-    b05: ArraySpec[Any]
-    b06: ArraySpec[Any]
-    b07: ArraySpec[Any]
-    b08: ArraySpec[Any]
-    b8a: ArraySpec[Any]
-    b09: ArraySpec[Any]
-    b10: ArraySpec[Any]
-    b11: ArraySpec[Any]
-    b12: ArraySpec[Any]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
+    b01: ArraySpec[Mapping[str, object]]
+    b02: ArraySpec[Mapping[str, object]]
+    b03: ArraySpec[Mapping[str, object]]
+    b04: ArraySpec[Mapping[str, object]]
+    b05: ArraySpec[Mapping[str, object]]
+    b06: ArraySpec[Mapping[str, object]]
+    b07: ArraySpec[Mapping[str, object]]
+    b08: ArraySpec[Mapping[str, object]]
+    b8a: ArraySpec[Mapping[str, object]]
+    b09: ArraySpec[Mapping[str, object]]
+    b10: ArraySpec[Mapping[str, object]]
+    b11: ArraySpec[Mapping[str, object]]
+    b12: ArraySpec[Mapping[str, object]]
 
 
 class Sentinel2ResolutionDataset(GroupSpec[DatasetAttrs, Sentinel2ResolutionMembers]):
@@ -573,10 +577,10 @@ class Sentinel2AtmosphereResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all data products are always present.
     """
 
-    aot: ArraySpec[Any]
-    wvp: ArraySpec[Any]
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    aot: ArraySpec[Mapping[str, object]]
+    wvp: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 class Sentinel2AtmosphereResolutionDataset(
