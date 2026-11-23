@@ -13,6 +13,7 @@ import pytest
 import zarr
 from pydantic import ValidationError
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
+from pydantic_zarr.v3 import AnyArraySpec, AnyBaseGroupSpec, is_array_spec, is_base_group_spec
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pyproj import CRS
 from zarr.storage import LocalStore
@@ -167,10 +168,13 @@ def _product_with_data(
     return store_path
 
 
-def _canonical(document: object) -> str:
-    """A document as sorted JSON text: equal texts are equal documents (a NaN
-    never equals itself as a float)."""
-    return json.dumps(document, sort_keys=True)
+def _alike(
+    planned: AnyArraySpec | AnyBaseGroupSpec, written: AnyArraySpec | AnyBaseGroupSpec
+) -> bool:
+    """Whether two flattened nodes are the same kind and alike (`like`)."""
+    if is_array_spec(planned):
+        return is_array_spec(written) and planned.like(written)
+    return is_base_group_spec(written) and planned.like(written)
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -224,13 +228,18 @@ def test_plan_matches_the_converter_output(
         return np.asarray(member[...]) if isinstance(member, zarr.Array) else None
 
     plan = plan_geozarr(load_sentinel2(source), coordinate_values=coordinate_values, policy=policy)
-    planned = json.loads(json.dumps(plan.to_stored_metadata_json()))
 
-    assert written.keys() == planned.keys()
+    assert written.keys() == plan.to_stored_metadata_json().keys()
     # the output model describes what the converter stores, root attributes included
-    Sentinel2GeoZarr.from_stored_metadata_json(written)
-    assert written.pop("zarr.json")["node_type"] == planned.pop("zarr.json")["node_type"]
-    assert [key for key in written if _canonical(written[key]) != _canonical(planned[key])] == []
+    written_nodes = Sentinel2GeoZarr.from_stored_metadata_json(written).to_flat()
+    planned_nodes = plan.to_flat()
+    # each node below the root ("") compares by the meaning of its document,
+    # as `like` judges it, rather than by its JSON spelling
+    assert [
+        path
+        for path, node in planned_nodes.items()
+        if path and not _alike(node, written_nodes[path])
+    ] == []
 
 
 @pytest.mark.parametrize("path", _INPUT_PATHS, ids=lambda p: p.stem[:26])

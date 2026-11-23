@@ -41,14 +41,15 @@ import re
 import struct
 from collections.abc import Callable, Mapping
 from math import ceil
-from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, NotRequired, Required
+from typing import TYPE_CHECKING, Annotated, Final, Literal, NotRequired, Required
 
 import numpy as np
 import structlog
 import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic_zarr.v2 import ArraySpec as ArraySpecV2
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
+from pydantic_zarr.v2 import is_array_spec as is_array_spec_v2
+from pydantic_zarr.v2 import is_group_spec as is_group_spec_v2
 from pydantic_zarr.v3 import ArraySpec as ArraySpecV3
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
 from pydantic_zarr.v3 import parse_dtype_v3
@@ -77,16 +78,14 @@ from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     import zarr
+    from pydantic_zarr.v2 import AnyArraySpec as AnyArraySpecV2
     from pydantic_zarr.v2 import AnyGroupSpec as AnyGroupSpecV2
     from pydantic_zarr.v3 import FillValue
     from zarr_metadata.v3.chunk_grid.regular import RegularChunkGridObject
-    from zarr_metadata.v3.chunk_key_encoding.default import DefaultChunkKeyEncodingObject
     from zarr_metadata.v3.codec.blosc import BloscCodecObject
     from zarr_metadata.v3.codec.bytes import BytesCodecObject
     from zarr_metadata.v3.codec.cast_value import CastValueCodecObject
-    from zarr_metadata.v3.codec.crc32c import Crc32cCodecObject
     from zarr_metadata.v3.codec.scale_offset import ScaleOffsetCodecObject
-    from zarr_metadata.v3.codec.sharding_indexed import ShardingIndexedCodecObject
     from zarr_metadata.v3.codec.zstd import ZstdCodecObject
 
 log = structlog.get_logger()
@@ -160,15 +159,8 @@ _BAND_ATTR_CARRY = (
 # stores for the float coordinate arrays
 _NAN_FLOAT64_B64 = base64.b64encode(struct.pack("<d", float("nan"))).decode()
 
-_CHUNK_KEY_ENCODING: Final[DefaultChunkKeyEncodingObject] = {
-    "name": "default",
-    "configuration": {"separator": "/"},
-}
-
 #: The little-endian `bytes` codec, the array -> bytes codec of every planned array.
 _BYTES_LITTLE: Final[BytesCodecObject] = {"name": "bytes", "configuration": {"endian": "little"}}
-
-_CRC32C: Final[Crc32cCodecObject] = {"name": "crc32c"}
 
 
 def load_sentinel2(source: zarr.Group | xr.DataTree) -> Sentinel2Root:
@@ -185,7 +177,8 @@ def load_sentinel2(source: zarr.Group | xr.DataTree) -> Sentinel2Root:
     Sentinel-2 product.
     """
     if isinstance(source, xr.DataTree):
-        return Sentinel2Root.model_validate(group_spec_from_datatree(source).model_dump())
+        # from_attributes: validate the plain spec's fields as the typed model's
+        return Sentinel2Root.model_validate(group_spec_from_datatree(source), from_attributes=True)
     return Sentinel2Root.from_stored_metadata_json(read_documents(source))
 
 
@@ -295,31 +288,22 @@ def _band_array(
             "blocksize": 0,
         },
     }
-    if policy.enable_sharding:
-        sharding: ShardingIndexedCodecObject = {
-            "name": "sharding_indexed",
-            "configuration": {
-                "chunk_shape": inner,
-                "codecs": (*filters, _BYTES_LITTLE, compressor),
-                "index_codecs": (_BYTES_LITTLE, _CRC32C),
-                "index_location": "end",
-            },
-        }
-        chunk_shape, codecs = shard, (sharding,)
-    else:
-        chunk_shape, codecs = inner, (*filters, _BYTES_LITTLE, compressor)
-    return DataArray.model_validate(
-        {
-            "attributes": attributes,
-            "shape": shape,
-            "data_type": data_type,
-            "chunk_grid": _regular_grid(chunk_shape),
-            "chunk_key_encoding": _CHUNK_KEY_ENCODING,
-            "fill_value": fill_value,
-            "codecs": codecs,
-            "dimension_names": dimension_names,
-        }
+    # create_default supplies the `/` chunk key encoding
+    array = DataArray.create_default(
+        attributes=attributes,
+        shape=shape,
+        data_type=data_type,
+        fill_value=fill_value,
+        chunk_grid=_regular_grid(shard if policy.enable_sharding else inner),
+        codecs=(*filters, _BYTES_LITTLE, compressor),
+        dimension_names=dimension_names,
     )
+    if not policy.enable_sharding:
+        return array
+    # each chunk of the grid becomes a shard of `inner` chunks: the pipeline
+    # moves inside the shard, and the index is little-endian bytes plus crc32c,
+    # at the end
+    return array.with_sharding_codec(inner)
 
 
 def _number(value: object) -> float | None:
@@ -436,7 +420,7 @@ def _grid_mapping_attributes(wkt2: str) -> GridMappingAttrs:
     attributes["spatial_ref"] = wkt
     checked, problems = check(attributes, GridMappingAttrs)
     if checked is None or problems:
-        details = "; ".join(f"{'.'.join(map(str, p.loc))}: {p.message}" for p in problems)
+        details = "; ".join(map(str, problems))
         msg = f"The product CRS is not the expected transverse-mercator grid mapping: {details}"
         raise ValueError(msg)
     return checked
@@ -829,12 +813,12 @@ def plan_reflectance(
     return _plan_reflectance(root, policy)[0]
 
 
-def _input_bands(level: Sentinel2ResolutionDataset) -> dict[str, ArraySpecV2[Any]]:
+def _input_bands(level: Sentinel2ResolutionDataset) -> dict[str, AnyArraySpecV2]:
     """The band arrays of one input resolution dataset, by name (`b02`, `b8a`, ...)."""
     return {
         name: member
         for name, member in level.members.items()
-        if name.startswith("b") and isinstance(member, ArraySpecV2)
+        if name.startswith("b") and is_array_spec_v2(member)
     }
 
 
@@ -867,7 +851,7 @@ def _plan_reflectance(
         msg = f"The r{finest_meters_in}m resolution dataset holds no band arrays"
         raise ValueError(msg)
     first_band_name = first_band[0]
-    first_band_attrs: Mapping[str, object] = first_band[1].attributes
+    first_band_attrs = _attrs(first_band[1])
     transform = first_band_attrs.get("proj:transform")
     band_epsg = first_band_attrs.get("proj:epsg")
     band_wkt2 = first_band_attrs.get("proj:wkt2")
@@ -904,11 +888,10 @@ def _plan_reflectance(
         native = native_level is not None
         if native_level is not None:
             for name, member in _input_bands(native_level).items():
-                dims = tuple(member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
                 planned[name] = (
-                    _native_band_attributes(member.attributes),
+                    _native_band_attributes(_attrs(member)),
                     tuple(member.shape),
-                    dims,
+                    _dims_of(member) or ("y", "x"),
                 )
             if not planned:
                 msg = f"The r{meters}m resolution dataset holds no band arrays"
@@ -924,11 +907,10 @@ def _plan_reflectance(
                     src_member = _input_bands(input_levels[src_meters]).get(band_name)
                     if src_member is None:
                         continue
-                    dims = tuple(src_member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
                     planned[band_name] = (
-                        _native_band_attributes(src_member.attributes),
+                        _native_band_attributes(_attrs(src_member)),
                         level_shape,
-                        dims,
+                        _dims_of(src_member) or ("y", "x"),
                     )
                     break
         else:
@@ -963,12 +945,8 @@ def _plan_reflectance(
                 "attributes": level_attributes[meters],
                 "members": {
                     **bands,
-                    "x": _plan_level_coordinate(
-                        "x", cols, None if x_source is None else x_source.model_dump(), policy
-                    ),
-                    "y": _plan_level_coordinate(
-                        "y", rows, None if y_source is None else y_source.model_dump(), policy
-                    ),
+                    "x": _plan_level_coordinate("x", cols, x_source, policy),
+                    "y": _plan_level_coordinate("y", rows, y_source, policy),
                     "spatial_ref": _plan_spatial_ref(wkt2, native=native),
                 },
             }
@@ -1046,20 +1024,11 @@ _DROPPED_ATTRS = frozenset(
     {"_ARRAY_DIMENSIONS", "_eopf_attrs", "_FillValue", "proj:code", "proj:wkt2", "proj:projjson"}
 )
 
-# The dataset and pyramid planners below read the *dump* of an input group —
-# plain Zarr V2 documents — because the names of a carried dataset's arrays
-# come from the input. A node holding "members" is a group; one holding
-# "shape" is an array.
-_ArrayDoc = Mapping[str, Any]
-_GroupDoc = Mapping[str, Any]
 
-
-def _doc_attrs(doc: Mapping[str, Any]) -> Mapping[str, object]:
-    attributes = doc.get("attributes") or {}
-    if not isinstance(attributes, Mapping):
-        msg = f"Attributes are not a mapping: {type(attributes)!r}"
-        raise TypeError(msg)
-    return attributes
+def _attrs(node: AnyArraySpecV2 | AnyGroupSpecV2) -> Mapping[str, object]:
+    """The attributes of an input node, as its document holds them (an
+    attributes model dumped by its aliases)."""
+    return node.to_metadata_json().get("attributes", {})
 
 
 def _carried_array_attributes(
@@ -1081,7 +1050,7 @@ def _carried_array_attributes(
 
 def _plan_carried_array(
     name: str,
-    doc: _ArrayDoc,
+    array: AnyArraySpecV2,
     policy: WritePolicy,
     *,
     spatial: bool,
@@ -1093,14 +1062,14 @@ def _plan_carried_array(
     and `y` included) keep their data type uncompressed, and data arrays are
     chunked and compressed by `policy`.
     """
-    attrs = _doc_attrs(doc)
+    attrs = _attrs(array)
     dims_raw = attrs.get("_ARRAY_DIMENSIONS")
     if not isinstance(dims_raw, (list, tuple)):
         msg = f"Array {name!r} carries no _ARRAY_DIMENSIONS attribute"
         raise TypeError(msg)
     dims = tuple(str(dim) for dim in dims_raw)
-    shape = tuple(doc["shape"])
-    parsed = np.dtype(str(doc["dtype"]))
+    shape = array.shape
+    parsed = np.dtype(str(array.dtype))
     # the Zarr V3 form zarr-python writes for the V2 dtype, in the GeoZarr scope
     data_type = parse_dtype_v3(parsed, scope=GEOZARR_SCOPE)
     fill_value: FillValue = "NaN" if parsed.kind == "f" else "" if parsed.kind in "US" else 0
@@ -1128,7 +1097,7 @@ def _plan_carried_array(
 
 
 def _plan_level_coordinate(
-    name: str, size: int, source: _ArrayDoc | None, policy: WritePolicy
+    name: str, size: int, source: AnyArraySpecV2 | None, policy: WritePolicy
 ) -> DataArray:
     """
     The `x` or `y` array of one pyramid level. A native level carries the
@@ -1141,20 +1110,21 @@ def _plan_level_coordinate(
     return _plan_carried_array(name, source, policy, spatial=False)
 
 
-def _carried_arrays(group: _GroupDoc) -> dict[str, _ArrayDoc]:
+def _carried_arrays(group: AnyGroupSpecV2) -> dict[str, AnyArraySpecV2]:
     """The group's non-scalar arrays (scalar arrays are dropped)."""
-    members = group.get("members") or {}
     return {
         name: member
-        for name, member in members.items()
-        if isinstance(member, Mapping) and "shape" in member and len(member["shape"]) > 0
+        for name, member in group.members.items()
+        if is_array_spec_v2(member) and len(member.shape) > 0
     }
 
 
-def _spatial_anchor(arrays: Mapping[str, _ArrayDoc]) -> tuple[str, _ArrayDoc] | None:
+def _spatial_anchor(
+    arrays: Mapping[str, AnyArraySpecV2],
+) -> tuple[str, AnyArraySpecV2] | None:
     """The first array carrying proj attributes, with its name, if any."""
     for name, member in arrays.items():
-        if "proj:epsg" in _doc_attrs(member):
+        if "proj:epsg" in _attrs(member):
             return name, member
     return None
 
@@ -1162,19 +1132,20 @@ def _spatial_anchor(arrays: Mapping[str, _ArrayDoc]) -> tuple[str, _ArrayDoc] | 
 _Transform6 = tuple[float, float, float, float, float, float]
 
 
-def _proj_of(name: str, doc: _ArrayDoc) -> tuple[_Transform6, int, str]:
+def _proj_of(name: str, array: AnyArraySpecV2) -> tuple[_Transform6, int, str]:
     """The (transform, EPSG, WKT2) a proj-bearing input array carries."""
-    attrs = _doc_attrs(doc)
+    attrs = _attrs(array)
     transform = attrs.get("proj:transform")
     if not isinstance(transform, (list, tuple)) or len(transform) < 6:
         msg = f"Array {name!r} carries no usable proj:transform"
         raise ValueError(msg)
+    epsg = attrs.get("proj:epsg")
+    wkt2 = attrs.get("proj:wkt2")
+    if not isinstance(epsg, (int, str)) or isinstance(epsg, bool) or not isinstance(wkt2, str):
+        msg = f"Array {name!r} carries no usable proj:epsg and proj:wkt2"
+        raise TypeError(msg)
     a, b, c, d, e, f = (float(part) for part in transform[:6])
-    return (
-        (a, b, c, d, e, f),
-        int(attrs["proj:epsg"]),  # type: ignore[call-overload]
-        str(attrs["proj:wkt2"]),
-    )
+    return (a, b, c, d, e, f), int(epsg), wkt2
 
 
 _LEVEL_GROUP = re.compile(r"r(\d+)m")
@@ -1188,14 +1159,14 @@ def level_meters(path: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _dims_of(doc: _ArrayDoc) -> tuple[str, ...]:
+def _dims_of(array: AnyArraySpecV2) -> tuple[str, ...]:
     """The dimension names an input array declares (`_ARRAY_DIMENSIONS`)."""
-    dims = _doc_attrs(doc).get("_ARRAY_DIMENSIONS")
+    dims = _attrs(array).get("_ARRAY_DIMENSIONS")
     return tuple(str(dim) for dim in dims) if isinstance(dims, (list, tuple)) else ()
 
 
 def _plan_dataset(
-    group: _GroupDoc,
+    group: AnyGroupSpecV2,
     path: str,
     policy: WritePolicy,
     coordinate_values: CoordinateValues | None = None,
@@ -1224,7 +1195,7 @@ def _plan_dataset(
         transform, epsg, wkt2 = _proj_of(*anchor)
         members["spatial_ref"] = _plan_spatial_ref(wkt2, native=True)
         return CarriedDataset(
-            attributes=_spatial_dataset_attributes(transform, tuple(anchor[1]["shape"]), epsg),
+            attributes=_spatial_dataset_attributes(transform, anchor[1].shape, epsg),
             members=members,
         )
     attributes = _tile_attributes(arrays, path, coordinate_values, tile)
@@ -1235,13 +1206,13 @@ def _plan_dataset(
         for name, member in arrays.items()
     }
     if attributes is None or tile is None:
-        return CarriedDataset(attributes=dict(_doc_attrs(group)), members=members)
+        return CarriedDataset(attributes=dict(_attrs(group)), members=members)
     members["spatial_ref"] = _plan_spatial_ref(tile[2], native=True)
     return CarriedDataset(attributes=attributes, members=members)
 
 
 def _tile_attributes(
-    arrays: Mapping[str, _ArrayDoc],
+    arrays: Mapping[str, AnyArraySpecV2],
     path: str,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
@@ -1280,9 +1251,9 @@ def _tile_attributes(
         return None
     shape = next(
         (
-            tuple(doc["shape"])
-            for doc in arrays.values()
-            if len(doc["shape"]) == 2 and _dims_of(doc) == ("y", "x")
+            array.shape
+            for array in arrays.values()
+            if len(array.shape) == 2 and _dims_of(array) == ("y", "x")
         ),
         None,
     )
@@ -1292,7 +1263,7 @@ def _tile_attributes(
 
 
 def _plan_aux_multiscale(
-    group: _GroupDoc,
+    group: AnyGroupSpecV2,
     path: str,
     scale_levels: tuple[int, ...],
     policy: WritePolicy,
@@ -1305,11 +1276,10 @@ def _plan_aux_multiscale(
     and the group gets the multiscales layout — resampled `nearest` when the
     arrays carry a flag table, `average` otherwise.
     """
-    group_members = group.get("members") or {}
-    input_levels: dict[int, _GroupDoc] = {}
+    input_levels: dict[int, AnyGroupSpecV2] = {}
     for meters in scale_levels:
-        member = group_members.get(f"r{meters}m")
-        if member is not None:
+        member = group.members.get(f"r{meters}m")
+        if is_group_spec_v2(member):
             input_levels[meters] = member
     if not input_levels:
         msg = f"The {path} group holds none of the known resolution datasets"
@@ -1441,11 +1411,6 @@ def _plan_aux_multiscale(
     return AuxiliaryPyramid(attributes=group_attributes, members=members_out)
 
 
-def _carried_attributes(group: AnyGroupSpecV2) -> dict[str, object]:
-    """The attributes of an input group, as its document holds them."""
-    return dict(_doc_attrs(group.model_dump(include={"attributes"})))
-
-
 def _plan_input_dataset(
     group: AnyGroupSpecV2 | None,
     path: str,
@@ -1456,7 +1421,7 @@ def _plan_input_dataset(
     """Plan one input dataset (see `_plan_dataset`), if the input holds it."""
     if group is None:
         return None
-    return _plan_dataset(group.model_dump(), path, policy, coordinate_values, tile)
+    return _plan_dataset(group, path, policy, coordinate_values, tile)
 
 
 def _plan_input_pyramid(
@@ -1469,13 +1434,11 @@ def _plan_input_pyramid(
     input holds its group."""
     if group is None:
         return None
-    return _plan_aux_multiscale(
-        group.model_dump(), path, AUX_MULTISCALE_LEVELS[path], policy, product_proj
-    )
+    return _plan_aux_multiscale(group, path, AUX_MULTISCALE_LEVELS[path], policy, product_proj)
 
 
 def _plan_band_masks(
-    group: GroupSpecV2[Any, BandMaskMembers] | None,
+    group: GroupSpecV2[Mapping[str, object] | BaseModel, BandMaskMembers] | None,
     path: str,
     policy: WritePolicy,
     coordinate_values: CoordinateValues | None,
@@ -1502,7 +1465,7 @@ def _plan_band_masks(
         members["r60m"] = r60m
     if not members:
         return None
-    return BandMaskGroup(attributes=_carried_attributes(group), members=members)
+    return BandMaskGroup(attributes=dict(_attrs(group)), members=members)
 
 
 def _plan_conditions_mask(
@@ -1537,7 +1500,7 @@ def _plan_conditions_mask(
         members["l2a_classification"] = l2a
     if not members:
         return None
-    return ConditionsMaskGroup(attributes=_carried_attributes(group), members=members)
+    return ConditionsMaskGroup(attributes=dict(_attrs(group)), members=members)
 
 
 def _plan_meteorology(
@@ -1563,7 +1526,7 @@ def _plan_meteorology(
         members["ecmwf"] = ecmwf
     if not members:
         return None
-    return MeteorologyGroup(attributes=_carried_attributes(group), members=members)
+    return MeteorologyGroup(attributes=dict(_attrs(group)), members=members)
 
 
 def _plan_conditions(
@@ -1593,7 +1556,7 @@ def _plan_conditions(
         members["meteorology"] = meteorology
     if not members:
         return None
-    return ConditionsGroup(attributes=_carried_attributes(group), members=members)
+    return ConditionsGroup(attributes=dict(_attrs(group)), members=members)
 
 
 def _plan_quality(
@@ -1627,7 +1590,7 @@ def _plan_quality(
         members["mask"] = mask
     if not members:
         return None
-    return QualityGroup(attributes=_carried_attributes(group), members=members)
+    return QualityGroup(attributes=dict(_attrs(group)), members=members)
 
 
 def plan_geozarr(
