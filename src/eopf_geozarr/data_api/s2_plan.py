@@ -52,7 +52,7 @@ from pydantic_zarr.v2 import is_array_spec as is_array_spec_v2
 from pydantic_zarr.v2 import is_group_spec as is_group_spec_v2
 from pydantic_zarr.v3 import ArraySpec as ArraySpecV3
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
-from pydantic_zarr.v3 import parse_dtype_v3
+from pydantic_zarr.v3 import dtype_default_fill_value, parse_dtype_v3
 from pyproj import CRS
 from typing_extensions import TypedDict
 from zarr_cm import ConventionMetadataObject
@@ -1072,7 +1072,11 @@ def _plan_carried_array(
     parsed = np.dtype(str(array.dtype))
     # the Zarr V3 form zarr-python writes for the V2 dtype, in the GeoZarr scope
     data_type = parse_dtype_v3(parsed, scope=GEOZARR_SCOPE)
-    fill_value: FillValue = "NaN" if parsed.kind == "f" else "" if parsed.kind in "US" else 0
+    # NaN for floats (the converter's CF fill); otherwise the default zarr-python
+    # uses for the data type
+    fill_value: FillValue = (
+        "NaN" if parsed.kind == "f" else dtype_default_fill_value(data_type, scope=GEOZARR_SCOPE)
+    )
     attributes = _carried_array_attributes(
         attrs,
         is_float=parsed.kind == "f",
