@@ -203,34 +203,6 @@ def update_s3_stac_assets(dt_input: xr.DataTree, datasets: Mapping[str, object])
                     f"Redundant href {redundant_href} as asset_key {asset_key} SHOULD be available in `stac_attrs`."
                 )
 
-    # # this can be used to add multiscale paths to the stac attributes
-    # updated_stac_attrs = utils.add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
-
-    # # Reference the pyramid root group, not the individual levels. That
-    # # group carries the `multiscales` attribute, and the
-    # # `profile=multiscales` media-type parameter tells a consumer to look
-    # # for it there and resolve the levels from the convention itself.
-    # stac = updated_stac_attrs.get("stac_discovery")
-    # if stac is None:
-    #     return
-
-    # reflectance_asset: dict[str, Any] = {
-    #     "href": "/measurements/reflectance",
-    #     "type": "application/vnd.zarr; version=3; profile=multiscales",
-    #     "title": "Surface Reflectance",
-    #     "roles": ["data", "reflectance"],
-    #     "gsd": 10,
-    # }
-
-    # if crs is not None and crs.to_epsg() is not None:
-    #     reflectance_asset.update(utils.proj_attrs_for_crs(crs))
-
-    # base = datasets.get("/measurements/reflectance/r10m")
-    # if isinstance(base, xr.Dataset):
-    #     reflectance_asset["proj:shape"] = [base.sizes["y"], base.sizes["x"]]
-
-    # stac.setdefault("assets", {})["reflectance"] = reflectance_asset
-
     return
 
 
