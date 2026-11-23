@@ -19,7 +19,7 @@ from eopf_geozarr.conversion import utils
 from eopf_geozarr.conversion.geozarr import get_zarr_group
 from eopf_geozarr.data_api.s1 import Sentinel1Root
 from eopf_geozarr.data_api.s2 import Sentinel2Root
-from eopf_geozarr.data_api.s2_plan import load_sentinel2
+from eopf_geozarr.data_api.s2_plan import WritePolicy, load_sentinel2
 from eopf_geozarr.data_api.s2_write import write_geozarr
 from eopf_geozarr.zarr_io import read_documents
 
@@ -142,47 +142,6 @@ def _validate_s2_input(dt_input: xr.DataTree) -> None:
         raise ValueError("Input dataset is not a Sentinel-2 product")
 
 
-#: The write policy the spec-level plan fixes; `convert_s2_optimized` refuses
-#: option values that deviate from it.
-_PLAN_POLICY = (
-    "sharding enabled, 1024-pixel inner chunks, blosc-zstd level 3, "
-    "and the ESA packed-integer layout (no scale_offset codec)"
-)
-
-
-def check_s2_write_policy(
-    *,
-    enable_sharding: bool = True,
-    spatial_chunk: int = 1024,
-    compression_level: int = 3,
-    scale_offset_codec: bool = False,
-) -> None:
-    """
-    Refuse layout options that deviate from the Sentinel-2 write policy.
-
-    The plan-driven writer has one layout, so each option is accepted only at
-    its policy value. Raises `ValueError` naming every deviating option.
-    Callers that prepare the output first (and may remove an existing one)
-    call this before they do.
-    """
-    deviations = [
-        name
-        for name, held in (
-            ("enable_sharding=False", not enable_sharding),
-            (f"spatial_chunk={spatial_chunk}", spatial_chunk != 1024),
-            (f"compression_level={compression_level}", compression_level != 3),
-            ("scale_offset_codec=True", scale_offset_codec),
-        )
-        if held
-    ]
-    if deviations:
-        msg = (
-            f"The plan-driven S2 writer has a fixed write policy ({_PLAN_POLICY}); "
-            f"unsupported option(s): {', '.join(deviations)}"
-        )
-        raise ValueError(msg)
-
-
 def convert_s2_optimized(
     dt_input: xr.DataTree,
     *,
@@ -198,10 +157,8 @@ def convert_s2_optimized(
 
     The conversion is plan-driven: the input store is validated into the
     `Sentinel2Root` model, `plan_geozarr` derives the output hierarchy from
-    the model's own metadata, and `write_geozarr` writes the planned
-    documents first and then fills in the chunk data. The write policy is
-    the plan's fixed policy, so the layout options must hold their default
-    values; a deviating value is refused.
+    the model's own metadata and the layout options, and `write_geozarr`
+    writes the planned documents first and then fills in the chunk data.
 
     Args:
         dt_input: Input Sentinel-2 DataTree. A tree opened from a Zarr V2
@@ -210,13 +167,15 @@ def convert_s2_optimized(
             read through the tree itself, with its variables taken as
             xarray's zarr writer would store them.
         output_path: Output path
-        enable_sharding: Must be True (the plan's policy).
-        spatial_chunk: Must be 1024 (the plan's policy).
-        compression_level: Must be 3 (the plan's policy).
+        enable_sharding: Store each data array as one shard of
+            `spatial_chunk` chunks.
+        spatial_chunk: Chunk edge length of the data arrays.
+        compression_level: Blosc zstd compression level, 0-9.
         validate_output: Whether to validate the output
-        scale_offset_codec: Must be False: the output is written as in the
-            ESA product (packed integers with CF `scale_factor` /
-            `add_offset` / `_FillValue`).
+        scale_offset_codec: Pack the reflectance bands with the Zarr
+            `scale_offset` + `cast_value` codecs. By default they are written
+            as in the ESA product: packed integers with CF `scale_factor` /
+            `add_offset` / `_FillValue`.
 
     Returns:
         Optimized DataTree
@@ -230,9 +189,10 @@ def convert_s2_optimized(
         output_path=output_path,
     )
 
-    check_s2_write_policy(
-        enable_sharding=enable_sharding,
+    # an invalid option is refused before any work happens
+    policy = WritePolicy(
         spatial_chunk=spatial_chunk,
+        enable_sharding=enable_sharding,
         compression_level=compression_level,
         scale_offset_codec=scale_offset_codec,
     )
@@ -258,7 +218,7 @@ def convert_s2_optimized(
     root = load_sentinel2(source)
 
     log.info("Step 2: Writing the planned GeoZarr hierarchy")
-    plan = write_geozarr(root, source, output_path)
+    plan = write_geozarr(root, source, output_path, policy)
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")

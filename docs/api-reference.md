@@ -52,33 +52,29 @@ Converts a Sentinel-2 L1C or L2A DataTree to the optimized pyramid
 | Argument | Description |
 |---|---|
 | `output_path` | Local path or `s3://` URL of the output store. |
-| `enable_sharding` | Must be `True` (the default): the write policy fixes sharding on. |
-| `spatial_chunk` | Must be `1024` (the default): the policy's inner chunk size. |
-| `compression_level` | Must be `3` (the default): the policy's blosc zstd level. |
+| `enable_sharding` | Store each data array as one shard of `spatial_chunk` chunks (default `True`). |
+| `spatial_chunk` | Chunk edge length of the data arrays (default 1024). |
+| `compression_level` | Blosc zstd level, 0–9 (default 3). |
 | `validate_output` | Validate the output after writing. |
-| `scale_offset_codec` | Must be `False` (the default): the output keeps the ESA layout with CF scale attributes. See [Encoding](converter.md#encoding). |
-
-The layout arguments are accepted only at their defaults — the write policy is
-fixed, and a deviating value raises `ValueError`.
+| `scale_offset_codec` | `False` (default): ESA layout with CF scale attributes. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
 
 The lower-level, spec-level API lives in `eopf_geozarr.data_api`:
 `load_sentinel2(source)` validates a Zarr group or an xarray DataTree into the
-`Sentinel2Root` input model, `plan_geozarr(root)` derives the output hierarchy
-as a `Sentinel2GeoZarr`, and `write_geozarr(root, source, store)` writes the
-planned documents and fills in the chunk data. `Sentinel2GeoZarr` is a Zarr V3
-`GroupSpec` whose member types name the structure: `measurements/reflectance`
-is a `ReflectancePyramid` of six `ReflectanceLevel` groups, and the plan
-builds the classification and probability pyramids as `AuxiliaryPyramid`s. It
-also validates a store the converter wrote: read its documents with
-`eopf_geozarr.zarr_io.read_documents` and pass them to
-`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the root's members
-and the whole `measurements` subtree. `conditions` and `quality` are accepted
-as any group, so their pyramids are not checked.
-`eopf_geozarr.zarr_io.read_documents` and pass them to
-`Sentinel2GeoZarr.from_stored_metadata_json`. That checks the whole tree: the
-groups under `conditions` and `quality` are modeled too (`ConditionsGroup`,
-`QualityGroup`), down to the carried datasets, whose array names come from the
-product.
+`Sentinel2Root` input model, `plan_geozarr(root, policy=...)` derives the
+output hierarchy as a `Sentinel2GeoZarr`, and `write_geozarr(root, source,
+store, policy=...)` writes the planned documents and fills in the chunk data.
+The `WritePolicy` holds the four layout options above (`spatial_chunk`,
+`enable_sharding`, `compression_level` and `scale_offset_codec`), with the
+same defaults; `convert_s2_optimized` builds it from its arguments.
+`Sentinel2GeoZarr` is a Zarr V3 `GroupSpec` whose member types name the
+structure: `measurements/reflectance` is a `ReflectancePyramid` of six
+`ReflectanceLevel` groups, and the plan builds the classification and
+probability pyramids as `AuxiliaryPyramid`s. It also validates a store the
+converter wrote: read its documents with `eopf_geozarr.zarr_io.read_documents`
+and pass them to `Sentinel2GeoZarr.from_stored_metadata_json`. That checks the
+whole tree: the groups under `conditions` and `quality` are modeled too
+(`ConditionsGroup`, `QualityGroup`), down to the carried datasets, whose array
+names come from the product.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 

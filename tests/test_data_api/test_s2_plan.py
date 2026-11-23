@@ -32,6 +32,7 @@ from eopf_geozarr.data_api.s2_plan import (
     ReflectanceLevel,
     ReflectancePyramid,
     Sentinel2GeoZarr,
+    WritePolicy,
     _lat_lon_attributes,
     load_sentinel2,
     plan_geozarr,
@@ -45,6 +46,26 @@ _INPUT_DIR = pathlib.Path("tests/_test_data/s2_examples")
 _SNAPSHOT_DIR = pathlib.Path("tests/_test_data/optimized_geozarr_examples")
 _INPUT_PATHS = sorted(_INPUT_DIR.glob("*.json"))
 _L2A_PATH = next(path for path in _INPUT_PATHS if "MSIL2A" in path.stem)
+_L1C_PATH = next(path for path in _INPUT_PATHS if "MSIL1C" in path.stem)
+
+#: Write policies that differ from the default in each way the plan models.
+_POLICIES = (
+    WritePolicy(spatial_chunk=256),
+    WritePolicy(spatial_chunk=100),
+    WritePolicy(enable_sharding=False, compression_level=7),
+    WritePolicy(scale_offset_codec=True),
+    WritePolicy(scale_offset_codec=True, enable_sharding=False),
+)
+
+
+def _case_id(value: object) -> str:
+    if isinstance(value, pathlib.Path):
+        return value.stem[:26]
+    if isinstance(value, WritePolicy):
+        changed = value.model_dump(exclude_defaults=True)
+        return ",".join(f"{key}={item}" for key, item in changed.items()) or "default"
+    return str(value)
+
 
 #: The tile-sized dimensions, shrunk tenfold so that a conversion takes seconds.
 _SHRUNK_SIZES = {10980: 1098, 5490: 549, 1830: 183}
@@ -167,12 +188,16 @@ def _canonical(document: object) -> str:
 
 @pytest.mark.filterwarnings("ignore")
 @pytest.mark.parametrize(
-    ("path", "coordinate_dtype"),
-    [*((path, None) for path in _INPUT_PATHS), (_L2A_PATH, "float64")],
-    ids=lambda value: value.stem[:26] if isinstance(value, pathlib.Path) else str(value),
+    ("path", "coordinate_dtype", "policy"),
+    [
+        *((path, None, WritePolicy()) for path in _INPUT_PATHS),
+        (_L2A_PATH, "float64", WritePolicy()),
+        *((path, None, policy) for policy in _POLICIES for path in (_L2A_PATH, _L1C_PATH)),
+    ],
+    ids=_case_id,
 )
 def test_plan_matches_the_converter_output(
-    path: pathlib.Path, coordinate_dtype: str | None, tmp_path: pathlib.Path
+    path: pathlib.Path, coordinate_dtype: str | None, policy: WritePolicy, tmp_path: pathlib.Path
 ) -> None:
     """
     The plan describes the store `convert_s2_optimized` writes. For a product
@@ -180,7 +205,8 @@ def test_plan_matches_the_converter_output(
     below the root equals the planned one — the member tree, shapes, data
     types, fill values, chunk grids, codecs, dimension names and attributes,
     georeferencing included — across measurements, conditions and quality,
-    for L1C and L2A, and for x/y coordinates stored as int64 or as float64.
+    for L1C and L2A, for x/y coordinates stored as int64 or as float64, and
+    for each way the write policy can differ from its default.
 
     The root's own attributes are left out: the converter writes them (the
     product metadata and the STAC assets) in its consolidation step, and the
@@ -191,9 +217,10 @@ def test_plan_matches_the_converter_output(
     convert_s2_optimized(
         dt_input=open_source_datatree(str(source_path)),
         output_path=str(output_path),
-        enable_sharding=True,
-        spatial_chunk=1024,
-        compression_level=3,
+        enable_sharding=policy.enable_sharding,
+        spatial_chunk=policy.spatial_chunk,
+        compression_level=policy.compression_level,
+        scale_offset_codec=policy.scale_offset_codec,
         validate_output=False,
     )
     written = {}
@@ -209,7 +236,7 @@ def test_plan_matches_the_converter_output(
         member = source.get(array_path)
         return np.asarray(member[...]) if isinstance(member, zarr.Array) else None
 
-    plan = plan_geozarr(load_sentinel2(source), coordinate_values=coordinate_values)
+    plan = plan_geozarr(load_sentinel2(source), coordinate_values=coordinate_values, policy=policy)
     planned = json.loads(json.dumps(plan.to_stored_metadata_json()))
 
     assert written.keys() == planned.keys()
@@ -900,3 +927,23 @@ def test_plan_reflectance_requires_a_resolution_dataset() -> None:
     root = Sentinel2Root.model_validate(document)
     with pytest.raises(ValueError, match="resolution datasets"):
         plan_reflectance(root)
+
+
+@pytest.mark.parametrize("spatial_chunk", [0, -256])
+def test_write_policy_refuses_a_non_positive_chunk(spatial_chunk: int) -> None:
+    """A chunk edge length must be positive."""
+    with pytest.raises(ValidationError, match="spatial_chunk"):
+        WritePolicy(spatial_chunk=spatial_chunk)
+
+
+@pytest.mark.parametrize("compression_level", [-1, 10])
+def test_write_policy_refuses_a_compression_level_blosc_lacks(compression_level: int) -> None:
+    """Blosc compression levels run from 0 to 9."""
+    with pytest.raises(ValidationError, match="compression_level"):
+        WritePolicy(compression_level=compression_level)
+
+
+def test_write_policy_refuses_an_unknown_option() -> None:
+    """A misspelt option is an error, not a silently ignored default."""
+    with pytest.raises(ValidationError, match="enable_shards"):
+        WritePolicy.model_validate({"enable_shards": False})

@@ -16,9 +16,9 @@ separate, data-plane step.
 Everything the plan emits is derived from the input model's own metadata:
 EOPF products carry `long_name`, the `proj:*` attributes, and the CF packing
 attributes on every band, so the output documents (band arrays retyped and
-sharded, per-level coordinate arrays, the spatial/proj convention
-attributes, and the multiscales layout) are all
-computable from the input document alone.
+laid out by the `WritePolicy`, per-level coordinate arrays, the spatial/proj
+convention attributes, and the multiscales layout) are all computable from
+the input document and the policy alone.
 
 The reflectance pyramid follows the converter's policy
 (`eopf_geozarr.s2_optimization`): the scale levels are
@@ -42,11 +42,12 @@ import re
 import struct
 from collections.abc import Callable, Mapping
 from math import ceil
-from typing import TYPE_CHECKING, Any, Final, Literal, NotRequired, Required
+from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, NotRequired, Required
 
 import numpy as np
 import structlog
 import xarray as xr
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_zarr.v2 import ArraySpec as ArraySpecV2
 from pydantic_zarr.v2 import GroupSpec as GroupSpecV2
 from pydantic_zarr.v3 import GroupSpec as GroupSpecV3
@@ -81,7 +82,9 @@ if TYPE_CHECKING:
     from zarr_metadata.v3.chunk_key_encoding.default import DefaultChunkKeyEncodingObject
     from zarr_metadata.v3.codec.blosc import BloscCodecObject
     from zarr_metadata.v3.codec.bytes import BytesCodecObject
+    from zarr_metadata.v3.codec.cast_value import CastValueCodecObject
     from zarr_metadata.v3.codec.crc32c import Crc32cCodecObject
+    from zarr_metadata.v3.codec.scale_offset import ScaleOffsetCodecObject
     from zarr_metadata.v3.codec.sharding_indexed import ShardingIndexedCodecObject
 
 log = structlog.get_logger()
@@ -102,8 +105,38 @@ INJECTED_BANDS: dict[S2Level, dict[int, frozenset[str]]] = {
     },
 }
 
-#: Inner (sub-shard) chunk edge length for band arrays.
-BAND_CHUNK = 1024
+
+class WritePolicy(BaseModel):
+    """
+    How the planned data arrays are chunked, sharded, compressed and packed.
+
+    The defaults are 1024-pixel chunks, sharded, blosc-zstd level 3, and the
+    ESA packed-integer layout. Coordinate arrays do not depend on the policy.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    #: The chunk edge length along every dimension of a data array (the
+    #: whole dimension when it is shorter).
+    spatial_chunk: Annotated[int, Field(gt=0)] = 1024
+    #: Whether each data array is one shard of `spatial_chunk` chunks, or a
+    #: plain grid of `spatial_chunk` chunks. An array that fits in one chunk
+    #: is never sharded (#357).
+    enable_sharding: bool = True
+    #: The blosc-zstd compression level of the data arrays.
+    compression_level: Annotated[int, Field(ge=0, le=9)] = 3
+    #: Whether the packed reflectance bands are stored as decoded float32
+    #: values that the Zarr `scale_offset` and `cast_value` codecs pack, in
+    #: place of the ESA packed integers with CF scale attributes.
+    scale_offset_codec: bool = False
+
+
+#: The policy `plan_geozarr` uses when none is given.
+DEFAULT_WRITE_POLICY: Final = WritePolicy()
+
+#: The CF attributes that describe a packed band, which the `scale_offset`
+#: codec replaces.
+_CF_PACKING_ATTRS = ("add_offset", "scale_factor", "valid_max", "valid_min")
 
 #: Band attributes carried from the input document, in the order they are
 #: carried; everything else (xarray bookkeeping such as `_ARRAY_DIMENSIONS`
@@ -199,13 +232,15 @@ def _product_proj(root: Sentinel2Root) -> tuple[tuple[float, float], int] | None
     return (float(bbox[0]), float(bbox[3])), int(code.removeprefix("EPSG:"))
 
 
-def _shard_and_inner(shape: tuple[int, ...]) -> tuple[tuple[int, ...], tuple[int, ...]]:
+def _shard_and_inner(
+    shape: tuple[int, ...], spatial_chunk: int
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """
-    The (shard, inner chunk) shapes for a band array: inner chunks of
-    `BAND_CHUNK` per side (the whole dimension when smaller), shards rounded
-    up to whole inner chunks.
+    The (shard, inner chunk) shapes for a data array: inner chunks of
+    `spatial_chunk` per side (the whole dimension when smaller), shards
+    rounded up to whole inner chunks.
     """
-    inner = tuple(min(dim, BAND_CHUNK) for dim in shape)
+    inner = tuple(min(dim, spatial_chunk) for dim in shape)
     shard = tuple(
         dim if dim <= i else ceil(dim / i) * i for dim, i in zip(shape, inner, strict=True)
     )
@@ -217,24 +252,17 @@ def _regular_grid(chunk_shape: tuple[int, ...]) -> RegularChunkGridObject:
     return {"name": "regular", "configuration": {"chunk_shape": chunk_shape}}
 
 
-def _plan_band(
-    source_attrs: Mapping[str, object],
-    shape: tuple[int, ...],
-    data_type: str,
-    fill_value: FillValue,
-    dimension_names: tuple[str, ...],
-    typesize: int,
-) -> DataArray:
-    """One band array of one *native* level: input attributes mapped and carried."""
+def _native_band_attributes(source_attrs: Mapping[str, object]) -> dict[str, object]:
+    """The attributes of a band of a *native* level, as the ESA product packs
+    it (uint16): input attributes mapped and carried."""
     attributes: dict[str, object] = {
-        "_FillValue": source_attrs.get("fill_value", fill_value),
+        "_FillValue": source_attrs.get("fill_value", 0),
         "units": "1",
     }
     for key in _BAND_ATTR_CARRY:
         if key in source_attrs:
             attributes[key] = source_attrs[key]
-    attributes = normalize_cf_array_attrs(attributes, np.dtype(data_type))
-    return _band_array(attributes, shape, data_type, fill_value, dimension_names, typesize)
+    return normalize_cf_array_attrs(attributes, np.dtype("uint16"))
 
 
 def _band_array(
@@ -244,57 +272,110 @@ def _band_array(
     fill_value: FillValue,
     dimension_names: tuple[str, ...],
     typesize: int,
+    policy: WritePolicy,
+    filters: tuple[ScaleOffsetCodecObject, CastValueCodecObject] | tuple[()] = (),
 ) -> DataArray:
     """
-    One band array document with the blosc policy: sharded, unless the whole
-    array fits in one inner chunk, where a shard would hold that one chunk and
-    cost a reader an index request for nothing (#357); such an array is
-    written in plain chunks with the same codecs.
+    One data array document, chunked and compressed by `policy`, with the
+    blosc-zstd compressor after the array -> array `filters`: one shard of
+    inner chunks, or a plain chunk grid. An array that fits in one inner
+    chunk is never sharded: the shard would hold that one chunk and cost a
+    reader an index request for nothing (#357).
     """
-    shard, inner = _shard_and_inner(shape)
+    shard, inner = _shard_and_inner(shape, policy.spatial_chunk)
     compressor: BloscCodecObject = {
         "name": "blosc",
         "configuration": {
             "typesize": typesize,
             "cname": "zstd",
-            "clevel": 3,
+            "clevel": policy.compression_level,
             "shuffle": "shuffle",
             "blocksize": 0,
         },
     }
-    if shard == inner:
-        return DataArray.model_validate(
-            {
-                "attributes": attributes,
-                "shape": shape,
-                "data_type": data_type,
-                "chunk_grid": _regular_grid(inner),
-                "chunk_key_encoding": _CHUNK_KEY_ENCODING,
-                "fill_value": fill_value,
-                "codecs": (_BYTES_LITTLE, compressor),
-                "dimension_names": dimension_names,
-            }
-        )
-    sharding: ShardingIndexedCodecObject = {
-        "name": "sharding_indexed",
-        "configuration": {
-            "chunk_shape": inner,
-            "codecs": (_BYTES_LITTLE, compressor),
-            "index_codecs": (_BYTES_LITTLE, _CRC32C),
-            "index_location": "end",
-        },
-    }
+    if policy.enable_sharding and shard != inner:
+        sharding: ShardingIndexedCodecObject = {
+            "name": "sharding_indexed",
+            "configuration": {
+                "chunk_shape": inner,
+                "codecs": (*filters, _BYTES_LITTLE, compressor),
+                "index_codecs": (_BYTES_LITTLE, _CRC32C),
+                "index_location": "end",
+            },
+        }
+        chunk_shape, codecs = shard, (sharding,)
+    else:
+        chunk_shape, codecs = inner, (*filters, _BYTES_LITTLE, compressor)
     return DataArray.model_validate(
         {
             "attributes": attributes,
             "shape": shape,
             "data_type": data_type,
-            "chunk_grid": _regular_grid(shard),
+            "chunk_grid": _regular_grid(chunk_shape),
             "chunk_key_encoding": _CHUNK_KEY_ENCODING,
             "fill_value": fill_value,
-            "codecs": (sharding,),
+            "codecs": codecs,
             "dimension_names": dimension_names,
         }
+    )
+
+
+def _number(value: object) -> float | None:
+    """`value` as a float, if it is a JSON number."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _reflectance_band(
+    attributes: dict[str, object],
+    shape: tuple[int, ...],
+    dimension_names: tuple[str, ...],
+    policy: WritePolicy,
+) -> DataArray:
+    """
+    One reflectance band array. `attributes` describe the band as the ESA
+    product packs it: uint16 with CF `scale_factor` and `add_offset`. That
+    is the stored form, unless `policy` asks for the `scale_offset` codec and
+    the band has a non-trivial packing: then the band stores the decoded
+    float32 values, which the `scale_offset` and `cast_value` codecs pack
+    into the same integers, NaN is the fill value and maps to the band's
+    nodata integer (0 when it declares none), and the CF packing attributes
+    are dropped.
+    """
+    scale_factor = _number(attributes.get("scale_factor", 1.0))
+    add_offset = _number(attributes.get("add_offset", 0.0))
+    if (
+        not policy.scale_offset_codec
+        or scale_factor is None
+        or add_offset is None
+        or (scale_factor, add_offset) == (1.0, 0.0)
+    ):
+        return _band_array(attributes, shape, "uint16", 0, dimension_names, 2, policy)
+    nodata = attributes.get("_FillValue")
+    sentinel = nodata if isinstance(nodata, int) and not isinstance(nodata, bool) else 0
+    scale_offset: ScaleOffsetCodecObject = {
+        "name": "scale_offset",
+        "configuration": {"offset": add_offset, "scale": 1.0 / scale_factor},
+    }
+    cast_value: CastValueCodecObject = {
+        "name": "cast_value",
+        "configuration": {
+            "data_type": "uint16",
+            "scalar_map": {"encode": (("NaN", sentinel),), "decode": ((sentinel, "NaN"),)},
+        },
+    }
+    decoded = {key: value for key, value in attributes.items() if key not in _CF_PACKING_ATTRS}
+    decoded["_FillValue"] = _NAN_FLOAT64_B64
+    return _band_array(
+        decoded,
+        shape,
+        "float32",
+        "NaN",
+        dimension_names,
+        2,
+        policy,
+        filters=(scale_offset, cast_value),
     )
 
 
@@ -609,22 +690,28 @@ def _level_spatial_attributes(
 _TileGeoreferencing = tuple[tuple[float, float], int]
 """The tile's (origin, EPSG), as the reflectance pyramid is georeferenced."""
 
+_PlannedBand = tuple[dict[str, object], tuple[int, ...], tuple[str, ...]]
+"""A planned reflectance band before its stored form is chosen: the packed
+attributes, the shape and the dimension names."""
+
 GEOMETRY_PATH = "conditions/geometry"
 """The group of the sun and viewing angle grids: node-registered, in the tile CRS."""
 
 
-def plan_reflectance(root: Sentinel2Root) -> ReflectancePyramid:
+def plan_reflectance(
+    root: Sentinel2Root, policy: WritePolicy = DEFAULT_WRITE_POLICY
+) -> ReflectancePyramid:
     """
     Plan the GeoZarr `measurements/reflectance` multiscale group of a
     Sentinel-2 product: one level group per entry of
     `REFLECTANCE_SCALE_LEVELS`, native levels carried from the input (with
     the product level's finer bands injected), coarser levels derived from
-    the level before them, each holding sharded uint16 band arrays and `x`/`y`
+    the level before them, each holding uint16 band arrays and `x`/`y`
     coordinates (the input's own arrays on a native level, float64 on a
-    generated one), under a
-    multiscales layout attribute.
+    generated one), under a multiscales layout attribute. `policy` chunks,
+    compresses and packs the bands.
     """
-    return _plan_reflectance(root)[0]
+    return _plan_reflectance(root, policy)[0]
 
 
 def _input_bands(level: Sentinel2ResolutionDataset) -> dict[str, ArraySpecV2[Any]]:
@@ -636,7 +723,9 @@ def _input_bands(level: Sentinel2ResolutionDataset) -> dict[str, ArraySpecV2[Any
     }
 
 
-def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeoreferencing]:
+def _plan_reflectance(
+    root: Sentinel2Root, policy: WritePolicy
+) -> tuple[ReflectancePyramid, _TileGeoreferencing]:
     """`plan_reflectance`, with the tile georeferencing the pyramid was planned in."""
     level = product_level(root)
     reflectance = root.members["measurements"].members["reflectance"]
@@ -683,34 +772,32 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeo
             raise ValueError(msg)
         origin, epsg = product
 
-    # per-level planned bands: name -> (source attrs, shape, dtype itemsize)
-    planned_levels: dict[int, dict[str, DataArray]] = {}
+    # per-level planned bands, by name: the packed attributes, shape and
+    # dimension names, from which a coarser level derives its bands
+    planned_levels: dict[int, dict[str, _PlannedBand]] = {}
     level_attributes: dict[int, SpatialGroupAttrs] = {}
     previous_meters: int | None = None
     layout: list[LayoutEntry] = []
     levels: dict[int, ReflectanceLevel] = {}
 
     for meters in REFLECTANCE_SCALE_LEVELS:
-        bands: dict[str, DataArray] = {}
+        planned: dict[str, _PlannedBand] = {}
         native_level = input_levels.get(meters)
         if native_level is not None:
             for name, member in _input_bands(native_level).items():
                 dims = tuple(member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
-                bands[name] = _plan_band(
-                    member.attributes,
+                planned[name] = (
+                    _native_band_attributes(member.attributes),
                     tuple(member.shape),
-                    "uint16",
-                    0,
                     dims,
-                    typesize=2,
                 )
-            if not bands:
+            if not planned:
                 msg = f"The r{meters}m resolution dataset holds no band arrays"
                 raise ValueError(msg)
-            level_shape = next(iter(bands.values())).shape
+            level_shape = next(iter(planned.values()))[1]
             # inject finer bands so they propagate through the overview chain
             for band_name in sorted(INJECTED_BANDS.get(level, {}).get(meters, ())):
-                if band_name in bands:
+                if band_name in planned:
                     continue
                 for src_meters in sorted(input_levels):
                     if src_meters >= meters:
@@ -719,8 +806,10 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeo
                     if src_member is None:
                         continue
                     dims = tuple(src_member.attributes.get("_ARRAY_DIMENSIONS", ("y", "x")))
-                    bands[band_name] = _plan_band(
-                        src_member.attributes, level_shape, "uint16", 0, dims, typesize=2
+                    planned[band_name] = (
+                        _native_band_attributes(src_member.attributes),
+                        level_shape,
+                        dims,
                     )
                     break
         else:
@@ -731,21 +820,16 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeo
                 )
                 raise ValueError(msg)
             factor = meters // previous_meters
-            for name, previous in planned_levels[previous_meters].items():
-                shape = tuple(dim // factor for dim in previous.shape)
-                # a coarsened band keeps its attributes verbatim
-                dims = previous.dimension_names or ("y", "x")
-                bands[name] = _band_array(
-                    previous.attributes.model_dump(),
-                    shape,
-                    "uint16",
-                    0,
-                    dims,
-                    typesize=2,
-                )
-            level_shape = next(iter(bands.values())).shape
+            # a coarsened band keeps its attributes verbatim
+            for name, (attributes, shape, dims) in planned_levels[previous_meters].items():
+                planned[name] = (attributes, tuple(dim // factor for dim in shape), dims)
+            level_shape = next(iter(planned.values()))[1]
 
-        planned_levels[meters] = bands
+        bands = {
+            name: _reflectance_band(attributes, shape, dims, policy)
+            for name, (attributes, shape, dims) in planned.items()
+        }
+        planned_levels[meters] = planned
         rows, cols = level_shape
         shape2d = (rows, cols)
         x_source = None if native_level is None else native_level.members.get("x")
@@ -761,10 +845,10 @@ def _plan_reflectance(root: Sentinel2Root) -> tuple[ReflectancePyramid, _TileGeo
                 "members": {
                     **bands,
                     "x": _plan_level_coordinate(
-                        "x", cols, None if x_source is None else x_source.model_dump()
+                        "x", cols, None if x_source is None else x_source.model_dump(), policy
                     ),
                     "y": _plan_level_coordinate(
-                        "y", rows, None if y_source is None else y_source.model_dump()
+                        "y", rows, None if y_source is None else y_source.model_dump(), policy
                     ),
                 },
             }
@@ -991,12 +1075,14 @@ def _carried_array_attributes(
     return _with_level_short_name(out, name, meters)
 
 
-def _plan_carried_array(name: str, doc: _ArrayDoc, *, meters: int | None = None) -> DataArray:
+def _plan_carried_array(
+    name: str, doc: _ArrayDoc, policy: WritePolicy, *, meters: int | None = None
+) -> DataArray:
     """
     One carried (non-reflectance) array, translated to its output document:
     coordinate arrays (an array whose only dimension is its own name, `x`
     and `y` included) keep their data type uncompressed, and data arrays are
-    sharded with the blosc policy.
+    chunked and compressed by `policy`.
     """
     attrs = _doc_attrs(doc)
     dims_raw = attrs.get("_ARRAY_DIMENSIONS")
@@ -1037,10 +1123,12 @@ def _plan_carried_array(name: str, doc: _ArrayDoc, *, meters: int | None = None)
             codecs=(_BYTES_LITTLE,),
             dimension_names=dims,
         )
-    return _band_array(attributes, shape, data_type, fill_value, dims, typesize=parsed.itemsize)
+    return _band_array(attributes, shape, data_type, fill_value, dims, parsed.itemsize, policy)
 
 
-def _plan_level_coordinate(name: str, size: int, source: _ArrayDoc | None) -> DataArray:
+def _plan_level_coordinate(
+    name: str, size: int, source: _ArrayDoc | None, policy: WritePolicy
+) -> DataArray:
     """
     The `x` or `y` array of one pyramid level. A native level carries the
     input's own coordinate array, data type included (the int64 metres of an
@@ -1049,7 +1137,7 @@ def _plan_level_coordinate(name: str, size: int, source: _ArrayDoc | None) -> Da
     """
     if source is None:
         return _plan_coordinate(name, size)
-    return _plan_carried_array(name, source)
+    return _plan_carried_array(name, source, policy)
 
 
 def _carried_arrays(group: _GroupDoc) -> dict[str, _ArrayDoc]:
@@ -1198,6 +1286,7 @@ def _tile_level_attributes(
 def _plan_dataset(
     group: _GroupDoc,
     path: str,
+    policy: WritePolicy,
     coordinate_values: CoordinateValues | None = None,
     tile: _TileGeoreferencing | None = None,
 ) -> CarriedDataset | None:
@@ -1215,7 +1304,8 @@ def _plan_dataset(
     anchor = _spatial_anchor(arrays)
     meters = level_meters(path)
     members: dict[str, DataArray] = {
-        name: _plan_carried_array(name, member, meters=meters) for name, member in arrays.items()
+        name: _plan_carried_array(name, member, policy, meters=meters)
+        for name, member in arrays.items()
     }
     if anchor is not None:
         transform, epsg = _proj_of(*anchor)
@@ -1236,6 +1326,7 @@ def _plan_aux_multiscale(
     group: _GroupDoc,
     path: str,
     scale_levels: tuple[int, ...],
+    policy: WritePolicy,
     product_proj: tuple[tuple[float, float], int] | None = None,
 ) -> AuxiliaryPyramid:
     """
@@ -1286,7 +1377,7 @@ def _plan_aux_multiscale(
             for name, member in _carried_arrays(input_levels[meters]).items():
                 if name in ("x", "y"):
                     continue
-                variables[name] = _plan_carried_array(name, member, meters=meters)
+                variables[name] = _plan_carried_array(name, member, policy, meters=meters)
             if not variables:
                 msg = f"The {path} r{meters}m dataset holds no arrays"
                 raise ValueError(msg)
@@ -1312,7 +1403,8 @@ def _plan_aux_multiscale(
                     data_type,
                     previous.fill_value,
                     previous.dimension_names or ("y", "x"),
-                    typesize=np.dtype(data_type).itemsize,
+                    np.dtype(data_type).itemsize,
+                    policy,
                 )
         uses_flags = uses_flags or any(
             not {"flag_values", "flag_meanings", "flag_masks"}.isdisjoint(
@@ -1332,8 +1424,8 @@ def _plan_aux_multiscale(
                 "attributes": level_attributes[meters],
                 "members": {
                     **variables,
-                    "x": _plan_level_coordinate("x", cols, carried.get("x")),
-                    "y": _plan_level_coordinate("y", rows, carried.get("y")),
+                    "x": _plan_level_coordinate("x", cols, carried.get("x"), policy),
+                    "y": _plan_level_coordinate("y", rows, carried.get("y"), policy),
                 },
             }
         )
@@ -1389,28 +1481,35 @@ def _carried_attributes(group: AnyGroupSpecV2) -> dict[str, object]:
 def _plan_input_dataset(
     group: AnyGroupSpecV2 | None,
     path: str,
+    policy: WritePolicy,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
 ) -> CarriedDataset | None:
     """Plan one input dataset (see `_plan_dataset`), if the input holds it."""
     if group is None:
         return None
-    return _plan_dataset(group.model_dump(), path, coordinate_values, tile)
+    return _plan_dataset(group.model_dump(), path, policy, coordinate_values, tile)
 
 
 def _plan_input_pyramid(
-    group: AnyGroupSpecV2 | None, path: str, product_proj: tuple[tuple[float, float], int] | None
+    group: AnyGroupSpecV2 | None,
+    path: str,
+    policy: WritePolicy,
+    product_proj: tuple[tuple[float, float], int] | None,
 ) -> AuxiliaryPyramid | None:
     """Plan the auxiliary pyramid at `path` (see `_plan_aux_multiscale`), if the
     input holds its group."""
     if group is None:
         return None
-    return _plan_aux_multiscale(group.model_dump(), path, AUX_MULTISCALE_LEVELS[path], product_proj)
+    return _plan_aux_multiscale(
+        group.model_dump(), path, AUX_MULTISCALE_LEVELS[path], policy, product_proj
+    )
 
 
 def _plan_band_masks(
     group: GroupSpecV2[Any, BandMaskMembers] | None,
     path: str,
+    policy: WritePolicy,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
 ) -> BandMaskGroup | None:
@@ -1418,13 +1517,19 @@ def _plan_band_masks(
     if group is None:
         return None
     members: BandMaskGroupMembers = {}
-    r10m = _plan_input_dataset(group.members.get("r10m"), f"{path}/r10m", coordinate_values, tile)
+    r10m = _plan_input_dataset(
+        group.members.get("r10m"), f"{path}/r10m", policy, coordinate_values, tile
+    )
     if r10m is not None:
         members["r10m"] = r10m
-    r20m = _plan_input_dataset(group.members.get("r20m"), f"{path}/r20m", coordinate_values, tile)
+    r20m = _plan_input_dataset(
+        group.members.get("r20m"), f"{path}/r20m", policy, coordinate_values, tile
+    )
     if r20m is not None:
         members["r20m"] = r20m
-    r60m = _plan_input_dataset(group.members.get("r60m"), f"{path}/r60m", coordinate_values, tile)
+    r60m = _plan_input_dataset(
+        group.members.get("r60m"), f"{path}/r60m", policy, coordinate_values, tile
+    )
     if r60m is not None:
         members["r60m"] = r60m
     if not members:
@@ -1434,6 +1539,7 @@ def _plan_band_masks(
 
 def _plan_conditions_mask(
     group: Sentinel2ConditionsMaskGroup,
+    policy: WritePolicy,
     product_proj: tuple[tuple[float, float], int] | None,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
@@ -1445,18 +1551,19 @@ def _plan_conditions_mask(
     footprint = _plan_band_masks(
         group.members.get("detector_footprint"),
         f"{path}/detector_footprint",
+        policy,
         coordinate_values,
         tile,
     )
     if footprint is not None:
         members["detector_footprint"] = footprint
     l1c = _plan_input_pyramid(
-        group.members.get("l1c_classification"), f"{path}/l1c_classification", product_proj
+        group.members.get("l1c_classification"), f"{path}/l1c_classification", policy, product_proj
     )
     if l1c is not None:
         members["l1c_classification"] = l1c
     l2a = _plan_input_pyramid(
-        group.members.get("l2a_classification"), f"{path}/l2a_classification", product_proj
+        group.members.get("l2a_classification"), f"{path}/l2a_classification", policy, product_proj
     )
     if l2a is not None:
         members["l2a_classification"] = l2a
@@ -1467,6 +1574,7 @@ def _plan_conditions_mask(
 
 def _plan_meteorology(
     group: Sentinel2MeteorologyGroup | None,
+    policy: WritePolicy,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
 ) -> MeteorologyGroup | None:
@@ -1475,11 +1583,13 @@ def _plan_meteorology(
         return None
     path = "conditions/meteorology"
     members: MeteorologyGroupMembers = {}
-    cams = _plan_input_dataset(group.members.get("cams"), f"{path}/cams", coordinate_values, tile)
+    cams = _plan_input_dataset(
+        group.members.get("cams"), f"{path}/cams", policy, coordinate_values, tile
+    )
     if cams is not None:
         members["cams"] = cams
     ecmwf = _plan_input_dataset(
-        group.members.get("ecmwf"), f"{path}/ecmwf", coordinate_values, tile
+        group.members.get("ecmwf"), f"{path}/ecmwf", policy, coordinate_values, tile
     )
     if ecmwf is not None:
         members["ecmwf"] = ecmwf
@@ -1490,6 +1600,7 @@ def _plan_meteorology(
 
 def _plan_conditions(
     group: Sentinel2ConditionsGroup,
+    policy: WritePolicy,
     product_proj: tuple[tuple[float, float], int] | None,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
@@ -1498,14 +1609,18 @@ def _plan_conditions(
     the masks (see `_plan_conditions_mask`). None when nothing is carried."""
     members: ConditionsGroupMembers = {}
     geometry = _plan_input_dataset(
-        group.members["geometry"], GEOMETRY_PATH, coordinate_values, tile
+        group.members["geometry"], GEOMETRY_PATH, policy, coordinate_values, tile
     )
     if geometry is not None:
         members["geometry"] = geometry
-    mask = _plan_conditions_mask(group.members["mask"], product_proj, coordinate_values, tile)
+    mask = _plan_conditions_mask(
+        group.members["mask"], policy, product_proj, coordinate_values, tile
+    )
     if mask is not None:
         members["mask"] = mask
-    meteorology = _plan_meteorology(group.members.get("meteorology"), coordinate_values, tile)
+    meteorology = _plan_meteorology(
+        group.members.get("meteorology"), policy, coordinate_values, tile
+    )
     if meteorology is not None:
         members["meteorology"] = meteorology
     if not members:
@@ -1515,6 +1630,7 @@ def _plan_conditions(
 
 def _plan_quality(
     group: Sentinel2QualityGroup,
+    policy: WritePolicy,
     product_proj: tuple[tuple[float, float], int] | None,
     coordinate_values: CoordinateValues | None,
     tile: _TileGeoreferencing | None,
@@ -1527,16 +1643,18 @@ def _plan_quality(
     """
     members: QualityGroupMembers = {}
     atmosphere = _plan_input_pyramid(
-        group.members.get("atmosphere"), "quality/atmosphere", product_proj
+        group.members.get("atmosphere"), "quality/atmosphere", policy, product_proj
     )
     if atmosphere is not None:
         members["atmosphere"] = atmosphere
     probability = _plan_input_pyramid(
-        group.members.get("probability"), "quality/probability", product_proj
+        group.members.get("probability"), "quality/probability", policy, product_proj
     )
     if probability is not None:
         members["probability"] = probability
-    mask = _plan_band_masks(group.members.get("mask"), "quality/mask", coordinate_values, tile)
+    mask = _plan_band_masks(
+        group.members.get("mask"), "quality/mask", policy, coordinate_values, tile
+    )
     if mask is not None:
         members["mask"] = mask
     if not members:
@@ -1545,14 +1663,17 @@ def _plan_quality(
 
 
 def plan_geozarr(
-    root: Sentinel2Root, *, coordinate_values: CoordinateValues | None = None
+    root: Sentinel2Root,
+    *,
+    coordinate_values: CoordinateValues | None = None,
+    policy: WritePolicy = DEFAULT_WRITE_POLICY,
 ) -> Sentinel2GeoZarr:
     """
     Plan the GeoZarr hierarchy to write for a Sentinel-2 product.
 
     Pure: reads only the validated input model, returns the output tree as a
     `Sentinel2GeoZarr` (a Zarr V3 `GroupSpec`) — `measurements/reflectance` as
-    the sharded multiscale pyramid, a `ReflectancePyramid`, and the
+    the multiscale pyramid, a `ReflectancePyramid`, and the
     `conditions` and `quality` subtrees carried, as a `ConditionsGroup` and a
     `QualityGroup` (their own multiscale groups planned by
     `AUX_MULTISCALE_LEVELS` as `AuxiliaryPyramid`s, the quicklooks and scalar
@@ -1564,16 +1685,22 @@ def plan_geozarr(
     such as the meteorology groups) and the geometry angle grids (x/y nodes,
     in the tile CRS) get their `proj` and `spatial` attributes from the values
     `coordinate_values` looks up, and none without it.
+
+    `policy` sets how the data arrays are chunked, sharded, compressed and
+    packed (see `WritePolicy`); the member tree and the attributes other than
+    the CF packing do not depend on it.
     """
-    reflectance, tile = _plan_reflectance(root)
+    reflectance, tile = _plan_reflectance(root, policy)
     members: Sentinel2GeoZarrMembers = {
         "measurements": MeasurementsGroup(attributes={}, members={"reflectance": reflectance}),
     }
     product_proj = _product_proj(root)
-    conditions = _plan_conditions(root.members["conditions"], product_proj, coordinate_values, tile)
+    conditions = _plan_conditions(
+        root.members["conditions"], policy, product_proj, coordinate_values, tile
+    )
     if conditions is not None:
         members["conditions"] = conditions
-    quality = _plan_quality(root.members["quality"], product_proj, coordinate_values, tile)
+    quality = _plan_quality(root.members["quality"], policy, product_proj, coordinate_values, tile)
     if quality is not None:
         members["quality"] = quality
     return Sentinel2GeoZarr(attributes={}, members=members)
