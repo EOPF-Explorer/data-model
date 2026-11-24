@@ -139,10 +139,6 @@
           "href": "/conditions/orphans/nb_removed_pixels",
           "title": "nb_removed_pixels"
         },
-        "oa01_radiance": {
-          "href": "/measurements/oa01_radiance",
-          "title": "oa01_radiance"
-        },
         "oa01_radiance_orphans": {
           "href": "/measurements/orphans/oa01_radiance",
           "statistics": {
@@ -155,6 +151,54 @@
           },
           "title": "oa01_radiance_orphans"
         },
+        "oa01_radiance_r0": {
+          "href": "/measurements/r0/oa01_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa01_radiance_r0"
+        },
+        "oa01_radiance_r1": {
+          "href": "/measurements/r1/oa01_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa01_radiance_r1"
+        },
+        "oa01_radiance_r2": {
+          "href": "/measurements/r2/oa01_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa01_radiance_r2"
+        },
+        "oa01_radiance_r3": {
+          "href": "/measurements/r3/oa01_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa01_radiance_r3"
+        },
         "oa01_radiance_unc": {
           "href": "/quality/oa01_radiance_unc",
           "title": "oa01_radiance_unc"
@@ -162,10 +206,6 @@
         "oa01_radiance_unc_orphans": {
           "href": "/quality/orphans/oa01_radiance_unc",
           "title": "oa01_radiance_unc_orphans"
-        },
-        "oa02_radiance": {
-          "href": "/measurements/oa02_radiance",
-          "title": "oa02_radiance"
         },
         "oa02_radiance_orphans": {
           "href": "/measurements/orphans/oa02_radiance",
@@ -179,6 +219,54 @@
           },
           "title": "oa02_radiance_orphans"
         },
+        "oa02_radiance_r0": {
+          "href": "/measurements/r0/oa02_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa02_radiance_r0"
+        },
+        "oa02_radiance_r1": {
+          "href": "/measurements/r1/oa02_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa02_radiance_r1"
+        },
+        "oa02_radiance_r2": {
+          "href": "/measurements/r2/oa02_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa02_radiance_r2"
+        },
+        "oa02_radiance_r3": {
+          "href": "/measurements/r3/oa02_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa02_radiance_r3"
+        },
         "oa02_radiance_unc": {
           "href": "/quality/oa02_radiance_unc",
           "title": "oa02_radiance_unc"
@@ -186,10 +274,6 @@
         "oa02_radiance_unc_orphans": {
           "href": "/quality/orphans/oa02_radiance_unc",
           "title": "oa02_radiance_unc_orphans"
-        },
-        "oa03_radiance": {
-          "href": "/measurements/oa03_radiance",
-          "title": "oa03_radiance"
         },
         "oa03_radiance_orphans": {
           "href": "/measurements/orphans/oa03_radiance",
@@ -203,6 +287,54 @@
           },
           "title": "oa03_radiance_orphans"
         },
+        "oa03_radiance_r0": {
+          "href": "/measurements/r0/oa03_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa03_radiance_r0"
+        },
+        "oa03_radiance_r1": {
+          "href": "/measurements/r1/oa03_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa03_radiance_r1"
+        },
+        "oa03_radiance_r2": {
+          "href": "/measurements/r2/oa03_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa03_radiance_r2"
+        },
+        "oa03_radiance_r3": {
+          "href": "/measurements/r3/oa03_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa03_radiance_r3"
+        },
         "oa03_radiance_unc": {
           "href": "/quality/oa03_radiance_unc",
           "title": "oa03_radiance_unc"
@@ -210,10 +342,6 @@
         "oa03_radiance_unc_orphans": {
           "href": "/quality/orphans/oa03_radiance_unc",
           "title": "oa03_radiance_unc_orphans"
-        },
-        "oa04_radiance": {
-          "href": "/measurements/oa04_radiance",
-          "title": "oa04_radiance"
         },
         "oa04_radiance_orphans": {
           "href": "/measurements/orphans/oa04_radiance",
@@ -227,6 +355,54 @@
           },
           "title": "oa04_radiance_orphans"
         },
+        "oa04_radiance_r0": {
+          "href": "/measurements/r0/oa04_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa04_radiance_r0"
+        },
+        "oa04_radiance_r1": {
+          "href": "/measurements/r1/oa04_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa04_radiance_r1"
+        },
+        "oa04_radiance_r2": {
+          "href": "/measurements/r2/oa04_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa04_radiance_r2"
+        },
+        "oa04_radiance_r3": {
+          "href": "/measurements/r3/oa04_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa04_radiance_r3"
+        },
         "oa04_radiance_unc": {
           "href": "/quality/oa04_radiance_unc",
           "title": "oa04_radiance_unc"
@@ -234,10 +410,6 @@
         "oa04_radiance_unc_orphans": {
           "href": "/quality/orphans/oa04_radiance_unc",
           "title": "oa04_radiance_unc_orphans"
-        },
-        "oa05_radiance": {
-          "href": "/measurements/oa05_radiance",
-          "title": "oa05_radiance"
         },
         "oa05_radiance_orphans": {
           "href": "/measurements/orphans/oa05_radiance",
@@ -251,6 +423,54 @@
           },
           "title": "oa05_radiance_orphans"
         },
+        "oa05_radiance_r0": {
+          "href": "/measurements/r0/oa05_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa05_radiance_r0"
+        },
+        "oa05_radiance_r1": {
+          "href": "/measurements/r1/oa05_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa05_radiance_r1"
+        },
+        "oa05_radiance_r2": {
+          "href": "/measurements/r2/oa05_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa05_radiance_r2"
+        },
+        "oa05_radiance_r3": {
+          "href": "/measurements/r3/oa05_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa05_radiance_r3"
+        },
         "oa05_radiance_unc": {
           "href": "/quality/oa05_radiance_unc",
           "title": "oa05_radiance_unc"
@@ -258,10 +478,6 @@
         "oa05_radiance_unc_orphans": {
           "href": "/quality/orphans/oa05_radiance_unc",
           "title": "oa05_radiance_unc_orphans"
-        },
-        "oa06_radiance": {
-          "href": "/measurements/oa06_radiance",
-          "title": "oa06_radiance"
         },
         "oa06_radiance_orphans": {
           "href": "/measurements/orphans/oa06_radiance",
@@ -275,6 +491,54 @@
           },
           "title": "oa06_radiance_orphans"
         },
+        "oa06_radiance_r0": {
+          "href": "/measurements/r0/oa06_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa06_radiance_r0"
+        },
+        "oa06_radiance_r1": {
+          "href": "/measurements/r1/oa06_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa06_radiance_r1"
+        },
+        "oa06_radiance_r2": {
+          "href": "/measurements/r2/oa06_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa06_radiance_r2"
+        },
+        "oa06_radiance_r3": {
+          "href": "/measurements/r3/oa06_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa06_radiance_r3"
+        },
         "oa06_radiance_unc": {
           "href": "/quality/oa06_radiance_unc",
           "title": "oa06_radiance_unc"
@@ -282,10 +546,6 @@
         "oa06_radiance_unc_orphans": {
           "href": "/quality/orphans/oa06_radiance_unc",
           "title": "oa06_radiance_unc_orphans"
-        },
-        "oa07_radiance": {
-          "href": "/measurements/oa07_radiance",
-          "title": "oa07_radiance"
         },
         "oa07_radiance_orphans": {
           "href": "/measurements/orphans/oa07_radiance",
@@ -299,6 +559,54 @@
           },
           "title": "oa07_radiance_orphans"
         },
+        "oa07_radiance_r0": {
+          "href": "/measurements/r0/oa07_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa07_radiance_r0"
+        },
+        "oa07_radiance_r1": {
+          "href": "/measurements/r1/oa07_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa07_radiance_r1"
+        },
+        "oa07_radiance_r2": {
+          "href": "/measurements/r2/oa07_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa07_radiance_r2"
+        },
+        "oa07_radiance_r3": {
+          "href": "/measurements/r3/oa07_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa07_radiance_r3"
+        },
         "oa07_radiance_unc": {
           "href": "/quality/oa07_radiance_unc",
           "title": "oa07_radiance_unc"
@@ -306,10 +614,6 @@
         "oa07_radiance_unc_orphans": {
           "href": "/quality/orphans/oa07_radiance_unc",
           "title": "oa07_radiance_unc_orphans"
-        },
-        "oa08_radiance": {
-          "href": "/measurements/oa08_radiance",
-          "title": "oa08_radiance"
         },
         "oa08_radiance_orphans": {
           "href": "/measurements/orphans/oa08_radiance",
@@ -323,6 +627,54 @@
           },
           "title": "oa08_radiance_orphans"
         },
+        "oa08_radiance_r0": {
+          "href": "/measurements/r0/oa08_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa08_radiance_r0"
+        },
+        "oa08_radiance_r1": {
+          "href": "/measurements/r1/oa08_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa08_radiance_r1"
+        },
+        "oa08_radiance_r2": {
+          "href": "/measurements/r2/oa08_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa08_radiance_r2"
+        },
+        "oa08_radiance_r3": {
+          "href": "/measurements/r3/oa08_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa08_radiance_r3"
+        },
         "oa08_radiance_unc": {
           "href": "/quality/oa08_radiance_unc",
           "title": "oa08_radiance_unc"
@@ -330,10 +682,6 @@
         "oa08_radiance_unc_orphans": {
           "href": "/quality/orphans/oa08_radiance_unc",
           "title": "oa08_radiance_unc_orphans"
-        },
-        "oa09_radiance": {
-          "href": "/measurements/oa09_radiance",
-          "title": "oa09_radiance"
         },
         "oa09_radiance_orphans": {
           "href": "/measurements/orphans/oa09_radiance",
@@ -347,6 +695,54 @@
           },
           "title": "oa09_radiance_orphans"
         },
+        "oa09_radiance_r0": {
+          "href": "/measurements/r0/oa09_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa09_radiance_r0"
+        },
+        "oa09_radiance_r1": {
+          "href": "/measurements/r1/oa09_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa09_radiance_r1"
+        },
+        "oa09_radiance_r2": {
+          "href": "/measurements/r2/oa09_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa09_radiance_r2"
+        },
+        "oa09_radiance_r3": {
+          "href": "/measurements/r3/oa09_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa09_radiance_r3"
+        },
         "oa09_radiance_unc": {
           "href": "/quality/oa09_radiance_unc",
           "title": "oa09_radiance_unc"
@@ -354,10 +750,6 @@
         "oa09_radiance_unc_orphans": {
           "href": "/quality/orphans/oa09_radiance_unc",
           "title": "oa09_radiance_unc_orphans"
-        },
-        "oa10_radiance": {
-          "href": "/measurements/oa10_radiance",
-          "title": "oa10_radiance"
         },
         "oa10_radiance_orphans": {
           "href": "/measurements/orphans/oa10_radiance",
@@ -371,6 +763,54 @@
           },
           "title": "oa10_radiance_orphans"
         },
+        "oa10_radiance_r0": {
+          "href": "/measurements/r0/oa10_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa10_radiance_r0"
+        },
+        "oa10_radiance_r1": {
+          "href": "/measurements/r1/oa10_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa10_radiance_r1"
+        },
+        "oa10_radiance_r2": {
+          "href": "/measurements/r2/oa10_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa10_radiance_r2"
+        },
+        "oa10_radiance_r3": {
+          "href": "/measurements/r3/oa10_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa10_radiance_r3"
+        },
         "oa10_radiance_unc": {
           "href": "/quality/oa10_radiance_unc",
           "title": "oa10_radiance_unc"
@@ -378,10 +818,6 @@
         "oa10_radiance_unc_orphans": {
           "href": "/quality/orphans/oa10_radiance_unc",
           "title": "oa10_radiance_unc_orphans"
-        },
-        "oa11_radiance": {
-          "href": "/measurements/oa11_radiance",
-          "title": "oa11_radiance"
         },
         "oa11_radiance_orphans": {
           "href": "/measurements/orphans/oa11_radiance",
@@ -395,6 +831,54 @@
           },
           "title": "oa11_radiance_orphans"
         },
+        "oa11_radiance_r0": {
+          "href": "/measurements/r0/oa11_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa11_radiance_r0"
+        },
+        "oa11_radiance_r1": {
+          "href": "/measurements/r1/oa11_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa11_radiance_r1"
+        },
+        "oa11_radiance_r2": {
+          "href": "/measurements/r2/oa11_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa11_radiance_r2"
+        },
+        "oa11_radiance_r3": {
+          "href": "/measurements/r3/oa11_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa11_radiance_r3"
+        },
         "oa11_radiance_unc": {
           "href": "/quality/oa11_radiance_unc",
           "title": "oa11_radiance_unc"
@@ -402,10 +886,6 @@
         "oa11_radiance_unc_orphans": {
           "href": "/quality/orphans/oa11_radiance_unc",
           "title": "oa11_radiance_unc_orphans"
-        },
-        "oa12_radiance": {
-          "href": "/measurements/oa12_radiance",
-          "title": "oa12_radiance"
         },
         "oa12_radiance_orphans": {
           "href": "/measurements/orphans/oa12_radiance",
@@ -419,6 +899,54 @@
           },
           "title": "oa12_radiance_orphans"
         },
+        "oa12_radiance_r0": {
+          "href": "/measurements/r0/oa12_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa12_radiance_r0"
+        },
+        "oa12_radiance_r1": {
+          "href": "/measurements/r1/oa12_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa12_radiance_r1"
+        },
+        "oa12_radiance_r2": {
+          "href": "/measurements/r2/oa12_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa12_radiance_r2"
+        },
+        "oa12_radiance_r3": {
+          "href": "/measurements/r3/oa12_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa12_radiance_r3"
+        },
         "oa12_radiance_unc": {
           "href": "/quality/oa12_radiance_unc",
           "title": "oa12_radiance_unc"
@@ -426,10 +954,6 @@
         "oa12_radiance_unc_orphans": {
           "href": "/quality/orphans/oa12_radiance_unc",
           "title": "oa12_radiance_unc_orphans"
-        },
-        "oa13_radiance": {
-          "href": "/measurements/oa13_radiance",
-          "title": "oa13_radiance"
         },
         "oa13_radiance_orphans": {
           "href": "/measurements/orphans/oa13_radiance",
@@ -443,6 +967,54 @@
           },
           "title": "oa13_radiance_orphans"
         },
+        "oa13_radiance_r0": {
+          "href": "/measurements/r0/oa13_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa13_radiance_r0"
+        },
+        "oa13_radiance_r1": {
+          "href": "/measurements/r1/oa13_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa13_radiance_r1"
+        },
+        "oa13_radiance_r2": {
+          "href": "/measurements/r2/oa13_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa13_radiance_r2"
+        },
+        "oa13_radiance_r3": {
+          "href": "/measurements/r3/oa13_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa13_radiance_r3"
+        },
         "oa13_radiance_unc": {
           "href": "/quality/oa13_radiance_unc",
           "title": "oa13_radiance_unc"
@@ -450,10 +1022,6 @@
         "oa13_radiance_unc_orphans": {
           "href": "/quality/orphans/oa13_radiance_unc",
           "title": "oa13_radiance_unc_orphans"
-        },
-        "oa14_radiance": {
-          "href": "/measurements/oa14_radiance",
-          "title": "oa14_radiance"
         },
         "oa14_radiance_orphans": {
           "href": "/measurements/orphans/oa14_radiance",
@@ -467,6 +1035,54 @@
           },
           "title": "oa14_radiance_orphans"
         },
+        "oa14_radiance_r0": {
+          "href": "/measurements/r0/oa14_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa14_radiance_r0"
+        },
+        "oa14_radiance_r1": {
+          "href": "/measurements/r1/oa14_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa14_radiance_r1"
+        },
+        "oa14_radiance_r2": {
+          "href": "/measurements/r2/oa14_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa14_radiance_r2"
+        },
+        "oa14_radiance_r3": {
+          "href": "/measurements/r3/oa14_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa14_radiance_r3"
+        },
         "oa14_radiance_unc": {
           "href": "/quality/oa14_radiance_unc",
           "title": "oa14_radiance_unc"
@@ -474,10 +1090,6 @@
         "oa14_radiance_unc_orphans": {
           "href": "/quality/orphans/oa14_radiance_unc",
           "title": "oa14_radiance_unc_orphans"
-        },
-        "oa15_radiance": {
-          "href": "/measurements/oa15_radiance",
-          "title": "oa15_radiance"
         },
         "oa15_radiance_orphans": {
           "href": "/measurements/orphans/oa15_radiance",
@@ -491,6 +1103,54 @@
           },
           "title": "oa15_radiance_orphans"
         },
+        "oa15_radiance_r0": {
+          "href": "/measurements/r0/oa15_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa15_radiance_r0"
+        },
+        "oa15_radiance_r1": {
+          "href": "/measurements/r1/oa15_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa15_radiance_r1"
+        },
+        "oa15_radiance_r2": {
+          "href": "/measurements/r2/oa15_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa15_radiance_r2"
+        },
+        "oa15_radiance_r3": {
+          "href": "/measurements/r3/oa15_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa15_radiance_r3"
+        },
         "oa15_radiance_unc": {
           "href": "/quality/oa15_radiance_unc",
           "title": "oa15_radiance_unc"
@@ -498,10 +1158,6 @@
         "oa15_radiance_unc_orphans": {
           "href": "/quality/orphans/oa15_radiance_unc",
           "title": "oa15_radiance_unc_orphans"
-        },
-        "oa16_radiance": {
-          "href": "/measurements/oa16_radiance",
-          "title": "oa16_radiance"
         },
         "oa16_radiance_orphans": {
           "href": "/measurements/orphans/oa16_radiance",
@@ -515,6 +1171,54 @@
           },
           "title": "oa16_radiance_orphans"
         },
+        "oa16_radiance_r0": {
+          "href": "/measurements/r0/oa16_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa16_radiance_r0"
+        },
+        "oa16_radiance_r1": {
+          "href": "/measurements/r1/oa16_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa16_radiance_r1"
+        },
+        "oa16_radiance_r2": {
+          "href": "/measurements/r2/oa16_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa16_radiance_r2"
+        },
+        "oa16_radiance_r3": {
+          "href": "/measurements/r3/oa16_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa16_radiance_r3"
+        },
         "oa16_radiance_unc": {
           "href": "/quality/oa16_radiance_unc",
           "title": "oa16_radiance_unc"
@@ -522,10 +1226,6 @@
         "oa16_radiance_unc_orphans": {
           "href": "/quality/orphans/oa16_radiance_unc",
           "title": "oa16_radiance_unc_orphans"
-        },
-        "oa17_radiance": {
-          "href": "/measurements/oa17_radiance",
-          "title": "oa17_radiance"
         },
         "oa17_radiance_orphans": {
           "href": "/measurements/orphans/oa17_radiance",
@@ -539,6 +1239,54 @@
           },
           "title": "oa17_radiance_orphans"
         },
+        "oa17_radiance_r0": {
+          "href": "/measurements/r0/oa17_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa17_radiance_r0"
+        },
+        "oa17_radiance_r1": {
+          "href": "/measurements/r1/oa17_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa17_radiance_r1"
+        },
+        "oa17_radiance_r2": {
+          "href": "/measurements/r2/oa17_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa17_radiance_r2"
+        },
+        "oa17_radiance_r3": {
+          "href": "/measurements/r3/oa17_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa17_radiance_r3"
+        },
         "oa17_radiance_unc": {
           "href": "/quality/oa17_radiance_unc",
           "title": "oa17_radiance_unc"
@@ -546,10 +1294,6 @@
         "oa17_radiance_unc_orphans": {
           "href": "/quality/orphans/oa17_radiance_unc",
           "title": "oa17_radiance_unc_orphans"
-        },
-        "oa18_radiance": {
-          "href": "/measurements/oa18_radiance",
-          "title": "oa18_radiance"
         },
         "oa18_radiance_orphans": {
           "href": "/measurements/orphans/oa18_radiance",
@@ -563,6 +1307,54 @@
           },
           "title": "oa18_radiance_orphans"
         },
+        "oa18_radiance_r0": {
+          "href": "/measurements/r0/oa18_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa18_radiance_r0"
+        },
+        "oa18_radiance_r1": {
+          "href": "/measurements/r1/oa18_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa18_radiance_r1"
+        },
+        "oa18_radiance_r2": {
+          "href": "/measurements/r2/oa18_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa18_radiance_r2"
+        },
+        "oa18_radiance_r3": {
+          "href": "/measurements/r3/oa18_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa18_radiance_r3"
+        },
         "oa18_radiance_unc": {
           "href": "/quality/oa18_radiance_unc",
           "title": "oa18_radiance_unc"
@@ -570,10 +1362,6 @@
         "oa18_radiance_unc_orphans": {
           "href": "/quality/orphans/oa18_radiance_unc",
           "title": "oa18_radiance_unc_orphans"
-        },
-        "oa19_radiance": {
-          "href": "/measurements/oa19_radiance",
-          "title": "oa19_radiance"
         },
         "oa19_radiance_orphans": {
           "href": "/measurements/orphans/oa19_radiance",
@@ -587,6 +1375,54 @@
           },
           "title": "oa19_radiance_orphans"
         },
+        "oa19_radiance_r0": {
+          "href": "/measurements/r0/oa19_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa19_radiance_r0"
+        },
+        "oa19_radiance_r1": {
+          "href": "/measurements/r1/oa19_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa19_radiance_r1"
+        },
+        "oa19_radiance_r2": {
+          "href": "/measurements/r2/oa19_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa19_radiance_r2"
+        },
+        "oa19_radiance_r3": {
+          "href": "/measurements/r3/oa19_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa19_radiance_r3"
+        },
         "oa19_radiance_unc": {
           "href": "/quality/oa19_radiance_unc",
           "title": "oa19_radiance_unc"
@@ -594,10 +1430,6 @@
         "oa19_radiance_unc_orphans": {
           "href": "/quality/orphans/oa19_radiance_unc",
           "title": "oa19_radiance_unc_orphans"
-        },
-        "oa20_radiance": {
-          "href": "/measurements/oa20_radiance",
-          "title": "oa20_radiance"
         },
         "oa20_radiance_orphans": {
           "href": "/measurements/orphans/oa20_radiance",
@@ -611,6 +1443,54 @@
           },
           "title": "oa20_radiance_orphans"
         },
+        "oa20_radiance_r0": {
+          "href": "/measurements/r0/oa20_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa20_radiance_r0"
+        },
+        "oa20_radiance_r1": {
+          "href": "/measurements/r1/oa20_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa20_radiance_r1"
+        },
+        "oa20_radiance_r2": {
+          "href": "/measurements/r2/oa20_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa20_radiance_r2"
+        },
+        "oa20_radiance_r3": {
+          "href": "/measurements/r3/oa20_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa20_radiance_r3"
+        },
         "oa20_radiance_unc": {
           "href": "/quality/oa20_radiance_unc",
           "title": "oa20_radiance_unc"
@@ -618,10 +1498,6 @@
         "oa20_radiance_unc_orphans": {
           "href": "/quality/orphans/oa20_radiance_unc",
           "title": "oa20_radiance_unc_orphans"
-        },
-        "oa21_radiance": {
-          "href": "/measurements/oa21_radiance",
-          "title": "oa21_radiance"
         },
         "oa21_radiance_orphans": {
           "href": "/measurements/orphans/oa21_radiance",
@@ -634,6 +1510,54 @@
             "valid_percent": 100.0
           },
           "title": "oa21_radiance_orphans"
+        },
+        "oa21_radiance_r0": {
+          "href": "/measurements/r0/oa21_radiance",
+          "statistics": {
+            "count": 256,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa21_radiance_r0"
+        },
+        "oa21_radiance_r1": {
+          "href": "/measurements/r1/oa21_radiance",
+          "statistics": {
+            "count": 64,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa21_radiance_r1"
+        },
+        "oa21_radiance_r2": {
+          "href": "/measurements/r2/oa21_radiance",
+          "statistics": {
+            "count": 16,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa21_radiance_r2"
+        },
+        "oa21_radiance_r3": {
+          "href": "/measurements/r3/oa21_radiance",
+          "statistics": {
+            "count": 4,
+            "maximum": 0,
+            "mean": 0.0,
+            "minimum": 0,
+            "stddev": 0.0,
+            "valid_percent": 100.0
+          },
+          "title": "oa21_radiance_r3"
         },
         "oa21_radiance_unc": {
           "href": "/quality/oa21_radiance_unc",
@@ -1074,7 +1998,7 @@
         "processing:level": "L1",
         "processing:lineage": "systematic",
         "processing:software": {
-          "EOPF_GEOZARR": "v0.13.1-7-g2f078dc-dirty",
+          "EOPF_GEOZARR": "v0.13.1-13-gd9c2c4f-dirty",
           "PUG": "03.51"
         },
         "processing:version": "1.0.0",
