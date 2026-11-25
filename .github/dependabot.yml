@@ -33,11 +33,8 @@ updates:
       uv-major:
         patterns:
           - "*"
-      # Groups apply to version updates only unless told otherwise.
-      uv-security:
-        applies-to: security-updates
-        patterns:
-          - "*"
+      # No security-updates group: while a grouped security PR is open,
+      # Dependabot defers every later advisory instead of opening a PR.
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"

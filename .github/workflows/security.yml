@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   push:
     branches: [ main ]
+  # Catch advisories published since main last changed.
+  schedule:
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
