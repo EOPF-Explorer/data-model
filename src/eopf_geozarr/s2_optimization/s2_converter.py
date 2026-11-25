@@ -170,7 +170,8 @@ def add_s2_stac_assets(
         return
 
     # this can be used to add multiscale paths to the stac attributes
-    updated_stac_attrs = utils.add_multiscale_pyramids_to_stac_metadata(datasets, dt_input.attrs)
+    # updated_stac_attrs = utils.extend_stac_discovery_metadata(datasets, dt_input.attrs, product_type=S2Type.from_datatree(dt_input))
+    updated_stac_attrs = dt_input.attrs
 
     # Reference the pyramid root group, not the individual levels. That
     # group carries the `multiscales` attribute, and the

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -26,6 +27,7 @@ from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion import constants, encoding_utils, fs_utils
+from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.types import (
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
@@ -279,6 +281,31 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
     )
 
 
+class SType(StrEnum):
+    GRD = "GRD"
+    SLC = "SLC"
+    OCN = "OCN"
+    L1C = "L1C"
+    L2A = "L2A"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> SType | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> SType | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
 def updated_root_consolidation(
     dt_input: xr.DataTree,
     output_path: str,
@@ -299,6 +326,10 @@ def updated_root_consolidation(
     Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
+    product_type = SType.from_datatree(dt_input)
+    if product_type is None:
+        raise ValueError("No Product Type could be detected from input `dt_input`")
+
     # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
     output_path = output_path.rstrip("/")
 
@@ -322,6 +353,27 @@ def updated_root_consolidation(
     # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
+
+    # SLC is completly wrong on stac_discovery/assets in root so i just drop it to save developmetn time
+    if product_type == "SLC":
+        dt_input.attrs["stac_discovery"]["assets"] = {}
+
+    # apply generic addition of missing stac assets to root zarr.json
+    # -> fill in multiscales/injected bands for S2 and missing/incomplete ones for S1
+    extend_stac_discovery_metadata(
+        datasets=datasets, dt_attributes=dt_input.attrs, product_type=product_type
+    )
+
+    # apply generic addition of missing stac assets to sub-root zarr.json
+    # -> eg S1 SLC and GRD subroots which were missing/completly incomplete
+    if subroot_groups:
+        for subroot in subroot_groups:
+            subroot_datasets = {k: v for k, v in datasets.items() if subroot in k}
+            extend_stac_discovery_metadata(
+                datasets=subroot_datasets,
+                dt_attributes=dt_input[subroot].attrs,
+                product_type=product_type,
+            )
 
     # STAC statistics of the band assets (measurements and multiscale levels). Asset hrefs
     # are relative to the store root (also in S1 subroots), so the statistics are computed
@@ -949,6 +1001,79 @@ def add_multiscale_pyramids_to_stac_metadata(
                 )
                 continue
             stac_attrs[asset_key] = {"href": href, "title": asset_key}
+
+    return dt_attributes
+
+
+def extend_stac_discovery_metadata(
+    datasets: Mapping[str, object],
+    dt_attributes: dict[Hashable, Any],
+    product_type: SType,
+) -> dict[Hashable, Any]:
+    """Add a `stac_discovery` asset for every written array that no asset references yet.
+
+    Covers the multiscale levels and the bands injected into native levels (e.g. b08
+    in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
+    `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
+    """
+    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+
+    existing_hrefs = {
+        asset["href"].strip("/")
+        for asset in stac_attrs.values()
+        if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
+    }
+
+    for group_path, ds in datasets.items():
+        if ds is None:
+            continue
+        # catch object != dataset for typing
+        if not isinstance(ds, xr.Dataset):
+            log.warning("Found non-dataset object in datasets!", dataset=ds)
+            continue
+        for var_name in ds.data_vars:
+            href = f"{group_path}/{var_name}"
+            if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
+                continue
+
+            # S2 specific catch
+            if product_type == "L2A" or product_type == "L1C":
+                resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+                asset_key = f"{var_name}_{resolution}"
+
+            # GRD specific catch
+            elif product_type == "GRD":
+                asset_key = var_name
+
+            elif product_type == "SLC":
+                # get and assign burst_id
+                burst_id = "_".join(href.rsplit("/")[1].split("_")[-2:])
+                asset_key = f"{var_name}_{burst_id}"
+
+            else:
+                raise ValueError("until now only `L2A`, `L1C`, `GRD`, and `SLC` are supported.")
+
+            if asset_key in stac_attrs:
+                # cheap hack to prevent duplicate keys (single duplicates) by adding the pre-group to any duplicated key
+                # eg.: '/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/calibration/beta_nought' -> asset_key + calibration = 'beta_nought_IW3_258176_calibration'
+                pre_group = href.split("/")[-2]
+                cmb_asset_key = f"{asset_key}_{pre_group}"
+                if cmb_asset_key in stac_attrs:
+                    log.warning(
+                        "Modified STAC asset key already in use, not adding an asset",
+                        asset=cmb_asset_key,
+                        href=href,
+                    )
+                else:
+                    stac_attrs[cmb_asset_key] = {"href": href, "title": cmb_asset_key}
+                    log.warning(
+                        "Modified STAC asset key was used, added asset",
+                        unmodified_asset=asset_key,
+                        modified_asset=cmb_asset_key,
+                        href=href,
+                    )
+            else:
+                stac_attrs[asset_key] = {"href": href, "title": asset_key}
 
     return dt_attributes
 
