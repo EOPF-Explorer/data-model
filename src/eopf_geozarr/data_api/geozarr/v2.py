@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
 
 from pydantic import ConfigDict, Field, model_validator
@@ -20,7 +21,7 @@ from eopf_geozarr.data_api.geozarr.multiscales import MultiscaleGroupAttrs
 from eopf_geozarr.data_api.geozarr.types import XARRAY_DIMS_KEY
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable
 
     from pydantic.experimental.missing_sentinel import MISSING as MISSING
 
@@ -116,7 +117,7 @@ class GridMappingVariable(ArraySpec[GridMappingAttrs]):
     """
 
 
-class Dataset(GroupSpec[DatasetAttrs, DataArray | GridMappingVariable]):
+class Dataset(GroupSpec[DatasetAttrs, Mapping[str, DataArray | GridMappingVariable]]):
     """
     A GeoZarr Dataset.
     """
@@ -147,7 +148,9 @@ class Dataset(GroupSpec[DatasetAttrs, DataArray | GridMappingVariable]):
         return self
 
 
-class MultiscaleGroup(GroupSpec[MultiscaleGroupAttrs, DataArray | GroupSpec[Any, Any]]):
+class MultiscaleGroup(
+    GroupSpec[MultiscaleGroupAttrs, Mapping[str, DataArray | GroupSpec[Any, Any]]]
+):
     """
     A GeoZarr Multiscale Group.
     """

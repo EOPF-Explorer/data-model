@@ -14,7 +14,6 @@ import pytest
 import xarray as xr
 import zarr
 from affine import Affine
-from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
 from pyproj import CRS
 from structlog.testing import capture_logs
@@ -39,6 +38,7 @@ from eopf_geozarr.s2_optimization.s2_multiscale import (
     generic_multiscales,
     inject_missing_bands,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 from .conftest import create_zarrv2_group_from_json, get_stem, s2_example_json_paths
 
@@ -301,8 +301,8 @@ def test_create_multiscale_from_datatree_snapshot(
             crs=_TILE_CRS,
         )
 
-    observed_json = GroupSpec.from_zarr(
-        zarr.open_group(output_path, use_consolidated=False)
+    observed_json = GroupSpec.from_stored_metadata_json(
+        read_documents(zarr.open_group(output_path, use_consolidated=False))
     ).model_dump()
     snapshot_path = pathlib.Path("tests/_test_data/optimized_geozarr_examples") / (
         source_path.stem + ".json"
@@ -310,8 +310,8 @@ def test_create_multiscale_from_datatree_snapshot(
     if os.environ.get("REGENERATE_SNAPSHOTS"):
         snapshot_path.write_text(json.dumps(observed_json, indent=2, sort_keys=True) + "\n")
 
-    observed = GroupSpec(**tuplify_json(observed_json)).to_flat()
-    expected = GroupSpec(**tuplify_json(json.loads(snapshot_path.read_text()))).to_flat()
+    observed = GroupSpec.model_validate(observed_json).to_flat()
+    expected = GroupSpec.model_validate(json.loads(snapshot_path.read_text())).to_flat()
     assert set(observed) == set(expected)
 
     # Compare as JSON: a NaN fill value never equals itself as a float.

@@ -1,7 +1,7 @@
 """
 Pydantic-zarr integrated models for Sentinel-1A EOPF Zarr data structure.
 
-Uses the new pyz.GroupSpec with TypedDict members to enforce strict structure validation.
+Uses pydantic-zarr's GroupSpec with TypedDict members to enforce strict structure validation.
 """
 
 from __future__ import annotations
@@ -15,12 +15,13 @@ from typing_extensions import TypedDict
 if TYPE_CHECKING:
     from pydantic.experimental.missing_sentinel import MISSING as MISSING
 
+from pydantic_zarr.v2 import ArraySpec, GroupSpec
+
 from eopf_geozarr.data_api.geozarr.common import (
     BaseDataArrayAttrs,
     CFStandardName,
     DatasetAttrs,
 )
-from eopf_geozarr.pyz.v2 import ArraySpec, GroupSpec
 
 # Member type for groups with any nested structures (groups or arrays)
 # Used for groups with dynamic or variable nested structures
