@@ -14,13 +14,13 @@ import rioxarray  # noqa: F401
 import xarray as xr
 import zarr
 from affine import Affine
-from pydantic_zarr.core import tuplify_json
 from pydantic_zarr.v3 import GroupSpec
 
 from eopf_geozarr.data_api.geozarr.validation import validate_store
 from eopf_geozarr.s3_olci_optimization.olci_converter import (
     _sanitize_olci_array_attrs_keep_fill,
 )
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     import pathlib
@@ -550,7 +550,7 @@ def test_olci_conversion_matches_snapshot(
     out = str(tmp_path / "out.zarr")
     convert_olci_optimized(dt_in, output_path=out, min_dimension=8, output_grid=output_grid)
 
-    # Each consolidated block is a snapshot, and GroupSpec.from_zarr below reads the
+    # Each consolidated block is a snapshot, and read_documents below reads the
     # levels through the `measurements` block, so a stale block would hide a late
     # write. Re-consolidating a current store rewrites the same bytes (#303).
     for path in ("measurements", ""):
@@ -561,7 +561,9 @@ def test_olci_conversion_matches_snapshot(
         assert meta.read_bytes() == before, f"/{path}: consolidated block is stale"
 
     observed_group = zarr.open_group(out, use_consolidated=False)
-    observed_structure_json = GroupSpec.from_zarr(observed_group).model_dump()
+    observed_structure_json = GroupSpec.from_stored_metadata_json(
+        read_documents(observed_group)
+    ).model_dump()
 
     expected_path = Path("tests/_test_data/optimized_olci_examples") / (
         f"{s3_olci_group_example.stem}-{golden_suffix}.json"
@@ -571,11 +573,10 @@ def test_olci_conversion_matches_snapshot(
     # expected_path.parent.mkdir(parents=True, exist_ok=True)
     # expected_path.write_text(json.dumps(observed_structure_json, indent=2, sort_keys=True))
 
-    observed_structure = GroupSpec(**tuplify_json(observed_structure_json))
-    observed_structure_flat = observed_structure.to_flat()
-    expected_structure_json = tuplify_json(json.loads(expected_path.read_text()))
-    expected_structure = GroupSpec(**expected_structure_json)
-    expected_structure_flat = expected_structure.to_flat()
+    observed_structure_flat = GroupSpec.model_validate(observed_structure_json).to_flat()
+    expected_structure_flat = GroupSpec.model_validate(
+        json.loads(expected_path.read_text())
+    ).to_flat()
 
     o_keys = set(observed_structure_flat.keys())
     e_keys = set(expected_structure_flat.keys())

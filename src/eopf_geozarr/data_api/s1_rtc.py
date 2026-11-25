@@ -1,8 +1,8 @@
 """
 Pydantic-zarr integrated models for Sentinel-1 GRD gamma0T RTC GeoZarr stores.
 
-Uses the pyz.v3 GroupSpec/ArraySpec with TypedDict members to enforce strict
-structure validation — same pattern as s2.py (which uses pyz.v2 for Zarr V2).
+Uses pydantic-zarr's v3 GroupSpec/ArraySpec with TypedDict members to enforce strict
+structure validation — same pattern as s2.py (which uses the v2 models for Zarr V2).
 
 These models validate time-series Zarr V3 stores built from S1Tiling GeoTIFFs
 on the Sentinel-2 MGRS grid. This is a *different data product* from the EOPF
@@ -38,6 +38,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
+from pydantic_zarr.v3 import ArraySpec, GroupSpec
 from typing_extensions import TypedDict
 from zarr_cm import geo_proj
 from zarr_cm import multiscales as multiscales_cm
@@ -45,7 +46,6 @@ from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.data_api.geozarr.common import DatasetAttrs
 from eopf_geozarr.data_api.geozarr.multiscales.zcm import Multiscales
-from eopf_geozarr.pyz.v3 import ArraySpec, GroupSpec
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

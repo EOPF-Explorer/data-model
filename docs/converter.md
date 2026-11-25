@@ -97,8 +97,8 @@ output.zarr/
 - Coarser levels also get the finer bands (for example b08 at r20m, and all
   bands at r60m for L1C), so every level has a complete band set.
 - Each variable type gets its own resampling: mean for reflectance and
-  probabilities (nodata excluded), subsampling for classifications, maximum
-  for quality masks.
+  probabilities (nodata excluded), subsampling for classifications; quality
+  masks are carried at their native resolution, not resampled.
 
 ```bash
 eopf-geozarr convert-s2-optimized S2B_MSIL2A_….zarr output.zarr --enable-sharding
