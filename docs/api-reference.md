@@ -38,31 +38,43 @@ convert_s2_optimized(
     dt_input: xr.DataTree,
     *,
     output_path: str,
-    enable_sharding: bool,
-    spatial_chunk: int,
-    compression_level: int,
-    validate_output: bool,
+    enable_sharding: bool = True,
+    spatial_chunk: int = 1024,
+    compression_level: int = 3,
+    validate_output: bool = True,
     scale_offset_codec: bool = False,
 ) -> xr.DataTree
 ```
 
 Converts a Sentinel-2 L1C or L2A DataTree to the optimized pyramid
-(`r10m` … `r720m`). All arguments after `dt_input` are keyword-only, and all
-without a default are required.
+(`r10m` … `r720m`). All arguments after `dt_input` are keyword-only.
 
 | Argument | Description |
 |---|---|
 | `output_path` | Local path or `s3://` URL of the output store. |
-| `enable_sharding` | Enable Zarr v3 sharding. |
-| `spatial_chunk` | Spatial chunk size (the CLI default is 256). |
-| `compression_level` | Blosc zstd level, 1–9. |
+| `enable_sharding` | Store each data array as one shard of `spatial_chunk` chunks (default `True`). |
+| `spatial_chunk` | Chunk edge length of the data arrays (default 1024). |
+| `compression_level` | Blosc zstd level, 0–9 (default 3). |
 | `validate_output` | Validate the output after writing. |
 | `scale_offset_codec` | `False` (default): ESA layout with CF scale attributes. `True`: pack reflectance with the Zarr `scale_offset` + `cast_value` codecs. See [Encoding](converter.md#encoding). |
 
-`create_multiscale_from_datatree(dt_input, *, output_group, enable_sharding,
-spatial_chunk, crs=None, scale_offset_codec=False, compression_level=3)` in
-`eopf_geozarr.s2_optimization.s2_multiscale` is the lower-level function that
-writes the pyramid into an open `zarr.Group`.
+The lower-level, spec-level API lives in `eopf_geozarr.data_api`:
+`load_sentinel2(source)` validates a Zarr group or an xarray DataTree into the
+`Sentinel2Root` input model, `plan_geozarr(root, policy=...)` derives the
+output hierarchy as a `Sentinel2GeoZarr`, and `write_geozarr(root, source,
+store, policy=...)` writes the planned documents and fills in the chunk data.
+The `WritePolicy` holds the four layout options above (`spatial_chunk`,
+`enable_sharding`, `compression_level` and `scale_offset_codec`), with the
+same defaults; `convert_s2_optimized` builds it from its arguments.
+`Sentinel2GeoZarr` is a Zarr V3 `GroupSpec` whose member types name the
+structure: `measurements/reflectance` is a `ReflectancePyramid` of six
+`ReflectanceLevel` groups, and the plan builds the classification and
+probability pyramids as `AuxiliaryPyramid`s. It also validates a store the
+converter wrote: read its documents with `eopf_geozarr.zarr_io.read_documents`
+and pass them to `Sentinel2GeoZarr.from_stored_metadata_json`. That checks the
+whole tree: the groups under `conditions` and `quality` are modeled too
+(`ConditionsGroup`, `QualityGroup`), down to the carried datasets, whose array
+names come from the product.
 
 ## Sentinel-3 OLCI: `convert_olci_optimized`
 

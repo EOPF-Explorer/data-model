@@ -97,8 +97,8 @@ output.zarr/
 - Coarser levels also get the finer bands (for example b08 at r20m, and all
   bands at r60m for L1C), so every level has a complete band set.
 - Each variable type gets its own resampling: mean for reflectance and
-  probabilities (nodata excluded), subsampling for classifications, maximum
-  for quality masks.
+  probabilities (nodata excluded), subsampling for classifications; quality
+  masks are carried at their native resolution, not resampled.
 
 ```bash
 eopf-geozarr convert-s2-optimized S2B_MSIL2A_….zarr output.zarr --enable-sharding
@@ -200,9 +200,10 @@ output.zarr/
 
 - **Native mode**: bands keep per-pixel 2-D `latitude`/`longitude`/`altitude`
   and per-row `time_stamp`, with no projected CRS.
-- **Regular grid**: bands get 1-D `y`/`x` coordinates and a `spatial_ref`
-  variable referenced by `grid_mapping`. The per-row `time_stamp` is dropped;
-  it stays in the source product.
+- **Regular grid**: bands get 1-D `y`/`x` coordinates, and each level group
+  declares its CRS with the `proj` convention (`proj:code`). No CF
+  `spatial_ref` grid-mapping variable or `grid_mapping` attribute is written.
+  The per-row `time_stamp` is dropped; it stays in the source product.
 - Radiance keeps the source packing (`uint16` with CF `scale_factor` and
   `_FillValue`). The tie-point groups in `conditions` are copied, not converted
   to the GeoZarr conventions.

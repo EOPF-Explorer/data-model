@@ -13,7 +13,7 @@ from affine import Affine
 from rasterio.crs import CRS
 
 from eopf_geozarr.conversion.constants import ZARR_FORMAT
-from eopf_geozarr.conversion.utils import build_convention_attrs
+from eopf_geozarr.conversion.utils import build_convention_attrs, strip_cf_grid_mapping
 from eopf_geozarr.data_api.s3_olci import Sentinel3OlciRoot
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
 from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
@@ -23,6 +23,7 @@ from eopf_geozarr.s3_olci_optimization.olci_multiscale import (
     swath_spatial_attrs,
 )
 from eopf_geozarr.s3_olci_optimization.olci_reproject import GRID_DIMS, reproject_olci
+from eopf_geozarr.zarr_io import read_documents
 
 if TYPE_CHECKING:
     from zarr.core.common import JSON
@@ -63,12 +64,10 @@ def is_sentinel3_olci_dataset(group: zarr.Group) -> bool:
     converter in the CLI). Users with such near-miss products should use the
     explicit ``convert-s3-olci-optimized`` subcommand, which skips detection.
     """
-    from eopf_geozarr.pyz.v2 import GroupSpec
-
     try:
-        model = Sentinel3OlciRoot.model_validate(GroupSpec.from_zarr(group).model_dump())
+        model = Sentinel3OlciRoot.from_stored_metadata_json(read_documents(group))
     except Exception as e:
-        # Classify, never raise: from_zarr/model_dump can fail with types
+        # Classify, never raise: reading the documents can fail with types
         # other than ValidationError on malformed or unexpected stores, and
         # any failure simply means "not a recognised OLCI product".
         log.debug("Not an OLCI dataset", error=str(e))
@@ -162,8 +161,9 @@ def _copy_subtree(node: xr.DataTree, output_path: str, *, root_group: str) -> No
         ds = child.to_dataset()
         if not ds.data_vars and not ds.coords:
             continue
-        # Strip any inherited Zarr v2 encoding before writing to a v3 store.
-        ds = _clear_encoding(ds)
+        # Strip any inherited Zarr v2 encoding, and any CF grid mapping (#352),
+        # before writing to a v3 store.
+        ds = _clear_encoding(strip_cf_grid_mapping(ds))
         # Build the group path: strip the ancestor prefix and prepend root_group.
         relative = child.path[len(node_path) :]  # "" for root, "/sub" for children
         group_path = root_group + relative
@@ -302,16 +302,14 @@ def convert_olci_optimized(
             ) from e
 
     if crs_obj is not None:
-        # Warp the curvilinear swath onto a regular grid (1-D y/x coords,
-        # spatial_ref + grid_mapping on every variable) at (approximately)
-        # native resolution. Everything downstream — the pyramid, spatial
-        # attrs, and CRS metadata — operates on this gridded dataset.
+        # Warp the curvilinear swath onto a regular grid (1-D y/x coords) at
+        # (approximately) native resolution. Everything downstream — the
+        # pyramid, spatial attrs, and CRS metadata — operates on this gridded
+        # dataset. The `proj`/`spatial` attributes are the only georeferencing
+        # written, so the CF grid mapping rioxarray adds is stripped (#352),
+        # and the inherited encoding is cleared once more after the warp.
         measurements = reproject_olci(measurements, target_crs=output_grid)
-        # rioxarray's write_crs records grid_mapping in both .attrs and
-        # .encoding; xarray's to_zarr refuses to serialize a variable whose
-        # attrs and encoding disagree on an encoding-owned key, so clear the
-        # inherited encoding once more after the warp.
-        measurements = _clear_encoding(measurements)
+        measurements = _clear_encoding(strip_cf_grid_mapping(measurements))
         pyramid_dims = GRID_DIMS
     else:
         pyramid_dims = SWATH_DIMS
@@ -349,7 +347,7 @@ def convert_olci_optimized(
     current = measurements
     for level in range(1, n_levels + 1):
         current = reduce_swath(current, factor=2, dims=pyramid_dims)
-        current = _clear_encoding(current)
+        current = _clear_encoding(strip_cf_grid_mapping(current))
         # Attrs already sanitized at native level and passed through by
         # reduce_swath; no second sanitize pass needed.
         if base_transform is not None:

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Breaking
+
+* The S2, S1 RTC and OLCI converters and the shared write path no longer write
+  the CF grid mapping of GeoZarr V0: no `spatial_ref` arrays (with `crs_wkt` /
+  `spatial_ref` attributes) and no `grid_mapping` attributes. Their only
+  georeferencing is the `proj` and `spatial` conventions; an input's grid
+  mapping is carried over as `proj:code`. An array opened on its own has no
+  CRS; read `proj:code` from its group. Stores written before are still read.
+  The generic converter (`create_geozarr_dataset`) still writes the grid
+  mapping ([#352](https://github.com/EOPF-Explorer/data-model/issues/352)).
+* This breaks CRS resolution in rioxarray as released (0.23 and 0.24): it
+  recognizes the proj convention only under the name `"proj:"`, while the proj
+  v0.1 spec names it `"proj"`, so `ds.rio.crs` is `None` for this output.
+
 ## 0.13.1 (2026-11-10)
 
 ## What's Changed

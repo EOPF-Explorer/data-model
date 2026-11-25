@@ -266,7 +266,7 @@ def _reproject_data_variable(
         raise ValueError(f"Unsupported data variable dimensionality: {data_var.ndim}")
 
     # Create attributes for reprojected variable
-    attrs = utils.sanitize_array_attrs(data_var.attrs.copy())
+    attrs = utils.sanitize_array_attrs(data_var.attrs.copy(), dtype=data_var.dtype)
     attrs["_ARRAY_DIMENSIONS"] = dims
     attrs["grid_mapping"] = "spatial_ref"
 

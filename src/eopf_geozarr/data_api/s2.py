@@ -1,12 +1,14 @@
 """
 Pydantic-zarr integrated models for Sentinel-2 EOPF Zarr data structure.
 
-Uses the new pyz.GroupSpec with TypedDict members to enforce strict structure validation.
+Uses pydantic-zarr's GroupSpec with TypedDict members to enforce strict structure validation.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+# imported at run time: pydantic resolves the members types' annotations
+from collections.abc import Mapping  # noqa: TC003
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NotRequired
 
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
@@ -14,12 +16,13 @@ from typing_extensions import TypedDict
 if TYPE_CHECKING:
     from pydantic.experimental.missing_sentinel import MISSING as MISSING
 
+from pydantic_zarr.v2 import ArraySpec, GroupSpec
+
 from eopf_geozarr.data_api.geozarr.common import (
     BaseDataArrayAttrs,
     CFStandardName,
     DatasetAttrs,
 )
-from eopf_geozarr.pyz.v2 import ArraySpec, GroupSpec
 from eopf_geozarr.s2_optimization.s2_band_mapping import BAND_INFO
 
 # ============================================================================
@@ -229,11 +232,11 @@ class ProbabilityArrayMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all data products are always present.
     """
 
-    cld: ArraySpec[Any]
-    snw: ArraySpec[Any]
-    band: Any  # Per-band probability data (may be group or array)
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    cld: ArraySpec[Mapping[str, object]]
+    snw: ArraySpec[Mapping[str, object]]
+    band: ArraySpec[Mapping[str, object]]  # The names of the probability bands
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 # Probability resolution groups (r10m, r20m, r60m)
@@ -244,9 +247,9 @@ class ProbabilityResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all resolutions are always present.
     """
 
-    r10m: GroupSpec[Any, ProbabilityArrayMembers]
-    r20m: GroupSpec[Any, ProbabilityArrayMembers]
-    r60m: GroupSpec[Any, ProbabilityArrayMembers]
+    r10m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
+    r20m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
+    r60m: GroupSpec[Mapping[str, object], ProbabilityArrayMembers]
 
 
 # Resolution-level members for quicklook data arrays
@@ -257,10 +260,10 @@ class QuicklookArrayMembers(TypedDict, closed=True, total=False):
     All fields are optional for flexibility.
     """
 
-    tci: ArraySpec[Any]
-    band: Any  # May contain per-band data
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    tci: ArraySpec[Mapping[str, object]]
+    band: ArraySpec[Mapping[str, object]]  # The names of the image bands
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 # Quicklook resolution groups (r10m, r20m, r60m)
@@ -271,53 +274,95 @@ class QuicklookResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all resolutions are always present.
     """
 
-    r10m: GroupSpec[Any, QuicklookArrayMembers]
-    r20m: GroupSpec[Any, QuicklookArrayMembers]
-    r60m: GroupSpec[Any, QuicklookArrayMembers]
+    r10m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
+    r20m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
+    r60m: GroupSpec[Mapping[str, object], QuicklookArrayMembers]
 
 
-# Mask members - contains resolution-level groups or various classification/detector groups
+# Mask members
+class BandMaskLevelMembers(TypedDict, closed=True, total=False):
+    """Members of one resolution of a group of per-band masks.
+
+    Closed TypedDict - one mask array per band of the resolution, with its
+    coordinates. The members are declared in the order a store lists them
+    (by name), which is the order a validated group holds them in.
+    """
+
+    b01: ArraySpec[Mapping[str, object]]
+    b02: ArraySpec[Mapping[str, object]]
+    b03: ArraySpec[Mapping[str, object]]
+    b04: ArraySpec[Mapping[str, object]]
+    b05: ArraySpec[Mapping[str, object]]
+    b06: ArraySpec[Mapping[str, object]]
+    b07: ArraySpec[Mapping[str, object]]
+    b08: ArraySpec[Mapping[str, object]]
+    b09: ArraySpec[Mapping[str, object]]
+    b10: ArraySpec[Mapping[str, object]]
+    b11: ArraySpec[Mapping[str, object]]
+    b12: ArraySpec[Mapping[str, object]]
+    b8a: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
+
+
+class BandMaskMembers(TypedDict, closed=True, total=False):
+    """Per-band mask datasets, one per native resolution.
+
+    Closed TypedDict - the members of `quality/mask` and of
+    `conditions/mask/detector_footprint`. All fields are optional since not
+    every resolution is always present.
+    """
+
+    r10m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
+    r20m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
+    r60m: GroupSpec[Mapping[str, object], BandMaskLevelMembers]
+
+
+class ClassificationMembers(TypedDict, closed=True, total=False):
+    """Classification datasets, one per resolution.
+
+    Closed TypedDict - the members of `conditions/mask/l1c_classification`
+    and `conditions/mask/l2a_classification`. Each resolution is a dataset of
+    arrays (the classification and its `x` and `y` coordinates).
+    """
+
+    r10m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+    r20m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+    r60m: GroupSpec[Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]]
+
+
 class ConditionsMaskMembers(TypedDict, closed=True, total=False):
     """Members for mask subgroup in conditions.
 
-    Closed TypedDict - can contain either:
-    1. Resolution-level groups (r10m, r20m, r60m) with mask arrays, OR
-    2. Classification and detector footprint groups/arrays
-
-    All fields are optional since not all mask types are always present.
-    Using Any to handle flexible deep hierarchies.
+    Closed TypedDict - the detector footprints and the classifications. All
+    fields are optional since not all mask types are always present (an L1C
+    product has no L2A classification).
     """
 
-    r10m: Any  # Resolution-level mask group
-    r20m: Any  # Resolution-level mask group
-    r60m: Any  # Resolution-level mask group
-    detector_footprint: Any  # May have r10m/r20m/r60m array subgroups
-    l1c_classification: Any  # May have r20m/r60m array subgroups
-    l2a_classification: Any  # May have r20m/r60m array subgroups
+    detector_footprint: GroupSpec[Mapping[str, object], BandMaskMembers]
+    l1c_classification: GroupSpec[Mapping[str, object], ClassificationMembers]
+    l2a_classification: GroupSpec[Mapping[str, object], ClassificationMembers]
 
 
 # Geometry members - contains angle and orientation groups/arrays
 class GeometryMembers(TypedDict, closed=True, total=False):
     """Members for geometry group containing sun and viewing angles.
 
-    Closed TypedDict - contains angle and geometry groups/arrays with flexible internal structure.
-    Common members include sun angles, viewing angles, band angles, detector angles.
-    All fields are optional since not all angles are always present.
-
-    Note: Members can be either GroupSpec (for hierarchical data) or ArraySpec (for direct arrays),
-    allowing for flexible deep hierarchies. Using Any to handle Union[GroupSpec[Any, Any], ArraySpec[Any]].
+    Closed TypedDict - the angle arrays and the coordinates they are indexed
+    by. All fields are optional since not all angles are always present.
     """
 
-    angle: Any  # Contains resolution-level angle data (group or array)
-    band: Any  # Contains per-band angle data (group or array)
-    detector: Any  # Contains per-detector angle data (group or array)
-    sun_angles: Any  # Sun geometry data (group or array)
-    viewing_incidence_angles: Any  # Viewing geometry data (group or array)
-    mean_sun_angles: Any  # Mean sun angles (group or array)
-    mean_viewing_incidence_angles: Any  # Mean viewing angles (group or array)
-    x: Any  # Coordinate arrays (group or array)
-    y: Any
-    time: Any
+    angle: ArraySpec[Mapping[str, object]]  # The names of the angles (zenith, azimuth)
+    band: ArraySpec[Mapping[str, object]]  # The names of the bands
+    detector: ArraySpec[Mapping[str, object]]  # The detector numbers
+    sun_angles: ArraySpec[Mapping[str, object]]
+    viewing_incidence_angles: ArraySpec[Mapping[str, object]]
+    mean_sun_angles: ArraySpec[Mapping[str, object]]
+    mean_viewing_incidence_angles: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
 
 
 # Meteorology members - contains CAMS and ECMWF atmospheric data
@@ -325,14 +370,16 @@ class MeteorologyMembers(TypedDict, closed=True, total=False):
     """Members for meteorology group containing CAMS and ECMWF atmospheric data.
 
     Closed TypedDict - contains subgroups for different meteorological data sources.
-    All fields are optional since different meteorological data sources have different variables.
-
-    Note: Both CAMS and ECMWF subgroups can have flexible internal structure with
-    atmospheric parameter arrays/groups.
+    All fields are optional since a product may hold either source. Each is a
+    dataset of arrays, whose names depend on the source.
     """
 
-    cams: GroupSpec[Any, Any]  # Contains CAMS atmospheric data
-    ecmwf: GroupSpec[Any, Any]  # Contains ECMWF atmospheric data
+    cams: GroupSpec[
+        Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]
+    ]  # CAMS atmospheric data
+    ecmwf: GroupSpec[
+        Mapping[str, object], Mapping[str, ArraySpec[Mapping[str, object]]]
+    ]  # ECMWF atmospheric data
 
 
 # Sentinel-2 spectral band identifiers
@@ -465,22 +512,22 @@ class Sentinel2ResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all bands are present in every resolution.
     """
 
-    x: ArraySpec[Any]
-    y: ArraySpec[Any]
-    time: ArraySpec[Any]
-    b01: ArraySpec[Any]
-    b02: ArraySpec[Any]
-    b03: ArraySpec[Any]
-    b04: ArraySpec[Any]
-    b05: ArraySpec[Any]
-    b06: ArraySpec[Any]
-    b07: ArraySpec[Any]
-    b08: ArraySpec[Any]
-    b8a: ArraySpec[Any]
-    b09: ArraySpec[Any]
-    b10: ArraySpec[Any]
-    b11: ArraySpec[Any]
-    b12: ArraySpec[Any]
+    x: ArraySpec[Mapping[str, object]]
+    y: ArraySpec[Mapping[str, object]]
+    time: ArraySpec[Mapping[str, object]]
+    b01: ArraySpec[Mapping[str, object]]
+    b02: ArraySpec[Mapping[str, object]]
+    b03: ArraySpec[Mapping[str, object]]
+    b04: ArraySpec[Mapping[str, object]]
+    b05: ArraySpec[Mapping[str, object]]
+    b06: ArraySpec[Mapping[str, object]]
+    b07: ArraySpec[Mapping[str, object]]
+    b08: ArraySpec[Mapping[str, object]]
+    b8a: ArraySpec[Mapping[str, object]]
+    b09: ArraySpec[Mapping[str, object]]
+    b10: ArraySpec[Mapping[str, object]]
+    b11: ArraySpec[Mapping[str, object]]
+    b12: ArraySpec[Mapping[str, object]]
 
 
 class Sentinel2ResolutionDataset(GroupSpec[DatasetAttrs, Sentinel2ResolutionMembers]):
@@ -530,10 +577,10 @@ class Sentinel2AtmosphereResolutionMembers(TypedDict, closed=True, total=False):
     All fields are optional since not all data products are always present.
     """
 
-    aot: ArraySpec[Any]
-    wvp: ArraySpec[Any]
-    x: ArraySpec[Any]  # Coordinate arrays
-    y: ArraySpec[Any]
+    aot: ArraySpec[Mapping[str, object]]
+    wvp: ArraySpec[Mapping[str, object]]
+    x: ArraySpec[Mapping[str, object]]  # Coordinate arrays
+    y: ArraySpec[Mapping[str, object]]
 
 
 class Sentinel2AtmosphereResolutionDataset(
@@ -562,8 +609,8 @@ class Sentinel2QuicklookDataset(GroupSpec[DatasetAttrs, QuicklookResolutionMembe
     """True Color Image (TCI) quicklook data at multiple resolutions."""
 
 
-class Sentinel2MaskDataset(GroupSpec[DatasetAttrs, ConditionsMaskMembers]):
-    """Mask data containing classification and detector footprints."""
+class Sentinel2MaskDataset(GroupSpec[DatasetAttrs, BandMaskMembers]):
+    """The `quality/mask` group: per-band quality masks at the native resolutions."""
 
 
 class Sentinel2QualityMembers(TypedDict, closed=True, total=False):
@@ -621,11 +668,13 @@ class Sentinel2ConditionsMembers(TypedDict, closed=True):
     """Members for conditions group.
 
     Closed TypedDict - only geometry, mask, meteorology keys are allowed.
+    `meteorology` is optional: not every processing baseline carries it
+    (e.g. the N0512 Zarr V3 products).
     """
 
     geometry: Sentinel2GeometryGroup
     mask: Sentinel2ConditionsMaskGroup
-    meteorology: Sentinel2MeteorologyGroup
+    meteorology: NotRequired[Sentinel2MeteorologyGroup]
 
 
 class Sentinel2ConditionsGroup(GroupSpec[DatasetAttrs, Sentinel2ConditionsMembers]):

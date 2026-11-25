@@ -319,10 +319,25 @@ def _multiscale_level_paths(store: pathlib.Path) -> list[str]:
     return found
 
 
+#: Products whose converter still writes the CF grid mapping of GeoZarr V0:
+#: the generic converter (`create_geozarr_dataset`), which #352 leaves as it is.
+#: Every other converter declares the CRS with the proj convention only.
+_CF_GRID_MAPPING_PRODUCTS = frozenset({"s1", "s2"})
+
+_RIOXARRAY_PROJ_NAME = (
+    "rioxarray (0.23, 0.24 and its main branch) recognizes the proj convention only under the "
+    "name 'proj:', while the proj v0.1 spec and zarr-cm name it 'proj'; with no CF grid mapping "
+    "in the output (#352), rioxarray resolves no CRS. Strict, so this fails once a rioxarray "
+    "release reads the spec's name: then drop the marker."
+)
+
+
 def test_every_level_is_regular_grid_with_crs(
     converted_store: tuple[pathlib.Path, str],
 ) -> None:
-    """Hard requirement: each pyramid level is a regular grid with a real CRS."""
+    """Hard requirement: each pyramid level is a regular grid with a real CRS. A
+    converter without the CF grid mapping declares it with the proj convention,
+    its only georeferencing (#352)."""
     store, name = converted_store
     levels = _multiscale_level_paths(store)
     assert levels, f"{name}: no multiscale groups found in {store}"
@@ -330,10 +345,16 @@ def test_every_level_is_regular_grid_with_crs(
         ds = xr.open_dataset(
             str(store), group=level, engine="zarr", consolidated=False, decode_coords="all"
         )
-        crs = ds.rio.crs
-        assert crs is not None, f"{name}:{level}: no CRS declared"
-        # CRS round-trips through pyproj
-        ProjCRS.from_user_input(crs.to_wkt())
+        if name in _CF_GRID_MAPPING_PRODUCTS:
+            crs = ds.rio.crs
+            assert crs is not None, f"{name}:{level}: no CRS declared"
+            code = crs.to_wkt()
+        else:
+            code = ds.attrs.get("proj:code")
+            assert isinstance(code, str), f"{name}:{level}: no CRS declared"
+            assert "spatial_ref" not in ds.variables, f"{name}:{level}: CF grid mapping written"
+        # the CRS resolves through pyproj
+        ProjCRS.from_user_input(code)
         for dim in ("y", "x"):
             assert dim in ds.sizes, f"{name}:{level}: missing spatial dim {dim}"
             coord = ds[dim]
@@ -376,3 +397,18 @@ def test_olci_native_store_opens_with_swath_geolocation(
         assert ds["longitude"].dims == ("rows", "columns")
         assert "spatial_ref" not in ds.variables
         assert ds.rio.crs is None
+
+
+def test_rioxarray_resolves_the_level_crs(
+    converted_store: tuple[pathlib.Path, str], request: pytest.FixtureRequest
+) -> None:
+    """rioxarray resolves each pyramid level's CRS. It does from the CF grid
+    mapping, and not yet from the proj convention alone (strict xfail)."""
+    store, name = converted_store
+    if name not in _CF_GRID_MAPPING_PRODUCTS:
+        request.applymarker(pytest.mark.xfail(strict=True, reason=_RIOXARRAY_PROJ_NAME))
+    for level in _multiscale_level_paths(store):
+        ds = xr.open_dataset(
+            str(store), group=level, engine="zarr", consolidated=False, decode_coords="all"
+        )
+        assert ds.rio.crs is not None, f"{name}:{level}: rioxarray resolves no CRS"

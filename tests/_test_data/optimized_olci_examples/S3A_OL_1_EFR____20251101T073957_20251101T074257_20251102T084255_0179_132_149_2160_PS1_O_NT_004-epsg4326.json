@@ -4343,7 +4343,6 @@
             "altitude": {
               "attributes": {
                 "_FillValue": 32767,
-                "coordinates": "spatial_ref",
                 "dimensions": [
                   "rows",
                   "columns"
@@ -4352,7 +4351,6 @@
                 "eopf_is_masked": true,
                 "eopf_target_dtype": "<f4",
                 "fill_value": -32768,
-                "grid_mapping": "spatial_ref",
                 "long_name": "DEM corrected altitude",
                 "standard_name": "altitude",
                 "units": "m",
@@ -4407,8 +4405,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 01",
                 "scale_factor": 0.013946459628641605,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4462,8 +4458,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 02",
                 "scale_factor": 0.013387260027229786,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4517,8 +4511,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 03",
                 "scale_factor": 0.012148120440542698,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4572,8 +4564,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 04",
                 "scale_factor": 0.011519820429384708,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4627,8 +4617,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 05",
                 "scale_factor": 0.010095260106027126,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4682,8 +4670,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 06",
                 "scale_factor": 0.012353800237178802,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4737,8 +4723,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 07",
                 "scale_factor": 0.008791609667241573,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4792,8 +4776,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 08",
                 "scale_factor": 0.008765390142798424,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4847,8 +4829,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 09",
                 "scale_factor": 0.009510300122201443,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4902,8 +4882,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 10",
                 "scale_factor": 0.007733779959380627,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -4957,8 +4935,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 11",
                 "scale_factor": 0.006755230017006397,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5012,8 +4988,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 12",
                 "scale_factor": 0.007199599873274565,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5067,8 +5041,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 13",
                 "scale_factor": 0.007496839854866266,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5122,8 +5094,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 14",
                 "scale_factor": 0.008651199750602245,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5177,8 +5147,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 15",
                 "scale_factor": 0.005267790053039789,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5232,8 +5200,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 16",
                 "scale_factor": 0.005302669946104288,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5287,8 +5253,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 17",
                 "scale_factor": 0.004930039867758751,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5342,8 +5306,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 18",
                 "scale_factor": 0.0054996199905872345,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5397,8 +5359,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 19",
                 "scale_factor": 0.005028469953685999,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5452,8 +5412,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 20",
                 "scale_factor": 0.003263779915869236,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5507,8 +5465,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 21",
                 "scale_factor": 0.0032411799766123295,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5555,55 +5511,6 @@
                 16,
                 16
               ],
-              "storage_transformers": [],
-              "zarr_format": 3
-            },
-            "spatial_ref": {
-              "attributes": {
-                "crs_wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]",
-                "geographic_crs_name": "WGS 84",
-                "grid_mapping_name": "latitude_longitude",
-                "horizontal_datum_name": "World Geodetic System 1984",
-                "inverse_flattening": 298.257223563,
-                "longitude_of_prime_meridian": 0.0,
-                "prime_meridian_name": "Greenwich",
-                "reference_ellipsoid_name": "WGS 84",
-                "semi_major_axis": 6378137.0,
-                "semi_minor_axis": 6356752.314245179,
-                "spatial_ref": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]"
-              },
-              "chunk_grid": {
-                "configuration": {
-                  "chunk_shape": []
-                },
-                "name": "regular"
-              },
-              "chunk_key_encoding": {
-                "configuration": {
-                  "separator": "/"
-                },
-                "name": "default"
-              },
-              "codecs": [
-                {
-                  "configuration": {
-                    "endian": "little"
-                  },
-                  "name": "bytes"
-                },
-                {
-                  "configuration": {
-                    "checksum": false,
-                    "level": 0
-                  },
-                  "name": "zstd"
-                }
-              ],
-              "data_type": "int64",
-              "dimension_names": null,
-              "fill_value": 0,
-              "node_type": "array",
-              "shape": [],
               "storage_transformers": [],
               "zarr_format": 3
             },
@@ -5754,7 +5661,6 @@
             "altitude": {
               "attributes": {
                 "_FillValue": 32767,
-                "coordinates": "spatial_ref",
                 "dimensions": [
                   "rows",
                   "columns"
@@ -5763,7 +5669,6 @@
                 "eopf_is_masked": true,
                 "eopf_target_dtype": "<f4",
                 "fill_value": -32768,
-                "grid_mapping": "spatial_ref",
                 "long_name": "DEM corrected altitude",
                 "standard_name": "altitude",
                 "units": "m",
@@ -5818,8 +5723,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 01",
                 "scale_factor": 0.013946459628641605,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5873,8 +5776,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 02",
                 "scale_factor": 0.013387260027229786,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5928,8 +5829,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 03",
                 "scale_factor": 0.012148120440542698,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -5983,8 +5882,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 04",
                 "scale_factor": 0.011519820429384708,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6038,8 +5935,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 05",
                 "scale_factor": 0.010095260106027126,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6093,8 +5988,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 06",
                 "scale_factor": 0.012353800237178802,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6148,8 +6041,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 07",
                 "scale_factor": 0.008791609667241573,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6203,8 +6094,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 08",
                 "scale_factor": 0.008765390142798424,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6258,8 +6147,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 09",
                 "scale_factor": 0.009510300122201443,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6313,8 +6200,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 10",
                 "scale_factor": 0.007733779959380627,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6368,8 +6253,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 11",
                 "scale_factor": 0.006755230017006397,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6423,8 +6306,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 12",
                 "scale_factor": 0.007199599873274565,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6478,8 +6359,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 13",
                 "scale_factor": 0.007496839854866266,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6533,8 +6412,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 14",
                 "scale_factor": 0.008651199750602245,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6588,8 +6465,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 15",
                 "scale_factor": 0.005267790053039789,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6643,8 +6518,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 16",
                 "scale_factor": 0.005302669946104288,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6698,8 +6571,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 17",
                 "scale_factor": 0.004930039867758751,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6753,8 +6624,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 18",
                 "scale_factor": 0.0054996199905872345,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6808,8 +6677,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 19",
                 "scale_factor": 0.005028469953685999,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6863,8 +6730,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 20",
                 "scale_factor": 0.003263779915869236,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6918,8 +6783,6 @@
               "attributes": {
                 "_FillValue": 65535,
                 "add_offset": 0.0,
-                "coordinates": "spatial_ref",
-                "grid_mapping": "spatial_ref",
                 "long_name": "TOA radiance for OLCI acquisition band 21",
                 "scale_factor": 0.0032411799766123295,
                 "standard_name": "toa_upwelling_spectral_radiance",
@@ -6966,55 +6829,6 @@
                 8,
                 8
               ],
-              "storage_transformers": [],
-              "zarr_format": 3
-            },
-            "spatial_ref": {
-              "attributes": {
-                "crs_wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]",
-                "geographic_crs_name": "WGS 84",
-                "grid_mapping_name": "latitude_longitude",
-                "horizontal_datum_name": "World Geodetic System 1984",
-                "inverse_flattening": 298.257223563,
-                "longitude_of_prime_meridian": 0.0,
-                "prime_meridian_name": "Greenwich",
-                "reference_ellipsoid_name": "WGS 84",
-                "semi_major_axis": 6378137.0,
-                "semi_minor_axis": 6356752.314245179,
-                "spatial_ref": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]"
-              },
-              "chunk_grid": {
-                "configuration": {
-                  "chunk_shape": []
-                },
-                "name": "regular"
-              },
-              "chunk_key_encoding": {
-                "configuration": {
-                  "separator": "/"
-                },
-                "name": "default"
-              },
-              "codecs": [
-                {
-                  "configuration": {
-                    "endian": "little"
-                  },
-                  "name": "bytes"
-                },
-                {
-                  "configuration": {
-                    "checksum": false,
-                    "level": 0
-                  },
-                  "name": "zstd"
-                }
-              ],
-              "data_type": "int64",
-              "dimension_names": null,
-              "fill_value": 0,
-              "node_type": "array",
-              "shape": [],
               "storage_transformers": [],
               "zarr_format": 3
             },

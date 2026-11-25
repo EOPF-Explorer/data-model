@@ -13,11 +13,13 @@ import zarr
 from affine import Affine
 from zarr_cm import geo_proj
 from zarr_cm import spatial as spatial_cm
+from zarr_cm.spatial import CMO as SPATIAL_CMO
 
 from eopf_geozarr.conversion.utils import (
     _rechunk_ds,
     create_uniform_encoding,
     stream_write_dataset,
+    strip_cf_grid_mapping,
     write_dataset_geo_metadata,
 )
 
@@ -95,10 +97,9 @@ class TestWriteGeoMetadata:
         # Call the method
         result = write_dataset_geo_metadata(sample_dataset_with_crs)
 
-        # Verify CRS was written
-        assert hasattr(result, "rio")
-        assert result.rio.crs is not None
-        assert result.rio.crs.to_epsg() == 32632
+        # The CRS is declared with the proj convention only (#352)
+        assert result.attrs["proj:code"] == "EPSG:32632"
+        assert "spatial_ref" not in result.variables
 
     def test_write_dataset_geo_metadata_with_epsg_attrs(
         self, sample_dataset_with_epsg_attrs: xr.Dataset
@@ -114,10 +115,8 @@ class TestWriteGeoMetadata:
         # Call the method
         result = write_dataset_geo_metadata(sample_dataset_with_epsg_attrs)
 
-        # Verify CRS was written from attributes
-        assert hasattr(result, "rio")
-        assert result.rio.crs is not None
-        assert result.rio.crs.to_epsg() == 32632
+        # The CRS read from the attributes is declared with the proj convention
+        assert result.attrs["proj:code"] == "EPSG:32632"
 
     def test_write_dataset_geo_metadata_no_crs(self, sample_dataset_no_crs: xr.Dataset) -> None:
         """Test _write_dataset_geo_metadata with dataset that has no CRS information."""
@@ -131,18 +130,16 @@ class TestWriteGeoMetadata:
         # Verify no CRS was added (method handles gracefully)
         assert result.rio.crs is None
 
-    def test_write_dataset_geo_metadata_custom_grid_mapping_name(
+    def test_write_dataset_geo_metadata_writes_no_cf_grid_mapping(
         self, sample_dataset_with_crs: xr.Dataset
     ) -> None:
-        """Test _write_dataset_geo_metadata with custom grid_mapping variable name."""
+        """The proj and spatial conventions are the only georeferencing written: no
+        `spatial_ref` variable and no `grid_mapping` attribute (#352)."""
+        result = write_dataset_geo_metadata(sample_dataset_with_crs)
 
-        # Call the method with custom grid mapping name
-        custom_name = "custom_spatial_ref"
-        result = write_dataset_geo_metadata(sample_dataset_with_crs, custom_name)
-
-        # Verify CRS was written
-        assert hasattr(result, "rio")
-        assert result.rio.crs is not None
+        assert "spatial_ref" not in result.variables
+        assert "grid_mapping" not in result.attrs
+        assert all("grid_mapping" not in result[name].attrs for name in result.data_vars)
 
     def test_write_dataset_geo_metadata_preserves_existing_data(
         self, sample_dataset_with_crs: xr.Dataset
@@ -245,15 +242,16 @@ class TestWriteGeoMetadata:
             add_geo_metadata=True,
         )
 
-        # Re-open the written dataset to verify CRS was persisted
+        # Re-open the written dataset to verify the CRS was persisted
         written_ds = xr.open_dataset(
             tmp_path, engine="zarr", chunks={}, decode_coords="all", group=dataset_path
         )
 
-        # Verify CRS was written and persisted
-        assert hasattr(written_ds, "rio")
-        assert written_ds.rio.crs is not None
-        assert written_ds.rio.crs.to_epsg() == 32632
+        # The CRS persists as the proj convention; the CF grid mapping the input
+        # carried (rio.write_crs) is not written (#352)
+        assert written_ds.attrs["proj:code"] == "EPSG:32632"
+        assert "spatial_ref" not in written_ds.variables
+        assert "grid_mapping" not in written_ds["b02"].attrs
 
     def test_write_dataset_geo_metadata_prefers_coordinate_transform_for_inconsistent_rio(
         self,
@@ -425,3 +423,68 @@ class TestWriteGeoMetadataEdgeCases:
 
         # Verify zarr_conventions was not added since no CRS was available
         assert "zarr_conventions" not in result.attrs
+
+
+def _grid_mapped_dataset() -> xr.Dataset:
+    """A dataset whose CRS is declared only by a CF grid mapping (rioxarray's)."""
+    ds = xr.Dataset(
+        {"b02": (["y", "x"], np.zeros((4, 4)))},
+        coords={"x": np.arange(4) * 10.0 + 5, "y": 35.0 - np.arange(4) * 10.0},
+    )
+    out = ds.rio.write_crs("EPSG:32632")
+    assert isinstance(out, xr.Dataset)
+    return out
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_code", "kept_spatial_ref"),
+    [
+        ("grid-mapped", "EPSG:32632", False),
+        ("grid-mapped-with-proj", "EPSG:4326", False),
+        ("unrelated-spatial_ref", None, True),
+        ("grid-mapped-with-legacy-epsg", "EPSG:32632", False),
+        ("grid-mapped-with-spatial-declared", "EPSG:32632", False),
+    ],
+)
+def test_strip_cf_grid_mapping(
+    case: str, expected_code: str | None, kept_spatial_ref: bool
+) -> None:
+    """
+    The CF grid mapping is dropped, its CRS carried over as `proj:code` when the
+    dataset declares none (#352); a declared `proj:code` is kept, and a variable
+    named `spatial_ref` that is not a grid mapping is not touched.
+    """
+    if case == "unrelated-spatial_ref":
+        ds = xr.Dataset({"spatial_ref": (["n"], np.arange(3))})
+    else:
+        ds = _grid_mapped_dataset()
+        if case == "grid-mapped-with-proj":
+            ds.attrs["proj:code"] = "EPSG:4326"
+        elif case == "grid-mapped-with-legacy-epsg":
+            # a legacy key, not a proj convention declaration
+            ds.attrs["proj:epsg"] = 32632
+        elif case == "grid-mapped-with-spatial-declared":
+            ds.attrs["zarr_conventions"] = [dict(SPATIAL_CMO)]
+    result = strip_cf_grid_mapping(ds)
+    assert result.attrs.get("proj:code") == expected_code
+    if case == "grid-mapped-with-spatial-declared":
+        # the carried proj declaration extends the declared ones
+        names = [entry["name"] for entry in result.attrs["zarr_conventions"]]
+        assert names == ["spatial", "proj"]
+    assert ("spatial_ref" in result.variables) is kept_spatial_ref
+    assert all("grid_mapping" not in v.attrs for v in result.variables.values())
+    assert all("grid_mapping" not in v.encoding for v in result.variables.values())
+
+
+def test_stream_write_keeps_the_crs_of_a_grid_mapped_input(tmp_path: Path) -> None:
+    """
+    Without `add_geo_metadata` (the generic rechunker), a dataset whose CRS is
+    declared only by a CF grid mapping is written with that CRS as `proj:code`,
+    not with no CRS at all, and without the grid mapping (#352).
+    """
+    ds = _rechunk_ds(_grid_mapped_dataset(), spatial_chunk=1024)
+    encoding = create_uniform_encoding(ds, enable_sharding=True)
+    stream_write_dataset(ds, path="/data", group=zarr.create_group(tmp_path), encoding=encoding)
+    written = xr.open_dataset(tmp_path, engine="zarr", group="/data", decode_coords="all")
+    assert written.attrs["proj:code"] == "EPSG:32632"
+    assert "spatial_ref" not in written.variables

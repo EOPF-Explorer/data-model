@@ -351,15 +351,13 @@ for level in ["0", "1", "2"]:
         for var_name in ds.data_vars:
             var = ds[var_name]
             has_dims = '_ARRAY_DIMENSIONS' in var.attrs
-            has_grid_mapping = 'grid_mapping' in var.attrs
-            print(f"  {var_name}: dims={has_dims}, grid_mapping={has_grid_mapping}")
+            print(f"  {var_name}: dims={has_dims}")
 
-# Validate CRS information
+# Validate CRS information: each georeferenced group declares `proj:code`
 for group_name in dt_check.groups:
     group = dt_check[group_name]
     if hasattr(group, 'ds') and group.ds is not None:
-        crs_vars = [v for v in group.ds.data_vars if 'spatial_ref' in v or 'crs' in v]
-        print(f"{group_name} CRS variables: {crs_vars}")
+        print(f"{group_name} CRS: {group.ds.attrs.get('proj:code', 'none')}")
 ```
 
 ### Batch Processing

@@ -54,7 +54,6 @@ graph LR
 | `conversion/` | Generic pipeline (`geozarr.py`), Sentinel-1 GRD RTC ingestion (`s1_ingest.py`), Sentinel-1 reprojection, source opening, storage and metadata utilities. |
 | `stac/` | STAC item builders (Sentinel-1 GRD RTC). |
 | `data_api/` | pydantic-zarr models of the EOPF products and of GeoZarr, and the mini spec validator (`data_api/geozarr/validation.py`). |
-| `pyz/` | pydantic-zarr helpers used by the models. |
 | `codecs/` | Helpers for the Zarr `scale_offset` codec. |
 
 ## Core Components
@@ -197,7 +196,7 @@ output.zarr/
 │   │   │   ├── b08/
 │   │   │   ├── x/            # X coordinates
 │   │   │   ├── y/            # Y coordinates
-│   │   │   └── spatial_ref/  # CRS information
+│   │   │   └── spatial_ref/  # CF grid mapping (generic converter only)
 │   │   ├── 1/                # Overview level 1 (/2)
 │   │   └── 2/                # Overview level 2 (/4)
 │   ├── r20m/                 # 20m resolution group
@@ -350,20 +349,20 @@ y_attrs = {
 }
 ```
 
-### 2. Grid Mapping Variables
+### 2. CRS
 
-Each dataset includes proper grid mapping information:
-
-```python
-# test: skip
-grid_mapping_attrs = {
-    'grid_mapping_name': 'transverse_mercator',  # or appropriate mapping
-    'projected_crs_name': crs.to_string(),
-    'crs_wkt': crs.to_wkt(),
-    'spatial_ref': crs.to_wkt(),
-    'GeoTransform': transform_string
-}
-```
+Each dataset group declares its CRS with the
+[proj convention](https://github.com/zarr-conventions/proj) (`proj:code`), and
+its grid with the [spatial convention](https://github.com/zarr-conventions/spatial)
+(`spatial:transform`, `spatial:shape`, `spatial:bbox`). These are the only
+georeferencing of the S2, S1 RTC and OLCI converters: the CF grid mapping of
+GeoZarr V0 (a `spatial_ref` variable holding `crs_wkt`, referenced by
+`grid_mapping` attributes) is obsolete and no longer written by them
+([#352](https://github.com/EOPF-Explorer/data-model/issues/352)). The generic
+converter (`create_geozarr_dataset`), whose layout is shown above, still writes
+it. An array opened on its own has no CRS; read `proj:code` from its group.
+rioxarray (0.23, 0.24) does not yet read the proj convention under its spec
+name, `"proj"`, so it resolves no CRS from these groups.
 
 ### 3. Multiscales Metadata
 
