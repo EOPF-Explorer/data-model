@@ -809,6 +809,7 @@ def create_uniform_encoding(
             # and `add_offset` are attributes, so xarray writes them unchanged.
             if packing.fill_value is not None:
                 var_encoding["_FillValue"] = packing.fill_value
+                var_encoding["fill_value"] = packing.fill_value
         elif packing is not None:
             var_encoding["filters"] = encoding_utils._scale_offset_filters(packing)
             var_encoding["fill_value"] = "NaN"
