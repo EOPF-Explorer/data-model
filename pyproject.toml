@@ -44,7 +44,11 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic-zarr>=0.8.0",
+    # pydantic-zarr makes breaking changes in minor releases before 1.0 (0.12 removed
+    # from_zarr/to_zarr, which broke eopf-geozarr 0.13.1), so cap at the next minor.
+    "pydantic-zarr>=0.12.0,<0.13",
+    # imported directly (scopes, typed metadata objects, typed_json.check)
+    "zarr-metadata>=0.9.0",
     "pydantic>=2.14.1",
     # <3.3.0: open_source_datatree uses zarr's experimental CacheStore, whose
     # location/API may change between minor releases; bump deliberately.
@@ -259,5 +263,4 @@ constraint-dependencies = [
     "pygments>=2.20.0",
     "setuptools>=84.1.0",
 ]
-
 
