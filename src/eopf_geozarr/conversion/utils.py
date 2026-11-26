@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import (
@@ -1005,6 +1006,55 @@ def add_multiscale_pyramids_to_stac_metadata(
     return dt_attributes
 
 
+def _resolve_asset_keys(candidates: Mapping[str, str], taken: set[str]) -> dict[str, str]:
+    """Map each href to a unique STAC asset key, independent of the order of `candidates`.
+
+    `candidates` maps an array href to its base key. A base key used by a single href
+    (and not in `taken`) is kept. Otherwise *all* hrefs sharing it are qualified with
+    their closest parent groups, as few as needed to tell them apart, e.g.
+    `elevation_angle_IW1_258175_antenna_pattern` and `elevation_angle_IW1_258175_gcp`.
+    If the group paths cannot separate them, a counter is appended (sorted by href).
+    `taken` are the keys already in use (e.g. assets of the input); they are never reused.
+    """
+    # aggregate the possible overlaps by key to group them for resolving duplicate keys
+    by_key: dict[str, list[str]] = defaultdict(list)
+    for href, key in candidates.items():
+        by_key[key].append(href)
+
+    used = set(taken)
+    resolved: dict[str, str] = {}
+
+    for key, hrefs in sorted(by_key.items()):
+        hrefs = sorted(hrefs)
+
+        # best case: key was not present in initial `assets` or is there are just no duplicates
+        if len(hrefs) == 1 and key not in used:
+            names = {hrefs[0]: key}
+
+        # determine resolving asset key to exclude duplicate names
+        else:
+            # groups of each href, closest last; the array name itself is excluded
+            parents = {h: h.strip("/").split("/")[:-1] for h in hrefs}
+            for depth in range(1, max(len(p) for p in parents.values()) + 1):
+                names = {h: "_".join([key, *p[-depth:]]) for h, p in parents.items()}
+                if len(set(names.values())) == len(hrefs) and not set(names.values()) & used:
+                    break
+
+            # worst case: group paths alone don't separate them -> add a deterministic counter (sorted to remain reproducible between calls)
+            else:
+                names = {}
+                counter = 0
+                for h in hrefs:
+                    counter += 1
+                    while f"{key}_{counter}" in used:
+                        counter += 1
+                    names[h] = f"{key}_{counter}"
+            log.info("Qualified duplicate STAC asset keys", base_key=key, assets=names)
+        used.update(names.values())
+        resolved.update(names)
+    return resolved
+
+
 def extend_stac_discovery_metadata(
     datasets: Mapping[str, object],
     dt_attributes: dict[Hashable, Any],
@@ -1033,7 +1083,10 @@ def extend_stac_discovery_metadata(
         if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
     }
 
-    for group_path, ds in datasets.items():
+    # href -> base asset key; duplicate keys are resolved after the loop (`_resolve_asset_keys`)
+    candidates: dict[str, str] = {}
+    # sorted for a deterministic order: the groups of a tree opened from Zarr come in listing order
+    for group_path, ds in sorted(datasets.items(), key=lambda item: item[0]):
         if ds is None:
             continue
         # catch object != dataset for typing
@@ -1042,9 +1095,10 @@ def extend_stac_discovery_metadata(
             continue
         for var_name in ds.data_vars:
             href = f"{group_path}/{var_name}"
+
+            # skip if its spatial_ref, root, or already included
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
-
             # S2 specific catch
             if product_type == "L2A" or product_type == "L1C":
                 resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
@@ -1052,7 +1106,7 @@ def extend_stac_discovery_metadata(
 
             # GRD specific catch
             elif product_type == "GRD" or product_type == "OCN":
-                asset_key = var_name
+                asset_key = str(var_name)
 
             # SLC specific parsing
             elif product_type == "SLC":
@@ -1064,27 +1118,12 @@ def extend_stac_discovery_metadata(
             else:
                 raise ValueError("until now only `L2A`, `L1C`, `GRD`, and `SLC` are supported.")
 
-            if asset_key in stac_attrs:
-                # cheap hack to prevent duplicate keys (single duplicates) by adding the pre-group to any duplicated key
-                # eg.: '/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/calibration/beta_nought' -> asset_key + calibration = 'beta_nought_IW3_258176_calibration'
-                pre_group = href.split("/")[-2]
-                cmb_asset_key = f"{asset_key}_{pre_group}"
-                if cmb_asset_key in stac_attrs:
-                    log.warning(
-                        "Modified STAC asset key already in use, not adding an asset",
-                        asset=cmb_asset_key,
-                        href=href,
-                    )
-                else:
-                    stac_attrs[cmb_asset_key] = {"href": href, "title": cmb_asset_key}
-                    log.info(
-                        "Modified STAC asset key was used, added asset",
-                        unmodified_asset=asset_key,
-                        modified_asset=cmb_asset_key,
-                        href=href,
-                    )
-            else:
-                stac_attrs[asset_key] = {"href": href, "title": asset_key}
+            print("##", asset_key)
+            candidates[href] = asset_key
+
+    # resolve duplicate keys only once all are known, so the keys do not depend on the group order
+    for href, asset_key in sorted(_resolve_asset_keys(candidates, set(stac_attrs)).items()):
+        stac_attrs[asset_key] = {"href": href, "title": asset_key}
 
     return dt_attributes
 

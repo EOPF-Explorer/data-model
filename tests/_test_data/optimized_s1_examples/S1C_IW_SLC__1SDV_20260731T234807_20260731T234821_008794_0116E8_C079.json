@@ -325,109 +325,109 @@
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/calibration/dn",
           "title": "dn_IW3_258176"
         },
-        "elevation_angle_IW1_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW1_258173"
-        },
         "elevation_angle_IW1_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW1_258173_antenna_pattern"
         },
-        "elevation_angle_IW1_258174": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW1_258174"
+        "elevation_angle_IW1_258173_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW1_258173_gcp"
         },
         "elevation_angle_IW1_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW1_258174_antenna_pattern"
         },
-        "elevation_angle_IW1_258175": {
+        "elevation_angle_IW1_258174_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW1_258174_gcp"
+        },
+        "elevation_angle_IW1_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/elevation_angle",
-          "title": "elevation_angle_IW1_258175"
+          "title": "elevation_angle_IW1_258175_antenna_pattern"
         },
         "elevation_angle_IW1_258175_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/gcp/elevation_angle",
           "title": "elevation_angle_IW1_258175_gcp"
         },
-        "elevation_angle_IW1_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW1_258176"
-        },
         "elevation_angle_IW1_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW1_258176_antenna_pattern"
         },
-        "elevation_angle_IW2_258173": {
+        "elevation_angle_IW1_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW1_258176_gcp"
+        },
+        "elevation_angle_IW2_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/elevation_angle",
-          "title": "elevation_angle_IW2_258173"
+          "title": "elevation_angle_IW2_258173_antenna_pattern"
         },
         "elevation_angle_IW2_258173_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/gcp/elevation_angle",
           "title": "elevation_angle_IW2_258173_gcp"
         },
-        "elevation_angle_IW2_258174": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW2_258174"
-        },
         "elevation_angle_IW2_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW2_258174_antenna_pattern"
         },
-        "elevation_angle_IW2_258175": {
+        "elevation_angle_IW2_258174_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW2_258174_gcp"
+        },
+        "elevation_angle_IW2_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/elevation_angle",
-          "title": "elevation_angle_IW2_258175"
+          "title": "elevation_angle_IW2_258175_antenna_pattern"
         },
         "elevation_angle_IW2_258175_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/gcp/elevation_angle",
           "title": "elevation_angle_IW2_258175_gcp"
         },
-        "elevation_angle_IW2_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW2_258176"
-        },
         "elevation_angle_IW2_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW2_258176_antenna_pattern"
         },
-        "elevation_angle_IW3_258172": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW3_258172"
+        "elevation_angle_IW2_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW2_258176_gcp"
         },
         "elevation_angle_IW3_258172_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW3_258172_antenna_pattern"
         },
-        "elevation_angle_IW3_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW3_258173"
+        "elevation_angle_IW3_258172_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW3_258172_gcp"
         },
         "elevation_angle_IW3_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW3_258173_antenna_pattern"
         },
-        "elevation_angle_IW3_258174": {
+        "elevation_angle_IW3_258173_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW3_258173_gcp"
+        },
+        "elevation_angle_IW3_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/elevation_angle",
-          "title": "elevation_angle_IW3_258174"
+          "title": "elevation_angle_IW3_258174_antenna_pattern"
         },
         "elevation_angle_IW3_258174_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/gcp/elevation_angle",
           "title": "elevation_angle_IW3_258174_gcp"
         },
-        "elevation_angle_IW3_258175": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW3_258175"
-        },
         "elevation_angle_IW3_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW3_258175_antenna_pattern"
         },
-        "elevation_angle_IW3_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/elevation_angle",
-          "title": "elevation_angle_IW3_258176"
+        "elevation_angle_IW3_258175_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW3_258175_gcp"
         },
         "elevation_angle_IW3_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/elevation_angle",
           "title": "elevation_angle_IW3_258176_antenna_pattern"
+        },
+        "elevation_angle_IW3_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/elevation_angle",
+          "title": "elevation_angle_IW3_258176_gcp"
         },
         "fine_dce_azimuth_start_time_IW1_258173": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -793,109 +793,109 @@
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/height",
           "title": "height_IW3_258176"
         },
-        "incidence_angle_IW1_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW1_258173"
-        },
         "incidence_angle_IW1_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW1_258173_antenna_pattern"
         },
-        "incidence_angle_IW1_258174": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW1_258174"
+        "incidence_angle_IW1_258173_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW1_258173_gcp"
         },
         "incidence_angle_IW1_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW1_258174_antenna_pattern"
         },
-        "incidence_angle_IW1_258175": {
+        "incidence_angle_IW1_258174_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW1_258174_gcp"
+        },
+        "incidence_angle_IW1_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/incidence_angle",
-          "title": "incidence_angle_IW1_258175"
+          "title": "incidence_angle_IW1_258175_antenna_pattern"
         },
         "incidence_angle_IW1_258175_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/gcp/incidence_angle",
           "title": "incidence_angle_IW1_258175_gcp"
         },
-        "incidence_angle_IW1_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW1_258176"
-        },
         "incidence_angle_IW1_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW1_258176_antenna_pattern"
         },
-        "incidence_angle_IW2_258173": {
+        "incidence_angle_IW1_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW1_258176_gcp"
+        },
+        "incidence_angle_IW2_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/incidence_angle",
-          "title": "incidence_angle_IW2_258173"
+          "title": "incidence_angle_IW2_258173_antenna_pattern"
         },
         "incidence_angle_IW2_258173_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/gcp/incidence_angle",
           "title": "incidence_angle_IW2_258173_gcp"
         },
-        "incidence_angle_IW2_258174": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW2_258174"
-        },
         "incidence_angle_IW2_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW2_258174_antenna_pattern"
         },
-        "incidence_angle_IW2_258175": {
+        "incidence_angle_IW2_258174_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW2_258174_gcp"
+        },
+        "incidence_angle_IW2_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/incidence_angle",
-          "title": "incidence_angle_IW2_258175"
+          "title": "incidence_angle_IW2_258175_antenna_pattern"
         },
         "incidence_angle_IW2_258175_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/gcp/incidence_angle",
           "title": "incidence_angle_IW2_258175_gcp"
         },
-        "incidence_angle_IW2_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW2_258176"
-        },
         "incidence_angle_IW2_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW2_258176_antenna_pattern"
         },
-        "incidence_angle_IW3_258172": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW3_258172"
+        "incidence_angle_IW2_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW2_258176_gcp"
         },
         "incidence_angle_IW3_258172_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW3_258172_antenna_pattern"
         },
-        "incidence_angle_IW3_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW3_258173"
+        "incidence_angle_IW3_258172_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW3_258172_gcp"
         },
         "incidence_angle_IW3_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW3_258173_antenna_pattern"
         },
-        "incidence_angle_IW3_258174": {
+        "incidence_angle_IW3_258173_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW3_258173_gcp"
+        },
+        "incidence_angle_IW3_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/incidence_angle",
-          "title": "incidence_angle_IW3_258174"
+          "title": "incidence_angle_IW3_258174_antenna_pattern"
         },
         "incidence_angle_IW3_258174_gcp": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/gcp/incidence_angle",
           "title": "incidence_angle_IW3_258174_gcp"
         },
-        "incidence_angle_IW3_258175": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW3_258175"
-        },
         "incidence_angle_IW3_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW3_258175_antenna_pattern"
         },
-        "incidence_angle_IW3_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/incidence_angle",
-          "title": "incidence_angle_IW3_258176"
+        "incidence_angle_IW3_258175_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW3_258175_gcp"
         },
         "incidence_angle_IW3_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/incidence_angle",
           "title": "incidence_angle_IW3_258176_antenna_pattern"
+        },
+        "incidence_angle_IW3_258176_gcp": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/incidence_angle",
+          "title": "incidence_angle_IW3_258176_gcp"
         },
         "last_azimuth_line_IW1_258173": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/quality/noise_azimuth/last_azimuth_line",
@@ -1521,109 +1521,109 @@
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/q3",
           "title": "q3_IW3_258176"
         },
-        "roll_IW1_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/attitude/roll",
-          "title": "roll_IW1_258173"
-        },
         "roll_IW1_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/roll",
           "title": "roll_IW1_258173_antenna_pattern"
         },
-        "roll_IW1_258174": {
+        "roll_IW1_258173_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/attitude/roll",
+          "title": "roll_IW1_258173_attitude"
+        },
+        "roll_IW1_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/roll",
-          "title": "roll_IW1_258174"
+          "title": "roll_IW1_258174_antenna_pattern"
         },
         "roll_IW1_258174_attitude": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/attitude/roll",
           "title": "roll_IW1_258174_attitude"
         },
-        "roll_IW1_258175": {
+        "roll_IW1_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/roll",
-          "title": "roll_IW1_258175"
+          "title": "roll_IW1_258175_antenna_pattern"
         },
         "roll_IW1_258175_attitude": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/attitude/roll",
           "title": "roll_IW1_258175_attitude"
         },
-        "roll_IW1_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/attitude/roll",
-          "title": "roll_IW1_258176"
-        },
         "roll_IW1_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/roll",
           "title": "roll_IW1_258176_antenna_pattern"
         },
-        "roll_IW2_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/attitude/roll",
-          "title": "roll_IW2_258173"
+        "roll_IW1_258176_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/attitude/roll",
+          "title": "roll_IW1_258176_attitude"
         },
         "roll_IW2_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/roll",
           "title": "roll_IW2_258173_antenna_pattern"
         },
-        "roll_IW2_258174": {
+        "roll_IW2_258173_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/attitude/roll",
+          "title": "roll_IW2_258173_attitude"
+        },
+        "roll_IW2_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/roll",
-          "title": "roll_IW2_258174"
+          "title": "roll_IW2_258174_antenna_pattern"
         },
         "roll_IW2_258174_attitude": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/attitude/roll",
           "title": "roll_IW2_258174_attitude"
         },
-        "roll_IW2_258175": {
+        "roll_IW2_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/roll",
-          "title": "roll_IW2_258175"
+          "title": "roll_IW2_258175_antenna_pattern"
         },
         "roll_IW2_258175_attitude": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/attitude/roll",
           "title": "roll_IW2_258175_attitude"
         },
-        "roll_IW2_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/attitude/roll",
-          "title": "roll_IW2_258176"
-        },
         "roll_IW2_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/roll",
           "title": "roll_IW2_258176_antenna_pattern"
         },
-        "roll_IW3_258172": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/attitude/roll",
-          "title": "roll_IW3_258172"
+        "roll_IW2_258176_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/attitude/roll",
+          "title": "roll_IW2_258176_attitude"
         },
         "roll_IW3_258172_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/roll",
           "title": "roll_IW3_258172_antenna_pattern"
         },
-        "roll_IW3_258173": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/attitude/roll",
-          "title": "roll_IW3_258173"
+        "roll_IW3_258172_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/attitude/roll",
+          "title": "roll_IW3_258172_attitude"
         },
         "roll_IW3_258173_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/roll",
           "title": "roll_IW3_258173_antenna_pattern"
         },
-        "roll_IW3_258174": {
+        "roll_IW3_258173_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/attitude/roll",
+          "title": "roll_IW3_258173_attitude"
+        },
+        "roll_IW3_258174_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/roll",
-          "title": "roll_IW3_258174"
+          "title": "roll_IW3_258174_antenna_pattern"
         },
         "roll_IW3_258174_attitude": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/attitude/roll",
           "title": "roll_IW3_258174_attitude"
         },
-        "roll_IW3_258175": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/attitude/roll",
-          "title": "roll_IW3_258175"
-        },
         "roll_IW3_258175_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/roll",
           "title": "roll_IW3_258175_antenna_pattern"
         },
-        "roll_IW3_258176": {
-          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/roll",
-          "title": "roll_IW3_258176"
+        "roll_IW3_258175_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/attitude/roll",
+          "title": "roll_IW3_258175_attitude"
         },
         "roll_IW3_258176_antenna_pattern": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/roll",
           "title": "roll_IW3_258176_antenna_pattern"
+        },
+        "roll_IW3_258176_attitude": {
+          "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/roll",
+          "title": "roll_IW3_258176_attitude"
         },
         "sigma_nought_IW1_258173": {
           "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/quality/calibration/sigma_nought",
@@ -2308,7 +2308,7 @@
         "processing:software": {
           "COMMON_PFSD": "3.0.0",
           "EOPF_CPM": "3.0.0",
-          "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+          "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
           "EOPF_MAPPING": "1.0.0",
           "EOPF_MODEL": "1.0.0",
           "SPECIFIC_PFSD": "4.1.0",
@@ -9854,13 +9854,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/quality/calibration/dn",
               "title": "dn_IW1_258173"
             },
-            "elevation_angle_IW1_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW1_258173"
-            },
             "elevation_angle_IW1_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW1_258173_antenna_pattern"
+            },
+            "elevation_angle_IW1_258173_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW1_258173_gcp"
             },
             "fine_dce_azimuth_start_time_IW1_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -9890,13 +9890,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/height",
               "title": "height_IW1_258173"
             },
-            "incidence_angle_IW1_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW1_258173"
-            },
             "incidence_angle_IW1_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW1_258173_antenna_pattern"
+            },
+            "incidence_angle_IW1_258173_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW1_258173_gcp"
             },
             "last_azimuth_line_IW1_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/quality/noise_azimuth/last_azimuth_line",
@@ -9946,13 +9946,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/attitude/q3",
               "title": "q3_IW1_258173"
             },
-            "roll_IW1_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/attitude/roll",
-              "title": "roll_IW1_258173"
-            },
             "roll_IW1_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/roll",
               "title": "roll_IW1_258173_antenna_pattern"
+            },
+            "roll_IW1_258173_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/attitude/roll",
+              "title": "roll_IW1_258173_attitude"
             },
             "sigma_nought_IW1_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/quality/calibration/sigma_nought",
@@ -10061,7 +10061,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -21951,13 +21951,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/quality/calibration/dn",
               "title": "dn_IW1_258174"
             },
-            "elevation_angle_IW1_258174": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW1_258174"
-            },
             "elevation_angle_IW1_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW1_258174_antenna_pattern"
+            },
+            "elevation_angle_IW1_258174_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW1_258174_gcp"
             },
             "fine_dce_azimuth_start_time_IW1_258174": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -21987,13 +21987,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/height",
               "title": "height_IW1_258174"
             },
-            "incidence_angle_IW1_258174": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW1_258174"
-            },
             "incidence_angle_IW1_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW1_258174_antenna_pattern"
+            },
+            "incidence_angle_IW1_258174_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW1_258174_gcp"
             },
             "last_azimuth_line_IW1_258174": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/quality/noise_azimuth/last_azimuth_line",
@@ -22043,9 +22043,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/attitude/q3",
               "title": "q3_IW1_258174"
             },
-            "roll_IW1_258174": {
+            "roll_IW1_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/antenna_pattern/roll",
-              "title": "roll_IW1_258174"
+              "title": "roll_IW1_258174_antenna_pattern"
             },
             "roll_IW1_258174_attitude": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258174/conditions/attitude/roll",
@@ -22158,7 +22158,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -34048,9 +34048,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/quality/calibration/dn",
               "title": "dn_IW1_258175"
             },
-            "elevation_angle_IW1_258175": {
+            "elevation_angle_IW1_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/elevation_angle",
-              "title": "elevation_angle_IW1_258175"
+              "title": "elevation_angle_IW1_258175_antenna_pattern"
             },
             "elevation_angle_IW1_258175_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/gcp/elevation_angle",
@@ -34084,9 +34084,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/gcp/height",
               "title": "height_IW1_258175"
             },
-            "incidence_angle_IW1_258175": {
+            "incidence_angle_IW1_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/incidence_angle",
-              "title": "incidence_angle_IW1_258175"
+              "title": "incidence_angle_IW1_258175_antenna_pattern"
             },
             "incidence_angle_IW1_258175_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/gcp/incidence_angle",
@@ -34140,9 +34140,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/attitude/q3",
               "title": "q3_IW1_258175"
             },
-            "roll_IW1_258175": {
+            "roll_IW1_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/antenna_pattern/roll",
-              "title": "roll_IW1_258175"
+              "title": "roll_IW1_258175_antenna_pattern"
             },
             "roll_IW1_258175_attitude": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258175/conditions/attitude/roll",
@@ -34255,7 +34255,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -46145,13 +46145,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/quality/calibration/dn",
               "title": "dn_IW1_258176"
             },
-            "elevation_angle_IW1_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW1_258176"
-            },
             "elevation_angle_IW1_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW1_258176_antenna_pattern"
+            },
+            "elevation_angle_IW1_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW1_258176_gcp"
             },
             "fine_dce_azimuth_start_time_IW1_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -46181,13 +46181,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/height",
               "title": "height_IW1_258176"
             },
-            "incidence_angle_IW1_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW1_258176"
-            },
             "incidence_angle_IW1_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW1_258176_antenna_pattern"
+            },
+            "incidence_angle_IW1_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW1_258176_gcp"
             },
             "last_azimuth_line_IW1_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/quality/noise_azimuth/last_azimuth_line",
@@ -46237,13 +46237,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/attitude/q3",
               "title": "q3_IW1_258176"
             },
-            "roll_IW1_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/attitude/roll",
-              "title": "roll_IW1_258176"
-            },
             "roll_IW1_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/antenna_pattern/roll",
               "title": "roll_IW1_258176_antenna_pattern"
+            },
+            "roll_IW1_258176_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/conditions/attitude/roll",
+              "title": "roll_IW1_258176_attitude"
             },
             "sigma_nought_IW1_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258176/quality/calibration/sigma_nought",
@@ -46352,7 +46352,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -58290,9 +58290,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/quality/calibration/dn",
               "title": "dn_IW2_258173"
             },
-            "elevation_angle_IW2_258173": {
+            "elevation_angle_IW2_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/elevation_angle",
-              "title": "elevation_angle_IW2_258173"
+              "title": "elevation_angle_IW2_258173_antenna_pattern"
             },
             "elevation_angle_IW2_258173_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/gcp/elevation_angle",
@@ -58326,9 +58326,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/gcp/height",
               "title": "height_IW2_258173"
             },
-            "incidence_angle_IW2_258173": {
+            "incidence_angle_IW2_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/incidence_angle",
-              "title": "incidence_angle_IW2_258173"
+              "title": "incidence_angle_IW2_258173_antenna_pattern"
             },
             "incidence_angle_IW2_258173_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/gcp/incidence_angle",
@@ -58382,13 +58382,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/attitude/q3",
               "title": "q3_IW2_258173"
             },
-            "roll_IW2_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/attitude/roll",
-              "title": "roll_IW2_258173"
-            },
             "roll_IW2_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/antenna_pattern/roll",
               "title": "roll_IW2_258173_antenna_pattern"
+            },
+            "roll_IW2_258173_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/conditions/attitude/roll",
+              "title": "roll_IW2_258173_attitude"
             },
             "sigma_nought_IW2_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258173/quality/calibration/sigma_nought",
@@ -58497,7 +58497,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -70435,13 +70435,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/quality/calibration/dn",
               "title": "dn_IW2_258174"
             },
-            "elevation_angle_IW2_258174": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW2_258174"
-            },
             "elevation_angle_IW2_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW2_258174_antenna_pattern"
+            },
+            "elevation_angle_IW2_258174_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW2_258174_gcp"
             },
             "fine_dce_azimuth_start_time_IW2_258174": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -70471,13 +70471,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/height",
               "title": "height_IW2_258174"
             },
-            "incidence_angle_IW2_258174": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW2_258174"
-            },
             "incidence_angle_IW2_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW2_258174_antenna_pattern"
+            },
+            "incidence_angle_IW2_258174_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW2_258174_gcp"
             },
             "last_azimuth_line_IW2_258174": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/quality/noise_azimuth/last_azimuth_line",
@@ -70527,9 +70527,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/attitude/q3",
               "title": "q3_IW2_258174"
             },
-            "roll_IW2_258174": {
+            "roll_IW2_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/antenna_pattern/roll",
-              "title": "roll_IW2_258174"
+              "title": "roll_IW2_258174_antenna_pattern"
             },
             "roll_IW2_258174_attitude": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258174/conditions/attitude/roll",
@@ -70642,7 +70642,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -82580,9 +82580,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/quality/calibration/dn",
               "title": "dn_IW2_258175"
             },
-            "elevation_angle_IW2_258175": {
+            "elevation_angle_IW2_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/elevation_angle",
-              "title": "elevation_angle_IW2_258175"
+              "title": "elevation_angle_IW2_258175_antenna_pattern"
             },
             "elevation_angle_IW2_258175_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/gcp/elevation_angle",
@@ -82616,9 +82616,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/gcp/height",
               "title": "height_IW2_258175"
             },
-            "incidence_angle_IW2_258175": {
+            "incidence_angle_IW2_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/incidence_angle",
-              "title": "incidence_angle_IW2_258175"
+              "title": "incidence_angle_IW2_258175_antenna_pattern"
             },
             "incidence_angle_IW2_258175_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/gcp/incidence_angle",
@@ -82672,9 +82672,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/attitude/q3",
               "title": "q3_IW2_258175"
             },
-            "roll_IW2_258175": {
+            "roll_IW2_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/antenna_pattern/roll",
-              "title": "roll_IW2_258175"
+              "title": "roll_IW2_258175_antenna_pattern"
             },
             "roll_IW2_258175_attitude": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258175/conditions/attitude/roll",
@@ -82787,7 +82787,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -94725,13 +94725,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/quality/calibration/dn",
               "title": "dn_IW2_258176"
             },
-            "elevation_angle_IW2_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW2_258176"
-            },
             "elevation_angle_IW2_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW2_258176_antenna_pattern"
+            },
+            "elevation_angle_IW2_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW2_258176_gcp"
             },
             "fine_dce_azimuth_start_time_IW2_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -94761,13 +94761,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/height",
               "title": "height_IW2_258176"
             },
-            "incidence_angle_IW2_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW2_258176"
-            },
             "incidence_angle_IW2_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW2_258176_antenna_pattern"
+            },
+            "incidence_angle_IW2_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW2_258176_gcp"
             },
             "last_azimuth_line_IW2_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/quality/noise_azimuth/last_azimuth_line",
@@ -94817,13 +94817,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/attitude/q3",
               "title": "q3_IW2_258176"
             },
-            "roll_IW2_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/attitude/roll",
-              "title": "roll_IW2_258176"
-            },
             "roll_IW2_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/antenna_pattern/roll",
               "title": "roll_IW2_258176_antenna_pattern"
+            },
+            "roll_IW2_258176_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/conditions/attitude/roll",
+              "title": "roll_IW2_258176_attitude"
             },
             "sigma_nought_IW2_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW2_258176/quality/calibration/sigma_nought",
@@ -94932,7 +94932,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -106890,13 +106890,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/quality/calibration/dn",
               "title": "dn_IW3_258172"
             },
-            "elevation_angle_IW3_258172": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW3_258172"
-            },
             "elevation_angle_IW3_258172_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW3_258172_antenna_pattern"
+            },
+            "elevation_angle_IW3_258172_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW3_258172_gcp"
             },
             "fine_dce_azimuth_start_time_IW3_258172": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -106926,13 +106926,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/height",
               "title": "height_IW3_258172"
             },
-            "incidence_angle_IW3_258172": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW3_258172"
-            },
             "incidence_angle_IW3_258172_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW3_258172_antenna_pattern"
+            },
+            "incidence_angle_IW3_258172_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW3_258172_gcp"
             },
             "last_azimuth_line_IW3_258172": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/quality/noise_azimuth/last_azimuth_line",
@@ -106982,13 +106982,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/attitude/q3",
               "title": "q3_IW3_258172"
             },
-            "roll_IW3_258172": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/attitude/roll",
-              "title": "roll_IW3_258172"
-            },
             "roll_IW3_258172_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/antenna_pattern/roll",
               "title": "roll_IW3_258172_antenna_pattern"
+            },
+            "roll_IW3_258172_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/conditions/attitude/roll",
+              "title": "roll_IW3_258172_attitude"
             },
             "sigma_nought_IW3_258172": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258172/quality/calibration/sigma_nought",
@@ -107097,7 +107097,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -119055,13 +119055,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/quality/calibration/dn",
               "title": "dn_IW3_258173"
             },
-            "elevation_angle_IW3_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW3_258173"
-            },
             "elevation_angle_IW3_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW3_258173_antenna_pattern"
+            },
+            "elevation_angle_IW3_258173_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW3_258173_gcp"
             },
             "fine_dce_azimuth_start_time_IW3_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -119091,13 +119091,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/height",
               "title": "height_IW3_258173"
             },
-            "incidence_angle_IW3_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW3_258173"
-            },
             "incidence_angle_IW3_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW3_258173_antenna_pattern"
+            },
+            "incidence_angle_IW3_258173_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW3_258173_gcp"
             },
             "last_azimuth_line_IW3_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/quality/noise_azimuth/last_azimuth_line",
@@ -119147,13 +119147,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/attitude/q3",
               "title": "q3_IW3_258173"
             },
-            "roll_IW3_258173": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/attitude/roll",
-              "title": "roll_IW3_258173"
-            },
             "roll_IW3_258173_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/antenna_pattern/roll",
               "title": "roll_IW3_258173_antenna_pattern"
+            },
+            "roll_IW3_258173_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/conditions/attitude/roll",
+              "title": "roll_IW3_258173_attitude"
             },
             "sigma_nought_IW3_258173": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258173/quality/calibration/sigma_nought",
@@ -119262,7 +119262,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -131220,9 +131220,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/quality/calibration/dn",
               "title": "dn_IW3_258174"
             },
-            "elevation_angle_IW3_258174": {
+            "elevation_angle_IW3_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/elevation_angle",
-              "title": "elevation_angle_IW3_258174"
+              "title": "elevation_angle_IW3_258174_antenna_pattern"
             },
             "elevation_angle_IW3_258174_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/gcp/elevation_angle",
@@ -131256,9 +131256,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/gcp/height",
               "title": "height_IW3_258174"
             },
-            "incidence_angle_IW3_258174": {
+            "incidence_angle_IW3_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/incidence_angle",
-              "title": "incidence_angle_IW3_258174"
+              "title": "incidence_angle_IW3_258174_antenna_pattern"
             },
             "incidence_angle_IW3_258174_gcp": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/gcp/incidence_angle",
@@ -131312,9 +131312,9 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/attitude/q3",
               "title": "q3_IW3_258174"
             },
-            "roll_IW3_258174": {
+            "roll_IW3_258174_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/antenna_pattern/roll",
-              "title": "roll_IW3_258174"
+              "title": "roll_IW3_258174_antenna_pattern"
             },
             "roll_IW3_258174_attitude": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258174/conditions/attitude/roll",
@@ -131427,7 +131427,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -143385,13 +143385,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/quality/calibration/dn",
               "title": "dn_IW3_258175"
             },
-            "elevation_angle_IW3_258175": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW3_258175"
-            },
             "elevation_angle_IW3_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW3_258175_antenna_pattern"
+            },
+            "elevation_angle_IW3_258175_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW3_258175_gcp"
             },
             "fine_dce_azimuth_start_time_IW3_258175": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -143421,13 +143421,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/height",
               "title": "height_IW3_258175"
             },
-            "incidence_angle_IW3_258175": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW3_258175"
-            },
             "incidence_angle_IW3_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW3_258175_antenna_pattern"
+            },
+            "incidence_angle_IW3_258175_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW3_258175_gcp"
             },
             "last_azimuth_line_IW3_258175": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/quality/noise_azimuth/last_azimuth_line",
@@ -143477,13 +143477,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/attitude/q3",
               "title": "q3_IW3_258175"
             },
-            "roll_IW3_258175": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/attitude/roll",
-              "title": "roll_IW3_258175"
-            },
             "roll_IW3_258175_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/antenna_pattern/roll",
               "title": "roll_IW3_258175_antenna_pattern"
+            },
+            "roll_IW3_258175_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/conditions/attitude/roll",
+              "title": "roll_IW3_258175_attitude"
             },
             "sigma_nought_IW3_258175": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258175/quality/calibration/sigma_nought",
@@ -143592,7 +143592,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
@@ -155550,13 +155550,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/calibration/dn",
               "title": "dn_IW3_258176"
             },
-            "elevation_angle_IW3_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/elevation_angle",
-              "title": "elevation_angle_IW3_258176"
-            },
             "elevation_angle_IW3_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/elevation_angle",
               "title": "elevation_angle_IW3_258176_antenna_pattern"
+            },
+            "elevation_angle_IW3_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/elevation_angle",
+              "title": "elevation_angle_IW3_258176_gcp"
             },
             "fine_dce_azimuth_start_time_IW3_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/doppler_centroid/fine_dce_azimuth_start_time",
@@ -155586,13 +155586,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/height",
               "title": "height_IW3_258176"
             },
-            "incidence_angle_IW3_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/incidence_angle",
-              "title": "incidence_angle_IW3_258176"
-            },
             "incidence_angle_IW3_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/incidence_angle",
               "title": "incidence_angle_IW3_258176_antenna_pattern"
+            },
+            "incidence_angle_IW3_258176_gcp": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/gcp/incidence_angle",
+              "title": "incidence_angle_IW3_258176_gcp"
             },
             "last_azimuth_line_IW3_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/noise_azimuth/last_azimuth_line",
@@ -155642,13 +155642,13 @@
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/q3",
               "title": "q3_IW3_258176"
             },
-            "roll_IW3_258176": {
-              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/roll",
-              "title": "roll_IW3_258176"
-            },
             "roll_IW3_258176_antenna_pattern": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/antenna_pattern/roll",
               "title": "roll_IW3_258176_antenna_pattern"
+            },
+            "roll_IW3_258176_attitude": {
+              "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/conditions/attitude/roll",
+              "title": "roll_IW3_258176_attitude"
             },
             "sigma_nought_IW3_258176": {
               "href": "/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW3_258176/quality/calibration/sigma_nought",
@@ -155757,7 +155757,7 @@
             "processing:facility": "S1C-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",

@@ -272,7 +272,7 @@
         "processing:software": {
           "COMMON_PFSD": "3.0.0",
           "EOPF_CPM": "3.0.0",
-          "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+          "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
           "EOPF_MAPPING": "1.0.0",
           "EOPF_MODEL": "1.0.0",
           "SPECIFIC_PFSD": "4.1.0",
@@ -3929,7 +3929,7 @@
             "processing:facility": "S1A-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
+              "EOPF_GEOZARR": "v0.13.1-8-g7c5dc4a-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
