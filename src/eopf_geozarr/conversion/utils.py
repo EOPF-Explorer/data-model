@@ -328,7 +328,7 @@ def updated_root_consolidation(
     """
     product_type = SType.from_datatree(dt_input)
     if product_type is None:
-        raise ValueError("No Product Type could be detected from input `dt_input`")
+        log.warning("Couldnt determine `product_type` from `dt_input`. ")
 
     # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
     output_path = output_path.rstrip("/")
@@ -356,7 +356,7 @@ def updated_root_consolidation(
 
     # SLC is completly wrong on stac_discovery/assets in root so i just drop it to save developmetn time
     if product_type == "SLC":
-        dt_input.attrs["stac_discovery"]["assets"] = {}
+        dt_input.attrs.setdefault("stac_discovery", {})["assets"] = {}
 
     # apply generic addition of missing stac assets to root zarr.json
     # -> fill in multiscales/injected bands for S2 and missing/incomplete ones for S1
@@ -1008,7 +1008,7 @@ def add_multiscale_pyramids_to_stac_metadata(
 def extend_stac_discovery_metadata(
     datasets: Mapping[str, object],
     dt_attributes: dict[Hashable, Any],
-    product_type: SType,
+    product_type: SType | None,
 ) -> dict[Hashable, Any]:
     """Add a `stac_discovery` asset for every written array that no asset references yet.
 
@@ -1016,7 +1016,16 @@ def extend_stac_discovery_metadata(
     in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
     `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
     """
+    if product_type is None:
+        log.warning(
+            "`product_type` is not determined, will fall back to base method of assinging asset_keys."
+        )
+        return dt_attributes
+
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
+    # no `assets` at all (e.g. test trees) -> nothing to extend; an empty `{}` (e.g. SLC) still gets filled
+    if stac_attrs is None:
+        return dt_attributes
 
     existing_hrefs = {
         asset["href"].strip("/")
@@ -1042,14 +1051,16 @@ def extend_stac_discovery_metadata(
                 asset_key = f"{var_name}_{resolution}"
 
             # GRD specific catch
-            elif product_type == "GRD":
+            elif product_type == "GRD" or product_type == "OCN":
                 asset_key = var_name
 
+            # SLC specific parsing
             elif product_type == "SLC":
                 # get and assign burst_id
                 burst_id = "_".join(href.rsplit("/")[1].split("_")[-2:])
                 asset_key = f"{var_name}_{burst_id}"
 
+            # catch-all for non-None `product_types` as all other ones are set. Remove once all products are added`covered and switch to generic assigning method
             else:
                 raise ValueError("until now only `L2A`, `L1C`, `GRD`, and `SLC` are supported.")
 
@@ -1066,7 +1077,7 @@ def extend_stac_discovery_metadata(
                     )
                 else:
                     stac_attrs[cmb_asset_key] = {"href": href, "title": cmb_asset_key}
-                    log.warning(
+                    log.info(
                         "Modified STAC asset key was used, added asset",
                         unmodified_asset=asset_key,
                         modified_asset=cmb_asset_key,

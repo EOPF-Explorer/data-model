@@ -252,6 +252,24 @@ def test_root_metadata_is_consolidated(tmp_path: pathlib.Path) -> None:
     assert root.metadata.consolidated_metadata is not None
 
 
+def test_unknown_product_type_converts_without_adding_assets(tmp_path: pathlib.Path) -> None:
+    """A product whose type is not detected is still written; its assets stay as they were."""
+    tree = build_synthetic_tree()
+    assets = {"amplitude": {"href": "/measurements/amplitude", "title": "amplitude"}}
+    tree.attrs["stac_discovery"] = {"assets": assets, "properties": {}}
+
+    output_path = tmp_path / "out.zarr"
+    with capture_logs() as logs:
+        create_generic_geozarr_dataset(
+            tree, str(output_path), spatial_chunk=128, enable_sharding=True
+        )
+
+    assert set(stac_assets(output_path)) == {"amplitude"}
+    assert any(
+        "product_type" in entry["event"] for entry in logs if entry["log_level"] == "warning"
+    )
+
+
 def test_parent_measurements_group_is_consolidated(tmp_path: pathlib.Path) -> None:
     """A `measurements` group with only child groups (as in S3 SLSTR) gets its own consolidated metadata.
 
@@ -409,9 +427,13 @@ def build_two_burst_tree() -> xr.DataTree:
                 "azimuth_time_gcp": ("gcp", np.arange(3.0)),
             }
         )
-        tree[burst].attrs["stac_discovery"] = {"assets": {}}
+        tree[burst].attrs["stac_discovery"] = {
+            "assets": {},
+            "properties": {"product:type": "S01SIWSLC"},
+        }
     tree.attrs["stac_discovery"] = {
-        "assets": {"slc": {"href": f"/{bursts[1]}/measurements/slc", "title": "slc"}}
+        "assets": {"slc": {"href": f"/{bursts[1]}/measurements/slc", "title": "slc"}},
+        "properties": {"product:type": "S01SIWSLC"},
     }
     return tree
 
@@ -428,17 +450,18 @@ def test_two_burst_product_gets_one_asset_per_array_with_fixed_keys(
     _, output_path = convert(tree, tmp_path)
 
     assets = stac_assets(output_path)
+    # the stale CPM root asset `slc` (pointing at the last burst only) is dropped for SLC
     assert set(assets) == {
-        "slc_measurements_IW1_258175",
-        "slc_measurements_IW3_258176",
-        "latitude_gcp_IW1_258175",
-        "latitude_gcp_IW3_258176",
+        "slc_IW1_258175",
+        "slc_IW3_258176",
+        "latitude_IW1_258175",
+        "latitude_IW3_258176",
         "azimuth_time_gcp_IW1_258175",
         "azimuth_time_gcp_IW3_258176",
     }
     assert {key for key, asset in assets.items() if "statistics" in asset} == {
-        "slc_measurements_IW1_258175",
-        "slc_measurements_IW3_258176",
+        "slc_IW1_258175",
+        "slc_IW3_258176",
     }
     assert_one_asset_per_data_array(output_path, tree.children)
 

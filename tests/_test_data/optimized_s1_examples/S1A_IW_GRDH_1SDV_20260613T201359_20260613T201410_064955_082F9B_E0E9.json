@@ -89,9 +89,9 @@
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/coordinate_conversion/grsr_coefficients",
           "title": "grsr_coefficients"
         },
-        "height_gcp": {
+        "height": {
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/height",
-          "title": "height_gcp"
+          "title": "height"
         },
         "incidence_angle": {
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/antenna_pattern/incidence_angle",
@@ -109,13 +109,13 @@
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/quality/noise_azimuth/last_range_sample",
           "title": "last_range_sample"
         },
-        "latitude_gcp": {
+        "latitude": {
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/latitude",
-          "title": "latitude_gcp"
+          "title": "latitude"
         },
-        "longitude_gcp": {
+        "longitude": {
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/longitude",
-          "title": "longitude_gcp"
+          "title": "longitude"
         },
         "noise_azimuth_lut": {
           "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/quality/noise_azimuth/noise_azimuth_lut",
@@ -272,7 +272,7 @@
         "processing:software": {
           "COMMON_PFSD": "3.0.0",
           "EOPF_CPM": "3.0.0",
-          "EOPF_GEOZARR": "v0.13.1-1-ga2557ab-dirty",
+          "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
           "EOPF_MAPPING": "1.0.0",
           "EOPF_MODEL": "1.0.0",
           "SPECIFIC_PFSD": "4.1.0",
@@ -3746,9 +3746,9 @@
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/coordinate_conversion/grsr_coefficients",
               "title": "grsr_coefficients"
             },
-            "height_gcp": {
+            "height": {
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/height",
-              "title": "height_gcp"
+              "title": "height"
             },
             "incidence_angle": {
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/antenna_pattern/incidence_angle",
@@ -3766,13 +3766,13 @@
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/quality/noise_azimuth/last_range_sample",
               "title": "last_range_sample"
             },
-            "latitude_gcp": {
+            "latitude": {
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/latitude",
-              "title": "latitude_gcp"
+              "title": "latitude"
             },
-            "longitude_gcp": {
+            "longitude": {
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/conditions/gcp/longitude",
-              "title": "longitude_gcp"
+              "title": "longitude"
             },
             "noise_azimuth_lut": {
               "href": "/S01SIWGRD_20260613T201359_0011_A371_E0E9_082F9B/quality/noise_azimuth/noise_azimuth_lut",
@@ -3929,7 +3929,7 @@
             "processing:facility": "S1A-PS",
             "processing:lineage": "systematic",
             "processing:software": {
-              "EOPF_GEOZARR": "v0.13.1-1-ga2557ab-dirty",
+              "EOPF_GEOZARR": "v0.13.1-7-g84bc9c6-dirty",
               "Sentinel-1 IPF": "004.03"
             },
             "processing:version": "1.0.0",
