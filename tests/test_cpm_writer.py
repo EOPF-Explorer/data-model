@@ -187,6 +187,17 @@ def test_write_olci_err_forced_pipeline(tmp_path: pathlib.Path) -> None:
     assert "r0" in root["measurements"]
 
 
+def test_write_olci_rejects_scale_offset_codec(tmp_path: pathlib.Path) -> None:
+    """The OLCI pipeline has no scale_offset_codec; the writer rejects it before touching the target."""
+    target = tmp_path / "bad_scale_offset_codec.zarr"
+    dtree = _make_minimal_olci_err_datatree(raw=False)
+    with pytest.raises(NotImplementedError, match="scale_offset_codec"):
+        write_datatree(
+            dtree, target, engine=ENGINE_NAME, s3_olci_optimized=True, scale_offset_codec=True
+        )
+    assert not target.exists()
+
+
 def test_write_rejects_both_s2_and_olci_forced(tmp_path: pathlib.Path) -> None:
     """s2_optimized=True and s3_olci_optimized=True together is a usage error."""
     with pytest.raises(

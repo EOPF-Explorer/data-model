@@ -163,10 +163,8 @@ def _geodesic_block_mean(
             vals = np.where(np.isnan(vals), float(fill), vals)
 
         out_coord = xr.DataArray(vals.astype(orig.dtype), dims=out_dims, attrs=orig.attrs)
-        encoding = orig.encoding
         cast_result: xr.DataArray = out_coord.astype(orig.dtype)
-        cast_result.encoding = encoding
-        cast_result.attrs = dict(orig.attrs)
+        cast_result.encoding = orig.encoding
         return cast_result
 
     return restore(lat, lat_mean), restore(lon, lon_mean)
@@ -348,10 +346,8 @@ def reduce_swath(
 
             # copy attrs/encoding over to apply relecant metadata
             # -> will also apply chunking/sharding which could be considerd erroneous, but rechunking will resolve this afterwards
-            encoding = var.encoding
             cast_result: xr.DataArray = out_var.astype(var.dtype)
-            cast_result.encoding = encoding
-            cast_result.attrs = dict(var.attrs)
+            cast_result.encoding = var.encoding
 
             if name in ds.data_vars:
                 result_vars[name] = cast_result

@@ -36,7 +36,7 @@ from eopf_geozarr.conversion import create_geozarr_dataset
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 from .test_integration_sentinel1 import MockSentinel1L1GRDBuilder
-from .test_old_olci_integration import build_synthetic_olci
+from .test_olci_integration import _make_minimal_olci_efr_datatree, _make_minimal_olci_err_datatree
 
 if TYPE_CHECKING:
     import pathlib
@@ -235,14 +235,25 @@ def build_sample_sentinel2_datatree() -> xr.DataTree:
     return dt
 
 
-def _convert_olci(tmp: pathlib.Path) -> pathlib.Path:
-    out = tmp / "olci.zarr"
+def _convert_olci_efr(tmp: pathlib.Path) -> pathlib.Path:
+    out = tmp / "olci_efr.zarr"
+
     convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256),
+        _make_minimal_olci_efr_datatree(raw=True),
         output_path=str(out),
-        min_dimension=64,
-        output_grid="EPSG:4326",
     )
+
+    return out
+
+
+def _convert_olci_err(tmp: pathlib.Path) -> pathlib.Path:
+    out = tmp / "olci_err.zarr"
+
+    convert_olci_optimized(
+        _make_minimal_olci_err_datatree(raw=True),
+        output_path=str(out),
+    )
+
     return out
 
 
@@ -271,7 +282,8 @@ def _convert_s2(tmp: pathlib.Path) -> pathlib.Path:
 
 
 PRODUCT_CONVERTERS: dict[str, Callable[[pathlib.Path], pathlib.Path]] = {
-    "olci": _convert_olci,
+    "olci_efr": _convert_olci_efr,
+    "olci_err": _convert_olci_err,
     "s1": _convert_s1,
     "s2": _convert_s2,
 }
@@ -351,15 +363,6 @@ def test_store_opens_as_datatree(converted_store: tuple[pathlib.Path, str]) -> N
     if name in DATATREE_XFAIL:
         pytest.xfail(DATATREE_XFAIL[name])
     xr.open_datatree(str(store), engine="zarr", consolidated=False, chunks={})
-
-
-@pytest.fixture(scope="module")
-def native_olci_store(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
-    out = tmp_path_factory.mktemp("olci_native") / "olci_native.zarr"
-    convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256), output_path=str(out), min_dimension=64
-    )
-    return out
 
 
 def test_olci_native_store_opens_with_swath_geolocation(

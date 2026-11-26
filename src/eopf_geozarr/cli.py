@@ -273,7 +273,6 @@ def convert_command(args: argparse.Namespace) -> None:
             dt_geozarr = convert_olci_optimized(
                 dt_raw,
                 output_path=output_path,
-                min_dimension=args.min_dimension,
             )
         else:
             dt_geozarr = create_geozarr_dataset(
@@ -1519,8 +1518,6 @@ def convert_s3_olci_optimized_command(args: argparse.Namespace) -> None:
         enable_sharding=args.enable_sharding,
         spatial_chunk=args.spatial_chunk,
         compression_level=args.compression_level,
-        min_dimension=args.min_dimension,
-        output_grid=args.output_grid,
     )
     log.info("S3 OLCI optimization completed", output_path=args.output_path)
 

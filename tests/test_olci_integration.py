@@ -25,8 +25,7 @@ if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable
 
-# from eopf_geozarr.s3_olci_optimization.olci_converter import updated_convert_olci_optimized
-from eopf_geozarr.s3_olci_optimization.olci_converter import updated_convert_olci_optimized
+from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 # A 8x8 nodata block in r0 covers the coarsest pixel [0, 0] of both pyramids:
 # EFR r3 (factor 8) and ERR r2 (factor 4).
@@ -176,7 +175,7 @@ def test_convert_olci_efr(tmp_path: pathlib.Path) -> None:
     """EFR builds the 4-level FR pyramid and copies every other group through unchanged."""
     dt = _make_minimal_olci_efr_datatree(raw=False)
     out = str(tmp_path / "olci_geozarr.zarr")
-    result = updated_convert_olci_optimized(dt, output_path=out)
+    result = convert_olci_optimized(dt, output_path=out)
 
     assert isinstance(result, xr.DataTree)
     assert {"/measurements/orphans", "/conditions/geometry", "/quality"} <= set(result.groups)
@@ -191,7 +190,7 @@ def test_convert_olci_err(tmp_path: pathlib.Path) -> None:
     """ERR builds the 3-level RR pyramid, copies every other group, and has no orphans."""
     dt = _make_minimal_olci_err_datatree(raw=False)
     out = str(tmp_path / "olci_geozarr.zarr")
-    result = updated_convert_olci_optimized(dt, output_path=out)
+    result = convert_olci_optimized(dt, output_path=out)
 
     assert isinstance(result, xr.DataTree)
     assert {"/conditions/geometry", "/quality"} <= set(result.groups)
@@ -214,7 +213,7 @@ def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
         product_type="S03OLCEFR", rows=512, cols=512, orphans=False, raw=False
     )
     out = str(tmp_path / "olci_native.zarr")  # type: ignore[operator]
-    result = updated_convert_olci_optimized(dt, output_path=out)
+    result = convert_olci_optimized(dt, output_path=out)
 
     opened = xr.open_datatree(out, engine="zarr", consolidated=False, chunks={})
 
@@ -265,13 +264,6 @@ def test_convert_olci_native_output_opens_as_datatree(tmp_path: object) -> None:
     assert "/measurements/r1" in result.groups
 
 
-def test_convert_olci_invalid_output_grid_raises(tmp_path: object) -> None:
-    dt = _make_minimal_olci_err_datatree(raw=False)
-    out = str(tmp_path / "bad.zarr")  # type: ignore[operator]
-    with pytest.raises(ValueError, match="need native output_grid"):
-        updated_convert_olci_optimized(dt, output_path=out, output_grid="4326")
-
-
 @pytest.mark.parametrize(
     ("make_datatree", "levels", "orphans"),
     [
@@ -294,7 +286,7 @@ def test_convert_olci_layout_and_consolidation(
     (#291, #303).
     """
     out = tmp_path / "olci_geozarr.zarr"
-    updated_convert_olci_optimized(make_datatree(raw=False), output_path=str(out))
+    convert_olci_optimized(make_datatree(raw=False), output_path=str(out))
 
     def meta(path: str) -> Any:
         return json.loads((out / path / "zarr.json").read_text())
@@ -410,7 +402,7 @@ def _assert_olci_conversion_matches_snapshot(
         mask_and_scale=False,
     )
     out = str(tmp_path / "out.zarr")
-    updated_convert_olci_optimized(dt_in, output_path=out, enable_sharding=True)
+    convert_olci_optimized(dt_in, output_path=out, enable_sharding=True)
 
     # Each consolidated block is a snapshot, and GroupSpec.from_zarr below reads the
     # levels through the `measurements` block, so a stale block would hide a late
@@ -502,7 +494,7 @@ def test_convert_olci_odd_dims_overview_no_conflicting_sizes(tmp_path: pathlib.P
         product_type="S03OLCEFR", rows=47, cols=55, orphans=False, raw=False
     )
     out = str(tmp_path / "odd_olci.zarr")
-    updated_convert_olci_optimized(dt, output_path=out)
+    convert_olci_optimized(dt, output_path=out)
 
     expected = {"r0": (47, 55), "r1": (23, 27), "r2": (11, 13), "r3": (5, 6)}
     for level, shape in expected.items():
@@ -567,8 +559,8 @@ def test_convert_olci_raw_and_decoded_inputs_match(
     """
     raw_out = str(tmp_path / "raw.zarr")
     decoded_out = str(tmp_path / "decoded.zarr")
-    updated_convert_olci_optimized(make_datatree(raw=True), output_path=raw_out)
-    updated_convert_olci_optimized(make_datatree(raw=False), output_path=decoded_out)
+    convert_olci_optimized(make_datatree(raw=True), output_path=raw_out)
+    convert_olci_optimized(make_datatree(raw=False), output_path=decoded_out)
 
     raw_structure, decoded_structure = _structure(raw_out), _structure(decoded_out)
     assert set(raw_structure) == set(decoded_structure)
@@ -588,7 +580,7 @@ def test_convert_olci_swath_has_no_spatial_or_proj_metadata(
     products bring their own root `proj:code`/`spatial:bbox`.)
     """
     out = str(tmp_path / "olci_geozarr.zarr")
-    updated_convert_olci_optimized(make_datatree(raw=False), output_path=out)
+    convert_olci_optimized(make_datatree(raw=False), output_path=out)
 
     meas = zarr.open_group(out, path="measurements", mode="r")
     nodes = [("measurements", meas)] + [
@@ -625,13 +617,9 @@ def test_convert_olci_spatial_chunk_applied(
     """
     out = str(tmp_path / "olci_geozarr.zarr")
     kwargs = (
-        {}
-        if spatial_chunk is None
-        else {"spatial_chunk": spatial_chunk, "enable_sharding": False, "scale_offset_codec": False}
+        {} if spatial_chunk is None else {"spatial_chunk": spatial_chunk, "enable_sharding": False}
     )
-    updated_convert_olci_optimized(
-        _make_minimal_olci_efr_datatree(raw=False), output_path=out, **kwargs
-    )
+    convert_olci_optimized(_make_minimal_olci_efr_datatree(raw=False), output_path=out, **kwargs)
 
     chunk = spatial_chunk or 1024
     arrays = _arrays(out)
@@ -653,8 +641,8 @@ def test_convert_olci_enable_sharding(tmp_path: pathlib.Path) -> None:
     sharded = str(tmp_path / "sharded.zarr")
     plain = str(tmp_path / "plain.zarr")
     dt = _make_minimal_olci_efr_datatree(raw=False)
-    updated_convert_olci_optimized(dt, output_path=sharded, spatial_chunk=16, enable_sharding=True)
-    updated_convert_olci_optimized(dt, output_path=plain, spatial_chunk=16)
+    convert_olci_optimized(dt, output_path=sharded, spatial_chunk=16, enable_sharding=True)
+    convert_olci_optimized(dt, output_path=plain, spatial_chunk=16)
 
     unsharded: list[str] = []
     for path, arr in sorted(_arrays(sharded).items()):
@@ -671,11 +659,3 @@ def test_convert_olci_enable_sharding(tmp_path: pathlib.Path) -> None:
         ), path
     assert unsharded == []
     _assert_same_values(sharded, plain)
-
-
-def test_no_acceptance_of_scale_offset_codec(tmp_path: object) -> None:
-    dt = _make_minimal_olci_err_datatree(raw=False)
-    out = str(tmp_path / "bad_scale_offset_codec.zarr")  # type: ignore[operator]
-    with pytest.raises(NotImplementedError):
-        updated_convert_olci_optimized(dt, output_path=out, scale_offset_codec=True)
-    assert not Path(out).exists()
