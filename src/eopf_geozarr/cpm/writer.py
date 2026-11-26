@@ -282,7 +282,6 @@ class GeoZarrWriter(EOWriter):
                 enable_sharding=enable_sharding,
                 spatial_chunk=resolved_spatial_chunk,
                 compression_level=compression_level,
-                output_grid=output_grid,
             )
 
         if selected_pipeline == "generic-rechunker":

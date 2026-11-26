@@ -324,7 +324,6 @@ def convert_olci_optimized(
     enable_sharding: bool = False,
     spatial_chunk: int = 1024,
     compression_level: int = 3,
-    output_grid: str = "native",
 ) -> xr.DataTree:
     """Convert a Sentinel-3 OLCI DataTree to an optimized GeoZarr store.
 
