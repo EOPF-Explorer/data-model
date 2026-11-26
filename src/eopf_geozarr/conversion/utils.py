@@ -58,6 +58,31 @@ Bbox = tuple[float, float, float, float]
 """Bounding box `(xmin, ymin, xmax, ymax)`."""
 
 
+class SType(StrEnum):
+    GRD = "GRD"
+    SLC = "SLC"
+    OCN = "OCN"
+    L1C = "L1C"
+    L2A = "L2A"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> SType | None:
+        if not filename:
+            return None
+        for member in cls:
+            if member.value in filename:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> SType | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
+
+
 def _has_regular_xy_grid(dataset: xr.Dataset) -> bool:
     """Whether `dataset` has x/y coordinates with at least two pixels along each axis.
 
@@ -282,31 +307,6 @@ def create_result_datatree(output_path: str) -> xr.DataTree:
     )
 
 
-class SType(StrEnum):
-    GRD = "GRD"
-    SLC = "SLC"
-    OCN = "OCN"
-    L1C = "L1C"
-    L2A = "L2A"
-
-    @classmethod
-    def from_filename(cls, filename: str | None) -> SType | None:
-        if not filename:
-            return None
-        for member in cls:
-            if member.value in filename:
-                return member
-        return None
-
-    @classmethod
-    def from_datatree(cls, dt: xr.DataTree) -> SType | None:
-        """Product level from `stac_discovery` `product:type`, else from the tree name.
-
-        A tree opened from a Zarr store has no name, so the name alone is not enough.
-        """
-        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
-
-
 def updated_root_consolidation(
     dt_input: xr.DataTree,
     output_path: str,
@@ -356,7 +356,7 @@ def updated_root_consolidation(
     subroot_groups = get_subroots(dt_input.groups)
 
     # SLC is completly wrong on stac_discovery/assets in root so i just drop it to save developmetn time
-    if product_type == "SLC":
+    if product_type == SType.SLC.value:
         dt_input.attrs.setdefault("stac_discovery", {})["assets"] = {}
 
     # apply generic addition of missing stac assets to root zarr.json
@@ -1100,25 +1100,26 @@ def extend_stac_discovery_metadata(
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
             # S2 specific catch
-            if product_type == "L2A" or product_type == "L1C":
+            if product_type == SType.L2A.value or product_type == SType.L1C.value:
                 resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
                 asset_key = f"{var_name}_{resolution}"
 
             # GRD specific catch
-            elif product_type == "GRD" or product_type == "OCN":
+            elif product_type == SType.GRD.value or product_type == SType.OCN.value:
                 asset_key = str(var_name)
 
             # SLC specific parsing
-            elif product_type == "SLC":
+            elif product_type == SType.SLC.value:
                 # get and assign burst_id
                 burst_id = "_".join(href.rsplit("/")[1].split("_")[-2:])
                 asset_key = f"{var_name}_{burst_id}"
 
             # catch-all for non-None `product_types` as all other ones are set. Remove once all products are added`covered and switch to generic assigning method
             else:
-                raise ValueError("until now only `L2A`, `L1C`, `GRD`, and `SLC` are supported.")
+                raise ValueError(
+                    "until now only `L2A`, `L1C`, `GRD`, `OCN`, and `SLC` are supported."
+                )
 
-            print("##", asset_key)
             candidates[href] = asset_key
 
     # resolve duplicate keys only once all are known, so the keys do not depend on the group order
