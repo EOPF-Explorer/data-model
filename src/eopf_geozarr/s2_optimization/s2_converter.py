@@ -155,7 +155,7 @@ def _multiscale_paths(dt_input: xr.DataTree, datasets: Mapping[str, object]) -> 
     ]
 
 
-def add_s2_stac_assets(
+def add_s2_reflectance_stac_info(
     dt_input: xr.DataTree,
     datasets: Mapping[str, object],
     crs: CRS | None = None,
@@ -169,15 +169,11 @@ def add_s2_stac_assets(
     if not dt_input.attrs:
         return
 
-    # this can be used to add multiscale paths to the stac attributes
-    # updated_stac_attrs = utils.extend_stac_discovery_metadata(datasets, dt_input.attrs, product_type=S2Type.from_datatree(dt_input))
-    updated_stac_attrs = dt_input.attrs
-
     # Reference the pyramid root group, not the individual levels. That
     # group carries the `multiscales` attribute, and the
     # `profile=multiscales` media-type parameter tells a consumer to look
     # for it there and resolve the levels from the convention itself.
-    stac = updated_stac_attrs.get("stac_discovery")
+    stac = dt_input.attrs.get("stac_discovery")
     if stac is None:
         return
 
@@ -244,7 +240,7 @@ def convert_s2(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    add_s2_stac_assets(dt_input, datasets)
+    add_s2_reflectance_stac_info(dt_input, datasets)
     utils.updated_root_consolidation(
         dt_input=dt_input,
         output_path=output_path,
@@ -333,7 +329,7 @@ def convert_s2_optimized(
 
     # Step 3: Root-level consolidation
     log.info("Step 3: Final root-level metadata consolidation")
-    add_s2_stac_assets(dt_input, datasets, crs=crs)
+    add_s2_reflectance_stac_info(dt_input, datasets, crs=crs)
     utils.updated_root_consolidation(
         dt_input=dt_input,
         output_path=output_path,

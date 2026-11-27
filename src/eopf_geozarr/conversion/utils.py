@@ -59,18 +59,35 @@ Bbox = tuple[float, float, float, float]
 
 
 class SType(StrEnum):
+    # detection based on the filename or stac_discovery/propertied/product:type
+    # cropping of filename to 12 chars to remove right trailing filename which might contaminate the detection
+    # S1
     GRD = "GRD"
     SLC = "SLC"
     OCN = "OCN"
+
+    # S2
     L1C = "L1C"
     L2A = "L2A"
+
+    # S3 - OLCI
+    LFR = "LFR"
+    LRR = "LRR"
+    EFR = "EFR"
+    ERR = "ERR"
+
+    # S3 - SLSTR
+    RBT = "RBT"
+    FRP = "FRP"
+    LST = "LST"
 
     @classmethod
     def from_filename(cls, filename: str | None) -> SType | None:
         if not filename:
             return None
+        head = filename.rstrip("/").rsplit("/", 1)[-1][:12]
         for member in cls:
-            if member.value in filename:
+            if member.value in head:
                 return member
         return None
 
@@ -321,10 +338,12 @@ def updated_root_consolidation(
     Three steps have to be done to achieve a uniform processing of all modes:
         1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
-        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root.
+        3.) Fill in `stac_discovery/assets` of any product:
+                - S1 fill in and replace missing/incorrect entries
+                - S2 fill in multiscale assets and ingested missing ones
+            Write metadata for subroots (first) and roots, and consolidate subroots OR root.
             Every `stac_discovery` asset of a band array (measurements and multiscale levels,
             see `band_array_paths`) gets its STAC `statistics`.
-    Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
     product_type = SType.from_datatree(dt_input)
@@ -355,8 +374,11 @@ def updated_root_consolidation(
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
 
-    # SLC is completly wrong on stac_discovery/assets in root so i just drop it to save developmetn time
-    if product_type == SType.SLC.value:
+    # SLC is wrong on stac_discovery/assets in root so its dropped and refilled entirely
+    if product_type == SType.SLC:
+        log.warning(
+            "SLC products carry faulty stac_discovery/assets in CPM 3.0.0 (only a single burst) so they need to be purged"
+        )
         dt_input.attrs.setdefault("stac_discovery", {})["assets"] = {}
 
     # apply generic addition of missing stac assets to root zarr.json
@@ -369,7 +391,9 @@ def updated_root_consolidation(
     # -> eg S1 SLC and GRD subroots which were missing/completly incomplete
     if subroot_groups:
         for subroot in subroot_groups:
-            subroot_datasets = {k: v for k, v in datasets.items() if subroot in k}
+            # by filtering as a prefix and start with, we guard against possible `x/subroot/array` cases, which possibly arrive with OCN
+            prefix = f"{subroot.rstrip('/')}/"
+            subroot_datasets = {k: v for k, v in datasets.items() if k.startswith(prefix)}
             extend_stac_discovery_metadata(
                 datasets=subroot_datasets,
                 dt_attributes=dt_input[subroot].attrs,
@@ -964,48 +988,6 @@ def build_convention_attrs(
     return cast("MultiConventionAttrs", result)
 
 
-def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
-) -> dict[Hashable, Any]:
-    """Add a `stac_discovery` asset for every written array that no asset references yet.
-
-    Covers the multiscale levels and the bands injected into native levels (e.g. b08
-    in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
-    `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
-    """
-    stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
-    if not stac_attrs:
-        return dt_attributes
-
-    existing_hrefs = {
-        asset["href"].strip("/")
-        for asset in stac_attrs.values()
-        if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
-    }
-
-    for group_path, ds in datasets.items():
-        if ds is None:
-            continue
-        # catch object != dataset for typing
-        if not isinstance(ds, xr.Dataset):
-            log.warning("Found non-dataset object in datasets!", dataset=ds)
-            continue
-        resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
-        for var_name in ds.data_vars:
-            href = f"{group_path}/{var_name}"
-            if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
-                continue
-            asset_key = f"{var_name}_{resolution}"
-            if asset_key in stac_attrs:
-                log.warning(
-                    "STAC asset key already in use, not adding an asset", asset=asset_key, href=href
-                )
-                continue
-            stac_attrs[asset_key] = {"href": href, "title": asset_key}
-
-    return dt_attributes
-
-
 def _resolve_asset_keys(candidates: Mapping[str, str], taken: set[str]) -> dict[str, str]:
     """Map each href to a unique STAC asset key, independent of the order of `candidates`.
 
@@ -1065,11 +1047,27 @@ def extend_stac_discovery_metadata(
     Covers the multiscale levels and the bands injected into native levels (e.g. b08
     in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
     `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
+
+    Covers the addition of missing assets (due to CPM not adding them), to S1 GRD and SLC.
     """
     if product_type is None:
         log.warning(
-            "`product_type` is not determined, will fall back to base method of assinging asset_keys."
+            "`product_type` is not determined, will fall back to base method of assigning asset_keys."
         )
+        return dt_attributes
+
+    print("product_type", product_type)
+
+    if product_type in {
+        SType.LFR,
+        SType.LRR,
+        SType.EFR,
+        SType.ERR,
+        SType.RBT,
+        SType.FRP,
+        SType.LST,
+    }:
+        log.warning("extending the stac_discovery metadata for S3 is not supported yet.")
         return dt_attributes
 
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
@@ -1100,22 +1098,25 @@ def extend_stac_discovery_metadata(
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
             # S2 specific catch
-            if product_type == SType.L2A.value or product_type == SType.L1C.value:
+            if product_type == SType.L2A or product_type == SType.L1C:
                 resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
                 asset_key = f"{var_name}_{resolution}"
 
             # GRD specific catch
-            elif product_type == SType.GRD.value or product_type == SType.OCN.value:
+            elif product_type == SType.GRD or product_type == SType.OCN:
                 asset_key = str(var_name)
 
             # SLC specific parsing
-            elif product_type == SType.SLC.value:
-                # get and assign burst_id
-                burst_id = "_".join(href.rsplit("/")[1].split("_")[-2:])
+            elif product_type == SType.SLC:
+                # get and assign burst_id -> asset_key
+                # href = '/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/swath'
+                # burst_id = 'IW1_258173'
+                burst_id = "_".join(href.split("/")[1].split("_")[-2:])
                 asset_key = f"{var_name}_{burst_id}"
 
             # catch-all for non-None `product_types` as all other ones are set. Remove once all products are added`covered and switch to generic assigning method
             else:
+                # not reached, but kept in place as sepcific tests catch that behaviour and a changing `SType` behaviour might make it relevant
                 raise ValueError(
                     "until now only `L2A`, `L1C`, `GRD`, `OCN`, and `SLC` are supported."
                 )

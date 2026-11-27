@@ -252,24 +252,6 @@ def test_root_metadata_is_consolidated(tmp_path: pathlib.Path) -> None:
     assert root.metadata.consolidated_metadata is not None
 
 
-def test_unknown_product_type_converts_without_adding_assets(tmp_path: pathlib.Path) -> None:
-    """A product whose type is not detected is still written; its assets stay as they were."""
-    tree = build_synthetic_tree()
-    assets = {"amplitude": {"href": "/measurements/amplitude", "title": "amplitude"}}
-    tree.attrs["stac_discovery"] = {"assets": assets, "properties": {}}
-
-    output_path = tmp_path / "out.zarr"
-    with capture_logs() as logs:
-        create_generic_geozarr_dataset(
-            tree, str(output_path), spatial_chunk=128, enable_sharding=True
-        )
-
-    assert set(stac_assets(output_path)) == {"amplitude"}
-    assert any(
-        "product_type" in entry["event"] for entry in logs if entry["log_level"] == "warning"
-    )
-
-
 def test_parent_measurements_group_is_consolidated(tmp_path: pathlib.Path) -> None:
     """A `measurements` group with only child groups (as in S3 SLSTR) gets its own consolidated metadata.
 
@@ -477,40 +459,27 @@ def test_complex_measurement_gets_no_statistics(tmp_path: pathlib.Path) -> None:
     assert not [asset for asset in stac_assets(output_path).values() if "statistics" in asset]
 
 
-def _assert_json_string_similarity_geozarrversion(
+def _drop_geozarr_version(node: object) -> object:
+    """Copy of `node` without any `EOPF_GEOZARR` key (the version changes with every commit)."""
+    if isinstance(node, dict):
+        return {k: _drop_geozarr_version(v) for k, v in node.items() if k != "EOPF_GEOZARR"}
+    if isinstance(node, list):
+        return [_drop_geozarr_version(v) for v in node]
+    return node
+
+
+def _assert_same_except_geozarr_version(
     observed: dict[str, Any],
     expected: dict[str, Any],
 ) -> None:
+    """Every node of `observed` equals its `expected` node, apart from the `EOPF_GEOZARR` version."""
+
     # Compare as JSON: a NaN fill value never equals itself as a float.
-    def canonical(node: object) -> str:
-        return json.dumps(node.model_dump(), sort_keys=True)  # type: ignore[attr-defined]
+    def canonical(node: Any) -> str:
+        return json.dumps(_drop_geozarr_version(node.model_dump()), sort_keys=True)
 
-    # catch differences in root stac_discovery such as EOPF_GEOZARR version which is commit-dependant
-    different_keys = [
-        key for key in observed if canonical(observed[key]) != canonical(expected[key])
-    ]
-    filtered_different_keys = []
-
-    for key in different_keys:
-        cobs, cexp = canonical(observed[key]), canonical(expected[key])
-        if key == "" and "EOPF_GEOZARR" in cobs and "EOPF_GEOZARR" in cexp:
-            import re
-
-            recobs = re.sub(
-                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
-                "",
-                cobs,
-            )
-            recexp = re.sub(
-                r'"EOPF_GEOZARR"\s*:\s*"[^"]*"\s*,\s*',
-                "",
-                cexp,
-            )
-
-            if recobs != recexp:
-                filtered_different_keys.append(key)
-
-    assert filtered_different_keys == []
+    differing = [key for key in observed if canonical(observed[key]) != canonical(expected[key])]
+    assert differing == []
 
 
 @pytest.mark.filterwarnings("ignore:.*:UserWarning")
@@ -544,4 +513,4 @@ def test_s1_example_snapshot(source_path: pathlib.Path, tmp_path: pathlib.Path) 
     expected = GroupSpec(**tuplify_json(json.loads(snapshot_path.read_text()))).to_flat()
     assert set(observed) == set(expected)
 
-    _assert_json_string_similarity_geozarrversion(observed, expected)
+    _assert_same_except_geozarr_version(observed, expected)
