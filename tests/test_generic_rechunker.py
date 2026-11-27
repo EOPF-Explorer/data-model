@@ -8,13 +8,16 @@ install. The CPM writer's ``generic_rechunker=True`` option is tested in
 from __future__ import annotations
 
 import json
+import os
 import pathlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
 import xarray as xr
 import zarr
+from pydantic_zarr.core import tuplify_json
+from pydantic_zarr.v3 import GroupSpec
 from structlog.testing import capture_logs
 from zarr.codecs import BloscCodec
 
@@ -23,7 +26,13 @@ from eopf_geozarr.generic_optimization.generic_converter import create_generic_g
 
 from .conftest import create_zarrv3_group_from_json, get_stem
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 s1_grdh_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_grdh_examples").glob("*.json"))
+s1_slc_example_json_paths = tuple(pathlib.Path("tests/_test_data/s1_slc_examples").glob("*.json"))
+#: Output snapshots of the S1 examples, rewritten by `REGENERATE_SNAPSHOTS=1 pytest -k snapshot`.
+S1_SNAPSHOT_DIR = pathlib.Path("tests/_test_data/optimized_s1_examples")
 
 
 def build_synthetic_tree() -> xr.DataTree:
@@ -110,6 +119,22 @@ def stac_assets(output_path: pathlib.Path, group: str = "") -> dict[str, dict[st
     """The `stac_discovery` assets of a group (the root by default) of the output store."""
     stac: Any = zarr.open_group(str(output_path), path=group, mode="r").attrs["stac_discovery"]
     return stac["assets"]
+
+
+def assert_one_asset_per_data_array(output_path: pathlib.Path, subroots: Iterable[str]) -> None:
+    """Every written data array has exactly one root asset; each subroot has those inside it.
+
+    Coordinates get no asset. Hrefs are relative to the store root, also in the subroots.
+    """
+    result = xr.open_datatree(str(output_path), engine="zarr", chunks={})
+    data_arrays = sorted(
+        f"{path.rstrip('/')}/{name}" for path in result.groups for name in result[path].data_vars
+    )
+    root_hrefs = sorted(asset["href"] for asset in stac_assets(output_path).values())
+    assert root_hrefs == data_arrays
+    for subroot in subroots:
+        sub_hrefs = sorted(asset["href"] for asset in stac_assets(output_path, subroot).values())
+        assert sub_hrefs == [href for href in data_arrays if href.startswith(f"/{subroot}/")]
 
 
 def convert(
@@ -365,3 +390,127 @@ def test_s1_grdh_example_converts(
         assert measurements, f"{group or '/'}: no assets of measurement arrays"
         assert set(numeric) - measurements, f"{group or '/'}: no metadata assets to skip"
         assert {key for key, asset in assets.items() if "statistics" in asset} == measurements
+
+    assert_one_asset_per_data_array(output_path, tree.children)
+
+
+def build_two_burst_tree() -> xr.DataTree:
+    """A tiny S1 SLC-like product: two burst subroots, CPM-style root assets of the last burst."""
+    bursts = ("S01SIWSLC_X_IW1_258175", "S01SIWSLC_X_IW3_258176")
+    tree = xr.DataTree()
+    for burst in bursts:
+        tree[f"{burst}/measurements"] = xr.Dataset(
+            {"slc": (("azimuth_time", "slant_range_time"), np.ones((4, 6), dtype="int16"))},
+            coords={"azimuth_time": np.arange(4), "slant_range_time": np.arange(6)},
+        )
+        tree[f"{burst}/conditions/gcp"] = xr.Dataset(
+            {
+                "latitude": ("gcp", np.linspace(40.0, 41.0, 3)),
+                "azimuth_time_gcp": ("gcp", np.arange(3.0)),
+            }
+        )
+        tree[burst].attrs["stac_discovery"] = {
+            "assets": {},
+            "properties": {"product:type": "S01SIWSLC"},
+        }
+    tree.attrs["stac_discovery"] = {
+        "assets": {"slc": {"href": f"/{bursts[1]}/measurements/slc", "title": "slc"}},
+        "properties": {"product:type": "S01SIWSLC"},
+    }
+    return tree
+
+
+def test_two_burst_product_gets_one_asset_per_array_with_fixed_keys(
+    tmp_path: pathlib.Path,
+) -> None:
+    """End to end: the written root and subroot metadata carry an asset for every data array.
+
+    Keys follow `<var>_<group>[_<swath>_<burst>]`; only measurement assets get statistics.
+    """
+    tree = build_two_burst_tree()
+
+    _, output_path = convert(tree, tmp_path)
+
+    assets = stac_assets(output_path)
+    # the stale CPM root asset `slc` (pointing at the last burst only) is dropped for SLC
+    assert set(assets) == {
+        "slc_IW1_258175",
+        "slc_IW3_258176",
+        "latitude_IW1_258175",
+        "latitude_IW3_258176",
+        "azimuth_time_gcp_IW1_258175",
+        "azimuth_time_gcp_IW3_258176",
+    }
+    assert {key for key, asset in assets.items() if "statistics" in asset} == {
+        "slc_IW1_258175",
+        "slc_IW3_258176",
+    }
+    assert_one_asset_per_data_array(output_path, tree.children)
+
+
+def test_complex_measurement_gets_no_statistics(tmp_path: pathlib.Path) -> None:
+    """Current behaviour: a complex array (S1 SLC `slc`) has an asset, but no statistics."""
+    tree = build_two_burst_tree()
+    for burst in tree.children:
+        tree[f"{burst}/measurements"] = tree[f"{burst}/measurements"].dataset.astype("complex64")
+
+    _, output_path = convert(tree, tmp_path)
+
+    assert not [asset for asset in stac_assets(output_path).values() if "statistics" in asset]
+
+
+def _drop_geozarr_version(node: object) -> object:
+    """Copy of `node` without any `EOPF_GEOZARR` key (the version changes with every commit)."""
+    if isinstance(node, dict):
+        return {k: _drop_geozarr_version(v) for k, v in node.items() if k != "EOPF_GEOZARR"}
+    if isinstance(node, list):
+        return [_drop_geozarr_version(v) for v in node]
+    return node
+
+
+def _assert_same_except_geozarr_version(
+    observed: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    """Every node of `observed` equals its `expected` node, apart from the `EOPF_GEOZARR` version."""
+
+    # Compare as JSON: a NaN fill value never equals itself as a float.
+    def canonical(node: Any) -> str:
+        return json.dumps(_drop_geozarr_version(node.model_dump()), sort_keys=True)
+
+    differing = [key for key in observed if canonical(observed[key]) != canonical(expected[key])]
+    assert differing == []
+
+
+@pytest.mark.filterwarnings("ignore:.*:UserWarning")
+@pytest.mark.filterwarnings("ignore:.*:RuntimeWarning")
+@pytest.mark.parametrize(
+    "source_path", s1_grdh_example_json_paths + s1_slc_example_json_paths, ids=get_stem
+)
+def test_s1_example_snapshot(source_path: pathlib.Path, tmp_path: pathlib.Path) -> None:
+    """Compare the output structure of an S1 example (Zarr V3) against a stored snapshot.
+
+    Any change to array metadata (dtype, fill value, chunks, codecs, attributes,
+    including the `stac_discovery` assets) or to the set of arrays shows up here.
+    When a change is intended, regenerate the snapshots with
+    `REGENERATE_SNAPSHOTS=1 pytest -k snapshot` and review the JSON diff.
+    """
+    tree = open_zarrv3_example(source_path, tmp_path)
+
+    _, output_path = convert(tree, tmp_path, spatial_chunk=1024)
+
+    assert_one_asset_per_data_array(output_path, tree.children)
+
+    observed_json = GroupSpec.from_zarr(
+        zarr.open_group(str(output_path), use_consolidated=False)
+    ).model_dump(mode="json")
+    snapshot_path = S1_SNAPSHOT_DIR / (source_path.stem + ".json")
+    if os.environ.get("REGENERATE_SNAPSHOTS"):
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_text(json.dumps(observed_json, indent=2, sort_keys=True) + "\n")
+
+    observed = GroupSpec(**tuplify_json(observed_json)).to_flat()
+    expected = GroupSpec(**tuplify_json(json.loads(snapshot_path.read_text()))).to_flat()
+    assert set(observed) == set(expected)
+
+    _assert_same_except_geozarr_version(observed, expected)

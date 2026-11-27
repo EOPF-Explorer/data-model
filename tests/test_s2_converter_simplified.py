@@ -17,14 +17,13 @@ import zarr
 from zarr.core.group import ConsolidatedMetadata
 
 from eopf_geozarr.conversion.utils import (
-    add_multiscale_pyramids_to_stac_metadata,
     updated_root_consolidation,
     write_store_geo_metadata,
 )
 from eopf_geozarr.s2_optimization.s2_converter import (
     _multiscale_paths,
     _validate_s2_input,
-    add_s2_stac_assets,
+    add_s2_reflectance_stac_info,
     convert_s2_optimized,
     initialize_crs_from_dataset,
 )
@@ -565,8 +564,8 @@ class TestConvenienceFunction:
         ]
 
 
-def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> None:
-    """The reflectance asset added by `add_s2_stac_assets` ends up in the consolidated root."""
+def test_add_s2_reflectance_stac_info_writes_reflectance_asset_to_root(tmp_path: Path) -> None:
+    """The reflectance asset added by `add_s2_reflectance_stac_info` ends up in the consolidated root."""
     from pyproj import CRS
 
     # initialise an empty dataset to mimic the process and write it into the store as
@@ -587,7 +586,7 @@ def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> 
     dt_input.attrs = {"stac_discovery": {"properties": {"mission": "sentinel-2"}}}
 
     # test execution of func: the S2 assets are added before the root metadata is written
-    add_s2_stac_assets(dt_input, datasets, crs=CRS.from_epsg(32632))
+    add_s2_reflectance_stac_info(dt_input, datasets, crs=CRS.from_epsg(32632))
     updated_root_consolidation(
         output_path=output_path,
         datasets=datasets,
@@ -608,45 +607,6 @@ def test_add_s2_stac_assets_writes_reflectance_asset_to_root(tmp_path: Path) -> 
     }
     # geozarr version is added to the processing history alongside the stac metadata
     assert root_attrs["stac_discovery"]["properties"]["processing:software"]["EOPF_GEOZARR"]
-
-
-def test_add_multiscale_pyramids_to_stac_metadata_adds_missing_levels() -> None:
-    """Pyramid levels absent from existing STAC assets get one asset per data variable."""
-    existing_asset = {"href": "/measurements/reflectance/r10m/b02", "title": "B02"}
-    attrs: dict = {"stac_discovery": {"assets": {"b02": dict(existing_asset)}}}
-    datasets = {
-        # already referenced by an existing asset -> must not be duplicated
-        "/measurements/reflectance/r10m": xr.Dataset({"b02": (["y", "x"], np.zeros((4, 4)))}),
-        # new pyramid level -> assets added, spatial_ref skipped
-        "/measurements/reflectance/r20m": xr.Dataset(
-            {
-                "b02": (["y", "x"], np.zeros((2, 2))),
-                "b05": (["y", "x"], np.zeros((2, 2))),
-                "spatial_ref": ((), 0),
-            }
-        ),
-        "/measurements/reflectance/r60m": None,
-    }
-
-    result = add_multiscale_pyramids_to_stac_metadata(datasets, attrs)
-
-    assert isinstance(result, dict)
-    assert result["stac_discovery"]["assets"] == {
-        "b02": existing_asset,
-        "b02_r20m": {"href": "/measurements/reflectance/r20m/b02", "title": "b02_r20m"},
-        "b05_r20m": {"href": "/measurements/reflectance/r20m/b05", "title": "b05_r20m"},
-    }
-
-
-@pytest.mark.parametrize("attrs", [{}, {"stac_discovery": {}}, {"stac_discovery": {"assets": {}}}])
-def test_add_multiscale_pyramids_to_stac_metadata_without_assets_is_noop(attrs: dict) -> None:
-    """Missing stac_discovery/assets returns the attributes unchanged instead of raising."""
-    datasets = {
-        "/measurements/reflectance/r20m": xr.Dataset({"b02": (["y", "x"], np.zeros((2, 2)))})
-    }
-    expected = json.loads(json.dumps(attrs))
-
-    assert add_multiscale_pyramids_to_stac_metadata(datasets, attrs) == expected
 
 
 if __name__ == "__main__":

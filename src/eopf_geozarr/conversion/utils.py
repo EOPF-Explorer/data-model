@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -26,6 +28,7 @@ from zarr_cm import geo_proj as geo_proj_cm
 from zarr_cm import spatial as spatial_cm
 
 from eopf_geozarr.conversion import constants, encoding_utils, fs_utils
+from eopf_geozarr.cpm.routing import product_type_of
 from eopf_geozarr.data_api.geozarr.types import (
     XARRAY_ENCODING_KEYS,
     XarrayDataArrayEncoding,
@@ -53,6 +56,48 @@ GeoTransform = tuple[float, float, float, float, float, float]
 """Affine transform as GDAL-style 6-tuple `(a, b, c, d, e, f)`."""
 Bbox = tuple[float, float, float, float]
 """Bounding box `(xmin, ymin, xmax, ymax)`."""
+
+
+class SType(StrEnum):
+    # detection based on the filename or stac_discovery/propertied/product:type
+    # cropping of filename to 12 chars to remove right trailing filename which might contaminate the detection
+    # S1
+    GRD = "GRD"
+    SLC = "SLC"
+    OCN = "OCN"
+
+    # S2
+    L1C = "L1C"
+    L2A = "L2A"
+
+    # S3 - OLCI
+    LFR = "LFR"
+    LRR = "LRR"
+    EFR = "EFR"
+    ERR = "ERR"
+
+    # S3 - SLSTR
+    RBT = "RBT"
+    FRP = "FRP"
+    LST = "LST"
+
+    @classmethod
+    def from_filename(cls, filename: str | None) -> SType | None:
+        if not filename:
+            return None
+        head = filename.rstrip("/").rsplit("/", 1)[-1][:12]
+        for member in cls:
+            if member.value in head:
+                return member
+        return None
+
+    @classmethod
+    def from_datatree(cls, dt: xr.DataTree) -> SType | None:
+        """Product level from `stac_discovery` `product:type`, else from the tree name.
+
+        A tree opened from a Zarr store has no name, so the name alone is not enough.
+        """
+        return cls.from_filename(product_type_of(dt)) or cls.from_filename(dt.name)
 
 
 def _has_regular_xy_grid(dataset: xr.Dataset) -> bool:
@@ -293,12 +338,18 @@ def updated_root_consolidation(
     Three steps have to be done to achieve a uniform processing of all modes:
         1.) Create consolidated 'measurement' groups for S1, S2 (in reflectance), and S3
         2.) Consolidate any additional groups which are added (this is reserved for multiscale groups)
-        3.) Write metadata for subroots (first) and roots, and consolidate subroots OR root.
+        3.) Fill in `stac_discovery/assets` of any product:
+                - S1 fill in and replace missing/incorrect entries
+                - S2 fill in multiscale assets and ingested missing ones
+            Write metadata for subroots (first) and roots, and consolidate subroots OR root.
             Every `stac_discovery` asset of a band array (measurements and multiscale levels,
             see `band_array_paths`) gets its STAC `statistics`.
-    Note: The addition of multiscale induced assets to STAC has to be implemented before this function call with add_multiscale_pyramids_to_stac_metadata(...)
     Note: Nothing may write group attributes after this call, else the root's consolidated metadata becomes stale
     """
+    product_type = SType.from_datatree(dt_input)
+    if product_type is None:
+        log.warning("Couldnt determine `product_type` from `dt_input`. ")
+
     # this might be a potential issue for s3, as many paths added to output_path are '/*' which will lead to '*//*'
     output_path = output_path.rstrip("/")
 
@@ -322,6 +373,32 @@ def updated_root_consolidation(
     # subroot groups are only present for s1, and we need to consolidate its measurements with /subgroup/measurements
     # its guaranteed, that this is the deepest consolidation for the dtree, above it is only the subroot
     subroot_groups = get_subroots(dt_input.groups)
+
+    # SLC is wrong on stac_discovery/assets in root so its dropped and refilled entirely
+    if product_type == SType.SLC:
+        log.warning(
+            "SLC products carry faulty stac_discovery/assets in CPM 3.0.0 (only a single burst) so they need to be purged"
+        )
+        dt_input.attrs.setdefault("stac_discovery", {})["assets"] = {}
+
+    # apply generic addition of missing stac assets to root zarr.json
+    # -> fill in multiscales/injected bands for S2 and missing/incomplete ones for S1
+    extend_stac_discovery_metadata(
+        datasets=datasets, dt_attributes=dt_input.attrs, product_type=product_type
+    )
+
+    # apply generic addition of missing stac assets to sub-root zarr.json
+    # -> eg S1 SLC and GRD subroots which were missing/completly incomplete
+    if subroot_groups:
+        for subroot in subroot_groups:
+            # by filtering as a prefix and start with, we guard against possible `x/subroot/array` cases, which possibly arrive with OCN
+            prefix = f"{subroot.rstrip('/')}/"
+            subroot_datasets = {k: v for k, v in datasets.items() if k.startswith(prefix)}
+            extend_stac_discovery_metadata(
+                datasets=subroot_datasets,
+                dt_attributes=dt_input[subroot].attrs,
+                product_type=product_type,
+            )
 
     # STAC statistics of the band assets (measurements and multiscale levels). Asset hrefs
     # are relative to the store root (also in S1 subroots), so the statistics are computed
@@ -911,17 +988,91 @@ def build_convention_attrs(
     return cast("MultiConventionAttrs", result)
 
 
-def add_multiscale_pyramids_to_stac_metadata(
-    datasets: Mapping[str, object], dt_attributes: dict[Hashable, Any]
+def _resolve_asset_keys(candidates: Mapping[str, str], taken: set[str]) -> dict[str, str]:
+    """Map each href to a unique STAC asset key, independent of the order of `candidates`.
+
+    `candidates` maps an array href to its base key. A base key used by a single href
+    (and not in `taken`) is kept. Otherwise *all* hrefs sharing it are qualified with
+    their closest parent groups, as few as needed to tell them apart, e.g.
+    `elevation_angle_IW1_258175_antenna_pattern` and `elevation_angle_IW1_258175_gcp`.
+    If the group paths cannot separate them, a counter is appended (sorted by href).
+    `taken` are the keys already in use (e.g. assets of the input); they are never reused.
+    """
+    # aggregate the possible overlaps by key to group them for resolving duplicate keys
+    by_key: dict[str, list[str]] = defaultdict(list)
+    for href, key in candidates.items():
+        by_key[key].append(href)
+
+    used = set(taken)
+    resolved: dict[str, str] = {}
+
+    for key, hrefs in sorted(by_key.items()):
+        hrefs = sorted(hrefs)
+
+        # best case: key was not present in initial `assets` or is there are just no duplicates
+        if len(hrefs) == 1 and key not in used:
+            names = {hrefs[0]: key}
+
+        # determine resolving asset key to exclude duplicate names
+        else:
+            # groups of each href, closest last; the array name itself is excluded
+            parents = {h: h.strip("/").split("/")[:-1] for h in hrefs}
+            for depth in range(1, max(len(p) for p in parents.values()) + 1):
+                names = {h: "_".join([key, *p[-depth:]]) for h, p in parents.items()}
+                if len(set(names.values())) == len(hrefs) and not set(names.values()) & used:
+                    break
+
+            # worst case: group paths alone don't separate them -> add a deterministic counter (sorted to remain reproducible between calls)
+            else:
+                names = {}
+                counter = 0
+                for h in hrefs:
+                    counter += 1
+                    while f"{key}_{counter}" in used:
+                        counter += 1
+                    names[h] = f"{key}_{counter}"
+            log.info("Qualified duplicate STAC asset keys", base_key=key, assets=names)
+        used.update(names.values())
+        resolved.update(names)
+    return resolved
+
+
+def extend_stac_discovery_metadata(
+    datasets: Mapping[str, object],
+    dt_attributes: dict[Hashable, Any],
+    product_type: SType | None,
 ) -> dict[Hashable, Any]:
     """Add a `stac_discovery` asset for every written array that no asset references yet.
 
     Covers the multiscale levels and the bands injected into native levels (e.g. b08
     in r20m/r60m), so every band can carry its STAC statistics. A new asset is keyed
     `<variable>_<group name>` (e.g. `b02_r120m`); a key already in use is not replaced.
+
+    Covers the addition of missing assets (due to CPM not adding them), to S1 GRD and SLC.
     """
+    if product_type is None:
+        log.warning(
+            "`product_type` is not determined, will fall back to base method of assigning asset_keys."
+        )
+        return dt_attributes
+
+    print("product_type", product_type)
+
+    if product_type in {
+        SType.LFR,
+        SType.LRR,
+        SType.EFR,
+        SType.ERR,
+        SType.RBT,
+        SType.FRP,
+        SType.LST,
+    }:
+        log.warning("extending the stac_discovery metadata for S3 is not supported yet.")
+        return dt_attributes
+
     stac_attrs = dt_attributes.get("stac_discovery", {}).get("assets")
-    if not stac_attrs:
+    # no `assets` at all (e.g. test trees) -> nothing to extend; an empty `{}` (e.g. SLC) still gets filled
+    if stac_attrs is None:
         return dt_attributes
 
     existing_hrefs = {
@@ -930,25 +1081,51 @@ def add_multiscale_pyramids_to_stac_metadata(
         if isinstance(asset, Mapping) and _is_store_href(asset.get("href"))
     }
 
-    for group_path, ds in datasets.items():
+    # href -> base asset key; duplicate keys are resolved after the loop (`_resolve_asset_keys`)
+    candidates: dict[str, str] = {}
+    # sorted for a deterministic order: the groups of a tree opened from Zarr come in listing order
+    for group_path, ds in sorted(datasets.items(), key=lambda item: item[0]):
         if ds is None:
             continue
         # catch object != dataset for typing
         if not isinstance(ds, xr.Dataset):
             log.warning("Found non-dataset object in datasets!", dataset=ds)
             continue
-        resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
         for var_name in ds.data_vars:
             href = f"{group_path}/{var_name}"
+
+            # skip if its spatial_ref, root, or already included
             if var_name == "spatial_ref" or href.strip("/") in existing_hrefs:
                 continue
-            asset_key = f"{var_name}_{resolution}"
-            if asset_key in stac_attrs:
-                log.warning(
-                    "STAC asset key already in use, not adding an asset", asset=asset_key, href=href
+            # S2 specific catch
+            if product_type == SType.L2A or product_type == SType.L1C:
+                resolution = group_path.rsplit("/", 1)[-1]  # "r120m"
+                asset_key = f"{var_name}_{resolution}"
+
+            # GRD specific catch
+            elif product_type == SType.GRD or product_type == SType.OCN:
+                asset_key = str(var_name)
+
+            # SLC specific parsing
+            elif product_type == SType.SLC:
+                # get and assign burst_id -> asset_key
+                # href = '/S01SIWSLC_20260731T234807_0014_C050_C079_0116E8_IW1_258173/conditions/antenna_pattern/swath'
+                # burst_id = 'IW1_258173'
+                burst_id = "_".join(href.split("/")[1].split("_")[-2:])
+                asset_key = f"{var_name}_{burst_id}"
+
+            # catch-all for non-None `product_types` as all other ones are set. Remove once all products are added`covered and switch to generic assigning method
+            else:
+                # not reached, but kept in place as sepcific tests catch that behaviour and a changing `SType` behaviour might make it relevant
+                raise ValueError(
+                    "until now only `L2A`, `L1C`, `GRD`, `OCN`, and `SLC` are supported."
                 )
-                continue
-            stac_attrs[asset_key] = {"href": href, "title": asset_key}
+
+            candidates[href] = asset_key
+
+    # resolve duplicate keys only once all are known, so the keys do not depend on the group order
+    for href, asset_key in sorted(_resolve_asset_keys(candidates, set(stac_attrs)).items()):
+        stac_attrs[asset_key] = {"href": href, "title": asset_key}
 
     return dt_attributes
 
