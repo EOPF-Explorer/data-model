@@ -288,6 +288,11 @@ PRODUCT_CONVERTERS: dict[str, Callable[[pathlib.Path], pathlib.Path]] = {
     "s2": _convert_s2,
 }
 
+GEOREFERENCED_CONVERTERS: dict[str, Callable[[pathlib.Path], pathlib.Path]] = {
+    "s1": _convert_s1,
+    "s2": _convert_s2,
+}
+
 #: Converters that still write the legacy layout (native at group root with
 #: asset "."), which xr.open_datatree rejects. The xfail keeps the hard
 #: requirement on record until the generic converter migrates (cf. PR #212).
@@ -303,6 +308,15 @@ def converted_store(
 ) -> tuple[pathlib.Path, str]:
     name = str(request.param)
     store = PRODUCT_CONVERTERS[name](tmp_path_factory.mktemp(name))
+    return store, name
+
+
+@pytest.fixture(scope="module", params=sorted(GEOREFERENCED_CONVERTERS), ids=str)
+def georeferenced_converted_store(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[pathlib.Path, str]:
+    name = str(request.param)
+    store = GEOREFERENCED_CONVERTERS[name](tmp_path_factory.mktemp(name))
     return store, name
 
 
@@ -332,10 +346,10 @@ def _multiscale_level_paths(store: pathlib.Path) -> list[str]:
 
 
 def test_every_level_is_regular_grid_with_crs(
-    converted_store: tuple[pathlib.Path, str],
+    georeferenced_converted_store: tuple[pathlib.Path, str],
 ) -> None:
     """Hard requirement: each pyramid level is a regular grid with a real CRS."""
-    store, name = converted_store
+    store, name = georeferenced_converted_store
     levels = _multiscale_level_paths(store)
     assert levels, f"{name}: no multiscale groups found in {store}"
     for level in levels:
@@ -363,6 +377,13 @@ def test_store_opens_as_datatree(converted_store: tuple[pathlib.Path, str]) -> N
     if name in DATATREE_XFAIL:
         pytest.xfail(DATATREE_XFAIL[name])
     xr.open_datatree(str(store), engine="zarr", consolidated=False, chunks={})
+
+
+@pytest.fixture(scope="module")
+def native_olci_store(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
+    out = tmp_path_factory.mktemp("olci_native") / "olci_native.zarr"
+    convert_olci_optimized(_make_minimal_olci_efr_datatree(raw=True), output_path=str(out))
+    return out
 
 
 def test_olci_native_store_opens_with_swath_geolocation(
