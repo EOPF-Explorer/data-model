@@ -30,6 +30,7 @@ import rasterio.transform
 import structlog
 import xarray as xr
 
+from eopf_geozarr.conversion.encoding_utils import find_fill_value
 from eopf_geozarr.s3_olci_optimization.olci_band_mapping import OLCI_BANDS
 
 if TYPE_CHECKING:
@@ -58,14 +59,6 @@ def decimate_swath(
     if not indexers:
         return ds
     return ds.isel(indexers)
-
-
-def _fill_value_of(var: xr.DataArray) -> int | float | None:
-    """Declared ``_FillValue`` from attrs or encoding, or None."""
-    fill = var.attrs.get("_FillValue")
-    if fill is None:
-        fill = var.encoding.get("_FillValue")
-    return fill
 
 
 def _swath_geolocation_pair(ds: xr.Dataset, dims: tuple[str, str]) -> tuple[str, str] | None:
@@ -134,7 +127,7 @@ def _geodesic_block_mean(
     def unpacked(var: xr.DataArray) -> np.ndarray:
         """Raw values as float64 degrees, with fill pixels as NaN."""
         vals = np.asarray(var.values, dtype="float64")
-        fill = _fill_value_of(var)
+        fill = find_fill_value(var)
         if fill is not None and not np.isnan(float(fill)):
             vals = np.where(vals == float(fill), np.nan, vals)
         scale, offset = cf_packing(var)
@@ -165,10 +158,14 @@ def _geodesic_block_mean(
         vals = (degrees - offset) / scale
         if np.issubdtype(orig.dtype, np.integer):
             vals = np.round(vals)
-        fill = _fill_value_of(orig)
+        fill = find_fill_value(orig)
         if fill is not None and not np.isnan(float(fill)):
             vals = np.where(np.isnan(vals), float(fill), vals)
-        return xr.DataArray(vals.astype(orig.dtype), dims=out_dims, attrs=orig.attrs)
+
+        out_coord = xr.DataArray(vals.astype(orig.dtype), dims=out_dims, attrs=orig.attrs)
+        cast_result: xr.DataArray = out_coord.astype(orig.dtype)
+        cast_result.encoding = orig.encoding
+        return cast_result
 
     return restore(lat, lat_mean), restore(lon, lon_mean)
 
@@ -286,11 +283,11 @@ def reduce_swath(
                 log.info("Transposing band to canonical spatial dim order", band=name)
                 var = var.transpose(*dims)
             # Fill-aware block averaging for radiance bands.
-            fill_value: int | float | None = _fill_value_of(var)
+            fill_value: int | float | None = find_fill_value(var)
             orig_dtype = var.dtype
 
             float_var = var.astype("float64")
-            if fill_value is not None:
+            if fill_value is not None and np.issubdtype(orig_dtype, np.integer):
                 if np.isnan(float(fill_value)):
                     # NaN sentinel (float sources): equality comparison would
                     # be a no-op (NaN != NaN is always True); mask explicitly.
@@ -310,7 +307,7 @@ def reduce_swath(
             # coarsen+mask graph — the heaviest compute in the converter.
             averaged = averaged.compute()
 
-            if fill_value is not None:
+            if fill_value is not None and np.issubdtype(orig_dtype, np.integer):
                 valid_mask = ~averaged.isnull().values
                 fill_da = xr.where(averaged.isnull(), float(fill_value), averaged)
                 result_arr = fill_da.values
@@ -347,10 +344,15 @@ def reduce_swath(
 
             out_var = xr.DataArray(result_val, dims=averaged.dims, attrs=var.attrs)
 
+            # copy attrs/encoding over to apply relecant metadata
+            # -> will also apply chunking/sharding which could be considerd erroneous, but rechunking will resolve this afterwards
+            cast_result: xr.DataArray = out_var.astype(var.dtype)
+            cast_result.encoding = var.encoding
+
             if name in ds.data_vars:
-                result_vars[name] = out_var
+                result_vars[name] = cast_result
             else:
-                result_coords[name] = out_var
+                result_coords[name] = cast_result
 
         elif is_swath_2d:
             # Coordinate or non-radiance 2-D swath variable: decimate.

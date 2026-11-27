@@ -54,7 +54,9 @@ from eopf_geozarr.cpm.routing import (
 )
 from eopf_geozarr.generic_optimization.generic_converter import create_generic_geozarr_dataset
 from eopf_geozarr.s2_optimization.s2_converter import convert_s2_optimized
-from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
+from eopf_geozarr.s3_olci_optimization.olci_converter import (
+    convert_olci_optimized,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -182,7 +184,8 @@ class GeoZarrWriter(EOWriter):
         compression_level
             S2 optimized pipeline only: blosc-zstd compression level.
         scale_offset_codec
-            S2 optimized pipeline only: pack reflectance with the Zarr
+            S2 optimized and generic-rechunker pipelines only (the OLCI
+            pipeline raises ``NotImplementedError``): pack reflectance with the Zarr
             ``scale_offset`` + ``cast_value`` codecs. By default it is written
             as in the ESA product: source integers with CF
             ``scale_factor``/``add_offset``/``_FillValue``, and STAC
@@ -240,6 +243,12 @@ class GeoZarrWriter(EOWriter):
             if spatial_chunk is not None
             else _DEFAULT_SPATIAL_CHUNK[selected_pipeline]
         )
+        if selected_pipeline == "s3-olci-optimized" and scale_offset_codec:
+            raise NotImplementedError(
+                "scale_offset_codec=True is not supported for Sentinel-3 OLCI: its packed "
+                "int32/uint32 variables (lat/lon, geometry angles) do not round-trip through "
+                "the float32 decoding of the scale_offset codecs. Use the CF layout (default)."
+            )
         if selected_pipeline == "generic" and groups is None:
             raise ValueError(
                 "The generic GeoZarr pipeline requires the 'groups' option naming the "
@@ -273,8 +282,6 @@ class GeoZarrWriter(EOWriter):
                 enable_sharding=enable_sharding,
                 spatial_chunk=resolved_spatial_chunk,
                 compression_level=compression_level,
-                min_dimension=min_dimension,
-                output_grid=output_grid,
             )
 
         if selected_pipeline == "generic-rechunker":

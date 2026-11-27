@@ -32,7 +32,7 @@ from eopf_geozarr.cpm.writer import ENGINE_NAME, GeoZarrWriter, get_cli_command
 
 from .conftest import create_zarrv2_group_from_json, s2_example_json_paths
 from .test_generic_rechunker import build_synthetic_tree, read_array
-from .test_olci_integration import build_synthetic_olci
+from .test_olci_integration import _make_minimal_olci_efr_datatree, _make_minimal_olci_err_datatree
 
 
 def test_engine_registered() -> None:
@@ -125,41 +125,77 @@ def test_write_s2_keep_scale_offset_is_deprecated(tmp_path: pathlib.Path) -> Non
     assert {"ScaleOffset", "CastValue"} <= set(_codec_names(b04))
 
 
-def test_write_olci_end_to_end(tmp_path: pathlib.Path) -> None:
-    """An in-memory OLCI tree (no zarr backend) is auto-detected and written.
+def test_write_olci_efr_end_to_end(tmp_path: pathlib.Path) -> None:
+    """An in-memory OLCI EFR tree (no zarr backend) is auto-detected and written.
 
-    Uses ``build_synthetic_olci``, unbacked by any zarr store -- the same
-    shape the CPM SAFE reader hands writers -- to exercise both the
-    structural-fallback routing (no stac_discovery attrs are set) and the
-    "no backing store" path the S2 pipeline already has to tolerate.
-
-    1024x1024 with the default min_dimension=256 yields r0 + two overview
-    levels (see test_olci_integration.py::test_convert_olci_creates_overviews);
-    the default 512x480 fixture size yields only r0.
+    Uses ``_make_minimal_olci_datatree``, unbacked by any zarr store -- the same
+    shape the CPM SAFE reader hands writers. Generates overviews r0, r1, r2, r3
     """
-    dtree = build_synthetic_olci(rows=1024, cols=1024)
+    dtree = _make_minimal_olci_efr_datatree(raw=True)
     target = tmp_path / "output.zarr"
 
     write_datatree(dtree, target, engine=ENGINE_NAME)
 
     root = zarr.open_group(str(target), mode="r")
     measurements = root["measurements"]
-    for level in ("r0", "r2", "r4"):
+    for level in ("r0", "r1", "r2", "r3"):
         assert level in measurements, f"missing pyramid level {level}"
     assert "multiscales" in measurements.attrs
     # Unlike the S2 pipeline, native-mode OLCI output has no projected CRS,
     # so there is no store-root spatial:bbox to assert here.
 
 
-def test_write_olci_forced_pipeline(tmp_path: pathlib.Path) -> None:
+def test_write_olci_err_end_to_end(tmp_path: pathlib.Path) -> None:
+    """An in-memory OLCI ERR tree (no zarr backend) is auto-detected and written.
+
+    Uses ``_make_minimal_olci_datatree``, unbacked by any zarr store -- the same
+    shape the CPM SAFE reader hands writers. Generates overviews r0, r1, r2
+    """
+    dtree = _make_minimal_olci_err_datatree(raw=True)
+    target = tmp_path / "output.zarr"
+
+    write_datatree(dtree, target, engine=ENGINE_NAME)
+
+    root = zarr.open_group(str(target), mode="r")
+    measurements = root["measurements"]
+    for level in ("r0", "r1", "r2"):
+        assert level in measurements, f"missing pyramid level {level}"
+    assert "multiscales" in measurements.attrs
+    # Unlike the S2 pipeline, native-mode OLCI output has no projected CRS,
+    # so there is no store-root spatial:bbox to assert here.
+
+
+def test_write_olci_efr_forced_pipeline(tmp_path: pathlib.Path) -> None:
     """s3_olci_optimized=True selects the OLCI pipeline explicitly."""
-    dtree = build_synthetic_olci()
+    dtree = _make_minimal_olci_efr_datatree(raw=True)
     target = tmp_path / "output.zarr"
 
     write_datatree(dtree, target, engine=ENGINE_NAME, s3_olci_optimized=True)
 
     root = zarr.open_group(str(target), mode="r")
     assert "r0" in root["measurements"]
+
+
+def test_write_olci_err_forced_pipeline(tmp_path: pathlib.Path) -> None:
+    """s3_olci_optimized=True selects the OLCI pipeline explicitly."""
+    dtree = _make_minimal_olci_err_datatree(raw=True)
+    target = tmp_path / "output.zarr"
+
+    write_datatree(dtree, target, engine=ENGINE_NAME, s3_olci_optimized=True)
+
+    root = zarr.open_group(str(target), mode="r")
+    assert "r0" in root["measurements"]
+
+
+def test_write_olci_rejects_scale_offset_codec(tmp_path: pathlib.Path) -> None:
+    """The OLCI pipeline has no scale_offset_codec; the writer rejects it before touching the target."""
+    target = tmp_path / "bad_scale_offset_codec.zarr"
+    dtree = _make_minimal_olci_err_datatree(raw=False)
+    with pytest.raises(NotImplementedError, match="scale_offset_codec"):
+        write_datatree(
+            dtree, target, engine=ENGINE_NAME, s3_olci_optimized=True, scale_offset_codec=True
+        )
+    assert not target.exists()
 
 
 def test_write_rejects_both_s2_and_olci_forced(tmp_path: pathlib.Path) -> None:

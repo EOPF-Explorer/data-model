@@ -31,7 +31,7 @@ S2_PRODUCT_TYPE_PREFIXES = ("S02MSIL1C", "S02MSIL2A")
 #: Deliberately only the L1 EFR/ERR radiance products: the L2 products
 #: (LRR, LFR, ...) do not have the flat oa01..oa21 radiance layout the
 #: optimized pipeline expects.
-S3_OLCI_PRODUCT_TYPE_PREFIXES = ("S03OLCEFR", "S03OLCERR")
+S3_OLCI_PRODUCT_TYPE_PREFIXES = ("S03OLCEFR", "S03OLCERR", "S03OLCLFR", "S03OLCLRR")
 
 #: Native Sentinel-2 resolution groups expected under measurements/reflectance.
 _S2_NATIVE_RESOLUTIONS = frozenset({"r10m", "r20m", "r60m"})

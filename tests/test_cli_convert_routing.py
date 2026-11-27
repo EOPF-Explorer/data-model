@@ -137,13 +137,12 @@ def test_convert_command_routes_olci_with_raw_input(
     ``mask_and_scale=False``: radiance must arrive packed (uint16 with CF
     scale_factor/add_offset in .attrs), not CF-decoded to float.
     """
-    args = _convert_args(str(s3_olci_group_example), str(tmp_path / "out.zarr"), min_dimension=128)
+    args = _convert_args(str(s3_olci_group_example), str(tmp_path / "out.zarr"))
     cli.convert_command(args)
 
     assert "olci" in calls_or_fail(converter_spy)
     assert "s2_optimized" not in converter_spy
     assert "generic" not in converter_spy
-    assert converter_spy["olci"]["min_dimension"] == 128
 
     dt_received = converter_spy["olci"]["dt_input"]
     radiance = next(

@@ -809,6 +809,7 @@ def create_uniform_encoding(
             # and `add_offset` are attributes, so xarray writes them unchanged.
             if packing.fill_value is not None:
                 var_encoding["_FillValue"] = packing.fill_value
+                var_encoding["fill_value"] = packing.fill_value
         elif packing is not None:
             var_encoding["filters"] = encoding_utils._scale_offset_filters(packing)
             var_encoding["fill_value"] = "NaN"
@@ -828,16 +829,16 @@ def create_uniform_encoding(
         # coord_encoding: XarrayDataArrayEncoding = {}
 
         if chunk_and_shard_coords:
-            if (
-                coord_name in dataset.xindexes
-            ):  # skip indexed coords which are likely not chunked -> check for chunked
-                continue
-            coord_encoding = build_dataarray_encoding(
-                coord_data,
-                enable_sharding=enable_sharding,
-                compression_level=compression_level,
-                shard_along_smallest_dimension=shard_along_smallest_dimension,
-            )
+            if coord_name in dataset.xindexes:  # skip indexed coords which are likely not chunked
+                # apply compressor anyway, to guarantee an encoding is set, to avoid conflicts in auto-assigning a mismatched encoding with zarr v2
+                coord_encoding: XarrayDataArrayEncoding = {"compressors": ()}
+            else:
+                coord_encoding = build_dataarray_encoding(
+                    coord_data,
+                    enable_sharding=enable_sharding,
+                    compression_level=compression_level,
+                    shard_along_smallest_dimension=shard_along_smallest_dimension,
+                )
         else:
             coord_encoding: XarrayDataArrayEncoding = {"compressors": ()}
 

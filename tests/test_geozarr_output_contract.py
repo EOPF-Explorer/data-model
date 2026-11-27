@@ -36,7 +36,7 @@ from eopf_geozarr.conversion import create_geozarr_dataset
 from eopf_geozarr.s3_olci_optimization.olci_converter import convert_olci_optimized
 
 from .test_integration_sentinel1 import MockSentinel1L1GRDBuilder
-from .test_olci_integration import build_synthetic_olci
+from .test_olci_integration import _make_minimal_olci_efr_datatree, _make_minimal_olci_err_datatree
 
 if TYPE_CHECKING:
     import pathlib
@@ -235,14 +235,25 @@ def build_sample_sentinel2_datatree() -> xr.DataTree:
     return dt
 
 
-def _convert_olci(tmp: pathlib.Path) -> pathlib.Path:
-    out = tmp / "olci.zarr"
+def _convert_olci_efr(tmp: pathlib.Path) -> pathlib.Path:
+    out = tmp / "olci_efr.zarr"
+
     convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256),
+        _make_minimal_olci_efr_datatree(raw=True),
         output_path=str(out),
-        min_dimension=64,
-        output_grid="EPSG:4326",
     )
+
+    return out
+
+
+def _convert_olci_err(tmp: pathlib.Path) -> pathlib.Path:
+    out = tmp / "olci_err.zarr"
+
+    convert_olci_optimized(
+        _make_minimal_olci_err_datatree(raw=True),
+        output_path=str(out),
+    )
+
     return out
 
 
@@ -271,7 +282,13 @@ def _convert_s2(tmp: pathlib.Path) -> pathlib.Path:
 
 
 PRODUCT_CONVERTERS: dict[str, Callable[[pathlib.Path], pathlib.Path]] = {
-    "olci": _convert_olci,
+    "olci_efr": _convert_olci_efr,
+    "olci_err": _convert_olci_err,
+    "s1": _convert_s1,
+    "s2": _convert_s2,
+}
+
+GEOREFERENCED_CONVERTERS: dict[str, Callable[[pathlib.Path], pathlib.Path]] = {
     "s1": _convert_s1,
     "s2": _convert_s2,
 }
@@ -291,6 +308,15 @@ def converted_store(
 ) -> tuple[pathlib.Path, str]:
     name = str(request.param)
     store = PRODUCT_CONVERTERS[name](tmp_path_factory.mktemp(name))
+    return store, name
+
+
+@pytest.fixture(scope="module", params=sorted(GEOREFERENCED_CONVERTERS), ids=str)
+def georeferenced_converted_store(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[pathlib.Path, str]:
+    name = str(request.param)
+    store = GEOREFERENCED_CONVERTERS[name](tmp_path_factory.mktemp(name))
     return store, name
 
 
@@ -320,10 +346,10 @@ def _multiscale_level_paths(store: pathlib.Path) -> list[str]:
 
 
 def test_every_level_is_regular_grid_with_crs(
-    converted_store: tuple[pathlib.Path, str],
+    georeferenced_converted_store: tuple[pathlib.Path, str],
 ) -> None:
     """Hard requirement: each pyramid level is a regular grid with a real CRS."""
-    store, name = converted_store
+    store, name = georeferenced_converted_store
     levels = _multiscale_level_paths(store)
     assert levels, f"{name}: no multiscale groups found in {store}"
     for level in levels:
@@ -356,9 +382,7 @@ def test_store_opens_as_datatree(converted_store: tuple[pathlib.Path, str]) -> N
 @pytest.fixture(scope="module")
 def native_olci_store(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     out = tmp_path_factory.mktemp("olci_native") / "olci_native.zarr"
-    convert_olci_optimized(
-        build_synthetic_olci(rows=256, cols=256), output_path=str(out), min_dimension=64
-    )
+    convert_olci_optimized(_make_minimal_olci_efr_datatree(raw=True), output_path=str(out))
     return out
 
 
